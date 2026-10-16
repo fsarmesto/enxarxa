@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   if (secret && req.headers.get("x-cron-secret") === secret) {
     const { data: users } = await db.from("profiles").select("user_id");
     let ok = 0;
-    for (const u of users || []) if ((await syncUser(db, u.user_id)).ok) ok++;
+    for (const u of users || []) if ((await syncUser(db, u.user_id, { waitKm: true })).ok) ok++;
     return json({ users: users?.length || 0, ok });
   }
   const user = await userFromRequest(db, req);

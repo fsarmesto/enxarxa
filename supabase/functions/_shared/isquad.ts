@@ -33,6 +33,23 @@ async function get(url: string, jar: Jar): Promise<Response> {
   return res;
 }
 
+async function designaciones(jar: Jar, season?: string): Promise<string> {
+  if (season) jar.set("TemporadaSelect", season); // la web de iSquad cambia de temporada con esta cookie
+  const page = await get(`${BASE}/arbitros_designaciones.php?rol=1`, jar);
+  if (page.status >= 300) { await page.body?.cancel(); throw new IsquadAuthError("login"); }
+  return await page.text();
+}
+
+// Temporada que iSquad muestra por defecto y la anterior (la siguiente en su desplegable).
+export function seasons(html: string): { current: string | null; previous: string | null } {
+  // deno-lint-ignore no-explicit-any
+  const { document } = parseHTML(html) as any;
+  // deno-lint-ignore no-explicit-any
+  const opts = [...document.querySelectorAll("#temporadaSelect option")].map((o: any) => ({ v: o.getAttribute("value"), sel: o.hasAttribute("selected") }));
+  const i = opts.findIndex((o) => o.sel);
+  return { current: i >= 0 ? opts[i].v : null, previous: i >= 0 ? opts[i + 1]?.v ?? null : null };
+}
+
 export async function fetchDesignaciones(login: string, password: string): Promise<ScrapedMatch[]> {
   const jar: Jar = new Map();
   const first = await get(`${BASE}/loginarbitros.php`, jar); await first.body?.cancel();
@@ -48,11 +65,27 @@ export async function fetchDesignaciones(login: string, password: string): Promi
   });
   keep(jar, res); await res.body?.cancel();
 
-  const page = await get(`${BASE}/arbitros_designaciones.php?rol=1`, jar);
-  if (page.status >= 300) { await page.body?.cancel(); throw new IsquadAuthError("login"); }
-  const parsed = parseDesignaciones(await page.text());
+  const html = await designaciones(jar);
+  const parsed = parseDesignaciones(html);
   if (!parsed) throw new IsquadAuthError("login");
-  return parsed;
+
+  // También la temporada anterior: al empezar una nueva, los partidos pendientes de cobro siguen allí.
+  const { previous } = seasons(html);
+  const prev = previous ? parseDesignaciones(await designaciones(jar, previous)) ?? [] : [];
+  return uniqueIds([...prev, ...parsed]);
+}
+
+// En concentraciones y campeonatos iSquad repite el mismo código en varios partidos: a esos se les añade
+// fecha y hora. Los demás conservan el código tal cual para que un cambio de horario no pierda lo marcado.
+export function uniqueIds(list: ScrapedMatch[]): ScrapedMatch[] {
+  const n = new Map<string, number>();
+  for (const m of list) n.set(m.id, (n.get(m.id) || 0) + 1);
+  const out = new Map<string, ScrapedMatch>();
+  for (const m of list) {
+    const id = n.get(m.id)! > 1 ? `${m.id}@${m.date}T${m.time}` : m.id;
+    out.set(id, { ...m, id });
+  }
+  return [...out.values()];
 }
 
 const MONTHS: Record<string, number> = { enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12 };

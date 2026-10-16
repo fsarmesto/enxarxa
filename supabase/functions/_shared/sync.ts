@@ -26,12 +26,13 @@ async function geocode(text: string, key: string): Promise<[number, number] | nu
   const r = await fetch(u); if (!r.ok) return null;
   const f = (await r.json()).features?.[0]; return f ? f.geometry.coordinates : null;
 }
-export async function roadKm(origin: string, address: string): Promise<number | null> {
-  const key = Deno.env.get("ORS_KEY"); if (!key) return null;
+// El plan gratuito de ORS admite 40 rutas por minuto: se espacian las consultas y se limita cada pasada.
+const ORS_GAP_MS = 1600, ORS_MAX_PER_RUN = 50;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function route(a: [number, number], address: string, key: string): Promise<number | null> {
   try {
-    const clean = address.replace(/,\s*ESPA[ÑN]A\s*$/i, "");
-    const [a, b] = await Promise.all([geocode(origin + ", Catalunya", key), geocode(clean, key)]);
-    if (!a || !b) return null;
+    const b = await geocode(address.replace(/,\s*ESPA[ÑN]A\s*$/i, ""), key);
+    if (!b) return null;
     const r = await fetch(`https://api.openrouteservice.org/v2/directions/driving-car?api_key=${key}&start=${a.join(",")}&end=${b.join(",")}`);
     if (!r.ok) return null;
     const m = (await r.json()).features?.[0]?.properties?.summary?.distance;
@@ -39,7 +40,27 @@ export async function roadKm(origin: string, address: string): Promise<number | 
   } catch { return null; }
 }
 
-export async function storeMatches(db: SupabaseClient, userId: string, origin: string, matches: ScrapedMatch[]) {
+// Km de ida de los pabellones que aún no los tienen. Los que no salgan se reintentan en la siguiente sincronización.
+export async function fillKm(db: SupabaseClient, userId: string, origin: string) {
+  const key = Deno.env.get("ORS_KEY"); if (!key) return;
+  const { data: todo } = await db.from("venues").select("venue_key").eq("user_id", userId).is("km", null);
+  if (!todo?.length) return;
+  const { data: ms } = await db.from("matches").select("venue_key, addr, venue").eq("user_id", userId)
+    .in("venue_key", todo.map((v) => v.venue_key));
+  const where = new Map<string, string>();
+  for (const m of ms || []) if (!where.has(m.venue_key)) where.set(m.venue_key, m.addr || m.venue);
+  const a = await geocode(origin + ", Catalunya", key).catch(() => null);
+  if (!a) return;
+  let n = 0;
+  for (const [k, address] of where) {
+    if (n++ >= ORS_MAX_PER_RUN) break;
+    if (n > 1) await sleep(ORS_GAP_MS);
+    const km = await route(a, address, key);
+    if (km != null) await db.from("venues").update({ km }).eq("user_id", userId).eq("venue_key", k).is("km", null);
+  }
+}
+
+export async function storeMatches(db: SupabaseClient, userId: string, matches: ScrapedMatch[]) {
   const now = new Date().toISOString();
   if (matches.length) {
     // Solo se envían las columnas que vienen de iSquad: lo que el árbitro marca a mano no se toca.
@@ -53,20 +74,24 @@ export async function storeMatches(db: SupabaseClient, userId: string, origin: s
   const have = new Set((known || []).map((v) => v.venue_key));
   const fresh = new Map<string, ScrapedMatch>();
   for (const m of matches) if (!have.has(m.venue_key) && !fresh.has(m.venue_key)) fresh.set(m.venue_key, m);
-  for (const [k, m] of fresh) {
-    const km = await roadKm(origin, m.addr || m.venue);
-    await db.from("venues").insert({ user_id: userId, venue_key: k, label: venueLabel(m.venue, m.addr), km });
+  if (fresh.size) {
+    await db.from("venues").insert([...fresh].map(([k, m]) => ({ user_id: userId, venue_key: k, label: venueLabel(m.venue, m.addr), km: null })));
   }
   await db.from("profiles").update({ last_sync: now, last_error: null }).eq("user_id", userId);
 }
 
-export async function syncUser(db: SupabaseClient, userId: string) {
+// Trabajo que sigue tras responder (Supabase mantiene viva la función hasta que acaba).
+// deno-lint-ignore no-explicit-any
+export const background = (p: Promise<unknown>) => { const rt = (globalThis as any).EdgeRuntime; rt?.waitUntil ? rt.waitUntil(p.catch(() => {})) : p.catch(() => {}); };
+
+export async function syncUser(db: SupabaseClient, userId: string, opts: { waitKm?: boolean } = {}) {
   const { data: cred } = await db.from("isquad_credentials").select("secret").eq("user_id", userId).maybeSingle();
   const { data: prof } = await db.from("profiles").select("isquad_login, origin").eq("user_id", userId).maybeSingle();
   if (!cred || !prof) return { ok: false, error: "sin_credenciales" };
   try {
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret));
-    await storeMatches(db, userId, prof.origin, matches);
+    await storeMatches(db, userId, matches);
+    if (opts.waitKm) await fillKm(db, userId, prof.origin); else background(fillKm(db, userId, prof.origin));
     return { ok: true, count: matches.length };
   } catch (e) {
     const code = e instanceof IsquadAuthError ? "credenciales" : "conexion";
