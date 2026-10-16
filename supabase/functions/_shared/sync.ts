@@ -24,8 +24,12 @@ export async function userFromRequest(db: SupabaseClient, req: Request) {
 type Place = { at: [number, number]; exact: boolean };
 // Si no reconoce la calle, el buscador suele devolver la población o el código postal: eso cuenta como aproximado.
 const EXACT_LAYERS = new Set(["address", "street", "venue"]);
-async function geocode(text: string, key: string): Promise<Place | null> {
-  const u = `https://api.openrouteservice.org/geocode/search?api_key=${key}&size=1&boundary.country=ES&text=${encodeURIComponent(text)}`;
+// Todo se busca dentro de Catalunya; las poblaciones, solo entre municipios (si no, "Santa Margarida i els Monjos"
+// puede acabar en el barrio de Santa Margarida de Roses).
+const CAT_BOX = "&boundary.rect.min_lon=0.15&boundary.rect.min_lat=40.5&boundary.rect.max_lon=3.35&boundary.rect.max_lat=42.9";
+async function geocode(text: string, key: string, town = false): Promise<Place | null> {
+  const u = `https://api.openrouteservice.org/geocode/search?api_key=${key}&size=1&boundary.country=ES${CAT_BOX}` +
+    (town ? "&layers=locality,localadmin" : "") + `&text=${encodeURIComponent(text)}`;
   const r = await fetch(u); if (!r.ok) return null;
   const f = (await r.json()).features?.[0];
   return f ? { at: f.geometry.coordinates, exact: EXACT_LAYERS.has(f.properties?.layer) } : null;
@@ -46,9 +50,9 @@ export async function route(a: [number, number], address: string, key: string): 
     const clean = address.replace(/\\(['"])/g, "$1").replace(/,\s*(ESPA[ÑN]A|SPAIN)\s*$/i, "");
     const town = clean.match(/(\d{5})\s+([^,]+)/);
     const tries = [clean];
-    if (town) tries.push(`${town[1]} ${town[2].trim()}`, town[2].trim() + ", Catalunya");
+    if (town) tries.push(`${town[1]} ${town[2].trim()}`, town[2].trim());
     for (const [i, text] of tries.entries()) {
-      const b = await geocode(text, key);
+      const b = await geocode(text, key, i > 0);
       if (!b) continue;
       const km = await driveKm(a, b.at, key);
       return km == null ? null : { km, source: i === 0 && b.exact ? "direccion" : "poblacion" };
@@ -66,7 +70,7 @@ export async function fillKm(db: SupabaseClient, userId: string, origin: string)
     .in("venue_key", todo.map((v) => v.venue_key));
   const where = new Map<string, string>();
   for (const m of ms || []) if (!where.has(m.venue_key)) where.set(m.venue_key, m.addr || m.venue);
-  const a = (await geocode(origin + ", Catalunya", key).catch(() => null))?.at;
+  const a = (await geocode(origin, key, true).catch(() => null))?.at;
   if (!a) return;
   let n = 0;
   for (const [k, address] of where) {
