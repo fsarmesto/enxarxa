@@ -243,7 +243,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
         </div>
         <p class="muted small" style="margin-top:10px">Se paga una ida y vuelta por pabellón y día; si el mismo día vas a dos pabellones, se cobran dos.</p>
         <h2 style="margin-top:16px">Km por pabellón (solo ida)</h2>
-        <p class="muted small">Se calculan por carretera al aparecer un pabellón nuevo. Corrige los que no cuadren con lo que te paga la federación.</p>
+        <p class="muted small">Se calculan por carretera al aparecer un pabellón nuevo. Si no se encuentra la dirección exacta, se toma el centro de la población y se marcan como aproximados. Corrige los que no cuadren con lo que te paga la federación.</p>
         <table class="venues" id="venueTable"></table>
       </div>
       <div>
@@ -447,7 +447,7 @@ function render(){
             <label class="chk small">km <input type="number" step="1" data-f="km" data-id="${esc(m.id)}" value="${km||''}" placeholder="?" title="Km solo ida. Cambia el valor del pabellón para todos sus partidos."></label></td>
           <td class="n" data-l="Tarifa">${eur(r.tariff)}</td>
           <td class="n" data-l="Dieta">${r.dieta?eur(r.dieta):'<span class="muted">—</span>'}${r.dietaShared&&r.dieta?'<span class="shared">jornada</span>':''}</td>
-          <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}</td>
+          <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}${r.travel&&m.km_override==null&&VENUES[m.venue_key]?.km_source==='poblacion'?'<span class="shared" title="No se encontró la dirección exacta: km hasta el centro de la población. Corrígelos si no cuadran.">km aprox.</span>':''}</td>
           <td class="n" data-l="Peajes"><input type="number" step="0.05" data-f="tolls" data-id="${esc(m.id)}" value="${+m.tolls||''}" placeholder="0"></td>
           <td class="n total" data-l="Total">${eur(r.total)}</td>
           <td class="ctrl paycell"><button class="pay${m.paid?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${m.paid?'true':'false'}">${m.paid?'✓ Cobrado':'Marcar cobrado'}</button>${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
@@ -463,7 +463,7 @@ function renderSettings(){
   $('origin').value=P.origin; $('rate').value=P.rate; $('minTravel').value=P.min_travel;
   $('accountInfo').textContent = `Conectada a iSquad como ${P.isquad_login}.`;
   const keys=Object.keys(VENUES).sort((a,b)=>(VENUES[a].label||a).localeCompare(VENUES[b].label||b));
-  $('venueTable').innerHTML = keys.map(k=>`<tr><td>${esc(VENUES[k].label||k)}<div class="muted small">${esc(k)}</div></td><td><input type="number" step="1" data-venue="${esc(k)}" value="${VENUES[k].km??''}" placeholder="?"> km</td></tr>`).join('') || '<tr><td class="muted">Sin pabellones todavía.</td></tr>';
+  $('venueTable').innerHTML = keys.map(k=>`<tr><td>${esc(VENUES[k].label||k)}<div class="muted small">${esc(k)}${VENUES[k].km_source==='poblacion'?' · km aproximados al centro de la población':''}</div></td><td><input type="number" step="1" data-venue="${esc(k)}" value="${VENUES[k].km??''}" placeholder="?"> km</td></tr>`).join('') || '<tr><td class="muted">Sin pabellones todavía.</td></tr>';
 }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400); }
 
@@ -475,8 +475,9 @@ async function patchMatch(id, patch){
   if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
 }
 async function setVenueKm(key, km){
-  VENUES[key] = {...(VENUES[key]||{venue_key:key}), km}; render();
-  const {error} = await sb.from('venues').upsert({user_id:USER.id, venue_key:key, label:VENUES[key].label||null, km});
+  const km_source = km==null ? null : 'manual';
+  VENUES[key] = {...(VENUES[key]||{venue_key:key}), km, km_source}; render();
+  const {error} = await sb.from('venues').upsert({user_id:USER.id, venue_key:key, label:VENUES[key].label||null, km, km_source});
   if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
 }
 

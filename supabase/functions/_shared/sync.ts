@@ -21,22 +21,39 @@ export async function userFromRequest(db: SupabaseClient, req: Request) {
 }
 
 /* Km de ida por carretera con OpenRouteService (opcional: secret ORS_KEY). */
-async function geocode(text: string, key: string): Promise<[number, number] | null> {
+type Place = { at: [number, number]; exact: boolean };
+// Si no reconoce la calle, el buscador suele devolver la población o el código postal: eso cuenta como aproximado.
+const EXACT_LAYERS = new Set(["address", "street", "venue"]);
+async function geocode(text: string, key: string): Promise<Place | null> {
   const u = `https://api.openrouteservice.org/geocode/search?api_key=${key}&size=1&boundary.country=ES&text=${encodeURIComponent(text)}`;
   const r = await fetch(u); if (!r.ok) return null;
-  const f = (await r.json()).features?.[0]; return f ? f.geometry.coordinates : null;
+  const f = (await r.json()).features?.[0];
+  return f ? { at: f.geometry.coordinates, exact: EXACT_LAYERS.has(f.properties?.layer) } : null;
 }
 // El plan gratuito de ORS admite 40 rutas por minuto: se espacian las consultas y se limita cada pasada.
 const ORS_GAP_MS = 1600, ORS_MAX_PER_RUN = 50;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function route(a: [number, number], address: string, key: string): Promise<number | null> {
+async function driveKm(a: [number, number], b: [number, number], key: string): Promise<number | null> {
+  const r = await fetch(`https://api.openrouteservice.org/v2/directions/driving-car?api_key=${key}&start=${a.join(",")}&end=${b.join(",")}`);
+  if (!r.ok) return null;
+  const m = (await r.json()).features?.[0]?.properties?.summary?.distance;
+  return typeof m === "number" ? Math.round(m / 1000) : null;
+}
+
+// Primero la dirección exacta; si no se encuentra, el centro de la población (código postal + nombre, y luego solo el nombre).
+export async function route(a: [number, number], address: string, key: string): Promise<{ km: number; source: string } | null> {
   try {
-    const b = await geocode(address.replace(/,\s*ESPA[ÑN]A\s*$/i, ""), key);
-    if (!b) return null;
-    const r = await fetch(`https://api.openrouteservice.org/v2/directions/driving-car?api_key=${key}&start=${a.join(",")}&end=${b.join(",")}`);
-    if (!r.ok) return null;
-    const m = (await r.json()).features?.[0]?.properties?.summary?.distance;
-    return typeof m === "number" ? Math.round(m / 1000) : null;
+    const clean = address.replace(/\\(['"])/g, "$1").replace(/,\s*(ESPA[ÑN]A|SPAIN)\s*$/i, "");
+    const town = clean.match(/(\d{5})\s+([^,]+)/);
+    const tries = [clean];
+    if (town) tries.push(`${town[1]} ${town[2].trim()}`, town[2].trim() + ", Catalunya");
+    for (const [i, text] of tries.entries()) {
+      const b = await geocode(text, key);
+      if (!b) continue;
+      const km = await driveKm(a, b.at, key);
+      return km == null ? null : { km, source: i === 0 && b.exact ? "direccion" : "poblacion" };
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -49,14 +66,14 @@ export async function fillKm(db: SupabaseClient, userId: string, origin: string)
     .in("venue_key", todo.map((v) => v.venue_key));
   const where = new Map<string, string>();
   for (const m of ms || []) if (!where.has(m.venue_key)) where.set(m.venue_key, m.addr || m.venue);
-  const a = await geocode(origin + ", Catalunya", key).catch(() => null);
+  const a = (await geocode(origin + ", Catalunya", key).catch(() => null))?.at;
   if (!a) return;
   let n = 0;
   for (const [k, address] of where) {
     if (n++ >= ORS_MAX_PER_RUN) break;
     if (n > 1) await sleep(ORS_GAP_MS);
-    const km = await route(a, address, key);
-    if (km != null) await db.from("venues").update({ km }).eq("user_id", userId).eq("venue_key", k).is("km", null);
+    const r = await route(a, address, key);
+    if (r) await db.from("venues").update({ km: r.km, km_source: r.source }).eq("user_id", userId).eq("venue_key", k).is("km", null);
   }
 }
 
@@ -74,6 +91,13 @@ export async function storeMatches(db: SupabaseClient, userId: string, matches: 
   const have = new Set((known || []).map((v) => v.venue_key));
   const fresh = new Map<string, ScrapedMatch>();
   for (const m of matches) if (!have.has(m.venue_key) && !fresh.has(m.venue_key)) fresh.set(m.venue_key, m);
+  // Pabellones que ya no usa ningún partido (p. ej. cambió la dirección) y sin km: sobran.
+  const used = new Set(matches.map((m) => m.venue_key));
+  const { data: allMs } = await db.from("matches").select("venue_key").eq("user_id", userId);
+  for (const m of allMs || []) used.add(m.venue_key);
+  const orphans = [...have].filter((k) => !used.has(k));
+  // Uno a uno con eq: dentro de in(...) PostgREST trata la barra invertida como escape y no coincidirían.
+  for (const k of orphans) await db.from("venues").delete().eq("user_id", userId).eq("venue_key", k).is("km", null);
   if (fresh.size) {
     await db.from("venues").insert([...fresh].map(([k, m]) => ({ user_id: userId, venue_key: k, label: venueLabel(m.venue, m.addr), km: null })));
   }

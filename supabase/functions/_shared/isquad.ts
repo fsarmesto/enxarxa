@@ -116,7 +116,8 @@ export function parseDesignaciones(html: string): ScrapedMatch[] | null {
   const table = document.getElementById("tabla_designaciones_arbitrales");
   if (!table) return null;
   // deno-lint-ignore no-explicit-any
-  const tx = (e: any) => (e?.textContent || "").replace(/\s+/g, " ").trim();
+  // iSquad escapa las comillas con barra invertida (D\'HEBRON): se quitan para que la dirección se encuentre.
+  const tx = (e: any) => (e?.textContent || "").replace(/\\(['"])/g, "$1").replace(/\s+/g, " ").trim();
   const out: ScrapedMatch[] = [];
   for (const tr of table.querySelectorAll("tr")) {
     // deno-lint-ignore no-explicit-any
