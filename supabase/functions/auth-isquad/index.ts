@@ -5,6 +5,7 @@ import { fetchDesignaciones, IsquadAuthError, ScrapedMatch } from "../_shared/is
 import { admin, background, cors, json, storeMatches, syncUser } from "../_shared/sync.ts";
 
 Deno.serve(async (req) => {
+  const started = Date.now();
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   let body: { login?: string; password?: string; origin?: string; consent?: boolean };
   try { body = await req.json(); } catch { return json({ error: "Petición no válida" }, 400); }
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
   if (pe) return json({ error: "No se ha podido guardar el perfil" }, 500);
   await db.from("isquad_credentials").upsert({ user_id: userId, secret: await encrypt(password), updated_at: new Date().toISOString() });
   // Los partidos se guardan ya; el equipo arbitral de cada designación y los km se leen después, sin hacer esperar.
-  try { await storeMatches(db, userId, matches); background(syncUser(db, userId, { waitKm: true })); }
+  try { await storeMatches(db, userId, matches); background(syncUser(db, userId, { km: "wait", deadline: started + 130_000 })); }
   catch (_) { /* la sincronización programada lo reintentará */ }
 
   return json({ token_hash: link.properties.hashed_token });

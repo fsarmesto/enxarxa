@@ -3,6 +3,8 @@ import { parseHTML } from "npm:linkedom@0.18.5";
 
 const BASE = "https://voleibol.misquad.es";
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
+// Ninguna llamada a iSquad puede colgar la sincronización.
+const T = () => AbortSignal.timeout(20_000);
 
 export class IsquadAuthError extends Error {}
 
@@ -24,13 +26,13 @@ function keep(jar: Jar, res: Response) {
 const cookie = (jar: Jar) => [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
 
 async function get(url: string, jar: Jar): Promise<Response> {
-  let res = await fetch(url, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual" });
+  let res = await fetch(url, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual", signal: T() });
   for (let n = 0; n < 5 && res.status >= 300 && res.status < 400; n++) {
     keep(jar, res); await res.body?.cancel();
     const loc = res.headers.get("location"); if (!loc) break;
     const next = new URL(loc, url).toString();
     if (/login/i.test(next) && !/login/i.test(url)) return res; // nos manda al login: sesión no válida
-    res = await fetch(next, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual" });
+    res = await fetch(next, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual", signal: T() });
   }
   keep(jar, res);
   return res;
@@ -89,7 +91,7 @@ export function parseStaff(html: string, me: string[]): Staff | null {
 async function fetchStaff(jar: Jar, desigId: string, me: string[]): Promise<Staff | null> {
   try {
     const r = await fetch(`${BASE}/json/arbitros_ver_datos_designacion.php`, {
-      method: "POST", body: new URLSearchParams({ id_designacion: desigId }),
+      method: "POST", body: new URLSearchParams({ id_designacion: desigId }), signal: AbortSignal.timeout(10_000),
       headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar), "X-Requested-With": "XMLHttpRequest" },
     });
     if (!r.ok) { await r.body?.cancel(); return null; }
@@ -104,13 +106,13 @@ const STAFF_MAX_PER_RUN = 120;
 
 export async function fetchDesignaciones(
   login: string, password: string,
-  opts: { needStaff?: (m: ScrapedMatch) => boolean } = {},
+  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number } = {},
 ): Promise<WithStaff[]> {
   const jar: Jar = new Map();
   const first = await get(`${BASE}/loginarbitros.php`, jar); await first.body?.cancel();
 
   const res = await fetch(`${BASE}/loginarbitros.php`, {
-    method: "POST",
+    method: "POST", signal: T(),
     body: new URLSearchParams({ login, password, qr_login: "0", utr: "" }),
     headers: {
       "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar),
@@ -135,6 +137,8 @@ export async function fetchDesignaciones(
     const me = ownName(html);
     let n = 0;
     for (const m of all) {
+      // Al acercarse la hora límite se deja de abrir designaciones: las que falten, en la siguiente pasada.
+      if (opts.deadline && Date.now() > opts.deadline - 10_000) break;
       if (!m.desig_id || !opts.needStaff(m) || n++ >= STAFF_MAX_PER_RUN) continue;
       m.staff = await fetchStaff(jar, m.desig_id, me);
       // En Superliga el segundo "ARBITRO" de la lista es el juez de línea (en Superliga 2 sí hay 2n árbitro).

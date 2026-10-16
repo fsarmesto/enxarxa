@@ -230,6 +230,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
       <div><div class="l" id="sCountL">Partidos</div><div class="v" id="sCount">0</div></div>
     </div>
     <p class="sync" id="syncInfo"></p>
+    <p class="sync" id="irpfInfo"></p>
   </div>
   <div class="banner hidden" id="banner"></div>
 
@@ -258,9 +259,15 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
           <label class="small">€/km <input type="number" step="0.01" id="rate"></label>
           <label class="small">Mínimo € <input type="number" step="0.5" id="minTravel"></label>
         </div>
-        <p class="muted small" style="margin-top:10px">Se paga una ida y vuelta por pabellón y día; si el mismo día vas a dos pabellones, se cobran dos.</p>
+        <h2 style="margin-top:16px">IRPF</h2>
+        <div class="row">
+          <label class="small">Retención <select id="irpf"><option value="0">Sin retención</option><option value="2">2 %</option><option value="7">7 %</option><option value="15">15 %</option><option value="19">19 %</option><option value="otro">Otro…</option></select></label>
+          <label class="small hidden" id="irpfOtherL"><input type="number" step="0.5" min="0" max="50" id="irpfOther"> %</label>
+        </div>
+        <p class="muted small" style="margin-top:6px">Se aplica sobre la tarifa de cada partido; dietas, desplazamiento y peajes van exentos.</p>
+        <p class="muted small" style="margin-top:10px">Se paga una ida y vuelta por pabellón y franja: mañana (antes de las 14:00) y tarde cuentan aparte, así que mañana y tarde en el mismo pabellón son dos idas y vueltas; dos pabellones en la misma franja, también dos.</p>
         <h2 style="margin-top:16px">Km por pabellón (solo ida)</h2>
-        <p class="muted small">Se calculan por carretera al aparecer un pabellón nuevo. Si no se encuentra la dirección exacta, se toma el centro de la población y se marcan como aproximados. Corrige los que no cuadren con lo que te paga la federación.</p>
+        <p class="muted small">Se calculan por carretera al aparecer un pabellón nuevo (direcciones con OpenStreetMap, rutas con OpenRouteService). Si no se encuentra la calle, se toma el centro de la población y se marcan como aproximados; si tampoco, se reintenta a la semana o los pones tú. Corrige los que no cuadren con lo que te paga la federación.</p>
         <table class="venues" id="venueTable"></table>
       </div>
       <div>
@@ -318,6 +325,8 @@ function guessCat(comp){
   if(/ALEVI|AMATEUR|BENJAMI/.test(c)) return 'alv';
   if(/INFANTIL/.test(c)) return /PREFERENT/.test(c)?'infp':'inf';
   if(/CADET/.test(c)) return (n===1 && !/PREFERENT/.test(c))?'c1':'c234';
+  // Júnior de 2ª se paga como 1ª; Juvenil de 2ª tiene tarifa propia.
+  if(/JUNIOR/.test(c) && n===2) return 'j1';
   if(/JUVENIL|JUNIOR/.test(c)) return /PREFERENT/.test(c)?'j34': n===1?'j1': n===2?'j2':'j34';
   if(/SENIOR|LLIGA CATALANA|LIGA CATALANA/.test(c)){
     if(/ESTATAL|NACIONAL/.test(c) && n===1) return 'pde';
@@ -356,10 +365,19 @@ function dietaFor(dateStr, mins, holiday){
 /* ---------- Estado ---------- */
 let USER = null, P = null, MATCHES = [], VENUES = {};
 
+// PostgREST devuelve como mucho 1000 filas por consulta: los partidos se piden por páginas.
+async function selectAll(table){
+  const out=[];
+  for(let from=0;;from+=1000){
+    const {data,error}=await sb.from(table).select('*').order('id').range(from,from+999);
+    if(error) return {data:out.length?out:null,error};
+    out.push(...data); if(data.length<1000) return {data:out,error:null};
+  }
+}
 async function loadAll(){
   const [p, m, v] = await Promise.all([
     sb.from('profiles').select('*').single(),
-    sb.from('matches').select('*'),
+    selectAll('matches'),
     sb.from('venues').select('*')
   ]);
   if(p.error){ throw p.error; }
@@ -387,13 +405,16 @@ function compute(){
     for(const m of list){ if(noDietaOf(m)) continue; const v = dietaFor(m.date,toMins(m.time),m.holiday||isHoliday(m.date)); if(v>bestV){bestV=v;best=m;} }
     if(best){ const r=res.get(best.id); r.dieta=bestV; r.dietaShared = list.length>1; }
   }
-  for(const [,list] of group(m=>m.date+'|'+m.venue_key)){
+  // Una ida y vuelta por pabellón y franja: mañana (antes de las 14:00) y tarde se pagan aparte, como la dieta.
+  for(const [,list] of group(m=>m.date+(toMins(m.time)<840?'M':'T')+'|'+m.venue_key)){
     const km = Math.max(...list.map(kmFor));
     const r = res.get(list[0].id);
     r.travel = km>0 ? Math.max(km*2*(+P.rate), +P.min_travel) : 0; r.travelShared = list.length>1;
   }
   for(const m of ms){ const r=res.get(m.id); r.dietaAuto=r.dieta; if(m.dieta_override!=null){ r.dieta=+m.dieta_override; r.dietaShared=false; } }
-  for(const [,r] of res) r.total = r.tariff + r.dieta + r.travel + r.tolls;
+  // IRPF: retención sobre la tarifa (dieta, desplazamiento y peajes van exentos). total = lo que cobras.
+  const irpf = (+P.irpf||0)/100;
+  for(const [,r] of res){ r.gross = r.tariff + r.dieta + r.travel + r.tolls; r.irpf = Math.round(r.tariff*irpf*100)/100; r.total = r.gross - r.irpf; }
   return {ms,res};
 }
 
@@ -437,8 +458,10 @@ function render(){
   const ms = allMs.filter(m=>seasonOf(m.date)===SEASON);
   $('sTotalL').textContent = `Total temporada ${seasonLabel(SEASON)}`;
   let pend=0, paid=0;
-  for(const m of ms){ const t=res.get(m.id).total; if(m.paid) paid+=t; else pend+=t; }
+  let ret=0;
+  for(const m of ms){ const r=res.get(m.id); ret+=r.irpf; if(m.paid) paid+=r.total; else pend+=r.total; }
   $('sPending').textContent=eur(pend); $('sPaid').textContent=eur(paid); $('sTotal').textContent=eur(pend+paid);
+  $('irpfInfo').textContent = +P.irpf ? `Importes netos: IRPF del ${String(+P.irpf).replace('.',',')} % sobre la tarifa, ${eur(ret)} retenidos en la temporada.` : '';
   $('sCount').textContent=ms.length;
   const jc = new Set(ms.map(m=>m.date+(toMins(m.time)<840?'M':'T'))).size;
   $('sCountL').textContent = `Partidos en ${jc} jornada${jc===1?'':'s'}`;
@@ -461,7 +484,7 @@ function render(){
     for(const [ds,dl] of [...days].sort((a,b)=>b[0].localeCompare(a[0]))){
       const dt=dl.reduce((s,m)=>s+res.get(m.id).total,0);
       html+=`<div class="day"><div class="day-head"><span>${fmtDay(ds)}</span><span>${eur(dt)}</span></div><div class="wrap"><table class="m"><thead><tr>
-        <th>Hora</th><th>Partido</th><th>Designación</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th><th class="n">Total</th><th></th></tr></thead><tbody>`;
+        <th>Hora</th><th>Partido</th><th>Designación</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th></th></tr></thead><tbody>`;
       for(const m of dl.sort((a,b)=>a.time.localeCompare(b.time))){
         const r=res.get(m.id), km=kmFor(m), manual=m.id.startsWith('MAN-');
         const gone = !manual && syncT && new Date(m.last_seen).getTime() < syncT-120000;
@@ -476,7 +499,8 @@ function render(){
           <td class="n" data-l="Dieta"><input type="number" step="0.5" min="0" data-f="dieta" data-id="${esc(m.id)}" value="${r.dieta||''}" placeholder="0" aria-label="Dieta">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${esc(m.id)}" title="Volver a la dieta automática (${eur(r.dietaAuto)})">auto</button>`:(r.dietaShared&&r.dieta?'<span class="shared">jornada</span>':'')}</td>
           <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}${r.travel&&m.km_override==null&&VENUES[m.venue_key]?.km_source==='poblacion'?'<span class="shared" title="No se encontró la dirección exacta: km hasta el centro de la población. Corrígelos si no cuadran.">km aprox.</span>':''}</td>
           <td class="n" data-l="Peajes"><input type="number" step="0.05" data-f="tolls" data-id="${esc(m.id)}" value="${+m.tolls||''}" placeholder="0"></td>
-          <td class="n total" data-l="Total">${eur(r.total)}</td>
+          ${+P.irpf?`<td class="n" data-l="IRPF">${r.irpf?'−'+eur(r.irpf):'<span class="muted">—</span>'}</td>`:''}
+          <td class="n total" data-l="${+P.irpf?'Neto':'Total'}">${eur(r.total)}</td>
           <td class="ctrl paycell"><button class="pay${m.paid?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${m.paid?'true':'false'}">${m.paid?'✓ Cobrado':'Marcar cobrado'}</button>${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
       }
       html+='</tbody></table></div></div>';
@@ -488,6 +512,8 @@ function render(){
 }
 function renderSettings(){
   $('origin').value=P.origin; $('rate').value=P.rate; $('minTravel').value=P.min_travel;
+  const iv=String(+P.irpf||0), preset=[...$('irpf').options].some(o=>o.value===iv);
+  $('irpf').value = preset ? iv : 'otro'; $('irpfOtherL').classList.toggle('hidden', preset); if(!preset) $('irpfOther').value=iv;
   $('accountInfo').textContent = `Conectada a iSquad como ${P.isquad_login}.`;
   const keys=Object.keys(VENUES).sort((a,b)=>(VENUES[a].label||a).localeCompare(VENUES[b].label||b));
   $('venueTable').innerHTML = keys.map(k=>`<tr><td>${esc(VENUES[k].label||k)}<div class="muted small">${esc(k)}${VENUES[k].km_source==='poblacion'?' · km aproximados al centro de la población':''}</div></td><td><input type="number" step="1" data-venue="${esc(k)}" value="${VENUES[k].km??''}" placeholder="?"> km</td></tr>`).join('') || '<tr><td class="muted">Sin pabellones todavía.</td></tr>';
@@ -502,9 +528,10 @@ async function patchMatch(id, patch){
   if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
 }
 async function setVenueKm(key, km){
+  // Si vacías los km, se vuelven a calcular en la siguiente actualización.
   const km_source = km==null ? null : 'manual';
   VENUES[key] = {...(VENUES[key]||{venue_key:key}), km, km_source}; render();
-  const {error} = await sb.from('venues').upsert({user_id:USER.id, venue_key:key, label:VENUES[key].label||null, km, km_source});
+  const {error} = await sb.from('venues').upsert({user_id:USER.id, venue_key:key, label:VENUES[key].label||null, km, km_source, ...(km==null?{km_tried_at:null}:{})});
   if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
 }
 
@@ -533,6 +560,16 @@ $('ledger').addEventListener('click', async e=>{
   }
 });
 $('venueTable').addEventListener('change', e=>{ const k=e.target.dataset.venue; if(k!=null) setVenueKm(k, e.target.value===''?null:+e.target.value); });
+async function setIrpf(v){
+  if(!(v>=0 && v<=50)){ toast('El IRPF tiene que estar entre 0 y 50 %'); renderSettings(); return; }
+  P.irpf=v; render(); const {error}=await sb.from('profiles').update({irpf:v}).eq('user_id',USER.id);
+  if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
+}
+$('irpf').addEventListener('change', e=>{
+  if(e.target.value==='otro'){ $('irpfOtherL').classList.remove('hidden'); $('irpfOther').focus(); return; }
+  setIrpf(+e.target.value);
+});
+$('irpfOther').addEventListener('change', e=>{ if(e.target.value!=='') setIrpf(+e.target.value); });
 for(const [id,f] of [['origin','origin'],['rate','rate'],['minTravel','min_travel']]){
   $(id).addEventListener('change', async e=>{
     const v = f==='origin' ? e.target.value.trim() : (+e.target.value||0); if(f==='origin'&&!v) return;
@@ -569,30 +606,30 @@ function buildWorkbook(){
   const {ms:allMs,res} = compute();
   const ms = allMs.filter(m=>seasonOf(m.date)===SEASON);
   const head = ['Fecha','Hora','Código','Competición','Categoría','Partido','Pabellón','Población','Rol','Equipo arbitral',
-                'Tarifa','Dieta','Km ida','Desplazamiento','Peajes','Total','Estado iSquad','Cobrado'];
+                'Tarifa','Dieta','Km ida','Desplazamiento','Peajes','Bruto',`IRPF (${String(+P.irpf||0).replace('.',',')} %)`,'Neto','Estado iSquad','Cobrado'];
   const rows = ms.map(m=>{
     const r=res.get(m.id), city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
     // Fecha como número de serie de Excel: con un Date, la zona horaria la movería un día.
     const serial = (Date.UTC(+m.date.slice(0,4), +m.date.slice(5,7)-1, +m.date.slice(8,10)) - Date.UTC(1899,11,30)) / 864e5;
     return [serial, m.time, m.id.split('@')[0], m.comp, CATS[catOf(m)].label, m.teams,
       VENUES[m.venue_key]?.label || m.venue, city ? city[1].trim() : '', ROLE_OPTS[m.role],
-      m.role==='jl' ? '' : TEAM_OPTS[m.team], r.tariff, r.dieta, kmFor(m)||null, r.travel, r.tolls, r.total,
+      m.role==='jl' ? '' : TEAM_OPTS[m.team], r.tariff, r.dieta, kmFor(m)||null, r.travel, r.tolls, r.gross, r.irpf, r.total,
       (m.estado||'').toLowerCase(), m.paid ? 'Sí' : 'No'];
   });
   const sum = i => +rows.reduce((t,x)=>t+(+x[i]||0),0).toFixed(2);
   const n = rows.length, last = n+1;
-  const totals = [10,11,13,14,15].map(sum);
+  const MONEY = [10,11,13,14,15,16,17], totals = MONEY.map(sum);
   const pend = +ms.filter(m=>!m.paid).reduce((t,m)=>t+res.get(m.id).total,0).toFixed(2);
-  const pad = Array(15).fill('');
-  rows.push([], ['Total','','','','','','','','','', totals[0], totals[1], null, totals[2], totals[3], totals[4]],
-    ['Pendiente de cobro', ...pad.slice(1), pend], ['Ya cobrado', ...pad.slice(1), +(totals[4]-pend).toFixed(2)]);
+  const pad = Array(17).fill('');
+  rows.push([], ['Total','','','','','','','','','', totals[0], totals[1], null, totals[2], totals[3], totals[4], totals[5], totals[6]],
+    ['Pendiente de cobro (neto)', ...pad.slice(1), pend], ['Ya cobrado (neto)', ...pad.slice(1), +(totals[6]-pend).toFixed(2)]);
   const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
   const EUR = '#,##0.00 "€"';
   for(let R=1; R<=last+4; R++){
     const d = ws[XLSX.utils.encode_cell({r:R,c:0})]; if(d && d.t==='n' && R<=n) d.z='dd/mm/yyyy';
-    for(const C of [10,11,13,14,15]){ const c = ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c && c.t==='n') c.z=EUR; }
+    for(const C of MONEY){ const c = ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c && c.t==='n') c.z=EUR; }
   }
-  ws['!cols'] = [11,7,14,38,20,44,34,22,14,18,10,9,8,14,9,11,13,9].map(w=>({wch:w}));
+  ws['!cols'] = [11,7,14,38,20,44,34,22,14,18,10,9,8,14,9,11,11,11,13,9].map(w=>({wch:w}));
   ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:n,c:head.length-1}})};
   ws['!freeze'] = {xSplit:0, ySplit:1};
   const wb = XLSX.utils.book_new();
