@@ -75,10 +75,19 @@ async function geocode(db: SupabaseClient, text: string, town: boolean, accept?:
 }
 
 // "quota" = ORS rechaza por cupo o ritmo (403/429): hay que parar la pasada.
+const routeKey = (a: [number, number], b: [number, number]) =>
+  `${a.map((x) => x.toFixed(4)).join(",")}>${b.map((x) => x.toFixed(4)).join(",")}`;
+async function cachedKm(db: SupabaseClient, a: [number, number], b: [number, number]): Promise<number | null> {
+  const { data: c } = await db.from("route_cache").select("km").eq("key", routeKey(a, b)).maybeSingle();
+  return c ? +c.km : null;
+}
+const saveKm = (db: SupabaseClient, a: [number, number], b: [number, number], km: number) =>
+  db.from("route_cache").upsert({ key: routeKey(a, b), km });
+
+// Reserva: una ruta suelta (cupo de 200 al día). "quota" = ORS rechaza por cupo o ritmo (403/429): hay que parar.
 async function driveKm(db: SupabaseClient, a: [number, number], b: [number, number], key: string): Promise<number | null | Fail> {
-  const k = `${a.map((x) => x.toFixed(4)).join(",")}>${b.map((x) => x.toFixed(4)).join(",")}`;
-  const { data: c } = await db.from("route_cache").select("km").eq("key", k).maybeSingle();
-  if (c) return +c.km;
+  const c = await cachedKm(db, a, b);
+  if (c != null) return c;
   await paceOrs();
   try {
     const r = await fetch(`https://api.openrouteservice.org/v2/directions/driving-car?api_key=${key}&start=${a.join(",")}&end=${b.join(",")}`,
@@ -89,13 +98,32 @@ async function driveKm(db: SupabaseClient, a: [number, number], b: [number, numb
     const m = (await r.json()).features?.[0]?.properties?.summary?.distance;
     if (typeof m !== "number") return null;
     const km = Math.round(m / 1000);
-    await db.from("route_cache").upsert({ key: k, km });
+    await saveKm(db, a, b, km);
     return km;
   } catch (e) { console.warn(`km: ORS falló: ${(e as Error).message}`); return "error"; }
 }
 
-// Primero la calle (con código postal y población); solo si la calle no existe, el centro de la población.
-export async function route(db: SupabaseClient, a: [number, number], address: string, key: string): Promise<{ km: number; source: string } | null | Fail> {
+// Vía principal: ORS Matrix, una petición con hasta MATRIX_MAX destinos (cupo propio, aparte de las rutas).
+// Devuelve los km de cada destino (null = sin ruta posible) o el fallo.
+const MATRIX_MAX = 49;
+async function matrixKm(a: [number, number], dests: [number, number][], key: string, deadline: number): Promise<(number | null)[] | Fail> {
+  await paceOrs();
+  try {
+    const r = await fetch("https://api.openrouteservice.org/v2/matrix/driving-car", {
+      method: "POST", signal: AbortSignal.timeout(Math.max(3000, Math.min(20_000, deadline - Date.now()))),
+      headers: { "Authorization": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ locations: [a, ...dests], sources: [0], destinations: dests.map((_, i) => i + 1), metrics: ["distance"], units: "km" }),
+    });
+    if (r.status === 403 || r.status === 429) { console.warn(`km: ORS Matrix sin cupo (${r.status})`); await r.body?.cancel(); return "quota"; }
+    if (!r.ok) { lastServiceError = `ORS Matrix ${r.status}: ${(await r.text()).slice(0, 120)}`; console.warn(`km: ${lastServiceError}`); return "error"; }
+    const row = (await r.json())?.distances?.[0];
+    if (!Array.isArray(row) || row.length !== dests.length) return "error";
+    return row.map((x: unknown) => (typeof x === "number" ? Math.round(x) : null));
+  } catch (e) { console.warn(`km: ORS Matrix falló: ${(e as Error).message}`); return "error"; }
+}
+
+// Ubica un pabellón: primero la calle (con código postal y población); solo si la calle no existe, el centro de la población.
+export async function locate(db: SupabaseClient, address: string): Promise<{ at: [number, number]; source: string } | null | "error"> {
   const clean = address.replace(/\\(['"])/g, "$1").replace(/,\s*(ESPA[ÑN]A|SPAIN)\s*$/i, "").trim();
   if (!clean) return null;
   const parts = clean.split(",").map((s) => s.trim());
@@ -107,17 +135,13 @@ export async function route(db: SupabaseClient, a: [number, number], address: st
     const p = h.properties || {};
     return !cp || p.postcode === cp[1] || [p.city, p.locality, p.district, p.county].some((x) => x && (norm(x).includes(norm(town!)) || norm(town!).includes(norm(x))));
   };
-  const tries: [string, boolean][] = [[cp ? `${street}, ${cp[1]} ${town}` : clean, false]];
-  if (town) tries.push([town, true]);
-  for (const [text, isTown] of tries) {
-    const b = await geocode(db, text, isTown, isTown ? undefined : sameTown);
-    if (b === "error") return "error";   // no se baja a la población por un fallo pasajero
-    if (!b) continue;
-    const km = await driveKm(db, a, b.at, key);
-    if (km === "error" || km === "quota") return km;
-    return km == null ? null : { km, source: b.exact ? "direccion" : "poblacion" };
-  }
-  return null;
+  const b = await geocode(db, cp ? `${street}, ${cp[1]} ${town}` : clean, false, sameTown);
+  if (b === "error") return "error";   // no se baja a la población por un fallo pasajero
+  if (b) return { at: b.at, source: b.exact ? "direccion" : "poblacion" };
+  if (!town) return null;
+  const t = await geocode(db, town, true);
+  if (t === "error") return "error";
+  return t ? { at: t.at, source: "poblacion" } : null;
 }
 
 // Candado global (fila km_lock): si otra función ya está calculando km, esta pasada no hace nada.
@@ -137,8 +161,9 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
   const key = Deno.env.get("ORS_KEY"); if (!key) return "sin ORS_KEY"; if (Date.now() > deadline) return "sin tiempo";
   const holder = crypto.randomUUID();
   // Si otra función está calculando, se espera turno (p. ej. dos altas seguidas) mientras quede tiempo.
-  // El candado dura la hora límite + 30 s: cada llamada tiene 10 s de tiempo máximo, así que no caduca con el titular vivo.
-  while (!await takeLock(db, holder, deadline + 30_000)) {
+  // El candado dura la hora límite + 60 s: ninguna fase empieza una llamada que pueda acabar después de la hora límite
+  // más de unos 30 s, así que no caduca con el titular vivo.
+  while (!await takeLock(db, holder, deadline + 60_000)) {
     if (Date.now() > deadline - 20_000) { console.warn("km: candado ocupado, se deja para la siguiente pasada"); return "candado ocupado"; }
     await sleep(3000);
   }
@@ -157,25 +182,72 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
       .or(`km_tried_at.is.null,km_tried_at.lt.${since}`);
     if (te) { console.warn(`km: no se pudieron leer los pabellones: ${te.message}`); return `error leyendo pabellones: ${te.message}`; }
     let errors = 0, done = 0, missing = 0;
-    // Orden aleatorio: un pabellón que falle siempre no bloquea a los demás en cada pasada.
+    const now = () => new Date().toISOString();
+    const tried = (k: string) => db.from("venues").update({ km_tried_at: now() }).eq("user_id", userId).eq("venue_key", k).is("km", null);
+    const put = (k: string, km: number, source: string) =>
+      db.from("venues").update({ km, km_source: source, km_tried_at: now() }).eq("user_id", userId).eq("venue_key", k).is("km", null);
+    const originStill = async () =>
+      (await db.from("profiles").select("origin").eq("user_id", userId).maybeSingle()).data?.origin === prof.origin;
+
+    // 1) Ubicar los pabellones (Photon, con caché). Orden aleatorio: uno que falle siempre no bloquea a los demás.
+    //    Se reservan 30 s al final para las distancias (una ubicación tarda como mucho unos 21 s).
     const order = (todo || []).map((v) => v.venue_key).sort(() => Math.random() - 0.5);
+    const located: { k: string; at: [number, number]; source: string }[] = [];
     for (const k of order) {
-      if (Date.now() > deadline || errors >= 3) break;
-      // Si el árbitro cambia de población a mitad, estos km ya no valen: se para (el trigger deja los pabellones para reintentar).
-      const { data: cur } = await db.from("profiles").select("origin").eq("user_id", userId).maybeSingle();
-      if (cur?.origin !== prof.origin) break;
+      if (Date.now() > deadline - 30_000 || errors >= 3) break;
       // Dirección del pabellón: un partido cualquiera de ese pabellón (eq, no in: las claves llevan comas y apóstrofos).
       const { data: m } = await db.from("matches").select("addr, venue").eq("user_id", userId).eq("venue_key", k).limit(1).maybeSingle();
       if (!m) continue;
-      const r = await route(db, a, m.addr || m.venue, key);
-      if (r === "quota") return "quota";
+      const r = await locate(db, m.addr || m.venue);
       if (r === "error") { errors++; continue; }
-      errors = 0; if (r) done++; else missing++;
-      const now = new Date().toISOString();
-      await db.from("venues").update(r ? { km: r.km, km_source: r.source, km_tried_at: now } : { km_tried_at: now })
-        .eq("user_id", userId).eq("venue_key", k).is("km", null);
+      errors = 0;
+      if (r) located.push({ k, ...r }); else { missing++; await tried(k); }
     }
-    return `${todo?.length ?? 0} pendientes: ${done} calculados, ${missing} no encontrados${errors ? `, ${errors} errores seguidos` : ""}`;
+    // Si el árbitro ha cambiado de población a mitad, estos km ya no valen (el trigger deja los pabellones para reintentar).
+    if (!located.length || !await originStill()) {
+      return `${todo?.length ?? 0} pendientes: ${done} calculados, ${missing} no encontrados${errors ? `, ${errors} errores seguidos` : ""}`;
+    }
+
+    // 2) Distancias: primero la caché compartida; el resto, con Matrix en una petición por cada MATRIX_MAX pabellones.
+    const need: typeof located = [];
+    for (const v of located) {
+      const c = await cachedKm(db, a, v.at);
+      if (c != null) { await put(v.k, c, v.source); done++; } else need.push(v);
+    }
+    let quota = false, routesOut = false, fallbackErrors = 0, originChanged = false;
+    for (let i = 0; i < need.length; i += MATRIX_MAX) {
+      if (Date.now() > deadline - 5_000) break;
+      if (!await originStill()) { originChanged = true; break; }
+      const chunk = need.slice(i, i + MATRIX_MAX);
+      const res: (number | null)[] | Fail = quota ? "quota" : await matrixKm(a, chunk.map((v) => v.at), key, deadline);
+      if (res === "quota") quota = true;
+      if (Array.isArray(res)) {
+        if (!await originStill()) { originChanged = true; break; }   // la población ha cambiado mientras se calculaba
+        for (const [j, v] of chunk.entries()) {
+          const km = res[j];
+          if (km == null) { missing++; await tried(v.k); continue; }
+          await saveKm(db, a, v.at, km); await put(v.k, km, v.source); done++;
+        }
+        continue;
+      }
+      // 3) Reserva si Matrix falla o no tiene cupo: rutas sueltas mientras quede tiempo y cupo.
+      if (routesOut) continue;
+      for (const [j, v] of chunk.entries()) {
+        if (Date.now() > deadline - 12_000 || fallbackErrors >= 3) break;
+        if (j % 5 === 4 && !await originStill()) { originChanged = true; break; }
+        const d = await driveKm(db, a, v.at, key);
+        if (d === "quota") { routesOut = true; break; }
+        if (d === "error") { fallbackErrors++; continue; }
+        fallbackErrors = 0;
+        if (d == null) { missing++; await tried(v.k); } else { await put(v.k, d, v.source); done++; }
+      }
+      if (originChanged) break;
+    }
+    // "quota" solo si no queda cupo ni en Matrix ni en rutas: así el cron no deja sin km al resto de árbitros sin motivo.
+    if (quota && routesOut) return "quota";
+    return `${todo?.length ?? 0} pendientes: ${done} calculados, ${missing} no encontrados` +
+      `${errors ? `, ${errors} errores al ubicar` : ""}${fallbackErrors ? `, ${fallbackErrors} errores en rutas` : ""}` +
+      `${quota ? ", Matrix sin cupo" : ""}${routesOut ? ", rutas sin cupo" : ""}${originChanged ? ", población cambiada" : ""}`;
   } finally { await dropLock(db, holder); }
 }
 
