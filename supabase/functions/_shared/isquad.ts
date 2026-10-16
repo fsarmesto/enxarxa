@@ -65,14 +65,17 @@ export async function fetchDesignaciones(login: string, password: string): Promi
   });
   keep(jar, res); await res.body?.cancel();
 
+  // Sin la cookie TemporadaSelect iSquad marca la temporada en curso en el desplegable pero devuelve la tabla vacía:
+  // la primera carga solo sirve para validar el login y saber qué temporadas hay.
   const html = await designaciones(jar);
-  const parsed = parseDesignaciones(html);
-  if (!parsed) throw new IsquadAuthError("login");
-
+  if (!parseDesignaciones(html)) throw new IsquadAuthError("login");
+  const { current, previous } = seasons(html);
+  const out: ScrapedMatch[] = [];
   // También la temporada anterior: al empezar una nueva, los partidos pendientes de cobro siguen allí.
-  const { previous } = seasons(html);
-  const prev = previous ? parseDesignaciones(await designaciones(jar, previous)) ?? [] : [];
-  return uniqueIds([...prev, ...parsed]);
+  for (const season of [previous, current]) {
+    if (season) out.push(...(parseDesignaciones(await designaciones(jar, season)) ?? []));
+  }
+  return uniqueIds(out);
 }
 
 // En concentraciones y campeonatos iSquad repite el mismo código en varios partidos: a esos se les añade
