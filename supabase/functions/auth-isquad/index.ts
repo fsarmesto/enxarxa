@@ -2,7 +2,7 @@
 // crea la cuenta si es la primera vez, guarda la contraseña cifrada y devuelve un token de sesión.
 import { encrypt } from "../_shared/crypto.ts";
 import { fetchDesignaciones, IsquadAuthError, ScrapedMatch } from "../_shared/isquad.ts";
-import { admin, background, cors, fillKm, json, storeMatches } from "../_shared/sync.ts";
+import { admin, background, cors, json, storeMatches, syncUser } from "../_shared/sync.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -41,7 +41,8 @@ Deno.serve(async (req) => {
     { user_id: userId, login_key: key, isquad_login: login, origin, last_error: null }, { onConflict: "user_id" });
   if (pe) return json({ error: "No se ha podido guardar el perfil" }, 500);
   await db.from("isquad_credentials").upsert({ user_id: userId, secret: await encrypt(password), updated_at: new Date().toISOString() });
-  try { await storeMatches(db, userId, matches); background(fillKm(db, userId, origin)); }
+  // Los partidos se guardan ya; el equipo arbitral de cada designación y los km se leen después, sin hacer esperar.
+  try { await storeMatches(db, userId, matches); background(syncUser(db, userId, { waitKm: true })); }
   catch (_) { /* la sincronización programada lo reintentará */ }
 
   return json({ token_hash: link.properties.hashed_token });

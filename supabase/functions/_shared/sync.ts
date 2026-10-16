@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 import { decrypt } from "./crypto.ts";
-import { fetchDesignaciones, IsquadAuthError, ScrapedMatch, venueLabel } from "./isquad.ts";
+import { fetchDesignaciones, IsquadAuthError, ScrapedMatch, venueLabel, WithStaff } from "./isquad.ts";
 
 export const admin = (): SupabaseClient =>
   createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -77,15 +77,19 @@ export async function fillKm(db: SupabaseClient, userId: string, origin: string)
   }
 }
 
-export async function storeMatches(db: SupabaseClient, userId: string, matches: ScrapedMatch[]) {
+export async function storeMatches(db: SupabaseClient, userId: string, matches: WithStaff[]) {
   const now = new Date().toISOString();
   if (matches.length) {
     // Solo se envían las columnas que vienen de iSquad: lo que el árbitro marca a mano no se toca.
     const { error } = await db.from("matches").upsert(
-      matches.map((m) => ({ ...m, user_id: userId, last_seen: now })),
+      matches.map(({ staff: _s, ...m }) => ({ ...m, user_id: userId, last_seen: now })),
       { onConflict: "user_id,id" },
     );
     if (error) throw error;
+  }
+  // Rol y equipo arbitral, solo de los partidos cuya designación se ha podido leer.
+  for (const m of matches) {
+    if (m.staff) await db.from("matches").update({ ...m.staff, staff_checked: now }).eq("user_id", userId).eq("id", m.id);
   }
   const { data: known } = await db.from("venues").select("venue_key").eq("user_id", userId);
   const have = new Set((known || []).map((v) => v.venue_key));
@@ -113,7 +117,13 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { waitK
   const { data: prof } = await db.from("profiles").select("isquad_login, origin").eq("user_id", userId).maybeSingle();
   if (!cred || !prof) return { ok: false, error: "sin_credenciales" };
   try {
-    const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret));
+    // El equipo arbitral de un partido ya jugado no cambia: se lee una vez. Los próximos y recientes, en cada pasada.
+    const { data: ex } = await db.from("matches").select("id, staff_checked").eq("user_id", userId);
+    const checked = new Set((ex || []).filter((m) => m.staff_checked).map((m) => m.id));
+    const recent = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
+    const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
+      needStaff: (m: ScrapedMatch) => !checked.has(m.id) || m.date >= recent,
+    });
     await storeMatches(db, userId, matches);
     if (opts.waitKm) await fillKm(db, userId, prof.origin); else background(fillKm(db, userId, prof.origin));
     return { ok: true, count: matches.length };

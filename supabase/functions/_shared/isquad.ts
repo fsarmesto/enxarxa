@@ -9,7 +9,10 @@ export class IsquadAuthError extends Error {}
 export type ScrapedMatch = {
   id: string; comp: string; phase: string; teams: string; estado: string;
   date: string; time: string; venue: string; addr: string; venue_key: string;
+  desig_id: string | null;
 };
+// Rol del árbitro y composición del equipo arbitral, sacados de "Ver Designación".
+export type Staff = { role: "r1" | "r2" | "an" | "jl"; team: "t1" | "t2a" | "t2b" | "t3" };
 
 type Jar = Map<string, string>;
 function keep(jar: Jar, res: Response) {
@@ -50,7 +53,59 @@ export function seasons(html: string): { current: string | null; previous: strin
   return { current: i >= 0 ? opts[i].v : null, previous: i >= 0 ? opts[i + 1]?.v ?? null : null };
 }
 
-export async function fetchDesignaciones(login: string, password: string): Promise<ScrapedMatch[]> {
+// Palabras del nombre en mayúsculas y sin acentos, para comparar "SANCHIS ARMESTO FERRAN" con "FERRAN SANCHIS ARMESTO".
+const nameWords = (s: string) => norm(s).split(/[^A-Z]+/).filter((w) => w.length > 1);
+
+// Nombre del árbitro que ha entrado (cabecera de la página).
+export function ownName(html: string): string[] {
+  // deno-lint-ignore no-explicit-any
+  const { document } = parseHTML(html) as any;
+  return nameWords(document.querySelector(".contact-container")?.textContent || "");
+}
+
+// Equipo arbitral de una designación. iSquad no numera a los árbitros: el primero de la lista es el 1r.
+export function parseStaff(html: string, me: string[]): Staff | null {
+  // deno-lint-ignore no-explicit-any
+  const { document } = parseHTML(`<div>${html}</div>`) as any;
+  // deno-lint-ignore no-explicit-any
+  const table = [...document.querySelectorAll("table")].find((t: any) => /EQUIPO ARBITRAL/i.test(t.textContent || ""));
+  if (!table || !me.length) return null;
+  const people: { fn: string; mine: boolean }[] = [];
+  for (const tr of table.querySelectorAll("tbody tr")) {
+    const [a, b] = tr.querySelectorAll("td");
+    if (!a || !b) continue;
+    const who = new Set(nameWords(b.childNodes?.[0]?.textContent || b.textContent || ""));
+    people.push({ fn: norm(a.textContent), mine: me.every((w) => who.has(w)) });
+  }
+  const refs = people.filter((p) => /^ARBITRO/.test(p.fn));
+  const scorers = people.filter((p) => /ANOTADOR/.test(p.fn));
+  const mine = people.find((p) => p.mine);
+  if (!mine) return null;
+  const team = refs.length >= 2 ? (scorers.length ? "t3" : "t2a") : (scorers.length ? "t2b" : "t1");
+  const role = /ANOTADOR/.test(mine.fn) ? "an" : /LINEA/.test(mine.fn) ? "jl" : refs.indexOf(mine) === 1 ? "r2" : "r1";
+  return { role, team };
+}
+
+async function fetchStaff(jar: Jar, desigId: string, me: string[]): Promise<Staff | null> {
+  try {
+    const r = await fetch(`${BASE}/json/arbitros_ver_datos_designacion.php`, {
+      method: "POST", body: new URLSearchParams({ id_designacion: desigId }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar), "X-Requested-With": "XMLHttpRequest" },
+    });
+    if (!r.ok) { await r.body?.cancel(); return null; }
+    const html = JSON.parse(await r.text())?.[0]?.html;
+    return typeof html === "string" ? parseStaff(html, me) : null;
+  } catch { return null; }
+}
+
+export type WithStaff = ScrapedMatch & { staff?: Staff | null };
+// Máximo de designaciones que se abren en cada pasada; el resto, en la siguiente.
+const STAFF_MAX_PER_RUN = 120;
+
+export async function fetchDesignaciones(
+  login: string, password: string,
+  opts: { needStaff?: (m: ScrapedMatch) => boolean } = {},
+): Promise<WithStaff[]> {
   const jar: Jar = new Map();
   const first = await get(`${BASE}/loginarbitros.php`, jar); await first.body?.cancel();
 
@@ -75,7 +130,16 @@ export async function fetchDesignaciones(login: string, password: string): Promi
   for (const season of [previous, current]) {
     if (season) out.push(...(parseDesignaciones(await designaciones(jar, season)) ?? []));
   }
-  return uniqueIds(out);
+  const all: WithStaff[] = uniqueIds(out);
+  if (opts.needStaff) {
+    const me = ownName(html);
+    let n = 0;
+    for (const m of all) {
+      if (!m.desig_id || !opts.needStaff(m) || n++ >= STAFF_MAX_PER_RUN) continue;
+      m.staff = await fetchStaff(jar, m.desig_id, me);
+    }
+  }
+  return all;
 }
 
 // En concentraciones y campeonatos iSquad repite el mismo código en varios partidos: a esos se les añade
@@ -133,6 +197,7 @@ export function parseDesignaciones(html: string): ScrapedMatch[] | null {
       teams: [...c[3].querySelectorAll(".text-bold")].map(tx).join(" vs "), estado: tx(c[7]).toUpperCase(),
       date: `${fd[3]}-${String(mo).padStart(2, "0")}-${fd[1].padStart(2, "0")}`,
       time: `${h[1].padStart(2, "0")}:${h[2]}`, venue, addr, venue_key: venueKey(venue, addr),
+      desig_id: (c[4].innerHTML || "").match(/ver_designacion\((\d+)\)/)?.[1] ?? null,
     });
   }
   return out;
