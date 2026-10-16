@@ -1,5 +1,9 @@
-// Sincroniza designaciones. Con la cabecera x-cron-secret: todos los usuarios (tarea programada).
-// Con la sesión de un usuario: solo ese usuario (botón "Actualizar ahora").
+// Sincroniza designaciones.
+// - Cron (cabecera x-cron-secret, sin cuerpo): reparte el trabajo en una ejecución por árbitro, porque en una sola
+//   no caben la CPU y la memoria de leer las páginas de iSquad de todos. Primero los partidos (en paralelo) y,
+//   con el tiempo que quede, los km (uno detrás de otro: el candado de km solo deja uno a la vez).
+// - Cron con {user_id, mode: "sync" | "km"}: el trabajo de un árbitro.
+// - Con la sesión de un usuario: solo ese usuario (botón "Actualizar ahora").
 import { admin, cors, fillKm, json, syncUser, userFromRequest } from "../_shared/sync.ts";
 
 Deno.serve(async (req) => {
@@ -9,21 +13,36 @@ Deno.serve(async (req) => {
   const db = admin();
   const secret = Deno.env.get("CRON_SECRET");
   if (secret && req.headers.get("x-cron-secret") === secret) {
-    // Primero los partidos de todos (los que llevan más tiempo sin actualizarse, antes); con el tiempo que sobre, los km.
-    // Los que fallaron la última vez (credenciales caducadas, etc.) van al final para no comerse el tiempo de los demás.
+    let body: { user_id?: string; mode?: string } = {};
+    try { body = await req.json(); } catch { /* sin cuerpo: reparto */ }
+    if (body.user_id && body.mode === "sync") return json(await syncUser(db, body.user_id, { km: "none", deadline }));
+    if (body.user_id && body.mode === "km") return json({ km: await fillKm(db, body.user_id, deadline) });
+
+    const self = `${Deno.env.get("SUPABASE_URL")}/functions/v1/sync`;
+    const call = async (user_id: string, mode: string) => {
+      try {
+        const r = await fetch(self, { method: "POST", body: JSON.stringify({ user_id, mode }),
+          headers: { "Content-Type": "application/json", "x-cron-secret": secret }, signal: AbortSignal.timeout(Math.max(1000, deadline - Date.now())) });
+        return await r.json();
+      } catch (e) {
+        // Si se agota la hora límite, la ejecución del árbitro sigue por su cuenta y lo que falte sale en la siguiente pasada.
+        const cut = (e as Error).name === "TimeoutError";
+        return { ok: false, error: cut ? "cortado por tiempo" : (e as Error).message, km: cut ? "cortado por tiempo" : "error" };
+      }
+    };
+    // Los que fallaron la última vez van al final; los demás, del que lleva más tiempo sin actualizarse al que menos.
     const { data: users } = await db.from("profiles").select("user_id")
       .order("last_error", { ascending: true, nullsFirst: true }).order("last_sync", { ascending: true, nullsFirst: true });
-    let ok = 0, done = 0;
-    for (const u of users || []) {
-      if (Date.now() > deadline - 15_000) break;
-      done++;
-      if ((await syncUser(db, u.user_id, { km: "none", deadline })).ok) ok++;
+    const list = (users || []).map((u) => u.user_id);
+    const synced = await Promise.all(list.map((id) => call(id, "sync")));
+    const km: string[] = [];
+    for (const id of list) {
+      if (Date.now() > deadline - 20_000) { km.push("sin tiempo"); continue; }
+      const r = (await call(id, "km"))?.km ?? "error";
+      km.push(r);
+      if (r === "quota") break;   // sin cupo en ORS: no tiene sentido seguir hoy
     }
-    for (const u of users || []) {
-      if (Date.now() > deadline) break;
-      if (await fillKm(db, u.user_id, deadline) === "quota") break;   // sin cupo en ORS: no tiene sentido seguir hoy
-    }
-    return json({ users: users?.length || 0, synced: done, ok });
+    return json({ users: list.length, ok: synced.filter((r) => r?.ok).length, km });
   }
   const user = await userFromRequest(db, req);
   if (!user) return json({ error: "Inicia sesión de nuevo" }, 401);

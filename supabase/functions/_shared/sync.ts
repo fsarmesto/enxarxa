@@ -20,16 +20,17 @@ export async function userFromRequest(db: SupabaseClient, req: Request) {
   return data?.user ?? null;
 }
 
-/* Km de ida por carretera. Las direcciones y poblaciones se buscan en Nominatim (OpenStreetMap, sin cupo diario
-   pero máximo 1 consulta por segundo) y la ruta se calcula con OpenRouteService (secret ORS_KEY, 200 rutas al día).
-   Las dos cosas se guardan en caché compartida entre árbitros. */
+/* Km de ida por carretera. Las direcciones y poblaciones se buscan en Photon (photon.komoot.io, datos de
+   OpenStreetMap, sin clave ni cupo diario; Nominatim no se puede usar porque bloquea las IP de Supabase) y la ruta
+   se calcula con OpenRouteService (secret ORS_KEY, 200 rutas al día). Las dos cosas se guardan en caché
+   compartida entre árbitros. */
 type Place = { at: [number, number]; exact: boolean };
 // deno-lint-ignore no-explicit-any
-type NomiHit = any;
+type GeoHit = any;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const UA = "liquidacion-arbitral-fcvb/1.0 (https://github.com/fsarmesto/liquidacion-arbitral-fcvb)";
-const CAT_BOX = "&viewbox=0.15,42.9,3.35,40.5&bounded=1"; // solo Catalunya
-const NOMI_GAP_MS = 1100, ORS_GAP_MS = 1600;              // 1/s en Nominatim; 40/min en ORS
+const CAT_BBOX = "&bbox=0.15,40.5,3.35,42.9"; // solo Catalunya
+const GEO_GAP_MS = 1000, ORS_GAP_MS = 1600;   // uso moderado de Photon; 40/min en ORS
 // Lo no encontrado se vuelve a buscar a la semana, igual que el reintento de cada pabellón.
 const RETRY_AFTER_MS = 7 * 864e5, NOT_FOUND_TTL_MS = RETRY_AFTER_MS;
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
@@ -39,32 +40,35 @@ function pacer(gap: number) {
   let next = 0;
   return async () => { const now = Date.now(), at = Math.max(now, next); next = at + gap; if (at > now) await sleep(at - now); };
 }
-const paceNomi = pacer(NOMI_GAP_MS), paceOrs = pacer(ORS_GAP_MS);
+const paceGeo = pacer(GEO_GAP_MS), paceOrs = pacer(ORS_GAP_MS);
+let lastServiceError = "";   // para el resumen de la pasada
 
 // "error" = fallo de red o del servicio: no se guarda en caché ni cuenta como intento. null = no encontrado.
 type Fail = "error" | "quota";
-async function nominatim(text: string, town: boolean): Promise<NomiHit | null | "error"> {
-  await paceNomi();
+// Poblaciones: solo la capa "city" de Photon (municipios, también los pueblos), nunca barrios ni calles.
+async function photon(text: string, town: boolean): Promise<GeoHit | null | "error"> {
+  await paceGeo();
   try {
-    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&countrycodes=es${CAT_BOX}` +
-      (town ? "&featureType=settlement" : "") + `&q=${encodeURIComponent(text)}`,
-      { headers: { "User-Agent": UA, "Accept-Language": "ca,es" }, signal: AbortSignal.timeout(10_000) });
-    if (!r.ok) { await r.body?.cancel(); return "error"; }
-    return (await r.json())?.[0] ?? null;
-  } catch { return "error"; }
+    const r = await fetch(`https://photon.komoot.io/api/?limit=1${CAT_BBOX}` + (town ? "&layer=city" : "") + `&q=${encodeURIComponent(text)}`,
+      { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) { lastServiceError = `Photon ${r.status}: ${(await r.text()).slice(0, 120)}`; console.warn(`km: ${lastServiceError}`); return "error"; }
+    return (await r.json())?.features?.[0] ?? null;
+  } catch (e) { lastServiceError = `Photon: ${(e as Error).message}`; console.warn(`km: ${lastServiceError}`); return "error"; }
 }
 
-async function geocode(db: SupabaseClient, text: string, town: boolean, accept?: (h: NomiHit) => boolean): Promise<Place | null | "error"> {
+async function geocode(db: SupabaseClient, text: string, town: boolean, accept?: (h: GeoHit) => boolean): Promise<Place | null | "error"> {
   const query = (town ? "town:" : "addr:") + norm(text);
   const { data: c } = await db.from("geo_cache").select("lon, lat, exact, found, created_at").eq("query", query).maybeSingle();
   if (c && (c.found || Date.now() - new Date(c.created_at).getTime() < NOT_FOUND_TTL_MS)) {
     return c.found ? { at: [c.lon, c.lat], exact: c.exact } : null;
   }
-  let hit = await nominatim(text, town);
+  let hit = await photon(text, town);
   if (hit === "error") return "error";
   if (hit && accept && !accept(hit)) hit = null;
-  // rank 26 = calle, 30 = portal o edificio: eso es dirección exacta; lo demás, aproximado.
-  const place: Place | null = hit ? { at: [+hit.lon, +hit.lat], exact: !town && hit.place_rank >= 26 } : null;
+  // Portal, edificio o calle es dirección exacta; lo demás (barrio, población), aproximado.
+  const place: Place | null = hit
+    ? { at: [+hit.geometry.coordinates[0], +hit.geometry.coordinates[1]], exact: !town && ["house", "street"].includes(hit.properties?.type) }
+    : null;
   await db.from("geo_cache").upsert({ query, lon: place?.at[0] ?? null, lat: place?.at[1] ?? null, exact: place?.exact ?? false,
     found: !!place, created_at: new Date().toISOString() });
   return place;
@@ -79,15 +83,15 @@ async function driveKm(db: SupabaseClient, a: [number, number], b: [number, numb
   try {
     const r = await fetch(`https://api.openrouteservice.org/v2/directions/driving-car?api_key=${key}&start=${a.join(",")}&end=${b.join(",")}`,
       { signal: AbortSignal.timeout(10_000) });
-    if (r.status === 403 || r.status === 429) { await r.body?.cancel(); return "quota"; }
+    if (r.status === 403 || r.status === 429) { console.warn(`km: ORS sin cupo (${r.status})`); await r.body?.cancel(); return "quota"; }
     if (r.status === 404) { await r.body?.cancel(); return null; }   // sin ruta posible entre los dos puntos
-    if (!r.ok) { await r.body?.cancel(); return "error"; }
+    if (!r.ok) { console.warn(`km: ORS respondió ${r.status}`); await r.body?.cancel(); return "error"; }
     const m = (await r.json()).features?.[0]?.properties?.summary?.distance;
     if (typeof m !== "number") return null;
     const km = Math.round(m / 1000);
     await db.from("route_cache").upsert({ key: k, km });
     return km;
-  } catch { return "error"; }
+  } catch (e) { console.warn(`km: ORS falló: ${(e as Error).message}`); return "error"; }
 }
 
 // Primero la calle (con código postal y población); solo si la calle no existe, el centro de la población.
@@ -99,7 +103,10 @@ export async function route(db: SupabaseClient, a: [number, number], address: st
   const town = cp?.[2].trim();
   const street = parts[0] + (/^\d/.test(parts[1] || "") ? " " + parts[1] : "");
   // Una calle con el mismo nombre en otro municipio no vale: tiene que coincidir el código postal o la población.
-  const sameTown = (h: NomiHit) => !cp || h.address?.postcode === cp[1] || norm(h.display_name).includes(norm(town!));
+  const sameTown = (h: GeoHit) => {
+    const p = h.properties || {};
+    return !cp || p.postcode === cp[1] || [p.city, p.locality, p.district, p.county].some((x) => x && (norm(x).includes(norm(town!)) || norm(town!).includes(norm(x))));
+  };
   const tries: [string, boolean][] = [[cp ? `${street}, ${cp[1]} ${town}` : clean, false]];
   if (town) tries.push([town, true]);
   for (const [text, isTown] of tries) {
@@ -125,30 +132,31 @@ const dropLock = (db: SupabaseClient, holder: string) =>
 // Km de ida de los pabellones que aún no los tienen, hasta la hora límite. Los que no se encuentran no se
 // reintentan hasta pasada una semana (o antes si el árbitro cambia de población). Los fallos del servicio
 // no cuentan como intento; si ORS dice que no queda cupo, se para.
-// Devuelve "quota" si ORS ha dicho que no queda cupo, para que el cron no siga con los demás usuarios.
-export async function fillKm(db: SupabaseClient, userId: string, deadline: number): Promise<"quota" | void> {
-  const key = Deno.env.get("ORS_KEY"); if (!key || Date.now() > deadline) return;
+// Devuelve un resumen de la pasada; "quota" si ORS ha dicho que no queda cupo, para que el cron no siga con los demás.
+export async function fillKm(db: SupabaseClient, userId: string, deadline: number): Promise<string> {
+  const key = Deno.env.get("ORS_KEY"); if (!key) return "sin ORS_KEY"; if (Date.now() > deadline) return "sin tiempo";
   const holder = crypto.randomUUID();
   // Si otra función está calculando, se espera turno (p. ej. dos altas seguidas) mientras quede tiempo.
   // El candado dura la hora límite + 30 s: cada llamada tiene 10 s de tiempo máximo, así que no caduca con el titular vivo.
   while (!await takeLock(db, holder, deadline + 30_000)) {
-    if (Date.now() > deadline - 20_000) return;
+    if (Date.now() > deadline - 20_000) { console.warn("km: candado ocupado, se deja para la siguiente pasada"); return "candado ocupado"; }
     await sleep(3000);
   }
   try {
     const { data: prof } = await db.from("profiles").select("origin, origin_lon, origin_lat").eq("user_id", userId).maybeSingle();
-    if (!prof?.origin) return;
+    if (!prof?.origin) return "sin población";
     let a: [number, number] | null = prof.origin_lon != null ? [prof.origin_lon, prof.origin_lat] : null;
     if (!a) {
       const o = await geocode(db, prof.origin, true);
-      if (!o || o === "error") return;
+      if (!o || o === "error") { console.warn(`km: origen no ubicado (${o === "error" ? "error del servicio" : "no encontrado"})`); return o === "error" ? `origen: ${lastServiceError}` : "origen no encontrado"; }
       a = o.at;
       await db.from("profiles").update({ origin_lon: a[0], origin_lat: a[1] }).eq("user_id", userId).eq("origin", prof.origin);
     }
     const since = new Date(Date.now() - RETRY_AFTER_MS).toISOString();
-    const { data: todo } = await db.from("venues").select("venue_key").eq("user_id", userId).is("km", null)
+    const { data: todo, error: te } = await db.from("venues").select("venue_key").eq("user_id", userId).is("km", null)
       .or(`km_tried_at.is.null,km_tried_at.lt.${since}`);
-    let errors = 0;
+    if (te) { console.warn(`km: no se pudieron leer los pabellones: ${te.message}`); return `error leyendo pabellones: ${te.message}`; }
+    let errors = 0, done = 0, missing = 0;
     // Orden aleatorio: un pabellón que falle siempre no bloquea a los demás en cada pasada.
     const order = (todo || []).map((v) => v.venue_key).sort(() => Math.random() - 0.5);
     for (const k of order) {
@@ -162,11 +170,12 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
       const r = await route(db, a, m.addr || m.venue, key);
       if (r === "quota") return "quota";
       if (r === "error") { errors++; continue; }
-      errors = 0;
+      errors = 0; if (r) done++; else missing++;
       const now = new Date().toISOString();
       await db.from("venues").update(r ? { km: r.km, km_source: r.source, km_tried_at: now } : { km_tried_at: now })
         .eq("user_id", userId).eq("venue_key", k).is("km", null);
     }
+    return `${todo?.length ?? 0} pendientes: ${done} calculados, ${missing} no encontrados${errors ? `, ${errors} errores seguidos` : ""}`;
   } finally { await dropLock(db, holder); }
 }
 
