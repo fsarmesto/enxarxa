@@ -456,7 +456,7 @@ function render(){
         html+=`<tr class="${m.paid?'paid':''}">
           <td class="time">${esc(m.time)}</td>
           <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div><div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}</div></td>
-          <td class="ctrl"><div class="desig"><strong>${m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad'}</strong>${m.staff_checked&&m.team!=='t1'?' · '+TEAM_OPTS[m.team]:''}<br>${esc(CATS[catOf(m)].label)}${isHoliday(m.date)||m.holiday?' · festivo':''}</div>
+          <td class="ctrl"><div class="desig"><strong>${m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad'}</strong>${m.staff_checked&&m.team!=='t1'&&m.role!=='jl'?' · '+TEAM_OPTS[m.team]:''}<br>${esc(CATS[catOf(m)].label)}${isHoliday(m.date)||m.holiday?' · festivo':''}</div>
             <label class="chk small">km <input type="number" step="1" data-f="km" data-id="${esc(m.id)}" value="${km||''}" placeholder="?" title="Km solo ida. Cambia el valor del pabellón para todos sus partidos."></label></td>
           <td class="n" data-l="Tarifa">${eur(r.tariff)}</td>
           <td class="n" data-l="Dieta"><input type="number" step="0.5" min="0" data-f="dieta" data-id="${esc(m.id)}" value="${r.dieta||''}" placeholder="0" aria-label="Dieta">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${esc(m.id)}" title="Volver a la dieta automática (${eur(r.dietaAuto)})">auto</button>`:(r.dietaShared&&r.dieta?'<span class="shared">jornada</span>':'')}</td>

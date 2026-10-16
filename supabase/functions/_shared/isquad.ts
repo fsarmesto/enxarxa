@@ -137,6 +137,8 @@ export async function fetchDesignaciones(
     for (const m of all) {
       if (!m.desig_id || !opts.needStaff(m) || n++ >= STAFF_MAX_PER_RUN) continue;
       m.staff = await fetchStaff(jar, m.desig_id, me);
+      // En Superliga el segundo "ARBITRO" de la lista es el juez de línea (en Superliga 2 sí hay 2n árbitro).
+      if (m.staff?.role === "r2" && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIGA ?2/.test(norm(m.comp))) m.staff.role = "jl";
     }
   }
   return all;
