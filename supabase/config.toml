@@ -1,0 +1,11 @@
+project_id = "liquidacion-arbitral"
+
+# Las funciones validan la sesión por su cuenta (auth-isquad es el propio login).
+[functions.auth-isquad]
+verify_jwt = false
+
+[functions.sync]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
