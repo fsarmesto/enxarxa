@@ -205,6 +205,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
       <h1>Liquidación arbitral <span class="fed">FCVB</span></h1>
       <div class="actions">
         <div class="seasons hidden" id="seasons" role="group" aria-label="Temporada"></div>
+        <button id="btnExport">Exportar a Excel</button>
         <button id="btnSync">Actualizar ahora</button>
         <button class="ghost" id="btnLogout">Salir</button>
       </div>
@@ -545,6 +546,55 @@ async function callFn(name, body){
   let j={}; try{ j=await r.json(); }catch(e){}
   return {ok:r.ok, ...j};
 }
+/* ---------- Exportar a Excel (temporada seleccionada) ---------- */
+const XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+function loadXlsx(){
+  if(window.XLSX) return Promise.resolve();
+  return new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src=XLSX_URL; sc.onload=ok; sc.onerror=ko; document.head.appendChild(sc); });
+}
+function buildWorkbook(){
+  const {ms:allMs,res} = compute();
+  const ms = allMs.filter(m=>seasonOf(m.date)===SEASON);
+  const head = ['Fecha','Hora','Código','Competición','Categoría','Partido','Pabellón','Población','Rol','Equipo arbitral',
+                'Tarifa','Dieta','Km ida','Desplazamiento','Peajes','Total','Estado iSquad','Cobrado'];
+  const rows = ms.map(m=>{
+    const r=res.get(m.id), city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
+    // Fecha como número de serie de Excel: con un Date, la zona horaria la movería un día.
+    const serial = (Date.UTC(+m.date.slice(0,4), +m.date.slice(5,7)-1, +m.date.slice(8,10)) - Date.UTC(1899,11,30)) / 864e5;
+    return [serial, m.time, m.id.split('@')[0], m.comp, CATS[catOf(m)].label, m.teams,
+      VENUES[m.venue_key]?.label || m.venue, city ? city[1].trim() : '', ROLE_OPTS[m.role],
+      m.role==='jl' ? '' : TEAM_OPTS[m.team], r.tariff, r.dieta, kmFor(m)||null, r.travel, r.tolls, r.total,
+      (m.estado||'').toLowerCase(), m.paid ? 'Sí' : 'No'];
+  });
+  const sum = i => +rows.reduce((t,x)=>t+(+x[i]||0),0).toFixed(2);
+  const n = rows.length, last = n+1;
+  const totals = [10,11,13,14,15].map(sum);
+  const pend = +ms.filter(m=>!m.paid).reduce((t,m)=>t+res.get(m.id).total,0).toFixed(2);
+  const pad = Array(15).fill('');
+  rows.push([], ['Total','','','','','','','','','', totals[0], totals[1], null, totals[2], totals[3], totals[4]],
+    ['Pendiente de cobro', ...pad.slice(1), pend], ['Ya cobrado', ...pad.slice(1), +(totals[4]-pend).toFixed(2)]);
+  const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+  const EUR = '#,##0.00 "€"';
+  for(let R=1; R<=last+4; R++){
+    const d = ws[XLSX.utils.encode_cell({r:R,c:0})]; if(d && d.t==='n' && R<=n) d.z='dd/mm/yyyy';
+    for(const C of [10,11,13,14,15]){ const c = ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c && c.t==='n') c.z=EUR; }
+  }
+  ws['!cols'] = [11,7,14,38,20,44,34,22,14,18,10,9,8,14,9,11,13,9].map(w=>({wch:w}));
+  ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:n,c:head.length-1}})};
+  ws['!freeze'] = {xSplit:0, ySplit:1};
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `Temporada ${seasonLabel(SEASON).replace('/','-')}`);
+  return wb;
+}
+$('btnExport').addEventListener('click', async ()=>{
+  const b=$('btnExport'); b.disabled=true;
+  try{
+    await loadXlsx();
+    XLSX.writeFile(buildWorkbook(), `liquidacion-FCVB-${seasonLabel(SEASON).replace('/','-')}.xlsx`);
+  }catch(e){ toast('No se ha podido generar el Excel. Revisa la conexión.'); }
+  b.disabled=false;
+});
+
 $('btnSync').addEventListener('click', async ()=>{
   const b=$('btnSync'); b.disabled=true; b.textContent='Actualizando…';
   const r = await callFn('sync');
