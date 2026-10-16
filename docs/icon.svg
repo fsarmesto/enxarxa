@@ -1,1 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#1F49C9"/><text x="50%" y="56%" font-size="300" text-anchor="middle" dominant-baseline="middle">🏐</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#000"/><rect y="432" width="512" height="80" fill="#FFD100"/><text x="256" y="300" font-family="Arial Narrow,Arial,sans-serif" font-weight="700" font-size="190" fill="#FFD100" text-anchor="middle">€</text><circle cx="400" cy="120" r="44" fill="#D2232A"/></svg>
