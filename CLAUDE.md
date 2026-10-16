@@ -85,3 +85,23 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 `supabase` simulado que lea un JSON de datos, servir con `python3 -m http.server` y hacer capturas con
 `google-chrome --headless=new --screenshot`. Para el ancho de móvil, meter la página en un iframe de 390 px
 (Chrome sin ventana no baja de ~500 px).
+
+## Decisiones tomadas (y por qué)
+
+- Acceso abierto: `ALLOWED_LOGINS` vacío, cualquier árbitro con cuenta de iSquad puede entrar. Para cerrarlo,
+  poner la lista de usuarios en ese secret (quien no esté, deja de poder entrar).
+- La temporada 2025/26 se calcula con las tarifas de 2026/27 (decisión del autor: importes aproximados en esa temporada).
+- Se traen la temporada en curso y la anterior; la web tiene selector de temporada (se recuerda en el navegador).
+- Logo de la FCVB en la cabecera, siempre con "App no oficial" al lado: no es una herramienta de la federación.
+- Selecciones territoriales: no se muestran ni se cuentan (no se liquidan con el anexo).
+- Rol y categoría no son editables: salen de iSquad. Lo editable a mano: dieta por partido, km por pabellón,
+  peajes, "cobrado" y el IRPF del árbitro.
+- Exportación a Excel (SheetJS 0.18.5 cargado al pulsar): temporada seleccionada, importes como números.
+
+## Pendiente (técnico)
+
+- Recalcular con Photon los km antiguos marcados como aproximados (los calculados antes de pasar a Photon):
+  vaciar `km`/`km_tried_at` de esos pabellones (`km_source='poblacion'`, no los `manual`) y lanzar el cron.
+- Si algún día no basta el cupo de ORS Matrix: el servidor público de rutas Valhalla de FOSSGIS
+  (gratis, sin clave, 1 consulta/s) como segunda reserva. No probado desde Supabase.
+- Al empezar la temporada 2027/28: actualizar `CATS` y `dietaFor` con el anexo nuevo.
