@@ -61,7 +61,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   Festivo entre semana: 18 € solo en las franjas de festivo (0:00–8:59, 14:01–15:59, 18:31–23:59); fuera de ellas,
   la dieta normal de ese día (confirmado con un recibo de la FCVB: lunes 12-oct a las 17:00 = 10 €).
 - Desplazamiento: una ida y vuelta por **pabellón y franja** (mañana y tarde en el mismo pabellón = 2).
-- IRPF: porcentaje en `profiles.irpf`, solo sobre la tarifa (dieta, km y peajes exentos). Las cifras son netas.
+- IRPF: porcentaje en `profiles.irpf` (2 % por defecto, lo que retiene la FCVB), solo sobre la tarifa (dieta, km y peajes exentos). Las cifras son netas.
 
 ## Km por carretera
 
