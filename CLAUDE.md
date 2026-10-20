@@ -57,7 +57,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 - Tarifas: objeto `CATS` (anexo 2026/27; también se aplica a 25/26). Categoría automática con `guessCat`
   (Júnior de 2ª se paga como 1ª). Al cambiar de temporada, actualizar `CATS` y `dietaFor` con el anexo nuevo.
-- Dieta: una por jornada y franja (mañana = antes de las 14:00); festivos de Catalunya automáticos (no los
+- Franja (dieta y desplazamiento): mañana hasta las 14:59, tarde desde las 15:00 (`franjaOf`; lo dijo Ferran y cuadra
+  con los recibos: 13:00+14:45 = 1 viaje, 13:00+16:00 = 2).
+- Dieta: una por jornada y franja; festivos de Catalunya automáticos (no los
   locales); editable a mano por partido (`matches.dieta_override`).
   Festivo entre semana: 18 € solo en las franjas de festivo (0:00–8:59, 14:01–15:59, 18:31–23:59); fuera de ellas,
   la dieta normal de ese día (confirmado con un recibo de la FCVB: lunes 12-oct a las 17:00 = 10 €).
