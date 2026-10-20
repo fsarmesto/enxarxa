@@ -70,8 +70,13 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   iSquad a veces pone mal la población ("08880 BARCELONA" es Cubelles): manda el código postal. Un resultado con
   otro código postal de distinta zona (3 primeros dígitos) se rechaza y se repite sin la población; de reserva, el
   centro del código postal antes que el de la población.
-- Distancias: **ORS Matrix** (una petición por árbitro, hasta 49 destinos; cupo propio). Reserva: rutas sueltas
-  de ORS (200 al día en el plan gratuito).
+- Distancias: la FCVB paga **la ruta más corta**, pero no la "más corta" pura de ORS (`preference: shortest` da caminos
+  de 90 min para ahorrar 2 km; el recibo de Vilanova → Els Arcs pagó 47 km = la normal, la pura daba 45). Se pide la
+  ruta con `alternative_routes` (3, weight_factor 1.6) y se toma la de menos km; ORS solo da alternativas hasta ~100 km
+  (error 2004), más lejos la ruta normal. Son rutas sueltas: **200 al día** en el plan gratuito.
+  Reserva sin cupo: **ORS Matrix** (solo la más rápida); esos km quedan `venues.km_rule='rapida'`.
+  Cada pasada, con el tiempo y cupo sobrantes, recalcula con la ruta corta los km que no son `km_rule='corta'`
+  (los antiguos y los de Matrix); los manuales no se tocan. Caché de rutas con prefijo `c:` (sin prefijo = antiguas, rápidas).
 - Caché compartida entre árbitros: `geo_cache` (también "no encontrado", 7 días) y `route_cache`.
   Coordenadas del origen en `profiles.origin_lon/lat` (un trigger las borra si cambia `origin`).
 - Un solo cálculo a la vez (fila `km_lock`). Errores del servicio no cuentan como intento; lo no encontrado se

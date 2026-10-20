@@ -23,7 +23,8 @@ export async function userFromRequest(db: SupabaseClient, req: Request) {
 /* Km de ida por carretera. Las direcciones y poblaciones se buscan en Photon (photon.komoot.io, datos de
    OpenStreetMap, sin clave ni cupo diario; Nominatim no se puede usar porque bloquea las IP de Supabase) y la ruta
    se calcula con OpenRouteService (secret ORS_KEY, 200 rutas al día). Las dos cosas se guardan en caché
-   compartida entre árbitros. */
+   compartida entre árbitros. La FCVB paga la ruta más corta, pero no la "más corta" pura (caminos de 90 minutos para
+   ahorrar 2 km): se pide la ruta con alternativas y se toma la de menos km. */
 type Place = { at: [number, number]; exact: boolean };
 // deno-lint-ignore no-explicit-any
 type GeoHit = any;
@@ -75,8 +76,9 @@ async function geocode(db: SupabaseClient, text: string, town: boolean, accept?:
 }
 
 // "quota" = ORS rechaza por cupo o ritmo (403/429): hay que parar la pasada.
+// Prefijo "c:" = ruta más corta entre alternativas; las claves sin prefijo son de la ruta más rápida (antes del cambio).
 const routeKey = (a: [number, number], b: [number, number]) =>
-  `${a.map((x) => x.toFixed(4)).join(",")}>${b.map((x) => x.toFixed(4)).join(",")}`;
+  `c:${a.map((x) => x.toFixed(4)).join(",")}>${b.map((x) => x.toFixed(4)).join(",")}`;
 async function cachedKm(db: SupabaseClient, a: [number, number], b: [number, number]): Promise<number | null> {
   const { data: c } = await db.from("route_cache").select("km").eq("key", routeKey(a, b)).maybeSingle();
   return c ? +c.km : null;
@@ -84,26 +86,40 @@ async function cachedKm(db: SupabaseClient, a: [number, number], b: [number, num
 const saveKm = (db: SupabaseClient, a: [number, number], b: [number, number], km: number) =>
   db.from("route_cache").upsert({ key: routeKey(a, b), km });
 
-// Reserva: una ruta suelta (cupo de 200 al día). "quota" = ORS rechaza por cupo o ritmo (403/429): hay que parar.
+// Vía principal: una ruta con hasta 3 alternativas (cupo de 200 al día) y se queda la de menos km. ORS solo da
+// alternativas hasta unos 100 km (error 2004): más lejos, la ruta normal. "quota" = sin cupo o ritmo (403/429): hay que parar.
+const ALTERNATIVES = { target_count: 3, weight_factor: 1.6, share_factor: 0.6 };
 async function driveKm(db: SupabaseClient, a: [number, number], b: [number, number], key: string): Promise<number | null | Fail> {
   const c = await cachedKm(db, a, b);
   if (c != null) return c;
-  await paceOrs();
   try {
-    const r = await fetch(`https://api.openrouteservice.org/v2/directions/driving-car?api_key=${key}&start=${a.join(",")}&end=${b.join(",")}`,
-      { signal: AbortSignal.timeout(10_000) });
-    if (r.status === 403 || r.status === 429) { console.warn(`km: ORS sin cupo (${r.status})`); await r.body?.cancel(); return "quota"; }
-    if (r.status === 404) { await r.body?.cancel(); return null; }   // sin ruta posible entre los dos puntos
-    if (!r.ok) { console.warn(`km: ORS respondió ${r.status}`); await r.body?.cancel(); return "error"; }
-    const m = (await r.json()).features?.[0]?.properties?.summary?.distance;
-    if (typeof m !== "number") return null;
-    const km = Math.round(m / 1000);
-    await saveKm(db, a, b, km);
-    return km;
+    for (const alt of [true, false]) {
+      await paceOrs();
+      const r = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
+        method: "POST", signal: AbortSignal.timeout(10_000),
+        headers: { "Authorization": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ coordinates: [a, b], ...(alt ? { alternative_routes: ALTERNATIVES } : {}) }),
+      });
+      if (r.status === 403 || r.status === 429) { console.warn(`km: ORS sin cupo (${r.status})`); await r.body?.cancel(); return "quota"; }
+      if (r.status === 404) { await r.body?.cancel(); return null; }   // sin ruta posible entre los dos puntos
+      if (r.status === 400 && alt) {
+        const err = await r.json().catch(() => null);
+        if (err?.error?.code === 2004) continue;                         // demasiado lejos para alternativas
+        console.warn(`km: ORS respondió 400: ${JSON.stringify(err?.error ?? err).slice(0, 120)}`); return "error";
+      }
+      if (!r.ok) { console.warn(`km: ORS respondió ${r.status}`); await r.body?.cancel(); return "error"; }
+      const ds = ((await r.json()).routes || []).map((x: GeoHit) => x?.summary?.distance).filter((x: unknown) => typeof x === "number");
+      if (!ds.length) return null;
+      const km = Math.round(Math.min(...ds) / 1000);
+      await saveKm(db, a, b, km);
+      return km;
+    }
+    return null;
   } catch (e) { console.warn(`km: ORS falló: ${(e as Error).message}`); return "error"; }
 }
 
-// Vía principal: ORS Matrix, una petición con hasta MATRIX_MAX destinos (cupo propio, aparte de las rutas).
+// Reserva: ORS Matrix, una petición con hasta MATRIX_MAX destinos (cupo propio, aparte de las rutas). Solo da la
+// ruta más rápida: esos km se marcan 'rapida' y se recalculan con la corta cuando vuelva a haber cupo.
 // Devuelve los km de cada destino (null = sin ruta posible) o el fallo.
 const MATRIX_MAX = 49;
 async function matrixKm(a: [number, number], dests: [number, number][], key: string, deadline: number): Promise<(number | null)[] | Fail> {
@@ -196,8 +212,8 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
     let errors = 0, done = 0, missing = 0;
     const now = () => new Date().toISOString();
     const tried = (k: string) => db.from("venues").update({ km_tried_at: now() }).eq("user_id", userId).eq("venue_key", k).is("km", null);
-    const put = (k: string, km: number, source: string) =>
-      db.from("venues").update({ km, km_source: source, km_tried_at: now() }).eq("user_id", userId).eq("venue_key", k).is("km", null);
+    const put = (k: string, km: number, source: string, rule = "corta") =>
+      db.from("venues").update({ km, km_source: source, km_rule: rule, km_tried_at: now() }).eq("user_id", userId).eq("venue_key", k).is("km", null);
     const originStill = async () =>
       (await db.from("profiles").select("origin").eq("user_id", userId).maybeSingle()).data?.origin === prof.origin;
 
@@ -216,49 +232,63 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
       if (r) located.push({ k, ...r }); else { missing++; await tried(k); }
     }
     // Si el árbitro ha cambiado de población a mitad, estos km ya no valen (el trigger deja los pabellones para reintentar).
-    if (!located.length || !await originStill()) {
-      return `${todo?.length ?? 0} pendientes: ${done} calculados, ${missing} no encontrados${errors ? `, ${errors} errores seguidos` : ""}`;
-    }
-
-    // 2) Distancias: primero la caché compartida; el resto, con Matrix en una petición por cada MATRIX_MAX pabellones.
-    const need: typeof located = [];
-    for (const v of located) {
-      const c = await cachedKm(db, a, v.at);
-      if (c != null) { await put(v.k, c, v.source); done++; } else need.push(v);
-    }
-    let quota = false, routesOut = false, fallbackErrors = 0, originChanged = false;
-    for (let i = 0; i < need.length; i += MATRIX_MAX) {
-      if (Date.now() > deadline - 5_000) break;
-      if (!await originStill()) { originChanged = true; break; }
-      const chunk = need.slice(i, i + MATRIX_MAX);
-      const res: (number | null)[] | Fail = quota ? "quota" : await matrixKm(a, chunk.map((v) => v.at), key, deadline);
-      if (res === "quota") quota = true;
-      if (Array.isArray(res)) {
+    let quota = false, routesOut = false, routeErrors = 0, originChanged = false, refined = 0;
+    if (located.length && await originStill()) {
+      // 2) Distancias: la ruta más corta (caché compartida o ruta suelta) mientras quede tiempo y cupo.
+      const need: typeof located = [];
+      for (const [j, v] of located.entries()) {
+        if (routesOut || Date.now() > deadline - 12_000 || routeErrors >= 3) { need.push(v); continue; }
+        if (j % 5 === 4 && !await originStill()) { originChanged = true; break; }
+        const d = await driveKm(db, a, v.at, key);
+        if (d === "quota") { routesOut = true; need.push(v); continue; }
+        if (d === "error") { routeErrors++; need.push(v); continue; }
+        routeErrors = 0;
+        if (d == null) { missing++; await tried(v.k); } else { await put(v.k, d, v.source); done++; }
+      }
+      // 3) Reserva si no quedan rutas: Matrix (la más rápida) para no dejar el pabellón sin km; se afina después.
+      for (let i = 0; !originChanged && i < need.length; i += MATRIX_MAX) {
+        if (Date.now() > deadline - 5_000) break;
+        const chunk = need.slice(i, i + MATRIX_MAX);
+        const res: (number | null)[] | Fail = quota ? "quota" : await matrixKm(a, chunk.map((v) => v.at), key, deadline);
+        if (res === "quota") quota = true;
+        if (!Array.isArray(res)) continue;
         if (!await originStill()) { originChanged = true; break; }   // la población ha cambiado mientras se calculaba
         for (const [j, v] of chunk.entries()) {
           const km = res[j];
           if (km == null) { missing++; await tried(v.k); continue; }
-          await saveKm(db, a, v.at, km); await put(v.k, km, v.source); done++;
+          await put(v.k, km, v.source, "rapida"); done++;
         }
-        continue;
       }
-      // 3) Reserva si Matrix falla o no tiene cupo: rutas sueltas mientras quede tiempo y cupo.
-      if (routesOut) continue;
-      for (const [j, v] of chunk.entries()) {
-        if (Date.now() > deadline - 12_000 || fallbackErrors >= 3) break;
+    }
+    // 4) Con el tiempo y el cupo que sobren, se recalculan con la ruta corta los km que aún no lo son
+    //    (los de antes del cambio y los de Matrix). Los puestos a mano no se tocan.
+    if (!routesOut && !originChanged && routeErrors < 3 && Date.now() < deadline - 15_000) {
+      const { data: rows } = await db.from("venues").select("venue_key, km, km_source").eq("user_id", userId).not("km", "is", null)
+        .or("km_rule.is.null,km_rule.neq.corta");
+      const old = (rows || []).filter((o) => o.km_source !== "manual").slice(0, 60);
+      for (const [j, o] of old.entries()) {
+        if (Date.now() > deadline - 15_000 || routeErrors >= 3) break;
         if (j % 5 === 4 && !await originStill()) { originChanged = true; break; }
-        const d = await driveKm(db, a, v.at, key);
+        const { data: m } = await db.from("matches").select("addr, venue").eq("user_id", userId).eq("venue_key", o.venue_key).limit(1).maybeSingle();
+        if (!m) continue;
+        const r = await locate(db, m.addr || m.venue);
+        if (r === "error") { routeErrors++; continue; }
+        const d = r ? await driveKm(db, a, r.at, key) : null;
         if (d === "quota") { routesOut = true; break; }
-        if (d === "error") { fallbackErrors++; continue; }
-        fallbackErrors = 0;
-        if (d == null) { missing++; await tried(v.k); } else { await put(v.k, d, v.source); done++; }
+        if (d === "error") { routeErrors++; continue; }
+        routeErrors = 0;
+        if (d == null || !r) continue;
+        // Solo si nadie lo ha cambiado mientras tanto (km a mano o vaciado).
+        await db.from("venues").update({ km: d, km_source: r.source, km_rule: "corta" }).eq("user_id", userId).eq("venue_key", o.venue_key)
+          .eq("km", o.km).or("km_source.is.null,km_source.neq.manual");
+        refined++;
       }
-      if (originChanged) break;
     }
     // "quota" solo si no queda cupo ni en Matrix ni en rutas: así el cron no deja sin km al resto de árbitros sin motivo.
     if (quota && routesOut) return "quota";
     return `${todo?.length ?? 0} pendientes: ${done} calculados, ${missing} no encontrados` +
-      `${errors ? `, ${errors} errores al ubicar` : ""}${fallbackErrors ? `, ${fallbackErrors} errores en rutas` : ""}` +
+      `${errors ? `, ${errors} errores al ubicar` : ""}${routeErrors ? `, ${routeErrors} errores en rutas` : ""}` +
+      `${refined ? `, ${refined} recalculados con la ruta corta` : ""}` +
       `${quota ? ", Matrix sin cupo" : ""}${routesOut ? ", rutas sin cupo" : ""}${originChanged ? ", población cambiada" : ""}`;
   } finally { await dropLock(db, holder); }
 }
