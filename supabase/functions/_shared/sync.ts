@@ -131,14 +131,26 @@ export async function locate(db: SupabaseClient, address: string): Promise<{ at:
   const town = cp?.[2].trim();
   const street = parts[0] + (/^\d/.test(parts[1] || "") ? " " + parts[1] : "");
   // Una calle con el mismo nombre en otro municipio no vale: tiene que coincidir el código postal o la población.
+  // iSquad a veces pone mal la población ("08880 BARCELONA" es Cubelles): si coincide solo el nombre de la población,
+  // el código postal del resultado tiene que ser al menos de la misma zona (mismos 3 primeros dígitos).
   const sameTown = (h: GeoHit) => {
     const p = h.properties || {};
-    return !cp || p.postcode === cp[1] || [p.city, p.locality, p.district, p.county].some((x) => x && (norm(x).includes(norm(town!)) || norm(town!).includes(norm(x))));
+    if (!cp || p.postcode === cp[1]) return true;
+    if (p.postcode && String(p.postcode).slice(0, 3) !== cp[1].slice(0, 3)) return false;
+    return [p.city, p.locality, p.district, p.county].some((x) => x && (norm(x).includes(norm(town!)) || norm(town!).includes(norm(x))));
   };
-  const b = await geocode(db, cp ? `${street}, ${cp[1]} ${town}` : clean, false, sameTown);
+  let b = await geocode(db, cp ? `${street}, ${cp[1]} ${town}` : clean, false, sameTown);
+  // Sin la población, por si es la que está mal.
+  if (b === null && cp) b = await geocode(db, `${street}, ${cp[1]}`, false, sameTown);
   if (b === "error") return "error";   // no se baja a la población por un fallo pasajero
   if (b) return { at: b.at, source: b.exact ? "direccion" : "poblacion" };
   if (!town) return null;
+  // Población: primero la del código postal, que es más fiable que el nombre que trae iSquad.
+  if (cp) {
+    const z = await geocode(db, cp[1], false, (h: GeoHit) => h.properties?.name === cp[1] || h.properties?.postcode === cp[1]);
+    if (z === "error") return "error";
+    if (z) return { at: z.at, source: "poblacion" };
+  }
   const t = await geocode(db, town, true);
   if (t === "error") return "error";
   return t ? { at: t.at, source: "poblacion" } : null;

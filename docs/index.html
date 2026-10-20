@@ -272,7 +272,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
       </div>
       <div>
         <h2>Reglas que aplica</h2>
-        <p class="small muted">Dietas por día y hora de inicio: lunes a jueves 10 € (9:00–13:00 y 16:00–20:29) o 13,50 € el resto; viernes 13,50 € (0:00–15:59 y 21:01–23:59); sábado 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); domingo y festivos 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59). Una dieta por jornada; mañana (antes de las 14:00) y tarde cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones. Los festivos de Catalunya se detectan solos; los locales de cada municipio, no: en esos casos, y siempre que no cuadre, cambia la dieta a mano en el partido.</p>
+        <p class="small muted">Dietas por día y hora de inicio: lunes a jueves 10 € (9:00–13:00 y 16:00–20:29) o 13,50 € el resto; viernes 13,50 € (0:00–15:59 y 21:01–23:59); sábado 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); domingo y festivos 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59); un festivo entre semana fuera de esas franjas cobra la dieta normal de ese día. Una dieta por jornada; mañana (antes de las 14:00) y tarde cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones. Los festivos de Catalunya se detectan solos; los locales de cada municipio, no: en esos casos, y siempre que no cuadre, cambia la dieta a mano en el partido.</p>
         <p class="small muted">Tarifa según competición, rol y equipo arbitral (anexo FCVB 2026/27). El rol y cuántos árbitros y anotadores había se leen de la designación en iSquad. Superliga y Superliga 2 las liquida la RFEVB. Los partidos de selecciones territoriales no se cuentan.</p>
         <h2 style="margin-top:16px">Tu cuenta</h2>
         <p class="small muted" id="accountInfo"></p>
@@ -356,7 +356,10 @@ const isTerritorial = m => /SELECCION/.test(norm(m.comp));
 
 function dietaFor(dateStr, mins, holiday){
   const wd = new Date(dateStr+'T12:00:00').getDay(); const m = mins;
-  if(holiday || wd===0) return (m<=539 || (m>=841 && m<=959) || m>=1111) ? 18 : 0;
+  const festivo = (m<=539 || (m>=841 && m<=959) || m>=1111);
+  if(wd===0) return festivo ? 18 : 0;
+  // Festivo entre semana: 18 € en las franjas de festivo; fuera de ellas, la dieta normal de ese día (como paga la FCVB).
+  if(holiday && festivo) return 18;
   if(wd===6) return (m<=539 || (m>=841 && m<=959) || m>=1261) ? 13.5 : 0;
   if(wd===5) return (m<=959 || m>=1261) ? 13.5 : 0;
   return ((m>=540 && m<=780) || (m>=960 && m<=1229)) ? 10 : 13.5;

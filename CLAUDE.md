@@ -58,6 +58,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   (Júnior de 2ª se paga como 1ª). Al cambiar de temporada, actualizar `CATS` y `dietaFor` con el anexo nuevo.
 - Dieta: una por jornada y franja (mañana = antes de las 14:00); festivos de Catalunya automáticos (no los
   locales); editable a mano por partido (`matches.dieta_override`).
+  Festivo entre semana: 18 € solo en las franjas de festivo (0:00–8:59, 14:01–15:59, 18:31–23:59); fuera de ellas,
+  la dieta normal de ese día (confirmado con un recibo de la FCVB: lunes 12-oct a las 17:00 = 10 €).
 - Desplazamiento: una ida y vuelta por **pabellón y franja** (mañana y tarde en el mismo pabellón = 2).
 - IRPF: porcentaje en `profiles.irpf`, solo sobre la tarifa (dieta, km y peajes exentos). Las cifras son netas.
 
@@ -65,6 +67,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 - Direcciones y poblaciones: **Photon** (photon.komoot.io). **Nominatim no sirve: bloquea las IP de Supabase (403).**
   Se acepta una calle solo si coincide código postal o municipio; si no, centro de la población (`km_source='poblacion'`, "km aprox.").
+  iSquad a veces pone mal la población ("08880 BARCELONA" es Cubelles): manda el código postal. Un resultado con
+  otro código postal de distinta zona (3 primeros dígitos) se rechaza y se repite sin la población; de reserva, el
+  centro del código postal antes que el de la población.
 - Distancias: **ORS Matrix** (una petición por árbitro, hasta 49 destinos; cupo propio). Reserva: rutas sueltas
   de ORS (200 al día en el plan gratuito).
 - Caché compartida entre árbitros: `geo_cache` (también "no encontrado", 7 días) y `route_cache`.
