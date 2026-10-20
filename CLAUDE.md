@@ -51,6 +51,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   **Superliga** el segundo "ARBITRO" es el **juez de línea**; en Superliga 2 hay 1r, 2n y anotador.
   Los partidos ya jugados se leen una vez; los futuros y de los últimos 3 días, en cada pasada.
 - Selecciones territoriales (competición con "SELECCION"): no se cuentan.
+- Algunas direcciones son un código de Google Maps sin calle ni CP ("VM47+RH SANTA COLOMA DE FARNERS"): se usa el centro de la población.
 
 ## Reglas de pago (en `docs/index.html`)
 

@@ -144,7 +144,9 @@ export async function locate(db: SupabaseClient, address: string): Promise<{ at:
   if (!clean) return null;
   const parts = clean.split(",").map((s) => s.trim());
   const cp = clean.match(/(\d{5})\s+([^,]+)/);
-  const town = cp?.[2].trim();
+  // Algunas direcciones de iSquad son un código de Google Maps ("VM47+RH SANTA COLOMA DE FARNERS"): sin calle, la población.
+  const plus = clean.match(/^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\s+([^,]+)/i);
+  const town = cp?.[2].trim() ?? plus?.[1].trim();
   const street = parts[0] + (/^\d/.test(parts[1] || "") ? " " + parts[1] : "");
   // Una calle con el mismo nombre en otro municipio no vale: tiene que coincidir el código postal o la población.
   // iSquad a veces pone mal la población ("08880 BARCELONA" es Cubelles): si coincide solo el nombre de la población,
@@ -155,7 +157,7 @@ export async function locate(db: SupabaseClient, address: string): Promise<{ at:
     if (p.postcode && String(p.postcode).slice(0, 3) !== cp[1].slice(0, 3)) return false;
     return [p.city, p.locality, p.district, p.county].some((x) => x && (norm(x).includes(norm(town!)) || norm(town!).includes(norm(x))));
   };
-  let b = await geocode(db, cp ? `${street}, ${cp[1]} ${town}` : clean, false, sameTown);
+  let b = plus ? null : await geocode(db, cp ? `${street}, ${cp[1]} ${town}` : clean, false, sameTown);
   // Sin la población, por si es la que está mal.
   if (b === null && cp) b = await geocode(db, `${street}, ${cp[1]}`, false, sameTown);
   if (b === "error") return "error";   // no se baja a la población por un fallo pasajero
