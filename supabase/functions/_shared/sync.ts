@@ -346,9 +346,12 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
       if (!data || data.length < 1000) break;
     }
     const recent = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
+    let nombre = "";
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
       needStaff: (m: ScrapedMatch) => !checked.has(m.id) || m.date >= recent, deadline: opts.deadline,
+      onName: (n) => { nombre = n; },
     });
+    if (nombre) await db.from("profiles").update({ nombre }).eq("user_id", userId);
     await storeMatches(db, userId, matches);
     if (opts.km === "wait") await fillKm(db, userId, opts.deadline);
     else if (opts.km === "background") background(fillKm(db, userId, opts.deadline));

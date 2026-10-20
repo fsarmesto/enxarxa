@@ -135,7 +135,7 @@ const STAFF_MAX_PER_RUN = 120;
 
 export async function fetchDesignaciones(
   login: string, password: string,
-  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number } = {},
+  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number; onName?: (name: string) => void } = {},
 ): Promise<WithStaff[]> {
   const jar: Jar = new Map();
   await loginIsquad(jar, login, password);
@@ -168,6 +168,12 @@ export async function fetchDesignaciones(
       const r = same.length > 1 ? same.find((x) => x.date === m.date && x.time === m.time) ?? same.find((x) => x.date === m.date) : same[0];
       m.fcvb_tarifa = r?.tarifa ?? null; m.fcvb_gastos = r?.gastos ?? null; m.fcvb_pago = r?.pago ?? null;
     }
+  }
+  if (opts.onName) {
+    // deno-lint-ignore no-explicit-any
+    const { document } = parseHTML(html) as any;
+    const name = (document.querySelector(".contact-container")?.textContent || "").replace(/\s+/g, " ").trim();
+    if (name) opts.onName(name);
   }
   if (opts.needStaff) {
     const me = ownName(html);
