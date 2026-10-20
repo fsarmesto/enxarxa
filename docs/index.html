@@ -188,7 +188,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
       <img class="logo" src="logo-fcvb-blanco.webp" width="300" height="131" alt="Federació Catalana de Voleibol">
       <div><h1>Liquidación arbitral</h1><p class="sub"><span>App no oficial</span><a class="gh" href="https://github.com/fsarmesto" target="_blank" rel="noopener" title="GitHub de fsarmesto"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>fsarmesto</a></p></div>
     </div>
-    <p>Tus partidos de iSquad con tarifas, dietas y desplazamientos calculados según el anexo de la FCVB.</p>
+    <p>Tus partidos de iSquad con tarifas, dietas y desplazamientos. Cuando la FCVB ya ha liquidado un partido (recibos de iSquad), se usan sus importes; mientras tanto, una previsión según el anexo.</p>
   </div>
   <section>
     <form id="authForm" autocomplete="on">
@@ -397,6 +397,9 @@ function tariff(m){
   if(m.team==='t2b') return m.role==='r1'?c.t2b[0]: m.role==='an'?c.t2b[1]:0;
   return m.role==='r1'?c.t3[0]: m.role==='r2'?c.t3[1]: m.role==='an'?c.t3[2]:0;
 }
+// Cobrado: marcado a mano o pagado según iSquad.
+const paidByFcvb = m => /^PAGADO/.test(m.fcvb_pago||'');
+const isPaid = m => !!m.paid || paidByFcvb(m);
 const kmFor = m => m.km_override!=null ? +m.km_override : (+(VENUES[m.venue_key]?.km) || 0);
 function compute(){
   const ms = MATCHES.filter(m=>!isTerritorial(m)).sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
@@ -415,6 +418,13 @@ function compute(){
     r.travel = km>0 ? Math.max(km*2*(+P.rate), +P.min_travel) : 0; r.travelShared = list.length>1;
   }
   for(const m of ms){ const r=res.get(m.id); r.dietaAuto=r.dieta; if(m.dieta_override!=null){ r.dieta=+m.dieta_override; r.dietaShared=false; } }
+  // Lo que la FCVB ya ha liquidado (recibos de iSquad) manda sobre el cálculo de la app, que queda como previsión.
+  // Sus gastos son desplazamiento + dieta juntos.
+  for(const m of ms){
+    if(m.fcvb_tarifa==null) continue;
+    const r=res.get(m.id); r.est = {tariff:r.tariff, gastos:+(r.dieta+r.travel).toFixed(2)};
+    r.fcvb=true; r.tariff=+m.fcvb_tarifa; r.dieta=0; r.travel=+m.fcvb_gastos; r.dietaShared=r.travelShared=false;
+  }
   // IRPF: retención sobre la tarifa (dieta, desplazamiento y peajes van exentos). total = lo que cobras.
   const irpf = (+P.irpf||0)/100;
   for(const [,r] of res){ r.gross = r.tariff + r.dieta + r.travel + r.tolls; r.irpf = Math.round(r.tariff*irpf*100)/100; r.total = r.gross - r.irpf; }
@@ -455,6 +465,11 @@ const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 const sel = (f,id,opts,cur) => `<select data-f="${f}" data-id="${esc(id)}">`+Object.entries(opts).map(([k,v])=>`<option value="${k}"${k===cur?' selected':''}>${esc(v)}</option>`).join('')+'</select>';
 function ago(ts){ if(!ts) return 'nunca'; const d=new Date(ts); return d.toLocaleString('es-ES',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
 
+// Dieta y desplazamiento: previsión de la app (editable) o lo que ha liquidado la FCVB (juntos, como en iSquad).
+const estCells = (m,r,km) => `<td class="n" data-l="Dieta"><input type="number" step="0.5" min="0" data-f="dieta" data-id="${esc(m.id)}" value="${r.dieta||''}" placeholder="0" aria-label="Dieta">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${esc(m.id)}" title="Volver a la dieta automática (${eur(r.dietaAuto)})">auto</button>`:(r.dietaShared&&r.dieta?'<span class="shared">jornada</span>':'')}</td>
+          <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}${r.travel&&m.km_override==null&&VENUES[m.venue_key]?.km_source==='poblacion'?'<span class="shared" title="No se encontró la dirección exacta: km hasta el centro de la población. Corrígelos si no cuadran.">km aprox.</span>':''}</td>`;
+const fcvbCells = r => `<td class="n" data-l="Dieta"><span class="muted" title="La FCVB da la dieta y el desplazamiento juntos">incl.</span></td>
+          <td class="n" data-l="Gastos">${eur(r.travel)}<span class="shared" title="Desplazamiento y dieta según los recibos de la FCVB (la app calculaba ${eur(r.est.gastos)}; la FCVB reparte los gastos del día entre los partidos)">gastos FCVB</span></td>`;
 function render(){
   pickSeason(); renderSeasons();
   const {ms:allMs,res} = compute();
@@ -462,7 +477,7 @@ function render(){
   $('sTotalL').textContent = `Total temporada ${seasonLabel(SEASON)}`;
   let pend=0, paid=0;
   let ret=0;
-  for(const m of ms){ const r=res.get(m.id); ret+=r.irpf; if(m.paid) paid+=r.total; else pend+=r.total; }
+  for(const m of ms){ const r=res.get(m.id); ret+=r.irpf; if(isPaid(m)) paid+=r.total; else pend+=r.total; }
   $('sPending').textContent=eur(pend); $('sPaid').textContent=eur(paid); $('sTotal').textContent=eur(pend+paid);
   $('irpfInfo').textContent = +P.irpf ? `Importes netos: IRPF del ${String(+P.irpf).replace('.',',')} % sobre la tarifa, ${eur(ret)} retenidos en la temporada.` : '';
   $('sCount').textContent=ms.length;
@@ -480,7 +495,7 @@ function render(){
   const syncT = P.last_sync ? new Date(P.last_sync).getTime() : 0;
   let html='';
   for(const [w,list] of [...weeks].sort((a,b)=>b[0].localeCompare(a[0]))){
-    const wt=list.reduce((s,m)=>s+res.get(m.id).total,0); const allPaid=list.every(m=>m.paid);
+    const wt=list.reduce((s,m)=>s+res.get(m.id).total,0); const allPaid=list.every(isPaid);
     html+=`<div class="week"><div class="week-head"><div><span class="t">Semana ${weekRange(w)}</span><span class="muted small"> · ${list.length} partido${list.length===1?'':'s'}</span>${allPaid?'<span class="tag ok">cobrada</span>':''}</div>
       <div class="actions"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button><span class="sum">${eur(wt)}</span></div></div>`;
     const days=new Map(); for(const m of list){ (days.get(m.date)||days.set(m.date,[]).get(m.date)).push(m); }
@@ -493,18 +508,17 @@ function render(){
         const gone = !manual && syncT && new Date(m.last_seen).getTime() < syncT-120000;
         const tag = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && m.estado!=='FINALIZADO' ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
         const city = (m.addr||'').match(/\d{5}\s+([^,]+)/);
-        html+=`<tr class="${m.paid?'paid':''}">
+        html+=`<tr class="${isPaid(m)?'paid':''}">
           <td class="time">${esc(m.time)}</td>
           <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div><div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}</div></td>
           <td class="ctrl"><div class="desig"><strong>${m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad'}</strong>${m.staff_checked&&m.team!=='t1'&&m.role!=='jl'?' · '+TEAM_OPTS[m.team]:''}<br>${esc(CATS[catOf(m)].label)}${isHoliday(m.date)||m.holiday?' · festivo':''}</div>
             <label class="chk small">km <input type="number" step="1" data-f="km" data-id="${esc(m.id)}" value="${km||''}" placeholder="?" title="Km solo ida. Cambia el valor del pabellón para todos sus partidos."></label></td>
-          <td class="n" data-l="Tarifa">${eur(r.tariff)}</td>
-          <td class="n" data-l="Dieta"><input type="number" step="0.5" min="0" data-f="dieta" data-id="${esc(m.id)}" value="${r.dieta||''}" placeholder="0" aria-label="Dieta">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${esc(m.id)}" title="Volver a la dieta automática (${eur(r.dietaAuto)})">auto</button>`:(r.dietaShared&&r.dieta?'<span class="shared">jornada</span>':'')}</td>
-          <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}${r.travel&&m.km_override==null&&VENUES[m.venue_key]?.km_source==='poblacion'?'<span class="shared" title="No se encontró la dirección exacta: km hasta el centro de la población. Corrígelos si no cuadran.">km aprox.</span>':''}</td>
+          <td class="n" data-l="Tarifa">${eur(r.tariff)}${r.fcvb?`<span class="shared" title="Importes de la FCVB (recibos de iSquad)">FCVB</span>`:''}${r.fcvb&&Math.abs(r.est.tariff-r.tariff)>0.009?`<span class="shared" title="La app calculaba ${eur(r.est.tariff)}">app ${eur(r.est.tariff)}</span>`:''}</td>
+          ${r.fcvb ? fcvbCells(r) : estCells(m,r,km)}
           <td class="n" data-l="Peajes"><input type="number" step="0.05" data-f="tolls" data-id="${esc(m.id)}" value="${+m.tolls||''}" placeholder="0"></td>
           ${+P.irpf?`<td class="n" data-l="IRPF">${r.irpf?'−'+eur(r.irpf):'<span class="muted">—</span>'}</td>`:''}
           <td class="n total" data-l="${+P.irpf?'Neto':'Total'}">${eur(r.total)}</td>
-          <td class="ctrl paycell"><button class="pay${m.paid?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${m.paid?'true':'false'}">${m.paid?'✓ Cobrado':'Marcar cobrado'}</button>${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
+          <td class="ctrl paycell">${paidByFcvb(m)?`<span class="pay is-paid" title="Según iSquad">✓ ${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</span>`:`<button class="pay${m.paid?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${m.paid?'true':'false'}">${m.paid?'✓ Cobrado':'Marcar cobrado'}</button>`}${m.fcvb_pago&&!paidByFcvb(m)?`<div class="muted small">${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</div>`:''}${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
       }
       html+='</tbody></table></div></div>';
     }
@@ -609,20 +623,20 @@ function buildWorkbook(){
   const {ms:allMs,res} = compute();
   const ms = allMs.filter(m=>seasonOf(m.date)===SEASON);
   const head = ['Fecha','Hora','Código','Competición','Categoría','Partido','Pabellón','Población','Rol','Equipo arbitral',
-                'Tarifa','Dieta','Km ida','Desplazamiento','Peajes','Bruto',`IRPF (${String(+P.irpf||0).replace('.',',')} %)`,'Neto','Estado iSquad','Cobrado'];
+                'Tarifa','Dieta','Km ida','Desplazamiento (o gastos FCVB)','Peajes','Bruto',`IRPF (${String(+P.irpf||0).replace('.',',')} %)`,'Neto','Estado iSquad','Cobrado','Importes'];
   const rows = ms.map(m=>{
     const r=res.get(m.id), city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
     // Fecha como número de serie de Excel: con un Date, la zona horaria la movería un día.
     const serial = (Date.UTC(+m.date.slice(0,4), +m.date.slice(5,7)-1, +m.date.slice(8,10)) - Date.UTC(1899,11,30)) / 864e5;
     return [serial, m.time, m.id.split('@')[0], m.comp, CATS[catOf(m)].label, m.teams,
       VENUES[m.venue_key]?.label || m.venue, city ? city[1].trim() : '', ROLE_OPTS[m.role],
-      m.role==='jl' ? '' : TEAM_OPTS[m.team], r.tariff, r.dieta, kmFor(m)||null, r.travel, r.tolls, r.gross, r.irpf, r.total,
-      (m.estado||'').toLowerCase(), m.paid ? 'Sí' : 'No'];
+      m.role==='jl' ? '' : TEAM_OPTS[m.team], r.tariff, r.fcvb ? null : r.dieta, kmFor(m)||null, r.travel, r.tolls, r.gross, r.irpf, r.total,
+      (m.estado||'').toLowerCase(), isPaid(m) ? 'Sí' : 'No', r.fcvb ? 'FCVB' : 'previsión app'];
   });
   const sum = i => +rows.reduce((t,x)=>t+(+x[i]||0),0).toFixed(2);
   const n = rows.length, last = n+1;
   const MONEY = [10,11,13,14,15,16,17], totals = MONEY.map(sum);
-  const pend = +ms.filter(m=>!m.paid).reduce((t,m)=>t+res.get(m.id).total,0).toFixed(2);
+  const pend = +ms.filter(m=>!isPaid(m)).reduce((t,m)=>t+res.get(m.id).total,0).toFixed(2);
   const pad = Array(17).fill('');
   rows.push([], ['Total','','','','','','','','','', totals[0], totals[1], null, totals[2], totals[3], totals[4], totals[5], totals[6]],
     ['Pendiente de cobro (neto)', ...pad.slice(1), pend], ['Ya cobrado (neto)', ...pad.slice(1), +(totals[6]-pend).toFixed(2)]);
@@ -632,7 +646,7 @@ function buildWorkbook(){
     const d = ws[XLSX.utils.encode_cell({r:R,c:0})]; if(d && d.t==='n' && R<=n) d.z='dd/mm/yyyy';
     for(const C of MONEY){ const c = ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c && c.t==='n') c.z=EUR; }
   }
-  ws['!cols'] = [11,7,14,38,20,44,34,22,14,18,10,9,8,14,9,11,11,11,13,9].map(w=>({wch:w}));
+  ws['!cols'] = [11,7,14,38,20,44,34,22,14,18,10,9,8,14,9,11,11,11,13,9,13].map(w=>({wch:w}));
   ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:n,c:head.length-1}})};
   ws['!freeze'] = {xSplit:0, ySplit:1};
   const wb = XLSX.utils.book_new();

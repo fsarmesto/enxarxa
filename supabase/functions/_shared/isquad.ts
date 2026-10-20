@@ -12,6 +12,8 @@ export type ScrapedMatch = {
   id: string; comp: string; phase: string; teams: string; estado: string;
   date: string; time: string; venue: string; addr: string; venue_key: string;
   desig_id: string | null;
+  // Liquidación de la FCVB (página de recibos); solo si se ha podido leer.
+  fcvb_tarifa?: number | null; fcvb_gastos?: number | null; fcvb_pago?: string | null;
 };
 // Rol del árbitro y composición del equipo arbitral, sacados de "Ver Designación".
 export type Staff = { role: "r1" | "r2" | "an" | "jl"; team: "t1" | "t2a" | "t2b" | "t3" };
@@ -36,6 +38,33 @@ async function get(url: string, jar: Jar): Promise<Response> {
   }
   keep(jar, res);
   return res;
+}
+
+// Login único de iSquad (desde el 20-oct-2026 loginarbitros.php redirige a loginunico.php?area=arbitros):
+// formulario con csrf_token; después se entra en el área de árbitros. Devuelve un rastro para diagnosticar.
+async function loginIsquad(jar: Jar, login: string, password: string): Promise<string> {
+  const form = await get(`${BASE}/loginunico.php?area=arbitros`, jar);
+  const html = await form.text();
+  const csrf = html.match(/name="csrf_token"\s+value="([^"]+)"/)?.[1] ?? "";
+  const res = await fetch(`${BASE}/loginunico.php`, {
+    method: "POST", signal: T(), redirect: "manual",
+    body: new URLSearchParams({ csrf_token: csrf, login, password, lu_disp: "{}" }),
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar),
+      Origin: BASE, Referer: `${BASE}/loginunico.php?area=arbitros`,
+    },
+  });
+  keep(jar, res);
+  let trace = `form ${form.status} csrf ${csrf ? "sí" : "no"} · post ${res.status} → ${res.headers.get("location")}`;
+  await res.body?.cancel();
+  // Tras el login, el área de árbitros (si el login lleva a la pantalla de áreas).
+  const after = res.headers.get("location");
+  if (after) {
+    const r = await get(new URL(after, `${BASE}/`).toString(), jar);
+    trace += ` · ${r.status} ${r.headers.get("location") ?? ""}`;
+    await r.body?.cancel();
+  }
+  return trace;
 }
 
 async function designaciones(jar: Jar, season?: string): Promise<string> {
@@ -109,18 +138,7 @@ export async function fetchDesignaciones(
   opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number } = {},
 ): Promise<WithStaff[]> {
   const jar: Jar = new Map();
-  const first = await get(`${BASE}/loginarbitros.php`, jar); await first.body?.cancel();
-
-  const res = await fetch(`${BASE}/loginarbitros.php`, {
-    method: "POST", signal: T(),
-    body: new URLSearchParams({ login, password, qr_login: "0", utr: "" }),
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar),
-      Origin: BASE, Referer: `${BASE}/loginarbitros.php`,
-    },
-    redirect: "manual",
-  });
-  keep(jar, res); await res.body?.cancel();
+  await loginIsquad(jar, login, password);
 
   // Sin la cookie TemporadaSelect iSquad marca la temporada en curso en el desplegable pero devuelve la tabla vacía:
   // la primera carga solo sirve para validar el login y saber qué temporadas hay.
@@ -129,10 +147,28 @@ export async function fetchDesignaciones(
   const { current, previous } = seasons(html);
   const out: ScrapedMatch[] = [];
   // También la temporada anterior: al empezar una nueva, los partidos pendientes de cobro siguen allí.
+  // Recibos de cada temporada (lo que la FCVB liquida). Si alguno falla no se envía ninguno: así no se borra lo leído antes.
+  const recibos: Recibo[] = [];
+  let recibosOk = true;
   for (const season of [previous, current]) {
-    if (season) out.push(...(parseDesignaciones(await designaciones(jar, season)) ?? []));
+    if (!season) continue;
+    out.push(...(parseDesignaciones(await designaciones(jar, season)) ?? []));
+    try {
+      const r = await get(`${BASE}/arbitros_listado_recibos.php`, jar);
+      const list = r.status === 200 ? parseRecibos(await r.text()) : null;
+      if (r.status !== 200) await r.body?.cancel();
+      if (list) recibos.push(...list); else recibosOk = false;
+    } catch { recibosOk = false; }
   }
   const all: WithStaff[] = uniqueIds(out);
+  if (recibosOk) {
+    for (const m of all) {
+      const code = m.id.split("@")[0];
+      const same = recibos.filter((r) => r.id === code);
+      const r = same.length > 1 ? same.find((x) => x.date === m.date && x.time === m.time) ?? same.find((x) => x.date === m.date) : same[0];
+      m.fcvb_tarifa = r?.tarifa ?? null; m.fcvb_gastos = r?.gastos ?? null; m.fcvb_pago = r?.pago ?? null;
+    }
+  }
   if (opts.needStaff) {
     const me = ownName(html);
     let n = 0;
@@ -159,6 +195,27 @@ export function uniqueIds(list: ScrapedMatch[]): ScrapedMatch[] {
     out.set(id, { ...m, id });
   }
   return [...out.values()];
+}
+
+// Página de recibos: código, partido, fecha, estado, competición, tarifa, gastos, total, ..., estado del pago.
+// Se lee con expresiones regulares (no linkedom): la página pesa más de 1 MB y la CPU de la función es poca.
+export type Recibo = { id: string; date: string; time: string; tarifa: number; gastos: number; pago: string };
+export function parseRecibos(html: string): Recibo[] | null {
+  const table = html.match(/<table[^>]*id="tabla_listado_recibos"[\s\S]*?<\/table>/)?.[0];
+  if (!table) return null;
+  const tx = (x: string) => x.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const eur = (x: string) => { const m = tx(x).match(/(-?[\d.,]+)\s*€/); return m ? +m[1].replace(/,/g, "") : null; };
+  const out: Recibo[] = [];
+  for (const row of table.match(/<tr[^>]*>[\s\S]*?<\/tr>/g) || []) {
+    const c = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((x) => x[1]);
+    if (c.length < 10) continue;
+    const f = tx(c[2]).match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+    const tarifa = eur(c[5]), gastos = eur(c[6]);
+    if (!f || tarifa == null || gastos == null) continue;
+    out.push({ id: tx(c[0]), date: `${f[3]}-${f[2]}-${f[1]}`, time: `${f[4].padStart(2, "0")}:${f[5]}`, tarifa, gastos,
+      pago: tx(c[9]).match(/^(PAGADO(?: - \d{2}\/\d{2}\/\d{4})?|SOLICITADO: [A-ZÁÉÍÓÚ ]+?(?= Hojas|$)|[A-ZÁÉÍÓÚ ]+?(?= Hojas|$))/)?.[1]?.trim() || tx(c[9]).slice(0, 60) });
+  }
+  return out;
 }
 
 const MONTHS: Record<string, number> = { enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12 };

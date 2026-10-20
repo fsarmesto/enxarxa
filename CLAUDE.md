@@ -64,6 +64,17 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Desplazamiento: una ida y vuelta por **pabellón y franja** (mañana y tarde en el mismo pabellón = 2).
 - IRPF: porcentaje en `profiles.irpf` (2 % por defecto, lo que retiene la FCVB), solo sobre la tarifa (dieta, km y peajes exentos). Las cifras son netas.
 
+## Importes de la FCVB (mandan sobre el cálculo)
+
+- Login: desde el 20-oct-2026 `loginarbitros.php` redirige a `loginunico.php?area=arbitros` (formulario con
+  `csrf_token`, campos `login`/`password`/`lu_disp`); `loginIsquad()` en `isquad.ts`.
+- `arbitros_listado_recibos.php` (tabla `tabla_listado_recibos`, por temporada con la cookie): por partido tarifa,
+  gastos (desplazamiento + dieta juntos) y estado del pago. Se guarda en `matches.fcvb_tarifa/fcvb_gastos/fcvb_pago`
+  y en la web sustituye a la previsión; "PAGADO…" cuenta como cobrado. Se lee con regex (1 MB por página).
+- Comparación 20-oct (temporada 26/27, 12 árbitros, 165 partidos): tarifa igual en 165/165. Gastos: la FCVB cuenta
+  una ida y vuelta por pabellón y DÍA (no por franja) y la reparte entre los partidos; usa sus propios km.
+- `arbitros_listado_facturas.php`: solo el neto de cada recibo.
+
 ## Km por carretera
 
 - Direcciones y poblaciones: **Photon** (photon.komoot.io). **Nominatim no sirve: bloquea las IP de Supabase (403).**
