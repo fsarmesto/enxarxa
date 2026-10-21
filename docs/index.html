@@ -1269,15 +1269,16 @@ function renderAgenda(allMs,res){
   // hay partidos (próximos o jugados), y si solo hay uno, no sale el selector.
   const everything = [...up.map(m=>({m})), ...past.map(m=>({m})), ...eqUp.map(x=>({x})), ...eqPast.map(x=>({x}))];
   const roles = ['arbitro','jugador','entrenador'].filter(r=>everything.some(it=>itemRole(it)===r));
-  if(roles.length<2 || !roles.includes(AGROLE)) AGROLE='todo';
+  // La elección guardada no se borra: mientras no aplique (p. ej. aún no han cargado los equipos) se ve Todo.
+  const role = roles.length>=2 && roles.includes(AGROLE) ? AGROLE : 'todo';
   const cnt = r => r==='todo' ? all.length : all.filter(it=>itemRole(it)===r).length;
-  const list = AGROLE==='todo' ? all : all.filter(it=>itemRole(it)===AGROLE);
-  const nUp = AGROLE==='todo' ? up.length+eqUp.length : [...up.map(m=>({m})),...eqUp.map(x=>({x}))].filter(it=>itemRole(it)===AGROLE).length;
-  const nPast = AGROLE==='todo' ? past.length+eqPast.length : [...past.map(m=>({m})),...eqPast.map(x=>({x}))].filter(it=>itemRole(it)===AGROLE).length;
+  const list = role==='todo' ? all : all.filter(it=>itemRole(it)===role);
+  const nUp = role==='todo' ? up.length+eqUp.length : [...up.map(m=>({m})),...eqUp.map(x=>({x}))].filter(it=>itemRole(it)===role).length;
+  const nPast = role==='todo' ? past.length+eqPast.length : [...past.map(m=>({m})),...eqPast.map(x=>({x}))].filter(it=>itemRole(it)===role).length;
   let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${nUp})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${nPast})</button></div>`;
-  if(roles.length>=2) html+=`<div class="agrole" role="group" aria-label="Ver partidos como">${[['todo','Todo'],['arbitro','Árbitro'],['jugador','Jugador'],['entrenador','Entrenador']].filter(([r])=>r==='todo'||roles.includes(r)).map(([r,t])=>`<button type="button" data-agrole="${r}" aria-pressed="${AGROLE===r}">${t} (${cnt(r)})</button>`).join('')}</div>`;
-  if(!list.length && AGROLE!=='todo'){
-    html += `<div class="empty">No hay partidos ${AGENDA==='proximos'?'próximos':'jugados'} como ${({arbitro:'árbitro',jugador:'jugador',entrenador:'entrenador'})[AGROLE]}${filtering()?' con estos filtros':''}.</div>`;
+  if(roles.length>=2) html+=`<div class="agrole" role="group" aria-label="Ver partidos como">${[['todo','Todo'],['arbitro','Árbitro'],['jugador','Jugador'],['entrenador','Entrenador']].filter(([r])=>r==='todo'||roles.includes(r)).map(([r,t])=>`<button type="button" data-agrole="${r}" aria-pressed="${role===r}">${t} (${cnt(r)})</button>`).join('')}</div>`;
+  if(!list.length && role!=='todo'){
+    html += `<div class="empty">No hay partidos ${AGENDA==='proximos'?'próximos':'jugados'} como ${({arbitro:'árbitro',jugador:'jugador',entrenador:'entrenador'})[role]}${filtering()?' con estos filtros':''}.</div>`;
     box.innerHTML=html; return;
   }
   if(!list.length){
@@ -1292,12 +1293,11 @@ function renderAgenda(allMs,res){
     html+=`<section class="ag-day"><h3><span>${esc(fmtShort(ds).replace(/^./,c=>c.toUpperCase()))}</span><span class="when${soon?' soon':''}">${w}</span></h3>`;
     for(const it of dl){
       if(it.x){
-        const {m:p,f}=it.x, [k,txt]=rolKind(f.rol), done=isDone(p);
+        const {m:p,f}=it.x, done=isDone(p);
         const cl=(clashes.get(it.x)||[]).map(m=>m.time).join(' y ');
         html+=`<article class="ag eq${done?' done':''}"><div class="t">${hasTime(p)?esc(p.t):(p.t?esc(p.t)+'?':'—')}</div><div>
-          <div class="comp"><span class="kind ${k}">${txt}</span>${esc(capName(p.comp||f.cat))}</div>
+          <div class="comp">${stChip(p)} ${esc(capName(p.comp||f.cat))}</div>
           <div class="teams">${vs(p)}${done&&p.rl!=null?`<span class="res">${p.rl}-${p.rv}</span>`:''}</div>
-          <div style="margin:0 0 8px">${stChip(p)}</div>
           ${!done?`<div class="where"><div><strong>${esc(capName(p.pab||'Pabellón por confirmar'))}</strong><div class="addr">${esc(capName(p.pista||''))}</div></div>${p.pab?`<a class="map" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.pab+' Catalunya')}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>`:''}
           ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}
         </div></article>`;
