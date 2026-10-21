@@ -318,7 +318,8 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   poner la lista de usuarios en ese secret (quien no esté, deja de poder entrar).
 - La temporada 2025/26 se calcula con las tarifas de 2026/27 (decisión del autor: importes aproximados en esa temporada).
 - Se traen la temporada en curso y la anterior; la web tiene selector de temporada (se recuerda en el navegador).
-- Logo de la FCVB en la cabecera, siempre con "App no oficial" al lado: no es una herramienta de la federación.
+- Sin logo de la FCVB (quitado el 21-oct-2026, tarea legal): en la cabecera va el icono de la app y siempre "App no oficial".
+  A la FCVB solo se la nombra de forma descriptiva ("para árbitros, jugadores y entrenadores de la FCVB").
 - Selecciones territoriales: solo se muestran y cuentan las que la FCVB ha pagado con gastos (tarifa 0).
 - Rol y categoría no son editables: salen de iSquad. Lo editable a mano: dieta por partido, km por pabellón,
   peajes, "cobrado" y el IRPF del árbitro.
