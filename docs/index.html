@@ -273,6 +273,28 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .st.sin{background:var(--surface-2);color:var(--ink-2)}
 .st.sus{background:#5f5f5f;color:#fff}
 .ag.eq.done{opacity:.85}
+/* Tarjeta de la agenda: plegada lo esencial; al tocar, lo secundario */
+.agc{border-bottom:1px solid var(--line)}
+.agc:last-child{border-bottom:0}
+.agc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:56px minmax(0,1fr) 14px;gap:4px 12px;padding:12px 0;align-items:start}
+.agc>summary::-webkit-details-marker{display:none}
+.agc .tm{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.05}
+.agc .tm small{display:block;font-family:"Barlow",system-ui,sans-serif;font-size:11px;font-weight:600;color:var(--ink-3)}
+.agc.eq .tm{color:var(--ink-2)}
+.agc .top{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;margin-bottom:5px}
+.agc .tt{font-size:15px;line-height:1.3}
+.agc .tt b{font-weight:800}
+.agc.done .tt{color:var(--ink-2)}
+.agc .sub{font-size:12.5px;color:var(--ink-3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agc .clash{margin:5px 0 0;font-size:12.5px}
+.agc .chev{color:var(--ink-3);font-size:11px;margin-top:7px;transition:transform .15s}
+.agc[open] .chev{transform:rotate(180deg)}
+.agc .more{padding:0 0 14px 68px;display:grid;gap:10px}
+.agc .more .full{font-size:12.5px;color:var(--ink-3)}
+.agc .more .crew{margin:0}
+.agc .res{font-size:19px;margin-left:6px}
+.kind.arb small{font-weight:600;opacity:.8;margin-left:4px}
+@media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 12px;gap:4px 10px} .agc .tm{font-size:22px} }
 .res{font-family:var(--display);font-size:22px;font-weight:700;margin-left:8px;vertical-align:middle}
 details.cal{margin-top:6px}
 details.cal>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);list-style:none}
@@ -1239,6 +1261,15 @@ try{ AGROLE=localStorage.getItem('liq-agenda-rol')||'todo'; }catch(e){}
 const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : it.x.f.rol ? 'jugador' : 'sigo');
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
 const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
+// "PRIMERA DIVISION SENIOR FEMENINO" → "1ª Sén. Fem" (para la línea corta de la tarjeta).
+function shortComp(comp){
+  const {div,age,gen}=compParts(comp);
+  const D={SL:'Superliga',SL2:'Superliga 2','1':'1ª','2':'2ª','3':'3ª','4':'4ª',PREF:'Pref.',MA:'Máster/Alev.'}[div]||'';
+  const A={SEN:'Sén.',JUN:'Jún.',JUV:'Juv.',CAD:'Cad.',INF:'Inf.',ALE:'Alev.',AMA:'Amat.'}[age]||'';
+  const G={F:'Fem',M:'Masc',X:'Mixto'}[gen]||'';
+  return [D,A,G].filter(Boolean).join(' ') || capName(comp);
+}
+const AGC_OPEN=new Set();
 const crewLabel=(m,f)=> f==='r2' && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIGA ?2/.test(norm(m.comp)) ? 'Juez de línea' : (CREW_LABEL[f] || capName(f));
 // Dirección legible: sin el país del final y en minúsculas con mayúscula inicial (iSquad la da en mayúsculas).
 const niceAddr = a => capName(String(a||'').replace(/,\s*(ESPA[ÑñN]A|ESPANYA|SPAIN)\s*$/i,'').replace(/ñ/g,'Ñ')).replace(/\b(De|Del|Dels|Des|La|Les|El|Els|I|D'|L')\b/g, w=>w.toLowerCase()).replace(/(^|,\s*)(\S)/g,(x,p,c)=>p+c.toUpperCase());
@@ -1293,35 +1324,48 @@ function renderAgenda(allMs,res){
     html+=`<section class="ag-day"><h3><span>${esc(fmtShort(ds).replace(/^./,c=>c.toUpperCase()))}</span><span class="when${soon?' soon':''}">${w}</span></h3>`;
     for(const it of dl){
       if(it.x){
-        const {m:p,f}=it.x, done=isDone(p);
+        const {m:p,f}=it.x, done=isDone(p), id=`eq|${p.d}|${norm(p.l)}|${norm(p.v)}`;
         const cl=(clashes.get(it.x)||[]).map(m=>m.time).join(' y ');
-        html+=`<article class="ag eq${done?' done':''}"><div class="t">${hasTime(p)?esc(p.t):(p.t?esc(p.t)+'?':'—')}</div><div>
-          <div class="comp">${stChip(p)} ${esc(capName(p.comp||f.cat))}</div>
-          <div class="teams">${vs(p)}${done&&p.rl!=null?`<span class="res">${p.rl}-${p.rv}</span>`:''}</div>
-          ${!done?`<div class="where"><div><strong>${esc(capName(p.pab||'Pabellón por confirmar'))}</strong><div class="addr">${esc(capName(p.pista||''))}</div></div>${p.pab?`<a class="map" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.pab+' Catalunya')}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>`:''}
-          ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}
-        </div></article>`;
+        const tm = hasTime(p) ? esc(p.t) : p.t ? `${esc(p.t)}<small>sin confirmar</small>` : '—';
+        const more = [
+          !done ? `<div class="where"><div><strong>${esc(capName(p.pab||'Pabellón por confirmar'))}</strong><div class="addr">${esc(capName(p.pista||''))}</div></div>${p.pab?`<a class="map" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.pab+' Catalunya')}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>` : '',
+          `<div class="full">${esc(capName(p.comp||f.cat))}${p.j?` · Jornada ${esc(p.j)}`:''}${p.g?` · ${esc(capName(p.g))}`:''} · ${esc(rolKind(f.rol)[1])} con ${esc(capName(f.team))}</div>`,
+        ].filter(Boolean).join('');
+        html+=`<details class="agc eq${done?' done':''}" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary>
+          <div class="tm">${tm}</div>
+          <div><div class="top">${stChip(p)}</div>
+            <div class="tt">${vs(p)}${done&&p.rl!=null?`<span class="res">${p.rl}-${p.rv}</span>`:''}</div>
+            <div class="sub">${esc(shortComp(`${f.cat} ${p.comp||''}`))}${!done&&p.pab?` · ${esc(capName(p.pab))}`:''}</div>
+            ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}</div>
+          <span class="chev">▼</span></summary><div class="more">${more}</div></details>`;
         continue;
       }
-      const m=it.m;
+      const m=it.m, id=`arb|${m.id}`, r=res.get(m.id), km=kmFor(m);
+      const me = Array.isArray(m.crew) ? m.crew.find(c=>c.me) : null;
+      const myRole = me ? crewLabel(m,me.f) : (m.staff_checked ? crewLabel(m,m.role) : '');
+      const others = Array.isArray(m.crew) ? m.crew.filter(c=>!c.me) : [];
       const crew = Array.isArray(m.crew) && m.crew.length
-        ? `<div class="crew"><span class="kind arb" style="align-self:center">Arbitras</span>${m.crew.map(c=>`<span class="${c.me?'me':''}"><b>${esc(crewLabel(m,c.f))}</b>${c.me?'Tú':esc(capName(c.n))}</span>`).join('')}</div>`
+        ? `<div class="crew">${m.crew.map(c=>`<span class="${c.me?'me':''}"><b>${esc(crewLabel(m,c.f))}</b>${c.me?'Tú':esc(capName(c.n))}</span>`).join('')}</div>`
         : `<div class="crew"><span class="muted">El equipo arbitral se leerá de iSquad en la próxima actualización</span></div>`;
-      const city=(m.addr||'').match(/\d{5}\s+([^,]+)/), r=res.get(m.id), km=kmFor(m);
-      const est = m.estado && m.estado!=='FINALIZADO' ? ` · ${esc(m.estado.toLowerCase())}` : '';
-      html+=`<article class="ag"><div class="t">${esc(m.time)}</div><div>
-        <div class="comp">${esc(m.comp)}${est}</div>
-        <div class="teams">${esc(m.teams)}</div>
-        ${crew}
-        <div class="where"><div><strong>${esc(VENUES[m.venue_key]?.label || m.venue || 'Pabellón sin indicar')}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?`<a class="map" href="${mapsUrl(m)}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>
-        <div class="meta">${km?`${km} km`:''}${km&&r?' · ':''}${r?`${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}</div>
-        ${(clashes.get(m.id)||[]).length?`<div class="clash">⚠ Ese día ${(clashes.get(m.id)).map(x=>`${rolKind(x.f.rol)[1].toLowerCase()} con ${esc(capName(x.f.team))}${x.m.t?' a las '+x.m.t+(x.m.conf?'':' (sin confirmar)'):' (sin horario)'}`).join(' y ')}</div>`:''}
-      </div></article>`;
+      const venue = VENUES[m.venue_key]?.label || m.venue || 'Pabellón sin indicar';
+      const est = m.estado && !/FINALIZ/.test(m.estado) ? ` · ${esc(m.estado.toLowerCase())}` : '';
+      const clashArb = (clashes.get(m.id)||[]).length ? `<div class="clash">⚠ Ese día ${(clashes.get(m.id)).map(x=>`${rolKind(x.f.rol)[1].toLowerCase()} con ${esc(capName(x.f.team))}${x.m.t?' a las '+x.m.t+(x.m.conf?'':' (sin confirmar)'):' (sin horario)'}`).join(' y ')}</div>` : '';
+      const more = `${crew}
+        <div class="where"><div><strong>${esc(venue)}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?`<a class="map" href="${mapsUrl(m)}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>
+        <div class="full">${esc(capName(m.comp))}${est}${km?` · ${km} km`:''}${r?` · ${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}</div>`;
+      html+=`<details class="agc arb" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary>
+        <div class="tm">${esc(m.time)}</div>
+        <div><div class="top"><span class="kind arb">Arbitras${myRole?`<small>${esc(myRole)}</small>`:''}</span>${others.length?`<span class="small muted">con ${others.map(c=>esc(capName(c.n).split(' ')[0])).join(', ')}</span>`:''}</div>
+          <div class="tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div>
+          <div class="sub">${esc(shortComp(m.comp))} · ${esc(venue)}</div>
+          ${clashArb}</div>
+        <span class="chev">▼</span></summary><div class="more">${more}</div></details>`;
     }
     html+='</section>';
   }
   box.innerHTML=html;
 }
+$('agenda').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-agc]'); if(d) d.open ? AGC_OPEN.add(d.dataset.agc) : AGC_OPEN.delete(d.dataset.agc); }, true);
 $('agenda').addEventListener('click', e=>{
   const r=e.target.closest('button[data-agrole]'); if(r){ AGROLE=r.dataset.agrole; try{ localStorage.setItem('liq-agenda-rol',AGROLE); }catch(err){} render(); return; }
   const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
