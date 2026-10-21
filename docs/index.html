@@ -177,6 +177,16 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .notice strong{color:var(--ink)}
 .err{color:var(--neg);font-size:14px;font-weight:500;min-height:20px;margin-top:10px}
 .banner{border-left:4px solid var(--pend);background:var(--pend-bg);color:var(--ink);padding:12px 14px;margin:0 0 20px;font-size:14px}
+/* Avisos de cobro */
+.alerts{display:grid;gap:10px;margin:0 0 22px}
+.alert{display:flex;gap:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-left:6px solid var(--pend);background:var(--pend-bg);padding:12px 14px;font-size:14.5px}
+.alert strong{font-weight:700}
+.alert.info{border-left-color:var(--yellow);background:var(--surface-2)}
+.alert a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
+.score .br{font-size:12.5px;color:var(--board-2);margin-top:4px;line-height:1.35}
+.score .br b{color:var(--board-ink);font-weight:600}
+.lost{color:var(--board-pend)}
+.tag.bad{background:var(--pend);color:#fff}
 </style>
 </head>
 <body>
@@ -224,7 +234,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
       </div>
     </div>
     <div class="score">
-      <div class="pending"><div class="l">Pendiente de cobro</div><div class="v" id="sPending">0,00 €</div></div>
+      <div class="pending"><div class="l">Pendiente de cobro</div><div class="v" id="sPending">0,00 €</div><div class="br" id="sPendBr"></div></div>
       <div><div class="l">Ya cobrado</div><div class="v" id="sPaid">0,00 €</div></div>
       <div><div class="l" id="sTotalL">Total temporada</div><div class="v" id="sTotal">0,00 €</div></div>
       <div><div class="l" id="sCountL">Partidos</div><div class="v" id="sCount">0</div></div>
@@ -233,6 +243,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
     <p class="sync" id="irpfInfo"></p>
   </div>
   <div class="banner hidden" id="banner"></div>
+  <div class="alerts" id="alerts"></div>
 
   <div id="ledger"></div>
 
@@ -402,9 +413,25 @@ function tariff(m){
   if(m.team==='t2b') return m.role==='r1'?c.t2b[0]: m.role==='an'?c.t2b[1]:0;
   return m.role==='r1'?c.t3[0]: m.role==='r2'?c.t3[1]: m.role==='an'?c.t3[2]:0;
 }
-// Cobrado: marcado a mano o pagado según iSquad.
-const paidByFcvb = m => /^PAGADO/.test(m.fcvb_pago||'');
-const isPaid = m => !!m.paid || paidByFcvb(m);
+// Estado del cobro según los recibos de iSquad. El pago se pide en iSquad y solo hasta el día siguiente al partido
+// ("Fin cambios"); si no, "PLAZO SOLICITUD PAGO TERMINADO" y no se cobra.
+const ISQUAD_RECIBOS = 'https://voleibol.misquad.es/arbitros_listado_recibos.php';
+const ymd = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today = () => ymd(new Date());
+const addDays = (ds,n) => { const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()+n); return ymd(d); };
+const limitOf = m => m.fcvb_limite || addDays(m.date,1);
+const paidByFcvb = m => /^PAGADO/.test(m.fcvb_pago||'') || m.fcvb_accion==='factura';
+function payState(m){
+  const p = m.fcvb_pago||'';
+  if(m.paid || paidByFcvb(m)) return 'pagado';
+  if(/^SOLICITADO/.test(p) || m.fcvb_accion==='procesando') return 'solicitado';
+  if(/PLAZO SOLICITUD PAGO TERMINADO/.test(p)) return 'perdido';
+  if(m.fcvb_tarifa!=null) return (+m.fcvb_tarifa + +m.fcvb_gastos) > 0 ? 'solicitar' : 'nada';
+  return m.date < today() ? 'sinrecibo' : 'futuro';
+}
+const isPaid = m => payState(m)==='pagado';
+const PAY_LABEL = {pagado:'Sí', solicitado:'Solicitado', solicitar:'Por solicitar', perdido:'Plazo terminado', nada:'Sin importe', sinrecibo:'No', futuro:'No'};
+const fmtShort = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
 // Población según iSquad (lo que va detrás del código postal). La FCVB paga los km de población a población,
 // no hasta el pabellón: todos los pabellones de Barcelona se pagan igual, y uno que iSquad pone mal de
 // población se paga como esa población.
@@ -537,15 +564,43 @@ const estCells = (m,r,km) => `<td class="n" data-l="Dieta"><input type="number" 
           <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}${r.travel&&r.kmSrc==='fcvb'?'<span class="shared" title="Km que la FCVB te paga a esta población según tus recibos">km FCVB</span>':''}${r.travel&&r.kmSrc==='min'?'<span class="shared" title="Según tus recibos, la FCVB paga el mínimo a esta población">mínimo FCVB</span>':''}${r.travel&&r.kmSrc==='aprox'?'<span class="shared" title="No se encontró la dirección exacta: km hasta el centro de la población. Corrígelos si no cuadran.">km aprox.</span>':''}</td>`;
 const fcvbCells = r => `<td class="n" data-l="Dieta"><span class="muted" title="La FCVB da la dieta y el desplazamiento juntos">incl.</span></td>
           <td class="n" data-l="Gastos">${eur(r.travel)}<span class="shared" title="Desplazamiento y dieta según los recibos de la FCVB (la app calculaba ${eur(r.est.gastos)}; la FCVB reparte los gastos del día entre los partidos)">gastos FCVB</span></td>`;
+// Lo que hay que hacer con el cobro de este partido, debajo del botón.
+function payTag(m){
+  const st=payState(m), lim=limitOf(m);
+  if(st==='solicitar') return lim>=today() ? `<div><span class="tag bad">Pide el pago antes del ${esc(fmtShort(lim))}</span></div>` : `<div class="muted small">Pendiente de solicitar en iSquad</div>`;
+  if(st==='perdido') return `<div><span class="tag bad">Plazo terminado: no se pidió el pago</span></div>`;
+  if(st==='sinrecibo' && lim>=today()) return `<div class="muted small">Cuando salga en iSquad, pide el pago antes del ${esc(fmtShort(lim))}</div>`;
+  const extra = m.fcvb_campo ? '<div class="muted small">Tarifa cobrada en el pabellón</div>' : '';
+  return (m.fcvb_pago&&!paidByFcvb(m)&&st!=='solicitar' ? `<div class="muted small">${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</div>` : '') + extra;
+}
+// Avisos arriba (de todas las temporadas): pagos por pedir con su plazo y partidos de hoy/ayer aún sin recibo.
+function renderAlerts(ms, res){
+  const t=today(), out=[];
+  const ask=ms.filter(m=>payState(m)==='solicitar' && limitOf(m)>=t);
+  if(ask.length){
+    const lim=ask.map(limitOf).sort()[0], amount=ask.reduce((s,m)=>s+res.get(m.id).total,0);
+    out.push(`<div class="alert"><div><strong>Pide el pago de ${ask.length} partido${ask.length===1?'':'s'} (${eur(amount)}) antes del ${esc(fmtShort(lim))}.</strong><br><span class="small">La FCVB solo deja pedirlo hasta el día siguiente al partido. Después ya no se cobra.</span></div><a class="go" href="${ISQUAD_RECIBOS}" target="_blank" rel="noopener">Pedirlo en iSquad</a></div>`);
+  }
+  const soon=ms.filter(m=>payState(m)==='sinrecibo' && limitOf(m)>=t);
+  if(soon.length && !ask.length){
+    const lim=soon.map(limitOf).sort()[0];
+    out.push(`<div class="alert info"><div><strong>Recuerda pedir el pago de ${soon.length===1?'tu partido':'tus '+soon.length+' partidos'} de ${soon.some(m=>m.date===t)?'hoy':'ayer'} antes del ${esc(fmtShort(lim))}.</strong><br><span class="small">En cuanto el acta esté cerrada sale en Hojas de gastos de iSquad.</span></div><a class="go" href="${ISQUAD_RECIBOS}" target="_blank" rel="noopener">Abrir iSquad</a></div>`);
+  }
+  $('alerts').innerHTML=out.join('');
+}
 function render(){
   pickSeason(); renderSeasons();
   const {ms:allMs,res} = compute();
   const ms = allMs.filter(m=>seasonOf(m.date)===SEASON);
   $('sTotalL').textContent = `Total temporada ${seasonLabel(SEASON)}`;
-  let pend=0, paid=0;
-  let ret=0;
-  for(const m of ms){ const r=res.get(m.id); ret+=r.irpf; if(isPaid(m)) paid+=r.total; else pend+=r.total; }
+  let ret=0; const sum={pagado:0,solicitado:0,solicitar:0,prev:0,perdido:0};
+  for(const m of ms){ const r=res.get(m.id), st=payState(m); ret+=r.irpf;
+    if(st==='pagado'||st==='solicitado'||st==='solicitar'||st==='perdido') sum[st]+=r.total; else if(st!=='nada') sum.prev+=r.total; }
+  const pend=sum.solicitado+sum.solicitar+sum.prev, paid=sum.pagado;
   $('sPending').textContent=eur(pend); $('sPaid').textContent=eur(paid); $('sTotal').textContent=eur(pend+paid);
+  $('sPendBr').innerHTML = [sum.solicitado&&`Solicitado <b>${eur(sum.solicitado)}</b>`, sum.solicitar&&`<span class="lost">Por solicitar <b>${eur(sum.solicitar)}</b></span>`,
+    sum.prev&&`Previsión <b>${eur(sum.prev)}</b>`, sum.perdido&&`<span class="lost">No solicitado a tiempo <b>${eur(sum.perdido)}</b></span>`].filter(Boolean).join(' · ');
+  renderAlerts(allMs, res);
   $('irpfInfo').textContent = +P.irpf ? `Importes netos: IRPF del ${String(+P.irpf).replace('.',',')} % sobre la tarifa, ${eur(ret)} retenidos en la temporada.` : '';
   $('sCount').textContent=ms.length;
   const jc = new Set(ms.map(m=>m.date+franjaOf(m))).size;
@@ -585,7 +640,7 @@ function render(){
           <td class="n" data-l="Peajes"><input type="number" step="0.05" data-f="tolls" data-id="${esc(m.id)}" value="${+m.tolls||''}" placeholder="0"></td>
           ${+P.irpf?`<td class="n" data-l="IRPF">${r.irpf?'−'+eur(r.irpf):'<span class="muted">—</span>'}</td>`:''}
           <td class="n total" data-l="${+P.irpf?'Neto':'Total'}">${eur(r.total)}</td>
-          <td class="ctrl paycell">${paidByFcvb(m)?`<span class="pay is-paid" title="Según iSquad">✓ ${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</span>`:`<button class="pay${m.paid?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${m.paid?'true':'false'}">${m.paid?'✓ Cobrado':'Marcar cobrado'}</button>`}${m.fcvb_pago&&!paidByFcvb(m)?`<div class="muted small">${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</div>`:''}${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
+          <td class="ctrl paycell">${paidByFcvb(m)?`<span class="pay is-paid" title="Según iSquad">✓ ${esc((m.fcvb_pago||'PAGADO').charAt(0)+(m.fcvb_pago||'PAGADO').slice(1).toLowerCase())}</span>`:`<button class="pay${m.paid?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${m.paid?'true':'false'}">${m.paid?'✓ Cobrado':'Marcar cobrado'}</button>`}${payTag(m)}${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
       }
       html+='</tbody></table></div></div>';
     }
@@ -698,15 +753,16 @@ function buildWorkbook(){
     return [serial, m.time, m.id.split('@')[0], m.comp, CATS[catOf(m)].label, m.teams,
       VENUES[m.venue_key]?.label || m.venue, city ? city[1].trim() : '', ROLE_OPTS[m.role],
       m.role==='jl' ? '' : TEAM_OPTS[m.team], r.tariff, r.fcvb ? null : r.dieta, kmFor(m)||null, r.travel, r.tolls, r.gross, r.irpf, r.total,
-      (m.estado||'').toLowerCase(), isPaid(m) ? 'Sí' : 'No', r.fcvb ? 'FCVB' : 'previsión app'];
+      (m.estado||'').toLowerCase(), PAY_LABEL[payState(m)], r.fcvb ? 'FCVB' : 'previsión app'];
   });
   const sum = i => +rows.reduce((t,x)=>t+(+x[i]||0),0).toFixed(2);
   const n = rows.length, last = n+1;
   const MONEY = [10,11,13,14,15,16,17], totals = MONEY.map(sum);
-  const pend = +ms.filter(m=>!isPaid(m)).reduce((t,m)=>t+res.get(m.id).total,0).toFixed(2);
+  const net = st => +ms.filter(m=>st.includes(payState(m))).reduce((t,m)=>t+res.get(m.id).total,0).toFixed(2);
+  const pend = net(['solicitado','solicitar','sinrecibo','futuro']), paidNet = net(['pagado']);
   const pad = Array(17).fill('');
   rows.push([], ['Total','','','','','','','','','', totals[0], totals[1], null, totals[2], totals[3], totals[4], totals[5], totals[6]],
-    ['Pendiente de cobro (neto)', ...pad.slice(1), pend], ['Ya cobrado (neto)', ...pad.slice(1), +(totals[6]-pend).toFixed(2)]);
+    ['Pendiente de cobro (neto)', ...pad.slice(1), pend], ['Ya cobrado (neto)', ...pad.slice(1), paidNet]);
   const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
   const EUR = '#,##0.00 "€"';
   for(let R=1; R<=last+4; R++){

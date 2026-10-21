@@ -14,6 +14,9 @@ export type ScrapedMatch = {
   desig_id: string | null;
   // Liquidación de la FCVB (página de recibos); solo si se ha podido leer.
   fcvb_tarifa?: number | null; fcvb_gastos?: number | null; fcvb_pago?: string | null;
+  // Plazo para pedir el pago ("Fin cambios", el día siguiente al partido), qué deja hacer iSquad
+  // ("editar" = aún se puede pedir/cambiar, "procesando" = pedido, "factura" = pagado) y si la tarifa se cobró en el pabellón.
+  fcvb_limite?: string | null; fcvb_accion?: string | null; fcvb_campo?: boolean | null;
 };
 // Rol del árbitro y composición del equipo arbitral, sacados de "Ver Designación".
 export type Staff = { role: "r1" | "r2" | "an" | "jl"; team: "t1" | "t2a" | "t2b" | "t3" };
@@ -180,6 +183,7 @@ export async function fetchDesignaciones(
       const same = recibos.filter((r) => r.id === code);
       const r = same.length > 1 ? same.find((x) => x.date === m.date && x.time === m.time) ?? same.find((x) => x.date === m.date) : same[0];
       m.fcvb_tarifa = r?.tarifa ?? null; m.fcvb_gastos = r?.gastos ?? null; m.fcvb_pago = r?.pago ?? null;
+      m.fcvb_limite = r?.limite ?? null; m.fcvb_accion = r?.accion ?? null; m.fcvb_campo = r ? r.campo : null;
     }
   }
   if (opts.onName) {
@@ -218,7 +222,10 @@ export function uniqueIds(list: ScrapedMatch[]): ScrapedMatch[] {
 
 // Página de recibos: código, partido, fecha, estado, competición, tarifa, gastos, total, ..., estado del pago.
 // Se lee con expresiones regulares (no linkedom): la página pesa más de 1 MB y la CPU de la función es poca.
-export type Recibo = { id: string; date: string; time: string; tarifa: number; gastos: number; pago: string };
+export type Recibo = {
+  id: string; date: string; time: string; tarifa: number; gastos: number; pago: string;
+  limite: string | null; accion: string | null; campo: boolean;
+};
 export function parseRecibos(html: string): Recibo[] | null {
   const table = html.match(/<table[^>]*id="tabla_listado_recibos"[\s\S]*?<\/table>/)?.[0];
   if (!table) return null;
@@ -231,7 +238,13 @@ export function parseRecibos(html: string): Recibo[] | null {
     const f = tx(c[2]).match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
     const tarifa = eur(c[5]), gastos = eur(c[6]);
     if (!f || tarifa == null || gastos == null) continue;
+    // Acciones: botón "Editar" con "Fin cambios: dd/mm/aaaa" debajo, "Procesando" o "Ver factura".
+    const acc = tx(c[8]), lim = acc.match(/Fin cambios\s*:\s*(\d{2})\/(\d{2})\/(\d{4})/);
+    const accion = /Ver factura/i.test(acc) ? "factura" : /Procesando/i.test(acc) ? "procesando" : /Editar/i.test(acc) ? "editar"
+      : (acc.replace(/\b[0-9a-f]{32}\b/g, "").replace(/^\s*\d+\s*/, "").trim().slice(0, 40) || null);
+    const campoT = c[5].match(/title="([^"]*cobrado en campo[^"]*)"/i)?.[1] || "";
     out.push({ id: tx(c[0]), date: `${f[3]}-${f[2]}-${f[1]}`, time: `${f[4].padStart(2, "0")}:${f[5]}`, tarifa, gastos,
+      limite: lim ? `${lim[3]}-${lim[2]}-${lim[1]}` : null, accion, campo: !!campoT && !/^no /i.test(campoT),
       pago: tx(c[9]).match(/^(PAGADO(?: - \d{2}\/\d{2}\/\d{4})?|SOLICITADO: [A-ZÁÉÍÓÚ ]+?(?= Hojas|$)|[A-ZÁÉÍÓÚ ]+?(?= Hojas|$))/)?.[1]?.trim() || tx(c[9]).slice(0, 60) });
   }
   return out;
