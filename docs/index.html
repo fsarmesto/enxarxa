@@ -296,6 +296,9 @@ body.dep .arb-only{display:none!important}
 .rs-note{font-size:12.5px;color:var(--ink-3);margin-top:14px}
 @media print{ body *{visibility:hidden} #resumen,#resumen *{visibility:visible} #resumen{position:absolute;left:0;top:0;width:100%} .no-print{display:none!important} }
 .views button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+body:not([data-vista="cobros"]) :is(.board .score,#irpfInfo,#btnExport,#alerts){display:none}
+body:not([data-vista="cobros"]):not([data-vista="resumen"]) #seasons{display:none}
+.views button.dot::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red,#e5383b);margin-left:6px;vertical-align:middle}
 .subviews{display:flex;gap:8px;margin:0 0 16px}
 .subviews button{border-width:2px;padding:5px 14px;font-size:14px}
 .subviews button[aria-pressed="true"]{background:var(--yellow);border-color:var(--yellow);color:#000}
@@ -1028,6 +1031,9 @@ function render(){
   for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.view===VIEW));
   if(GUEST && VIEW==='equipos') VIEW='agenda';
   if(DEP && (VIEW==='cobros' || VIEW==='resumen')) VIEW='agenda';
+  // Lo de dinero (cifras, IRPF, Excel, avisos de pedir el pago) solo en Cobros; la temporada, en Cobros y Resumen.
+  document.body.dataset.vista=VIEW;
+  $('views').querySelector('[data-view="cobros"]').classList.toggle('dot', VIEW!=='cobros' && !!$('alerts').innerHTML);
   $('tabEquipos').classList.toggle('hidden', GUEST);
   led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
   $('filters').classList.toggle('hidden', VIEW==='equipos'); if(VIEW==='equipos') $('fsum').classList.add('hidden');

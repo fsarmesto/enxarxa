@@ -197,6 +197,15 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Panel "Salud de la app" (admin): `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
   dispositivos, índice de plantillas y edad de las cachés.
 
+## Cabecera por pestaña (21-oct-2026)
+
+- `body[data-vista]` = pestaña activa. Cifras de cobro, IRPF, Excel y avisos de pedir el pago solo en Cobros; el selector
+  de temporada en Cobros y Resumen. Si hay avisos y estás en otra pestaña, punto rojo en "Cobros" (`.views .dot`).
+- Cabecera con red de vóley (CSS puro: `.board::after` = palos hasta la línea amarilla; `.board .top::before` = cintas
+  y malla solo detrás de la fila del título). Icono: red con `</>` (`docs/icon.svg`; PNG renderizados con Chrome
+  headless, ImageMagick no pinta los trazos).
+- Login: el usuario de iSquad es el email (placeholder y aviso; los 15 usuarios entran con email).
+
 ## Calendario y clasificación (21-oct-2026)
 
 - Función `calendario`: `GET ?t=<cal_token>` devuelve un iCal (sin sesión: el token secreto de `profiles.cal_token`,
