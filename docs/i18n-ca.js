@@ -357,7 +357,24 @@ I.exact = {
 "Cargando…": "Carregant…",
 "Leyendo las fichas de los árbitros en iSquad…": "Llegint les fitxes dels àrbitres a iSquad…",
 "Actualizar": "Actualitza",
-"Sin categoría reconocida": "Sense categoria reconeguda"
+"Sin categoría reconocida": "Sense categoria reconeguda",
+"Eres jugador/a o entrenador/a.": "Ets jugador/a o entrenador/a.",
+"No guardo tu contraseña: solo tu nombre y tu foto de afiliado de iSquad, para encontrar tus equipos en las plantillas públicas de la FCVB.": "No guardo la teva contrasenya: només el teu nom i la foto d'afiliat d'iSquad, per trobar els teus equips a les plantilles públiques de la FCVB.",
+"Tus equipos y sus partidos, con horario, pabellón, árbitros y resultados.": "Els teus equips i els seus partits, amb horari, pavelló, àrbitres i resultats.",
+"Tus equipos, solos": "Els teus equips, sols",
+"Te encuentro en las plantillas de la FCVB por tu foto de afiliado y en": "Et trobo a les plantilles de la FCVB per la teva foto d'afiliat i a",
+"tienes los partidos de tus equipos: horario, pabellón con \"Cómo llegar\", árbitros y resultados.": "tens els partits dels teus equips: horari, pavelló amb \"Com arribar-hi\", àrbitres i resultats.",
+"puedes seguir cualquier otro equipo.": "pots seguir qualsevol altre equip.",
+"Si alguno no es tuyo, lo quitas y no vuelve.": "Si algun no és teu, el treus i no torna.",
+"Te aviso al momento cuando": "T'aviso al moment quan",
+"tus partidos tengan horario": "els teus partits tinguin horari",
+", cambien de fecha u hora o se suspendan.": ", canviïn de data o hora o se suspenguin.",
+"¿Conoces a más gente que juegue?": "Coneixes més gent que jugui?",
+"Cuando tus partidos tengan horario, cambien o se suspendan.": "Quan els teus partits tinguin horari, canviïn o se suspenguin.",
+"No hay partidos próximos de tus equipos.": "No hi ha partits propers dels teus equips.",
+"Aún no hay partidos jugados de tus equipos esta temporada.": "Encara no hi ha partits jugats dels teus equips aquesta temporada.",
+"No te he encontrado en ninguna plantilla de la FCVB: ve a Equipos y busca tu equipo.": "No t'he trobat a cap plantilla de la FCVB: ves a Equips i cerca el teu equip.",
+"Sin guardar solo funciona con cuenta de árbitro. Entra normal: de tu cuenta solo se guarda tu nombre.": "Sense desar només funciona amb compte d'àrbitre. Entra normal: del teu compte només es desa el teu nom."
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

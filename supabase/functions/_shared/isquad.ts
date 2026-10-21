@@ -310,3 +310,31 @@ export function parseDesignaciones(html: string): ScrapedMatch[] | null {
   }
   return out;
 }
+
+// Jugadores y entrenadores: la misma cuenta de iSquad entra en la Plataforma de Jugadores (login.php) o en la de
+// Entrenadores (loginentrenadores.php). Para quien no es árbitro solo hace falta saber quién es: nombre y foto de
+// afiliado de la cabecera (con la foto se le encuentra en las plantillas públicas). No se lee nada más.
+export async function loginDeportista(login: string, password: string): Promise<{ area: "jugador" | "entrenador"; nombre: string; foto: string }> {
+  for (const [path, area] of [["login.php", "jugador"], ["loginentrenadores.php", "entrenador"]] as const) {
+    const jar: Jar = new Map();
+    const first = await get(`${BASE}/${path}`, jar); await first.body?.cancel();
+    const res = await fetch(`${BASE}/${path}`, {
+      method: "POST", signal: T(), redirect: "manual",
+      body: new URLSearchParams({ login, password, qr_login: "0", utr: "" }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar), Origin: BASE, Referer: `${BASE}/${path}` },
+    });
+    keep(jar, res);
+    const loc = res.headers.get("location"); await res.body?.cancel();
+    if (!loc || /login/i.test(loc)) continue;                                  // no entra: vuelve al login
+    const page = await get(new URL(loc, `${BASE}/`).toString(), jar);
+    const html = page.status === 200 ? await page.text() : (await page.body?.cancel(), "");
+    if (!html || /name=["']password["']/.test(html)) continue;
+    // deno-lint-ignore no-explicit-any
+    const { document } = parseHTML(html) as any;
+    const nombre = (document.querySelector(".contact-container")?.textContent || "").replace(/\s+/g, " ").trim()
+      .replace(/\s+(JUGADOR|JUGADORA|STAFF T[EÉ]CNICO|ENTRENADOR|ENTRENADORA|DELEGADO)$/i, "");
+    const foto = (document.querySelector(".contact img")?.getAttribute("src") || "").match(/images\/afiliacion\/(.+)$/)?.[1] || "";
+    return { area, nombre, foto };
+  }
+  throw new IsquadAuthError("login");
+}

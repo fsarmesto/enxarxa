@@ -241,6 +241,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .rank .bar{height:6px;background:var(--surface-2);margin-top:5px}
 .rank .bar i{display:block;height:100%;background:var(--yellow)}
 .rank .sub{color:var(--ink-3);font-size:12px}
+body.dep .arb-only{display:none!important}
 .guest-note{font-size:13px;color:var(--ink-2);margin:6px 0 14px}
 /* App en el móvil y recordatorio */
 .pushcard{display:flex;gap:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:2px solid var(--ink);padding:12px 14px;margin:0 0 22px;font-size:14.5px}
@@ -406,8 +407,9 @@ details.cal[open]>summary::before{content:"▾ "}
       <label class="f">Usuario de iSquad<input type="text" id="aLogin" name="username" autocomplete="username" required></label>
       <label class="f">Contraseña de iSquad<input type="password" id="aPass" name="password" autocomplete="current-password" required></label>
       <div id="setupBlock" class="hidden">
-        <label class="f">Población desde la que sales a arbitrar<input type="text" id="aOrigin" placeholder="Capellades"></label>
-        <div class="notice">
+        <label class="f" id="aOriginL">Población desde la que sales a arbitrar<input type="text" id="aOrigin" placeholder="Capellades"></label>
+        <div class="notice hidden" id="depNotice"><strong>Eres jugador/a o entrenador/a.</strong> No guardo tu contraseña: solo tu nombre y tu foto de afiliado de iSquad, para encontrar tus equipos en las plantillas públicas de la FCVB.</div>
+        <div class="notice" id="arbNotice">
           <strong>Antes de seguir:</strong> para traer tus designaciones automáticamente, esta app guarda tu usuario y contraseña de iSquad <strong>cifrados</strong> y los usa solo para leer tu página de designaciones un par de veces al día. No es una app oficial de la FCVB ni de iSquad. Puedes borrar tu cuenta, con la contraseña y todos tus datos, en cualquier momento desde Ajustes.
         </div>
         <label class="chk small" style="margin-bottom:14px"><input type="checkbox" id="aConsent"> Lo entiendo y quiero continuar</label>
@@ -432,31 +434,31 @@ details.cal[open]>summary::before{content:"▾ "}
       </div>
       <div class="actions">
         <div class="seasons hidden" id="seasons" role="group" aria-label="Temporada"></div>
-        <button id="btnExport">Exportar a Excel</button>
-        <button id="btnSync">Actualizar ahora</button>
+        <button id="btnExport" class="arb-only">Exportar a Excel</button>
+        <button id="btnSync" class="arb-only">Actualizar ahora</button>
         <button class="ghost" id="btnLogout">Salir</button>
       </div>
     </div>
-    <div class="score">
+    <div class="score arb-only">
       <div class="pending"><div class="l">Pendiente de cobro</div><div class="v" id="sPending">0,00 €</div><div class="br" id="sPendBr"></div></div>
       <div><div class="l">Ya cobrado</div><div class="v" id="sPaid">0,00 €</div></div>
       <div><div class="l" id="sTotalL">Total temporada</div><div class="v" id="sTotal">0,00 €</div></div>
       <div><div class="l" id="sCountL">Partidos</div><div class="v" id="sCount">0</div></div>
     </div>
     <p class="sync" id="syncInfo"></p>
-    <p class="sync" id="irpfInfo"></p>
+    <p class="sync arb-only" id="irpfInfo"></p>
   </div>
   <div class="views" id="views" role="tablist">
-    <button type="button" data-view="cobros" role="tab">Cobros</button>
+    <button type="button" data-view="cobros" role="tab" class="arb-only">Cobros</button>
     <button type="button" data-view="agenda" role="tab">Mis partidos</button>
     <button type="button" data-view="equipos" role="tab" id="tabEquipos">Equipos</button>
-    <button type="button" data-view="resumen" role="tab">Resumen</button>
+    <button type="button" data-view="resumen" role="tab" class="arb-only">Resumen</button>
   </div>
   <div class="banner hidden" id="banner"></div>
   <div class="alerts" id="alerts"></div>
   <div class="pushcard hidden" id="pushCard"></div>
 
-  <div class="filters" id="filters"></div>
+  <div class="filters arb-only" id="filters"></div>
   <div class="fsum hidden" id="fsum"></div>
   <div id="ledger"></div>
   <div id="agenda" class="hidden"></div>
@@ -493,7 +495,7 @@ details.cal[open]>summary::before{content:"▾ "}
     <div id="desigBody"><p class="small muted">Ábrelo para cargarlo (tarda unos segundos).</p></div>
   </details>
 
-  <details class="panel">
+  <details class="panel arb-only">
     <summary>Añadir un partido a mano</summary>
     <div class="form-grid">
       <label>Fecha<input type="date" id="mDate"></label>
@@ -509,7 +511,7 @@ details.cal[open]>summary::before{content:"▾ "}
   <details class="panel">
     <summary>Ajustes</summary>
     <div class="grid2">
-      <div>
+      <div class="arb-only">
         <h2>Desplazamiento</h2>
         <div class="row">
           <label class="small">Origen <input type="text" id="origin" style="width:160px"></label>
@@ -528,19 +530,19 @@ details.cal[open]>summary::before{content:"▾ "}
         <table class="venues" id="venueTable"></table>
       </div>
       <div>
-        <h2>Reglas que aplica</h2>
-        <p class="small muted">Dietas por día y hora de inicio: lunes a jueves 10 € (9:00–13:00 y 16:00–20:29) o 13,50 € el resto; viernes 13,50 € (0:00–15:59 y 21:01–23:59); sábado 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); domingo y festivos 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59); un festivo entre semana fuera de esas franjas cobra la dieta normal de ese día. Una dieta por jornada; mañana (hasta las 14:59) y tarde (desde las 15:00) cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones. Los festivos de Catalunya se detectan solos; los locales de cada municipio, no: en esos casos, y siempre que no cuadre, cambia la dieta a mano en el partido.</p>
-        <p class="small muted">Tarifa según competición, rol y equipo arbitral (anexo FCVB 2026/27). El rol y cuántos árbitros y anotadores había se leen de la designación en iSquad. Superliga y Superliga 2 las liquida la RFEVB. Los partidos de selecciones territoriales no tienen tarifa: solo se cuentan si la FCVB ha pagado gastos por ellos.</p>
+        <h2 class="arb-only">Reglas que aplica</h2>
+        <p class="small muted arb-only">Dietas por día y hora de inicio: lunes a jueves 10 € (9:00–13:00 y 16:00–20:29) o 13,50 € el resto; viernes 13,50 € (0:00–15:59 y 21:01–23:59); sábado 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); domingo y festivos 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59); un festivo entre semana fuera de esas franjas cobra la dieta normal de ese día. Una dieta por jornada; mañana (hasta las 14:59) y tarde (desde las 15:00) cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones. Los festivos de Catalunya se detectan solos; los locales de cada municipio, no: en esos casos, y siempre que no cuadre, cambia la dieta a mano en el partido.</p>
+        <p class="small muted arb-only">Tarifa según competición, rol y equipo arbitral (anexo FCVB 2026/27). El rol y cuántos árbitros y anotadores había se leen de la designación en iSquad. Superliga y Superliga 2 las liquida la RFEVB. Los partidos de selecciones territoriales no tienen tarifa: solo se cuentan si la FCVB ha pagado gastos por ellos.</p>
         <h2 style="margin-top:16px">Notificaciones</h2>
         <p class="small muted">Con las notificaciones activadas te aviso al momento (se mira cada 10 minutos, de 7:00 a 24:00) de:</p>
-        <ul class="small muted" style="margin:0 0 8px;padding-left:18px"><li>designaciones nuevas, cambiadas o anuladas;</li><li>partidos de tus equipos (donde juegas o entrenas) cuando ya tienen horario, cambian de fecha u hora o se suspenden;</li><li>y los domingos a las 20:00: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!".</li></ul>
+        <ul class="small muted" style="margin:0 0 8px;padding-left:18px"><li class="arb-only">designaciones nuevas, cambiadas o anuladas;</li><li>partidos de tus equipos (donde juegas o entrenas) cuando ya tienen horario, cambian de fecha u hora o se suspenden;</li><li class="arb-only">y los domingos a las 20:00: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!".</li></ul>
         <p class="small muted">En el iPhone, primero añade la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde el icono.</p>
         <p class="small" id="pushState"></p>
         <div class="row" id="pushBtns"></div>
-        <h2 style="margin-top:16px">Compartir coche</h2>
+        <div class="arb-only"><h2 style="margin-top:16px">Compartir coche</h2>
         <p class="small muted">Si lo activas, te aviso en "Mis partidos" cuando otro árbitro que también lo tenga activado va ese día al mismo pabellón o a la misma población, por si os queréis organizar. Solo se ve entre quienes lo activan, y solo el nombre, la hora, el pabellón y la población de salida.</p>
         <div class="seg" style="margin-bottom:6px">Compartir coche<span class="segb" role="group" id="carSeg"><button type="button" data-car="1" aria-pressed="false">Sí</button><button type="button" data-car="0" aria-pressed="true">No</button></span></div>
-        <p class="small muted" id="carInfo"></p>
+        <p class="small muted" id="carInfo"></p></div>
         <h2 style="margin-top:16px">Idioma</h2>
         <div class="seg" data-noi18n><span class="segb lang-seg" role="group"><button type="button" data-lang="es">Castellano</button><button type="button" data-lang="ca">Català</button></span></div>
         <h2 style="margin-top:16px">Tu cuenta</h2>
@@ -679,6 +681,7 @@ document.addEventListener('click', e=>{ const b=e.target.closest('button[data-la
 document.querySelectorAll('button[data-lang]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.lang===LANG)));
 
 /* ---------- Estado ---------- */
+let DEP = false;
 // Modo sin guardar: los datos viven solo en memoria y ninguna escritura sale del navegador.
 let GUEST = false;
 const NODB = { from(){ let row=null; const o={ update(){return o}, upsert(){return o}, delete(){return o}, eq(){return o}, in(){return o}, select(){return o},
@@ -703,6 +706,8 @@ async function loadAll(){
   ]);
   if(p.error){ throw p.error; }
   P = p.data; MATCHES = m.data || []; VENUES = Object.fromEntries((v.data||[]).map(x=>[x.venue_key,x]));
+  // Jugador o entrenador sin licencia de árbitro: sin cobros ni designaciones, solo sus equipos.
+  DEP = P.tipo==='deportista'; document.body.classList.toggle('dep', DEP);
   learnFcvbKm();
 }
 
@@ -968,7 +973,7 @@ function render(){
   $('sCount').textContent=ms.length;
   const jc = new Set(ms.map(m=>m.date+franjaOf(m))).size;
   $('sCountL').textContent = `Partidos en ${jc} jornada${jc===1?'':'s'}`;
-  $('syncInfo').textContent = GUEST ? `Leído de iSquad: ${ago(P.last_sync)}. Sin guardar: no se actualiza solo.` : `Última actualización desde iSquad: ${ago(P.last_sync)}. Se actualiza sola dos veces al día.`;
+  $('syncInfo').textContent = DEP ? 'Tus equipos y sus partidos, con horario, pabellón, árbitros y resultados.' : GUEST ? `Leído de iSquad: ${ago(P.last_sync)}. Sin guardar: no se actualiza solo.` : `Última actualización desde iSquad: ${ago(P.last_sync)}. Se actualiza sola dos veces al día.`;
   const b = $('banner');
   if(GUEST){ b.innerHTML='<strong>Modo sin guardar.</strong> No se ha guardado nada: al cerrar o recargar esta pestaña desaparece todo. Los cambios que hagas tampoco se guardan.'; b.classList.remove('hidden'); }
   else if(P.last_error==='credenciales'){ b.innerHTML='iSquad ya no acepta tu contraseña guardada. <button class="ghost" id="btnRelogin">Vuelve a entrar</button> con la nueva y se actualizará.'; b.classList.remove('hidden'); $('btnRelogin').onclick=logout; }
@@ -979,6 +984,7 @@ function render(){
   renderFilters(ms,res);
   for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.view===VIEW));
   if(GUEST && VIEW==='equipos') VIEW='agenda';
+  if(DEP && (VIEW==='cobros' || VIEW==='resumen')) VIEW='agenda';
   $('tabEquipos').classList.toggle('hidden', GUEST);
   led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
   $('filters').classList.toggle('hidden', VIEW==='equipos'); if(VIEW==='equipos') $('fsum').classList.add('hidden');
@@ -1181,6 +1187,7 @@ async function logout(){ if(GUEST){ location.reload(); return; } await sb.auth.s
 $('btnLogout').addEventListener('click', logout);
 
 /* ---------- Entrar ---------- */
+let SETUP_DEP = false;
 $('aGuest').addEventListener('change', e=>{ $('guestNote').classList.toggle('hidden', !e.target.checked); if(e.target.checked) $('setupBlock').classList.add('hidden'); });
 async function enterGuest(){
   $('aErr').textContent=''; $('aBtn').disabled=true; $('aBtn').textContent='Leyendo iSquad… (hasta 1 minuto)';
@@ -1199,11 +1206,16 @@ $('authForm').addEventListener('submit', async e=>{
   e.preventDefault();
   if($('aGuest').checked) return enterGuest();
   const needSetup = !$('setupBlock').classList.contains('hidden');
-  if(needSetup && (!$('aOrigin').value.trim() || !$('aConsent').checked)){ $('aErr').textContent='Indica tu población y marca la casilla para continuar.'; return; }
+  if(needSetup && ((!SETUP_DEP && !$('aOrigin').value.trim()) || !$('aConsent').checked)){ $('aErr').textContent='Indica tu población y marca la casilla para continuar.'; return; }
   $('aErr').textContent=''; $('aBtn').disabled=true; $('aBtn').textContent= needSetup ? 'Trayendo tus partidos…' : 'Comprobando con iSquad…';
   const r = await callFn('auth-isquad',{login:$('aLogin').value, password:$('aPass').value, origin:$('aOrigin').value, consent:$('aConsent').checked});
   $('aBtn').disabled=false; $('aBtn').textContent='Entrar';
-  if(r.needSetup){ $('setupBlock').classList.remove('hidden'); $('aOrigin').focus(); return; }
+  if(r.needSetup){
+    // Jugador o entrenador (no árbitro): sin población y con su propio aviso de qué se guarda.
+    SETUP_DEP = !!r.deportista;
+    $('aOriginL').classList.toggle('hidden', SETUP_DEP); $('arbNotice').classList.toggle('hidden', SETUP_DEP); $('depNotice').classList.toggle('hidden', !SETUP_DEP);
+    $('setupBlock').classList.remove('hidden'); (SETUP_DEP ? $('aConsent') : $('aOrigin')).focus(); return;
+  }
   if(!r.ok || !r.token_hash){ $('aErr').textContent = r.error || 'No se ha podido entrar. Prueba de nuevo.'; return; }
   const {error} = await sb.auth.verifyOtp({token_hash:r.token_hash, type:'magiclink'});
   if(error){ $('aErr').textContent='No se ha podido abrir la sesión. Prueba de nuevo.'; return; }
@@ -1276,6 +1288,7 @@ function renderPush(){
   else {
     const txt = iosNeedsInstall
       ? '<strong>Instala la app en el iPhone</strong> para recibir avisos de designaciones y horarios: pulsa Compartir y "Añadir a pantalla de inicio", y ábrela desde el icono.'
+      : DEP ? '<strong>¿Te aviso al momento?</strong> Cuando tus partidos tengan horario, cambien o se suspendan.'
       : '<strong>¿Te aviso al momento?</strong> Designaciones nuevas o cambiadas, horarios de tus partidos de jugador y el recordatorio del domingo.';
     const apk = offerApk() ? `<a class="go" href="${APK_URL}" download>Descargar la app Android</a>` : (INSTALL_EVT&&!isStandalone()?'<button id="cInstall">Instalar la app</button>':'');
     card.innerHTML=`<div>${txt}</div><div class="btns">${!iosNeedsInstall&&pushSupported()?'<button class="primary" id="cOn">Activar</button>':''}${apk}<button class="ghost" id="cNo">Ahora no</button></div>`;
@@ -1484,6 +1497,10 @@ function renderAgenda(allMs,res){
     html += `<div class="empty">No hay partidos ${AGENDA==='proximos'?'próximos':'jugados'} como ${({arbitro:'árbitro',jugador:'jugador',entrenador:'entrenador'})[role]}${filtering()?' con estos filtros':''}.</div>`;
     box.innerHTML=html; return;
   }
+  if(!list.length && DEP){
+    html += `<div class="empty">${AGENDA==='proximos' ? 'No hay partidos próximos de tus equipos.' : 'Aún no hay partidos jugados de tus equipos esta temporada.'} ${EQ.favs.length ? '' : 'No te he encontrado en ninguna plantilla de la FCVB: ve a Equipos y busca tu equipo.'}</div>`;
+    box.innerHTML=html; return;
+  }
   if(!list.length){
     html += AGENDA==='proximos'
       ? `<div class="empty">No tienes partidos designados próximamente${filtering()?' con estos filtros':''}. En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.</div>`
@@ -1626,6 +1643,13 @@ function guideSteps(){
     : INSTALL_EVT && !isStandalone() ? '<button id="gInstall">Instalar la app</button>'
     : (isIOS && !isStandalone()) ? '<p class="small">En el iPhone: pulsa <b>Compartir</b> y <b>"Añadir a pantalla de inicio"</b>, y ábrela desde el icono.</p>' : '';
   const push = !GUEST && !PUSH_SUB && pushSupported() && !(isIOS && !isStandalone()) ? '<button class="primary" id="gPush">Activar avisos</button>' : (PUSH_SUB ? '<p class="small"><b>✓ Avisos activados en este dispositivo.</b></p>' : '');
+  if(DEP) return [
+    { ico:'🏐', t:'Tus equipos, solos', h:`<p>Te encuentro en las plantillas de la FCVB por tu foto de afiliado y en <b>Mis partidos</b> tienes los partidos de tus equipos: horario, pabellón con "Cómo llegar", árbitros y resultados.</p>
+      <ul><li>En <b>Equipos</b> puedes seguir cualquier otro equipo.</li><li>Si alguno no es tuyo, lo quitas y no vuelve.</li></ul>` },
+    { ico:'🔔', t:'Instálala y activa los avisos', h:`<p>Te aviso al momento cuando <b>tus partidos tengan horario</b>, cambien de fecha u hora o se suspendan.</p>
+      <div class="acts">${install}${push}</div>
+      <p class="small muted" style="margin-top:12px">¿Conoces a más gente que juegue? <button class="ghost" id="gShare" style="padding-left:0">Comparte la app</button></p>` },
+  ];
   return [
     { ico:'💶', t:'Tus cobros, solos', h:`<p>Cada partido con su tarifa, dieta, desplazamiento e IRPF. Cuando la FCVB lo liquida, salen sus importes.</p>
       <ul><li><b>Pide el pago a tiempo:</b> la FCVB solo deja pedirlo hasta el día siguiente al partido. Te aviso arriba con la fecha límite.</li><li>Pendiente, solicitado, cobrado y lo que no se pidió a tiempo, de un vistazo.</li></ul>` },

@@ -22,10 +22,13 @@ Deno.serve(async (req) => {
   if (secret && req.headers.get("x-cron-secret") === secret) {
     const now = madridNow();
     if (!body.force && !(now.weekday === "Sun" && now.hour === 20)) return json({ skipped: true, madrid: now });
+    // Solo árbitros: el recordatorio es de subir resultados y revisar cobros.
+    const { data: deps } = await db.from("profiles").select("user_id").eq("tipo", "deportista");
+    const skip = new Set((deps || []).map((d: { user_id: string }) => d.user_id));
     const subs: Sub[] = [];
     for (let from = 0; ; from += 1000) {
-      const { data } = await db.from("push_subs").select("endpoint, p256dh, auth").range(from, from + 999);
-      subs.push(...(data || [])); if (!data || data.length < 1000) break;
+      const { data } = await db.from("push_subs").select("endpoint, p256dh, auth, user_id").range(from, from + 999);
+      subs.push(...(data || []).filter((s: { user_id: string }) => !skip.has(s.user_id))); if (!data || data.length < 1000) break;
     }
     return json({ sent: await send(db, subs, REMINDER), madrid: now });
   }

@@ -71,11 +71,14 @@ if (import.meta.main) Deno.serve(async (req) => {
 
   const { data: subs } = await db.from("push_subs").select("user_id");
   const users = [...new Set((subs || []).map((s: { user_id: string }) => s.user_id))];
+  // Designaciones y aviso de cobro solo para árbitros; los equipos, para todos.
+  const { data: deps } = await db.from("profiles").select("user_id").eq("tipo", "deportista").in("user_id", users);
+  const arbitros = users.filter((u) => !(deps || []).some((d: { user_id: string }) => d.user_id === u));
   if (!users.length) return json({ users: 0 });
 
   // 1) Designaciones: una ejecución de sync por árbitro (en una sola no caben la CPU ni la memoria de varios).
   const self = `${Deno.env.get("SUPABASE_URL")}/functions/v1/sync`;
-  const desig = Promise.all(users.map(async (user_id) => {
+  const desig = Promise.all(arbitros.map(async (user_id) => {
     try {
       const r = await fetch(self, { method: "POST", body: JSON.stringify({ user_id, mode: "quick" }), signal: AbortSignal.timeout(90_000),
         headers: { "Content-Type": "application/json", "x-cron-secret": secret } });
@@ -108,6 +111,6 @@ if (import.meta.main) Deno.serve(async (req) => {
   };
   await Promise.all([worker(), worker(), worker()]);
   const desigMsgs = (await desig).reduce((a, b) => a + b, 0);
-  const cobro = await avisoCobro(db, users).catch(() => 0);
+  const cobro = await avisoCobro(db, arbitros).catch(() => 0);
   return json({ users: users.length, equipos: teams.size, avisos: { designaciones: desigMsgs, equipos: teamMsgs, cobro }, ms: Date.now() - started });
 });

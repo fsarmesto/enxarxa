@@ -157,6 +157,16 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   30 días, otros árbitros con la opción activada que ese día van al mismo pabellón o a la misma población (nombre
   como sale en sus designaciones, hora, pabellón, población de salida). Línea 🚗 en la tarjeta del arbitraje.
 
+## Jugadores y entrenadores sin licencia de árbitro (21-oct-2026)
+
+- Comprobado con la cuenta de Ferran: **una sola cuenta de iSquad por persona**. Las mismas credenciales entran en
+  árbitros (`loginarbitros.php`), jugadores (`login.php` → `shortcut_hub_voleibol.php`, cabecera "NOMBRE Jugador")
+  y entrenadores (`loginentrenadores.php` → `entrenadores_licencias.php`, "STAFF TÉCNICO"); el id de afiliado es el mismo.
+- `auth-isquad`: si no entra como árbitro, prueba `loginDeportista` (jugador, luego entrenador). Crea el perfil con
+  `tipo='deportista'` (migración 018), nombre y foto, **sin guardar la contraseña** (no hay nada que leer de su iSquad).
+- Sync, aviso de cobro y recordatorio del domingo, solo para árbitros. En la web (`DEP`, clase `body.dep`) se oculta
+  todo lo `.arb-only` (cobros, resumen, filtros, ajustes de árbitro); quedan Mis partidos y Equipos.
+
 ## Catalán (21-oct-2026)
 
 - Idioma en `LANG` (localStorage `liq-lang`; por defecto el del móvil), selector en Ajustes y en la pantalla de entrar;

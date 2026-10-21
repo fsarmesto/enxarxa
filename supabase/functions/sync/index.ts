@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       }
     };
     // Los que fallaron la última vez van al final; los demás, del que lleva más tiempo sin actualizarse al que menos.
-    const { data: users } = await db.from("profiles").select("user_id")
+    const { data: users } = await db.from("profiles").select("user_id").neq("tipo", "deportista")
       .order("last_error", { ascending: true, nullsFirst: true }).order("last_sync", { ascending: true, nullsFirst: true });
     const list = (users || []).map((u) => u.user_id);
     const synced = await Promise.all(list.map((id) => call(id, "sync")));
