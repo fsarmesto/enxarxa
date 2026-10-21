@@ -50,7 +50,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   "ARBITRO" sin número: el primero de la lista es el 1r, el segundo el 2n (confirmado con un partido). En
   **Superliga** el segundo "ARBITRO" es el **juez de línea**; en Superliga 2 hay 1r, 2n y anotador.
   Los partidos ya jugados se leen una vez; los futuros y de los últimos 3 días, en cada pasada.
-- Selecciones territoriales (competición con "SELECCION"): no se cuentan.
+- Selecciones territoriales (competición con "SELECCION"): tarifa 0; solo cuentan sus gastos pagados.
 - Algunas direcciones son un código de Google Maps sin calle ni CP ("VM47+RH SANTA COLOMA DE FARNERS"): se usa el centro de la población.
 
 ## Reglas de pago (en `docs/index.html`)
@@ -79,6 +79,24 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   una ida y vuelta por pabellón y FRANJA (27 de 30 días claros, 9 árbitros) y la reparte entre los partidos; usa sus
   propios km. Un partido que empieza antes de las 15:00 cuenta como mañana aunque acabe por la tarde.
 - `arbitros_listado_facturas.php`: solo el neto de cada recibo.
+
+## Km que paga la FCVB (aprendidos de los recibos)
+
+- Estudio 21-oct-2026 (12 árbitros, 2 temporadas): la FCVB paga los km **de población a población**, no hasta el
+  pabellón. Cada árbitro cobra lo mismo a todos los pabellones de Barcelona (p. ej. Ferran 68, aunque la ruta va de
+  51 a 65), y un pabellón que iSquad pone en otra población (Hospitalet Nord, "08906 BARCELONA") se paga como esa
+  población. En la población propia se paga el mínimo (4 €). Con esos km, la regla de la app (1 ida y vuelta por
+  pabellón y franja, dieta por franja, mínimo) reproduce al céntimo 238 de 320 días comprobables; el resto es lo que
+  pide cada árbitro (dietas pedidas o no, viajes entre pabellones).
+- `learnFcvbKm()` en `docs/index.html` (al cargar): de los días claros (todo liquidado, una sola población según
+  iSquad = texto tras el CP, sin peajes) despeja los km de cada temporada y población (`FKM`). `kmInfo()` decide:
+  km del partido a mano > del pabellón a mano > FCVB de esta temporada (un día suelto solo si se parece a la ruta;
+  si se aleja, visto 2 veces; el mínimo solo si la ruta es corta) > FCVB de la temporada anterior si se parece a la
+  ruta (los que se mudan: Vanessa, Pau) > ruta calculada. Etiquetas "km FCVB" / "mínimo FCVB".
+- Validación cronológica (cada día predicho solo con los anteriores): días exactos 108 → 189 de 461, a menos de
+  3 € 238 → 274. El banco de pruebas está en la sesión del 21-oct (Chrome sin ventana + supabase simulado).
+- Selecciones: tarifa 0, pero la FCVB paga gastos del día (agrupados en un partido). Se muestran y cuentan solo si
+  tienen gastos (`isHidden`); no generan previsión de dieta ni de desplazamiento.
 
 ## Km por carretera
 
@@ -121,7 +139,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - La temporada 2025/26 se calcula con las tarifas de 2026/27 (decisión del autor: importes aproximados en esa temporada).
 - Se traen la temporada en curso y la anterior; la web tiene selector de temporada (se recuerda en el navegador).
 - Logo de la FCVB en la cabecera, siempre con "App no oficial" al lado: no es una herramienta de la federación.
-- Selecciones territoriales: no se muestran ni se cuentan (no se liquidan con el anexo).
+- Selecciones territoriales: solo se muestran y cuentan las que la FCVB ha pagado con gastos (tarifa 0).
 - Rol y categoría no son editables: salen de iSquad. Lo editable a mano: dieta por partido, km por pabellón,
   peajes, "cobrado" y el IRPF del árbitro.
 - Exportación a Excel (SheetJS 0.18.5 cargado al pulsar): temporada seleccionada, importes como números.

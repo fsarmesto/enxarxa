@@ -351,8 +351,10 @@ function isHoliday(ds){
   const e=easter(+ds.slice(0,4)), day=n=>new Date(e+n*864e5).toISOString().slice(0,10);
   return ds===day(-2) || ds===day(1);
 }
-// Partidos de selecciones territoriales: no se liquidan con el anexo, no se cuentan.
+// Partidos de selecciones territoriales: no se liquidan con el anexo (tarifa 0). Solo se cuentan si la FCVB
+// ha pagado gastos por ellos (desplazamiento y dieta del día, que pide cada árbitro).
 const isTerritorial = m => /SELECCION/.test(norm(m.comp));
+const isHidden = m => isTerritorial(m) && !(+m.fcvb_gastos>0);
 
 function dietaFor(dateStr, mins, holiday){
   const wd = new Date(dateStr+'T12:00:00').getDay(); const m = mins;
@@ -385,6 +387,7 @@ async function loadAll(){
   ]);
   if(p.error){ throw p.error; }
   P = p.data; MATCHES = m.data || []; VENUES = Object.fromEntries((v.data||[]).map(x=>[x.venue_key,x]));
+  learnFcvbKm();
 }
 
 /* ---------- Cálculo ---------- */
@@ -402,22 +405,84 @@ function tariff(m){
 // Cobrado: marcado a mano o pagado según iSquad.
 const paidByFcvb = m => /^PAGADO/.test(m.fcvb_pago||'');
 const isPaid = m => !!m.paid || paidByFcvb(m);
-const kmFor = m => m.km_override!=null ? +m.km_override : (+(VENUES[m.venue_key]?.km) || 0);
+// Población según iSquad (lo que va detrás del código postal). La FCVB paga los km de población a población,
+// no hasta el pabellón: todos los pabellones de Barcelona se pagan igual, y uno que iSquad pone mal de
+// población se paga como esa población.
+const townOf = m => (norm(m.addr).match(/\b\d{5}\s+([^,]+)/)||[])[1]?.trim() || '';
+
+// Km que la FCVB paga a cada población, aprendidos de los recibos del propio árbitro (FKM[temporada|población]).
+// Solo con días claros: todo liquidado, una sola población y sin peajes. Gastos del día = viajes × ida y vuelta
+// + dietas; la dieta de cada franja puede estar o no (la pide el árbitro), y se acepta el día si sale un número
+// de km entero. "min" = viaje pagado con el mínimo (la propia población).
+let FKM = {};
+function learnFcvbKm(){
+  const rate=+P.rate||0.26, minT=+P.min_travel||0, votes={};
+  const byDay=new Map();
+  for(const m of MATCHES){ if(isTerritorial(m)) continue; (byDay.get(m.date)||byDay.set(m.date,[]).get(m.date)).push(m); }
+  for(const [ds,list] of [...byDay].sort((a,b)=>a[0].localeCompare(b[0]))){
+    if(list.some(m=>m.fcvb_tarifa==null || +m.tolls)) continue;
+    const town=townOf(list[0]); if(!town || list.some(m=>townOf(m)!==town)) continue;
+    const G=list.reduce((s,m)=>s+(+m.fcvb_gastos||0),0); if(G<=0) continue;
+    const trips=new Set(list.map(m=>franjaOf(m)+'|'+m.venue_key)).size;
+    const fr=new Map(); for(const m of list){ const v=noDietaOf(m)?0:dietaFor(ds,toMins(m.time),m.holiday||isHoliday(ds)); fr.set(franjaOf(m), Math.max(fr.get(franjaOf(m))||0, v)); }
+    let combos=[0]; for(const v of fr.values()) combos=combos.flatMap(c=>v?[c,c+v]:[c]);
+    const sols=new Set();
+    for(const d of combos){
+      const rest=G-d; if(rest<=0.005) continue;
+      if(minT && Math.abs(rest-trips*minT)<0.01){ sols.add('min'); continue; }
+      const km=rest/(2*rate*trips);
+      if(Math.abs(km-Math.round(km))<0.011 && Math.round(km)*2*rate>=minT) sols.add(Math.round(km));
+    }
+    if(sols.size!==1) continue;
+    const k=seasonOf(ds)+'|'+town; (votes[k]||(votes[k]=[])).push([...sols][0]);
+  }
+  // De las 5 últimas observaciones, el valor más repetido; si empatan, el más reciente (por si el árbitro se muda a
+  // media temporada). Cuántas veces se ha visto se guarda: un día suelto puede engañar (ver kmInfo).
+  FKM={};
+  for(const [k,v] of Object.entries(votes)){
+    const last=v.slice(-5), c=new Map(); last.forEach((x,i)=>c.set(x,{n:(c.get(x)?.n||0)+1,i}));
+    let best=null; for(const [x,o] of c) if(!best || o.n>c.get(best).n || (o.n===c.get(best).n && o.i>c.get(best).i)) best=x;
+    FKM[k]={v:best, n:c.get(best).n};
+  }
+}
+// Km para la previsión: los del partido a mano > los del pabellón a mano > los que paga la FCVB a esa población
+// (esta temporada; la anterior solo si cuadra con la ruta desde la población actual, por si el árbitro se ha
+// mudado) > la ruta calculada. Devuelve {km, src}; src 'min' = la FCVB paga el mínimo.
+function kmInfo(m){
+  if(m.km_override!=null) return {km:+m.km_override, src:'manual'};
+  const v=VENUES[m.venue_key], route=+(v?.km)||0;
+  if(v?.km_source==='manual') return {km:route, src:'manual'};
+  const town=townOf(m), s=seasonOf(m.date);
+  // Un valor visto un solo día vale si se parece a la ruta; si se aleja, hace falta verlo 2 veces. El mínimo solo se
+  // cree si la ruta también es corta (la propia población o al lado). De la temporada anterior, solo lo que se
+  // parece a la ruta desde la población actual (el árbitro puede haberse mudado).
+  const nearby = !route || route*2*(+P.rate) <= (+P.min_travel)*1.5;
+  const close = x => x==='min' ? nearby : (!route || Math.abs(x-route)<=Math.max(8, route*0.2));
+  const use = o => o.v==='min' ? {km:route, src:'min'} : {km:o.v, src:'fcvb'};
+  const cur=FKM[s+'|'+town];
+  if(cur && (close(cur.v) || (cur.n>=2 && cur.v!=='min'))) return use(cur);
+  const prev=FKM[String(+s-1)+'|'+town];
+  if(prev && route && close(prev.v)) return use(prev);
+  return {km:route, src:v?.km_source==='poblacion'?'aprox':'ruta'};
+}
+const kmFor = m => kmInfo(m).km;
 function compute(){
-  const ms = MATCHES.filter(m=>!isTerritorial(m)).sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
+  const ms = MATCHES.filter(m=>!isHidden(m)).sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
   const res = new Map();
   for(const m of ms) res.set(m.id, {tariff:tariff(m), dieta:0, dietaShared:false, travel:0, travelShared:false, tolls:+m.tolls||0});
   const group = (fn) => { const g = new Map(); for(const m of ms){ const k=fn(m); (g.get(k)||g.set(k,[]).get(k)).push(m); } return g; };
   for(const [,list] of group(m=>m.date+franjaOf(m))){
     let best=null, bestV=0;
-    for(const m of list){ if(noDietaOf(m)) continue; const v = dietaFor(m.date,toMins(m.time),m.holiday||isHoliday(m.date)); if(v>bestV){bestV=v;best=m;} }
+    for(const m of list){ if(noDietaOf(m) || isTerritorial(m)) continue; const v = dietaFor(m.date,toMins(m.time),m.holiday||isHoliday(m.date)); if(v>bestV){bestV=v;best=m;} }
     if(best){ const r=res.get(best.id); r.dieta=bestV; r.dietaShared = list.length>1; }
   }
   // Una ida y vuelta por pabellón y franja: mañana y tarde se pagan aparte, como la dieta.
   for(const [,list] of group(m=>m.date+franjaOf(m)+'|'+m.venue_key)){
-    const km = Math.max(...list.map(kmFor));
-    const r = res.get(list[0].id);
-    r.travel = km>0 ? Math.max(km*2*(+P.rate), +P.min_travel) : 0; r.travelShared = list.length>1;
+    const own = list.filter(m=>!isTerritorial(m)); if(!own.length) continue;
+    const info = own.map(kmInfo), km = Math.max(...info.map(i=>i.km)), r = res.get(own[0].id);
+    r.travel = info.some(i=>i.src==='min') && !info.some(i=>i.src==='manual') ? +P.min_travel
+      : km>0 ? Math.max(km*2*(+P.rate), +P.min_travel) : 0;
+    r.travelShared = list.length>1; r.kmSrc = info.find(i=>i.km===km)?.src;
   }
   for(const m of ms){ const r=res.get(m.id); r.dietaAuto=r.dieta; if(m.dieta_override!=null){ r.dieta=+m.dieta_override; r.dietaShared=false; } }
   // Lo que la FCVB ya ha liquidado (recibos de iSquad) manda sobre el cálculo de la app, que queda como previsión.
@@ -469,7 +534,7 @@ function ago(ts){ if(!ts) return 'nunca'; const d=new Date(ts); return d.toLocal
 
 // Dieta y desplazamiento: previsión de la app (editable) o lo que ha liquidado la FCVB (juntos, como en iSquad).
 const estCells = (m,r,km) => `<td class="n" data-l="Dieta"><input type="number" step="0.5" min="0" data-f="dieta" data-id="${esc(m.id)}" value="${r.dieta||''}" placeholder="0" aria-label="Dieta">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${esc(m.id)}" title="Volver a la dieta automática (${eur(r.dietaAuto)})">auto</button>`:(r.dietaShared&&r.dieta?'<span class="shared">jornada</span>':'')}</td>
-          <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}${r.travel&&m.km_override==null&&VENUES[m.venue_key]?.km_source==='poblacion'?'<span class="shared" title="No se encontró la dirección exacta: km hasta el centro de la población. Corrígelos si no cuadran.">km aprox.</span>':''}</td>`;
+          <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}${r.travel&&r.kmSrc==='fcvb'?'<span class="shared" title="Km que la FCVB te paga a esta población según tus recibos">km FCVB</span>':''}${r.travel&&r.kmSrc==='min'?'<span class="shared" title="Según tus recibos, la FCVB paga el mínimo a esta población">mínimo FCVB</span>':''}${r.travel&&r.kmSrc==='aprox'?'<span class="shared" title="No se encontró la dirección exacta: km hasta el centro de la población. Corrígelos si no cuadran.">km aprox.</span>':''}</td>`;
 const fcvbCells = r => `<td class="n" data-l="Dieta"><span class="muted" title="La FCVB da la dieta y el desplazamiento juntos">incl.</span></td>
           <td class="n" data-l="Gastos">${eur(r.travel)}<span class="shared" title="Desplazamiento y dieta según los recibos de la FCVB (la app calculaba ${eur(r.est.gastos)}; la FCVB reparte los gastos del día entre los partidos)">gastos FCVB</span></td>`;
 function render(){
