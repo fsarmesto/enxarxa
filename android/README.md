@@ -1,6 +1,6 @@
 # App Android (Trusted Web Activity)
 
-La app Android abre la web (https://fsarmesto.github.io/liquidacion-arbitral-fcvb/) a pantalla completa, con su
+La app Android abre la web (https://fsarmesto.github.io/volei-fcvb/) a pantalla completa, con su
 icono y las notificaciones como app. Se genera con [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap)
 a partir de `twa-manifest.json`; el proyecto Gradle generado no se guarda en el repo.
 
@@ -10,7 +10,7 @@ a partir de `twa-manifest.json`; el proyecto Gradle generado no se guarda en el 
   instale encima; cada usuario tendría que desinstalar y volver a instalar.**
 - Verificación del dominio: `https://fsarmesto.github.io/.well-known/assetlinks.json` (repo
   `fsarmesto/fsarmesto.github.io`) con la huella SHA-256 de la clave. Sin ella la app muestra la barra del navegador.
-- Se distribuye gratis desde la web: `docs/app/liquidacion-arbitral-fcvb.apk` (botón "Descargar la app Android",
+- Se distribuye gratis desde la web: `docs/app/volei-fcvb.apk` (botón "Descargar la app Android",
   solo en Android y fuera de la app). Google Play costaría 25 € (pago único) y usaría el `.aab`.
 
 ## Generar una versión nueva
@@ -22,7 +22,7 @@ cd android
 # subir appVersionCode y appVersionName en twa-manifest.json
 npx -y @bubblewrap/cli@1.24.1 update --skipVersionUpgrade --manifest=./twa-manifest.json
 BUBBLEWRAP_KEYSTORE_PASSWORD=... BUBBLEWRAP_KEY_PASSWORD=... npx -y @bubblewrap/cli@1.24.1 build --skipPwaValidation
-cp app-release-signed.apk ../docs/app/liquidacion-arbitral-fcvb.apk
+cp app-release-signed.apk ../docs/app/volei-fcvb.apk
 ```
 
 Requisitos en la máquina: JDK 17 con compilador y SDK de Android (`~/.bubblewrap/config.json` con `jdkPath` y

@@ -1,7 +1,7 @@
 {
-  "name": "Liquidación arbitral FCVB",
-  "short_name": "Liquidación",
-  "description": "Tus partidos de iSquad con tarifas, dietas, desplazamientos y cobros. App no oficial.",
+  "name": "Vòlei FCVB",
+  "short_name": "Vòlei FCVB",
+  "description": "Tus partidos de la FCVB: horarios, resultados, clasificación y avisos; y si arbitras, designaciones y cobros. App no oficial.",
   "lang": "es",
   "start_url": "./",
   "scope": "./",

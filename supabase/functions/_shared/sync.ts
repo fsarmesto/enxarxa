@@ -30,7 +30,7 @@ type Place = { at: [number, number]; exact: boolean };
 // deno-lint-ignore no-explicit-any
 type GeoHit = any;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const UA = "liquidacion-arbitral-fcvb/1.0 (https://github.com/fsarmesto/liquidacion-arbitral-fcvb)";
+const UA = "volei-fcvb/1.0 (https://github.com/fsarmesto/volei-fcvb)";
 const CAT_BBOX = "&bbox=0.15,40.5,3.35,42.9"; // solo Catalunya
 const GEO_GAP_MS = 1000, ORS_GAP_MS = 1600;   // uso moderado de Photon; 40/min en ORS
 // Lo no encontrado se vuelve a buscar a la semana, igual que el reintento de cada pabellón.
