@@ -695,8 +695,7 @@ function isHoliday(ds){
 // Partidos de selecciones territoriales: no se liquidan con el anexo (tarifa 0). Solo se cuentan si la FCVB
 // ha pagado gastos por ellos (desplazamiento y dieta del día, que pide cada árbitro).
 const isTerritorial = m => /SELECCION/.test(norm(m.comp));
-// Anulada (ya no sale en iSquad, issue #1): fuera de cobros, agenda y resumen; si vuelve a salir, el sync la recupera.
-const isHidden = m => !!m.cancelled_at || (isTerritorial(m) && !(+m.fcvb_gastos>0));
+const isHidden = m => isTerritorial(m) && !(+m.fcvb_gastos>0);
 
 function dietaFor(dateStr, mins, holiday){
   const wd = new Date(dateStr+'T12:00:00').getDay(); const m = mins;

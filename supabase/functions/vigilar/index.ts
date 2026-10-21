@@ -33,7 +33,7 @@ async function avisoCobro(db: any, users: string[]) {
     .formatToParts(new Date()).map((x) => [x.type, x.value]));
   const today = `${p.year}-${p.month}-${p.day}`, now = (+p.hour % 24) * 60 + +p.minute;
   const { data: ms } = await db.from("matches").select("user_id, date, time, comp, phase, cat, holiday, no_dieta, dieta_override, fcvb_pago, fcvb_accion")
-    .in("user_id", users).eq("date", today).is("cancelled_at", null);
+    .in("user_id", users).eq("date", today);
   const byUser = new Map<string, typeof ms>();
   for (const m of ms || []) if (!/SELECCI/i.test(m.comp || "")) (byUser.get(m.user_id) || byUser.set(m.user_id, []).get(m.user_id)!).push(m);
   let sent = 0;

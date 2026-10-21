@@ -301,7 +301,7 @@ export async function storeMatches(db: SupabaseClient, userId: string, matches: 
   if (matches.length) {
     // Solo se envían las columnas que vienen de iSquad: lo que el árbitro marca a mano no se toca.
     const { error } = await db.from("matches").upsert(
-      matches.map(({ staff: _s, ...m }) => ({ ...m, user_id: userId, last_seen: now, missing_since: null, cancelled_at: null })),
+      matches.map(({ staff: _s, ...m }) => ({ ...m, user_id: userId, last_seen: now, missing_since: null })),
       { onConflict: "user_id,id" },
     );
     if (error) throw error;
@@ -336,18 +336,29 @@ export const background = (p: Promise<unknown>) => { const rt = (globalThis as a
 // km: "wait" = calcular los km antes de volver; "background" = después de responder; "none" = no calcularlos aquí.
 // deadline: hora límite de la petición (cuenta desde que llegó, no desde que empieza el cálculo de km).
 // Cambios en las designaciones próximas entre lo guardado y lo que trae iSquad: nuevas, cambiadas (fecha, hora o
-// pabellón), quitadas y recuperadas. Se avisa por notificación al árbitro.
+// pabellón) y quitadas. Se avisa por notificación al árbitro.
 // Quitada: la primera lectura en la que falta solo apunta missing_since (iSquad a veces no devuelve un partido una vez);
-// si en la siguiente sigue faltando, se avisa una vez y se marca cancelled_at, y ya no se vuelve a evaluar.
+// si en la siguiente sigue faltando, se avisa una vez y se borra. Solo partidos de hoy en adelante: los jugados que
+// ya no salen se quedan (la web los marca "ya no aparece en iSquad"; puede ser una temporada que ya no se lee).
+// Mismo partido con otro código: iSquad pone o quita "@fecha T hora" cuando varios partidos comparten código. Se
+// reconoce por el código base, los equipos y la competición (el mismo día puede haber cadete y juvenil con el mismo código): sin aviso de nueva ni de anulada, y lo puesto a mano pasa a la fila nueva.
 export type Prev = { id: string; date: string; time: string; venue: string; comp: string; teams: string; role: string; staff_checked: string | null;
-  missing_since?: string | null; cancelled_at?: string | null };
+  missing_since?: string | null };
 type Change = Msg & { key: string };
+const MANUAL = ["paid", "km_override", "dieta_override", "tolls", "holiday", "no_dieta"] as const;
 async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], now: WithStaff[]) {
-  const { msgs, missing, cancelled } = designChanges(prev, now);
-  // Las marcas se guardan antes de enviar: si el envío falla, el bucle no vuelve.
+  const { msgs, missing, gone, renamed } = designChanges(prev, now);
+  // Las marcas y borrados se hacen antes de enviar: si el envío falla, el bucle no vuelve.
   const ts = new Date().toISOString();
   for (const id of missing) await db.from("matches").update({ missing_since: ts }).eq("user_id", userId).eq("id", id);
-  for (const id of cancelled) await db.from("matches").update({ cancelled_at: ts }).eq("user_id", userId).eq("id", id);
+  for (const { from, to } of renamed) {
+    const { data: old } = await db.from("matches").select(MANUAL.join(",")).eq("user_id", userId).eq("id", from).maybeSingle();
+    // deno-lint-ignore no-explicit-any
+    const keep = Object.fromEntries(Object.entries((old || {}) as Record<string, any>).filter(([k, v]) => v != null && v !== false && !(k === "tolls" && +v === 0)));
+    if (Object.keys(keep).length) await db.from("matches").update(keep).eq("user_id", userId).eq("id", to);
+    await db.from("matches").delete().eq("user_id", userId).eq("id", from);
+  }
+  for (const id of gone) await db.from("matches").delete().eq("user_id", userId).eq("id", id);
   if (!msgs.length) return 0;
   // Cada aviso, una sola vez: solo se envían los que entran nuevos en push_log.
   const { data: fresh } = await db.from("push_log").upsert(msgs.map((m) => ({ user_id: userId, key: m.key })),
@@ -357,33 +368,39 @@ async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], n
   for (const { key: _k, ...msg } of send.slice(0, 5)) await sendToUser(db, userId, msg);
   return send.length;
 }
-export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[]; missing: string[]; cancelled: string[] } {
+export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[]; missing: string[]; gone: string[]; renamed: { from: string; to: string }[] } {
   const today = new Date().toISOString().slice(0, 10);
   const before = new Map(prev.map((m) => [m.id, m]));
   const after = new Map(now.filter((m) => m.date >= today).map((m) => [m.id, m]));
   const vs = (t: string) => cap(t).replace(/ vs /i, " – ");
   const role = (r?: string) => ({ r1: "R1", r2: "R2", an: "Anotador", jl: "Juez de línea" } as Record<string, string>)[r || ""] || "";
   const line = (m: { date: string; time: string; teams: string; venue: string }) => `${shortDate(m.date)} · ${m.time}`;
-  const msgs: Change[] = [], missing: string[] = [], cancelled: string[] = [];
+  const base = (id: string) => id.split("@")[0];
+  const msgs: Change[] = [], missing: string[] = [], gone: string[] = [], renamed: { from: string; to: string }[] = [];
+  const vanished = [...before.values()].filter((p) => !after.has(p.id) && p.date >= today);
+  const used = new Set<string>();
   for (const [id, m] of after) {
-    const p = before.get(id);
+    let p = before.get(id);
+    if (!p) {
+      const cands = vanished.filter((v) => !used.has(v.id) && base(v.id) === base(id) && v.teams === m.teams && v.comp === m.comp);
+      p = cands.find((v) => v.date === m.date && v.time === m.time) || cands[0];
+      if (p) { used.add(p.id); renamed.push({ from: p.id, to: id }); }
+    }
     if (!p) {
       msgs.push({ key: `nueva:${id}`, title: `Nueva designación · ${line(m)}`, body: `${vs(m.teams)}${m.staff ? ` · ${role(m.staff.role)}` : ""} · ${cap(m.venue)}`, tag: `desig-${id}`, url: "./?vista=agenda" });
-    } else if (p.cancelled_at) {
-      msgs.push({ key: `recuperada:${id}:${p.cancelled_at}`, title: `Designación recuperada · ${line(m)}`, body: `${vs(m.teams)} vuelve a aparecer en tus designaciones de iSquad · ${cap(m.venue)}`, tag: `desig-${id}`, url: "./?vista=agenda" });
     } else if (p.date !== m.date || p.time !== m.time || p.venue !== m.venue) {
       const what = p.date !== m.date ? `antes ${shortDate(p.date)} ${p.time}` : p.time !== m.time ? `antes a las ${p.time}` : `antes en ${cap(p.venue)}`;
       msgs.push({ key: `cambio:${id}:${m.date}|${m.time}|${m.venue}`, title: `Cambio en tu designación · ${line(m)}`, body: `${vs(m.teams)} · ${cap(m.venue)} (${what})`, tag: `desig-${id}`, url: "./?vista=agenda" });
     }
   }
   // Quitadas: solo si iSquad ha devuelto la temporada (si viniera vacía por un fallo, no se avisa de nada).
-  if (now.length) for (const [id, p] of before) {
-    if (after.has(id) || p.date < today || p.cancelled_at) continue;
-    if (!p.missing_since) { missing.push(id); continue; }
-    cancelled.push(id);
-    msgs.push({ key: `anulada:${id}:${p.missing_since}`, title: `Designación anulada · ${line(p)}`, body: `${vs(p.teams)} ya no aparece en tus designaciones de iSquad`, tag: `desig-${id}`, url: "./?vista=agenda" });
+  if (now.length) for (const p of vanished) {
+    if (used.has(p.id)) continue;
+    if (!p.missing_since) { missing.push(p.id); continue; }
+    gone.push(p.id);
+    msgs.push({ key: `anulada:${p.id}:${p.missing_since}`, title: `Designación anulada · ${line(p)}`, body: `${vs(p.teams)} ya no aparece en tus designaciones de iSquad`, tag: `desig-${p.id}`, url: "./?vista=agenda" });
   }
-  return { msgs, missing, cancelled };
+  return { msgs, missing, gone, renamed };
 }
 
 export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: "wait" | "background" | "none"; deadline: number; quick?: boolean; notify?: boolean }) {
@@ -414,7 +431,7 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     // Designaciones próximas guardadas, para avisar de lo nuevo o cambiado.
     const today = new Date().toISOString().slice(0, 10);
     const { data: prev } = opts.notify
-      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked, missing_since, cancelled_at").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
+      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked, missing_since").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
       : { data: null };
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
       quick: opts.quick,
