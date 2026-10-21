@@ -1213,11 +1213,14 @@ function stChip(m){
 }
 const nextOf = f => { const t=today(); return teamCal(f).filter(m=>m.d>=t && isPending(m)).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t))[0]; };
 const lastOf = f => teamCal(f).filter(isDone).sort((a,b)=>(b.d+b.t).localeCompare(a.d+a.t))[0];
-// Árbitro del partido (de su "Previo" público). Solo se conoce en los partidos cercanos; si aún no lo hay y el partido
-// es en las próximas 2 semanas, "sin designar".
+// Equipo arbitral del partido (de su "Previo" público). Solo se conoce en los partidos cercanos; si aún no hay nadie y
+// el partido es en las próximas 2 semanas, "sin designar".
+const nameWords = t => [...new Set(norm(t).split(/[^A-Z]+/).filter(w=>w.length>1))];
+const isMe = n => { const me=new Set(nameWords(P?.nombre||'')); const w=nameWords(n); return me.size>0 && w.length===me.size && w.every(x=>me.has(x)); };
 function refLine(m){
-  if(m.arb) return `<div class="ref">Árbitro: <b>${esc(capName(m.arb))}</b></div>`;
-  if(m.arb==='' && !isDone(m) && m.d<=addDays(today(),14)) return '<div class="ref none">Árbitro: sin designar</div>';
+  if(Array.isArray(m.arb) && m.arb.length)
+    return `<div class="ref">${m.arb.map(o=>`${esc(crewLabel(m,o.f))} <b>${isMe(o.n)?'Tú':esc(capName(o.n))}</b>`).join(' · ')}</div>`;
+  if(Array.isArray(m.arb) && !isDone(m) && m.d<=addDays(today(),14)) return '<div class="ref none">Árbitros: sin designar</div>';
   return '';
 }
 const vs = m => `${m.mineLocal?`<b>${esc(capName(m.l))}</b>`:esc(capName(m.l))} – ${!m.mineLocal?`<b>${esc(capName(m.v))}</b>`:esc(capName(m.v))}`;

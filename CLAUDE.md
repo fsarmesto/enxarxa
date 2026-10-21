@@ -132,9 +132,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   equipo. Sin pabellón: se cruza con el listado. Token: `let token = "..."` de cualquier página pública (caché 12 h,
   se renueva si la API da error). `teamMatches` en `_shared/publico.ts`, caché `tm:<id_equipo>` 30 min.
   En la web, etiquetas: Ganado/Perdido con el resultado, Por jugar · hora, hora sin confirmar, sin horario, Suspendido.
-  Árbitro: `previo.php?id_partido=` (página pública ~800 KB, bloque `div1` "ARBITRO"; solo el primero, sale en cuanto
-  está designado). `matchReferee`: caché `ref:<id>` 3 h si no se ha jugado, 30 días si sí; en `equipos mis`, partidos
-  de ±21 días de los equipos activos, como mucho 16 por petición.
+  Equipo arbitral: `previo.php?id_partido=` (página pública ~800 KB): un bloque `divN` por persona ("ARBITRO",
+  "ARBITRO", "ANOTADOR/CRONOMETRADOR", "TV" vacío); el primer ARBITRO es el 1r. Sale en cuanto está designado.
+  `matchOfficials`: caché `arb:<id>` 3 h si no se ha jugado, 30 días si sí; en `equipos mis`, partidos de ±21 días de
+  los equipos activos, como mucho 16 por petición.
   Pendiente: clasificación.
 
 ## Mis partidos (agenda, 21-oct-2026)

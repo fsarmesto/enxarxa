@@ -194,13 +194,21 @@ export function teamMatches(db: Db, idEquipo: string, name: string): Promise<Par
   });
 }
 
-// Árbitro de un partido según su "Previo" público (previo.php, ~800 KB): solo el primero ("ARBITRO"); la web pública
-// no muestra el segundo ni el anotador. Sale en cuanto la FCVB lo designa. Caché: 3 h si aún no se ha jugado (lo
-// pueden designar o cambiar), 30 días si ya se jugó.
-export function matchReferee(db: Db, idPartido: string, jugado: boolean): Promise<string> {
-  return cached(db, `ref:${idPartido}`, (jugado ? 30 * 24 : 3) * H, async () => {
+// Equipo arbitral de un partido según su "Previo" público (previo.php, ~800 KB): un bloque por persona (div1, div2...)
+// con su función ("ARBITRO", "ARBITRO", "ANOTADOR/CRONOMETRADOR"...); el primer ARBITRO es el 1r. Sale en cuanto la
+// FCVB lo designa. Caché: 3 h si aún no se ha jugado (lo pueden designar o cambiar), 30 días si ya se jugó.
+export type Oficial = { f: string; n: string };
+export function matchOfficials(db: Db, idPartido: string, jugado: boolean): Promise<Oficial[]> {
+  return cached(db, `arb:${idPartido}`, (jugado ? 30 * 24 : 3) * H, async () => {
     const s = await getText(`${PUB}/previo.php?id_partido=${encodeURIComponent(idPartido)}`);
-    const m = s.match(/<div class="div1">\s*<div>\s*ARBITRO\s*<\/div>\s*<div>\s*([^<]*?)\s*<\/div>/i);
-    return m ? text(fixMojibake(m[1])) : "";
+    const out: Oficial[] = [];
+    let refs = 0;
+    for (const m of s.matchAll(/<div class="div\d+">\s*<div>\s*([^<]*?)\s*<\/div>\s*<div>\s*([^<]*?)\s*<\/div>\s*<\/div>/g)) {
+      const fn = norm(m[1]), n = text(fixMojibake(m[2]));
+      if (!n || /^TV$/.test(fn)) continue;
+      const f = /ANOTADOR/.test(fn) ? "an" : /LINEA/.test(fn) ? "jl" : /ARBITRO/.test(fn) ? (refs++ === 0 ? "r1" : "r2") : fn.toLowerCase();
+      out.push({ f, n });
+    }
+    return out;
   });
 }

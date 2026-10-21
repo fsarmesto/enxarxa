@@ -9,7 +9,7 @@
 //   plantillas (función indexar) se añaden solos (auto); los que quita no vuelven (oculto).
 // Las páginas públicas pesan ~1 MB cada una (el menú): todo pasa por la caché compartida pub_cache.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
-import { clubs, clubTeams, feed, huella, matchReferee, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
+import { clubs, clubTeams, feed, huella, matchOfficials, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
 
 
 if (import.meta.main) Deno.serve(async (req) => {
@@ -130,7 +130,7 @@ if (import.meta.main) Deno.serve(async (req) => {
           });
         } catch { /* sin calendario: la web usa el listado */ }
       }));
-      // Árbitro de los partidos de las 3 semanas de antes y de después (de los equipos activos), como mucho 16 por petición.
+      // Equipo arbitral de los partidos de las 3 semanas de antes y de después (de los equipos activos), como mucho 16 por petición.
       const today = new Date(), dd = (n: number) => new Date(today.getTime() + n * 864e5).toISOString().slice(0, 10);
       const near: Record<string, unknown>[] = [];
       for (const f of favs as { id_equipo: string | null; activo: boolean }[]) {
@@ -141,7 +141,7 @@ if (import.meta.main) Deno.serve(async (req) => {
       }
       const queue = near.sort((a, b) => Math.abs(Date.parse(a.d as string) - today.getTime()) - Math.abs(Date.parse(b.d as string) - today.getTime())).slice(0, 16);
       const worker = async () => { for (let m; (m = queue.shift());) {
-        try { m.arb = await matchReferee(db, m.id as string, /FINALIZ/i.test(m.est as string)); } catch { /* sin árbitro */ }
+        try { m.arb = await matchOfficials(db, m.id as string, /FINALIZ/i.test(m.est as string)); } catch { /* sin árbitros */ }
       } };
       await Promise.all([worker(), worker(), worker(), worker()]);
       return json({ ok: true, favs, partidos, calendario, indice });
