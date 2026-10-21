@@ -3,6 +3,7 @@
 // - {action:"buscar", q}: equipos de la federación por nombre de equipo o de club.
 // - {action:"seguir", club_id, team, cat} / {action:"dejar", ...}: favoritos. Al seguir se mira la plantilla del
 //   equipo y, si sale el árbitro, se guarda si es jugador o entrenador (de la plantilla no se guarda nada más).
+// - {action:"activar", club_id, team, cat, activo}: un equipo seguido sale o no en "Mis partidos".
 // - {action:"buscarme", club_id}: repasa las plantillas de todos los equipos de un club y sigue los que le incluyen.
 // - {action:"mis"}: favoritos y sus próximos partidos. Antes, los equipos donde sale el árbitro según el índice de
 //   plantillas (función indexar) se añaden solos (auto); los que quita no vuelven (oculto).
@@ -40,6 +41,13 @@ if (import.meta.main) Deno.serve(async (req) => {
       // Clubs que coinciden (para "Búscame en este club").
       const cm = cl.filter((c) => norm(c.name).includes(q)).slice(0, 10);
       return json({ ok: true, equipos: out.slice(0, 60), clubs: cm });
+    }
+
+    if (body.action === "activar") {
+      const { club_id, team, cat } = body, activo = (body as { activo?: boolean }).activo !== false;
+      if (!club_id || !team || !cat) return json({ error: "Faltan datos del equipo" }, 400);
+      const { error } = await db.from("fav_teams").update({ activo }).eq("user_id", user.id).eq("club_id", club_id).eq("team", team).eq("cat", cat);
+      return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true });
     }
 
     if (body.action === "seguir" || body.action === "dejar") {
@@ -105,7 +113,7 @@ if (import.meta.main) Deno.serve(async (req) => {
       { const r1 = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true });
         const r2 = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true }).not("checked_at", "is", null);
         total = r1.count || 0; indexed = r2.count || 0; }
-      const { data: favs } = await db.from("fav_teams").select("club_id, team, cat, club, id_equipo, rol, auto").eq("user_id", user.id).eq("oculto", false);
+      const { data: favs } = await db.from("fav_teams").select("club_id, team, cat, club, id_equipo, rol, auto, activo").eq("user_id", user.id).eq("oculto", false);
       const indice = { revisados: indexed, total };
       if (!favs?.length) return json({ ok: true, favs: [], partidos: [], indice });
       const list = await feed(db);

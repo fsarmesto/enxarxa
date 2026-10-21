@@ -307,7 +307,7 @@ details.cal[open]>summary::before{content:"▾ "}
 .calrow b{font-weight:800}
 @media (max-width:560px){
   .calrow{grid-template-columns:70px 1fr} .calrow .st{grid-column:2;justify-self:start}
-  #eqFavs .eq-row{flex-direction:column;align-items:stretch} #eqFavs .eq-row>button{align-self:flex-start;padding-left:0}
+  #eqFavs .eq-row{flex-direction:column;align-items:stretch} #eqFavs .eq-row .acts{flex-direction:row;justify-content:space-between;align-items:center}
 }
 .teams b{font-weight:800}
 /* Equipos */
@@ -320,6 +320,13 @@ details.cal[open]>summary::before{content:"▾ "}
 .eq-row .nx{font-size:13.5px;color:var(--ink-2);margin-top:3px}
 .eq-row button{white-space:nowrap}
 .eq-row button.on{background:var(--yellow);border-color:var(--yellow);color:#000}
+.eq-row.off .n,.eq-row.off .nx,.eq-row.off details.cal{opacity:.5}
+.eq-row .acts{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;user-select:none}
+.sw input{appearance:none;-webkit-appearance:none;width:38px;height:22px;border-radius:11px;background:var(--line);position:relative;cursor:pointer;margin:0;transition:background .15s}
+.sw input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .15s}
+.sw input:checked{background:#1E7B34}
+.sw input:checked::after{left:19px}
 .eq-h{font-family:var(--display);font-size:22px;font-weight:600;margin:6px 0 6px;border-bottom:3px solid var(--rule);padding-bottom:4px}
 .pushcard a.go,#pushBtns a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
 </style>
@@ -1179,7 +1186,7 @@ function teamCal(f){
 // Todos los partidos de mis equipos, sin repetir (si juegan 2 equipos que sigo, cuenta el mío).
 function teamItems(){
   const seen=new Map();
-  for(const f of [...EQ.favs].sort((a,b)=>(a.rol?0:1)-(b.rol?0:1))) for(const m of teamCal(f)){
+  for(const f of [...EQ.favs].filter(f=>f.activo!==false).sort((a,b)=>(a.rol?0:1)-(b.rol?0:1))) for(const m of teamCal(f)){
     const k=`${m.d}|${norm(m.l)}|${norm(m.v)}`; if(!seen.has(k)) seen.set(k,{m,f});
   }
   return [...seen.values()];
@@ -1203,13 +1210,15 @@ const nextOf = f => { const t=today(); return teamCal(f).filter(m=>m.d>=t && isP
 const lastOf = f => teamCal(f).filter(isDone).sort((a,b)=>(b.d+b.t).localeCompare(a.d+a.t))[0];
 const vs = m => `${m.mineLocal?`<b>${esc(capName(m.l))}</b>`:esc(capName(m.l))} – ${!m.mineLocal?`<b>${esc(capName(m.v))}</b>`:esc(capName(m.v))}`;
 function renderEquipos(){
-  const favs=[...EQ.favs].sort((a,b)=>(a.rol?0:1)-(b.rol?0:1) || a.team.localeCompare(b.team));
+  const favs=[...EQ.favs].sort((a,b)=>(a.activo===false?1:0)-(b.activo===false?1:0) || (a.rol?0:1)-(b.rol?0:1) || a.team.localeCompare(b.team));
   $('eqFavs').innerHTML = favs.length ? favs.map(f=>{
     const [k,txt]=rolKind(f.rol), n=nextOf(f), l=lastOf(f), cal=teamCal(f);
     const next = n ? `Próximo: ${esc(fmtTiny(n.d))} · ${vs(n)} ${stChip(n)}` : 'Sin partidos pendientes';
     const last = l ? `<div class="nx">Último: ${esc(fmtTiny(l.d))} · ${vs(l)} ${stChip(l)}</div>` : '';
     const calHtml = cal.length ? `<details class="cal" data-cal="${esc(favKey(f))}"${CAL_OPEN.has(favKey(f))?' open':''}><summary>Calendario de la temporada (${cal.length})</summary>${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}</span>${stChip(m)}</div>`).join('')}</details>` : '';
-    return `<div class="eq-row"><div style="flex:1;min-width:0"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}</div>${last}<div class="nx">${next}</div>${calHtml}</div><button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div>`;
+    const on = f.activo!==false;
+    return `<div class="eq-row${on?'':' off'}"><div style="flex:1;min-width:0"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}${on?'':' · <b>no sale en Mis partidos</b>'}</div>${last}<div class="nx">${next}</div>${calHtml}</div>
+      <div class="acts"><label class="sw" title="Que sus partidos salgan o no en Mis partidos"><input type="checkbox" data-act="${esc(favKey(f))}"${on?' checked':''}>En Mis partidos</label><button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div></div>`;
   }).join('') : '<p class="muted small">No te he encontrado en ninguna plantilla de la FCVB de esta temporada. Si juegas o entrenas, busca tu equipo abajo y síguelo; también puedes seguir cualquier otro equipo.</p>';
   const ix=EQ.indice, auto=EQ.favs.filter(f=>f.auto).length;
   $('eqAuto').innerHTML = auto ? `Te he encontrado en ${auto} plantilla${auto===1?'':'s'} de la FCVB por tu foto de afiliado de iSquad.` : '';
@@ -1221,6 +1230,14 @@ function renderEquipos(){
   $('eqRes').innerHTML = (clubs||teams) ? `<div class="eq-list">${clubs}${teams}</div>` : '<p class="muted small">No he encontrado ningún equipo ni club con ese nombre.</p>';
 }
 const CAL_OPEN=new Set();
+$('eqFavs').addEventListener('change', async e=>{
+  const k=e.target.dataset.act; if(!k) return;
+  const f=EQ.favs.find(x=>favKey(x)===k); if(!f) return;
+  f.activo=e.target.checked; render();
+  const r=await callFn('equipos',{action:'activar', club_id:f.club_id, team:f.team, cat:f.cat, activo:f.activo});
+  if(!r.ok){ f.activo=!f.activo; render(); toast(r.error||'No se ha podido guardar'); }
+  else toast(f.activo ? `${capName(f.team)} vuelve a salir en Mis partidos` : `${capName(f.team)} ya no sale en Mis partidos`);
+});
 $('eqFavs').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-cal]'); if(d) d.open ? CAL_OPEN.add(d.dataset.cal) : CAL_OPEN.delete(d.dataset.cal); }, true);
 let eqTimer=null;
 $('eqQ').addEventListener('input', e=>{
