@@ -17,7 +17,7 @@ Repo `fsarmesto/enxarxa`, web https://fsarmesto.github.io/enxarxa/. Las direccio
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/enxarxa/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
   - Migraciones en `supabase/migrations` (001…022). Se aplican con `db push`, en orden.
@@ -28,7 +28,7 @@ Repo `fsarmesto/enxarxa`, web https://fsarmesto.github.io/enxarxa/. Las direccio
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
 `CREDS_KEY` (cifra las contraseñas de iSquad; si se pierde, cada usuario solo tiene que volver a entrar),
-`CRON_SECRET`, `ORS_KEY` (OpenRouteService), contraseña de la base de datos, `ADMIN_LOGINS` (quién ve el ranking),
+`CRON_SECRET`, `ORS_KEY` (OpenRouteService), contraseña de la base de datos, `ADMIN_LOGINS` (quién ve los paneles de admin),
 `VAPID_PUBLIC`/`VAPID_PRIVATE`/`VAPID_SUBJECT` (notificaciones; la pública también va en `docs/config.js`; si se
 cambian, todas las suscripciones dejan de valer y cada árbitro tiene que volver a activarlo), `ROSTER_SALT`
 (huellas del índice de plantillas; si cambia, hay que reindexar: `update pub_teams set checked_at=null`). `ALLOWED_LOGINS` está vacío:
@@ -42,7 +42,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account ranking notify equipos indexar vigilar coche designadas calendario; do
+for f in auth-isquad sync delete-account notify equipos indexar vigilar coche designadas calendario; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -93,7 +93,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   propios km. Un partido que empieza antes de las 15:00 cuenta como mañana aunque acabe por la tarde.
 - `arbitros_listado_facturas.php`: solo el neto de cada recibo.
 
-## Cobros, filtros, modo sin guardar y ranking (21-oct-2026)
+## Cobros, filtros y modo sin guardar (21-oct-2026)
 
 - Recibos: además de tarifa/gastos/estado se guardan `fcvb_limite` ("Fin cambios": el pago se pide en iSquad solo
   hasta el DÍA SIGUIENTE al partido; si no, "PLAZO SOLICITUD PAGO TERMINADO" y no se cobra), `fcvb_accion`
@@ -106,8 +106,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Entrar sin guardar: `auth-isquad` con `save:false` lee iSquad (con equipo arbitral de todos los partidos) y
   devuelve los partidos sin crear cuenta ni guardar nada. En la web `GUEST`: todas las escrituras pasan por
   `store()`, que en ese modo no hace nada; recargar = salir.
-- Ranking: función `ranking`, solo para los usuarios de iSquad del secret `ADMIN_LOGINS` (comprobado en el servidor
-  con la sesión). La web muestra el panel solo si la función responde.
+- Sin ranking (quitado el 21-oct-2026, tarea legal): enseñaba los cobros de otros árbitros con nombre, y eso no lo
+  aceptó nadie. Paneles de admin (`designadas`, solo `ADMIN_LOGINS`): la web pregunta `{action:"admin"}`; "Salud" enseña
+  cada cuenta con un id corto (6 caracteres del user_id), nunca nombres ni emails.
 
 ## Equipos (web pública de resultados, 21-oct-2026)
 
@@ -207,7 +208,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `listado_arbitros.php` (~454; `partidos_arbitro_territorial.php` da 500), de 10 en 10 (~8 s). Cada designación
   ("LOCAL - VISITANTE", fecha en texto) se cruza con el listado de partidos por fecha y local o visitante; si no,
   por la competición (`compToCat`: "1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO). Caché `desig-global` 1 h.
-- En la web, panel "Designaciones publicadas (FCVB)" junto al ranking, se carga al abrirlo.
+- En la web, panel "Designaciones publicadas (FCVB)", se carga al abrirlo.
 - Cron `designadas-hora` (`5 * * * *`, la función solo trabaja de 8 a 22 h de Madrid): recalcula, compara con la foto
   `desig-snap:<domingo>` y avisa a los admins de las categorías que pasan de 0 a tener designaciones (sin Alevín ni
   Amateur/Máster). Además `revisarSalud`: si la mitad o más de los árbitros tiene `last_error` o el último sync tiene

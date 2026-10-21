@@ -98,14 +98,15 @@ async function revisarSalud(db: Db, admins: string[]) {
 
 // Panel de salud para el admin: usuarios y errores, avisos activados, índice de plantillas y edad de las cachés.
 async function salud(db: Db) {
-  const { data: ps } = await db.from("profiles").select("user_id, nombre, isquad_login, tipo, last_sync, last_error, created_at").order("created_at");
+  const { data: ps } = await db.from("profiles").select("user_id, tipo, last_sync, last_error, created_at").order("created_at");
   const { data: subs } = await db.from("push_subs").select("user_id, last_sent");
   const { count: equipos } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true });
   const { count: revisados } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true }).not("checked_at", "is", null);
   const { data: caches } = await db.from("pub_cache").select("key, fetched_at").in("key", ["feed", "token", "clubs", "arbitros-ids", "desig-global"]);
   const { data: snaps } = await db.from("pub_cache").select("fetched_at").like("key", "snap:%").order("fetched_at", { ascending: false }).limit(1);
-  const usuarios = (ps || []).map((p: { user_id: string; nombre: string | null; isquad_login: string; tipo: string; last_sync: string | null; last_error: string | null; created_at: string }) => ({
-    nombre: p.nombre || p.isquad_login, tipo: p.tipo, last_sync: p.last_sync, last_error: p.last_error, alta: p.created_at,
+  // Sin nombres ni emails: cada cuenta, con un id corto (los 6 primeros caracteres de su user_id).
+  const usuarios = (ps || []).map((p: { user_id: string; tipo: string; last_sync: string | null; last_error: string | null; created_at: string }) => ({
+    id: p.user_id.slice(0, 6), tipo: p.tipo, last_sync: p.last_sync, last_error: p.last_error, alta: p.created_at,
     avisos: (subs || []).filter((s: { user_id: string }) => s.user_id === p.user_id).length }));
   return {
     usuarios, dispositivos: subs?.length || 0, indice: { equipos: equipos || 0, revisados: revisados || 0 },
@@ -126,6 +127,7 @@ Deno.serve(async (req) => {
   if (!me || !admins.includes(me.login_key)) return json({ error: "No disponible" }, 403);
   let body: { refresh?: boolean; action?: string } = {};
   try { body = await req.json(); } catch { /* sin cuerpo */ }
+  if (body.action === "admin") return json({ ok: true });   // la web solo pregunta si enseña los paneles
   if (body.action === "salud") return json({ ok: true, ...(await salud(db)) });
   if (body.refresh) await db.from("pub_cache").delete().eq("key", "desig-global");
 

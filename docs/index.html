@@ -240,10 +240,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .fsum{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;font-size:14px;margin:0 0 24px;padding:10px 12px;background:var(--surface-2)}
 .fsum strong{font-family:var(--display);font-size:19px}
 @media (max-width:760px){ .filters{grid-template-columns:repeat(2,minmax(0,1fr))} }
-/* Ranking */
-.rank-ctrl{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
-.rank{width:100%;border-collapse:collapse}
-.rank td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+/* Paneles de admin */
 .dg-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13.5px;color:var(--ink-2)}
 .dg-grp{font-family:var(--display);font-size:19px;font-weight:600;margin:16px 0 4px;border-bottom:2px solid var(--rule);padding-bottom:2px}
 .dg-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
@@ -252,12 +249,6 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .hl-row .s{grid-column:1/-1;font-size:12.5px;color:var(--ink-3)}
 .hl-row.bad .s{color:var(--pend);font-weight:600}
 .st.part{background:var(--surface);color:var(--ink);border:1px solid var(--yellow)}
-.rank td.pos{font-family:var(--display);font-weight:700;font-size:20px;width:34px;color:var(--ink-3)}
-.rank tr:nth-child(-n+3) td.pos{color:var(--ink)}
-.rank td.v{text-align:right;font-weight:700;white-space:nowrap;width:110px}
-.rank .bar{height:6px;background:var(--surface-2);margin-top:5px}
-.rank .bar i{display:block;height:100%;background:var(--yellow)}
-.rank .sub{color:var(--ink-3);font-size:12px}
 body.dep .arb-only{display:none!important}
 .guest-note{font-size:13px;color:var(--ink-2);margin:6px 0 14px}
 /* App en el móvil y recordatorio */
@@ -530,22 +521,6 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
     <div class="eq-search"><input type="search" id="eqQ" placeholder="Equipo o club (p. ej. Sagrat Cor, Begues…)" autocomplete="off"></div>
     <div id="eqRes"></div>
   </div>
-
-  <details class="panel hidden" id="rankPanel">
-    <summary>Ranking de árbitros</summary>
-    <p class="small muted">Solo lo ves tú. Todos los árbitros que usan la app, con los importes de los recibos de la FCVB.</p>
-    <div class="rank-ctrl">
-      <label class="small">Temporada <select id="rankSeason"></select></label>
-      <label class="small">Ordenar por <select id="rankMetric">
-        <option value="partidos">Partidos pitados</option><option value="jornadas">Jornadas</option>
-        <option value="cobrado">Cobrado</option><option value="liquidado">Liquidado (cobrado + pendiente)</option>
-        <option value="tarifa">Tarifas</option><option value="gastos">Gastos (desplazamiento y dietas)</option>
-        <option value="r1">Partidos como R1</option><option value="r2">Partidos como R2</option>
-        <option value="an">Partidos como anotador</option><option value="perdido">No solicitado a tiempo</option>
-      </select></label>
-    </div>
-    <table class="rank" id="rankTable"></table>
-  </details>
 
   <details class="panel hidden" id="saludPanel">
     <summary>Salud de la app</summary>
@@ -1873,29 +1848,13 @@ async function shareApp(){
   }catch(e){ $('qrBox').innerHTML='<p class="small muted">No se ha podido generar el QR: comparte el enlace.</p>'; }
 }
 
-/* ---------- Ranking ---------- */
-let RANK=null;
+/* ---------- Paneles de admin (solo ADMIN_LOGINS; el servidor lo comprueba) ---------- */
 const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpperCase());
-async function loadRanking(){
+async function loadAdmin(){
   if(GUEST) return;
-  const r = await callFn('ranking'); if(!r.ok){ $('rankPanel').classList.add('hidden'); return; }
+  const r = await callFn('designadas',{action:'admin'}); if(!r.ok) return;
   $('desigPanel').classList.remove('hidden'); $('saludPanel').classList.remove('hidden');
-  RANK=r.arbitros;
-  const seasons=[...new Set(RANK.flatMap(a=>Object.keys(a.temporadas)))].sort().reverse();
-  $('rankSeason').innerHTML=seasons.map(s=>`<option value="${s}"${s===SEASON?' selected':''}>${seasonLabel(s)}</option>`).join('');
-  $('rankPanel').classList.remove('hidden'); renderRanking();
 }
-function renderRanking(){
-  if(!RANK) return;
-  const s=$('rankSeason').value, k=$('rankMetric').value, money=['cobrado','liquidado','tarifa','gastos','perdido'].includes(k);
-  const rows=RANK.map(a=>({a, t:a.temporadas[s]||{}})).filter(x=>(x.t[k]||0)>0).sort((x,y)=>(y.t[k]||0)-(x.t[k]||0));
-  const max=rows[0]?.t[k]||1;
-  $('rankTable').innerHTML = rows.map((x,i)=>`<tr><td class="pos">${i+1}</td><td><div>${esc(capName(x.a.nombre))}</div>
-    <div class="sub">${x.t.partidos||0} partidos · ${x.t.jornadas||0} jornadas · ${eur(x.t.cobrado||0)} cobrado${x.a.origen?' · '+esc(capName(x.a.origen)):''}</div>
-    <div class="bar"><i style="width:${Math.round((x.t[k]||0)/max*100)}%"></i></div></td><td class="v">${money?eur(x.t[k]):x.t[k]}</td></tr>`).join('')
-    || '<tr><td class="muted">Nadie tiene datos de esto en esta temporada.</td></tr>';
-}
-$('rankSeason').addEventListener('change', renderRanking);
 
 /* ---------- Designaciones publicadas (solo admins) ---------- */
 let DESIG=null, DESIG_BUSY=false;
@@ -1937,12 +1896,11 @@ async function loadSalud(){
   const c=r.cache||{}, h=k=>c[k]?ago(c[k]):'—';
   let html=`<div class="dg-head"><span>${r.usuarios.length} usuarios (${arb.length} árbitros${dep?`, ${dep} jugadores o entrenadores`:''}) · ${err.length?`<b style="color:var(--pend)">${err.length} con error</b>`:'ninguno con error'} · ${r.dispositivos} dispositivos con avisos</span><button class="ghost" id="hlRefresh">Actualizar</button></div>
     <p class="small muted">Índice de plantillas: ${r.indice.revisados} de ${r.indice.equipos} equipos · partidos de la federación leídos ${h('feed')} · designaciones ${h('desig-global')} · vigilancia de equipos ${r.vigilancia?ago(r.vigilancia):'—'}</p>`;
-  html+=r.usuarios.map(u=>`<div class="hl-row${u.last_error?' bad':''}"><span>${esc(capName(u.nombre))}</span><span class="small muted">${u.tipo==='deportista'?'jugador/entrenador':'árbitro'}${u.avisos?` · 🔔 ${u.avisos}`:''}</span>
+  html+=r.usuarios.map(u=>`<div class="hl-row${u.last_error?' bad':''}"><span data-noi18n>#${esc(u.id)}</span><span class="small muted">${u.tipo==='deportista'?'jugador/entrenador':'árbitro'}${u.avisos?` · 🔔 ${u.avisos}`:''}</span>
     <span class="s">${u.tipo==='deportista' ? `alta ${esc(ago(u.alta))}` : u.last_error ? `Error: ${esc(u.last_error)} · última actualización ${esc(ago(u.last_sync))}` : `Actualizado ${esc(ago(u.last_sync))}`}</span></div>`).join('');
   $('saludBody').innerHTML=html; $('hlRefresh').onclick=loadSalud;
 }
 $('saludPanel').addEventListener('toggle', e=>{ if(e.target.open) loadSalud(); });
-$('rankMetric').addEventListener('change', renderRanking);
 
 function show(v){
   const a=document.getElementById('apkLogin'); if(a) a.classList.toggle('hidden', !offerApk()); for(const x of ['auth','app','loading']) $(x+'View').classList.toggle('hidden', x!==v); }
@@ -1951,7 +1909,7 @@ async function start(){
   if(!session){ show('auth'); return; }
   USER = session.user;
   try{ await loadAll(); }catch(e){ await sb.auth.signOut(); show('auth'); return; }
-  show('app'); render(); loadRanking(); initPush(); loadEquipos(); loadCoche(); if(needsConsent()) openConsent(); else setTimeout(maybeGuide, 600);
+  show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); if(needsConsent()) openConsent(); else setTimeout(maybeGuide, 600);
 }
 start();
 </script>
