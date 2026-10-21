@@ -231,6 +231,12 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .subviews{display:flex;gap:8px;margin:0 0 16px}
 .subviews button{border-width:2px;padding:5px 14px;font-size:14px}
 .subviews button[aria-pressed="true"]{background:var(--yellow);border-color:var(--yellow);color:#000}
+.agrole{display:inline-flex;flex-wrap:wrap;gap:0;margin:-6px 0 16px;border:1px solid var(--ink-3);border-radius:3px;overflow:hidden}
+.agrole button{border:0;border-radius:0;padding:5px 12px;font-size:13px;font-weight:600;background:transparent;color:var(--ink-2)}
+.agrole button+button{border-left:1px solid var(--line)}
+.agrole button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.agrole button:disabled{opacity:.4}
+@media (max-width:560px){ .agrole{display:flex;flex-wrap:nowrap;width:100%} .agrole button{flex:1;padding:6px 4px;font-size:12px;white-space:nowrap} }
 /* Agenda */
 .ag-day{margin:0 0 22px}
 .ag-day h3{font-family:var(--display);font-size:21px;font-weight:600;margin:0 0 8px;padding-bottom:4px;border-bottom:3px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
@@ -1227,7 +1233,10 @@ $('equipos').addEventListener('click', async e=>{
 
 /* ---------- Mis partidos (agenda) ---------- */
 const VIEW_KEY='liq-vista';
-let VIEW='cobros', AGENDA='proximos';
+let VIEW='cobros', AGENDA='proximos', AGROLE='todo';
+try{ AGROLE=localStorage.getItem('liq-agenda-rol')||'todo'; }catch(e){}
+// De quién es cada partido de la agenda: arbitraje, jugador (también invitado), entrenador o un equipo que solo sigo.
+const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : it.x.f.rol ? 'jugador' : 'sigo');
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
 const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
 const crewLabel=(m,f)=> f==='r2' && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIGA ?2/.test(norm(m.comp)) ? 'Juez de línea' : (CREW_LABEL[f] || capName(f));
@@ -1253,10 +1262,20 @@ function renderAgenda(allMs,res){
   for(const x of eqUp){ if(!x.f.rol || !isPending(x.m)) continue;
     for(const m of up){ if(m.date!==x.m.d) continue;
       if(!x.m.t || Math.abs(toMin(m.date,m.time)-toMin(m.date,x.m.t))<150){ (clashes.get(m.id)||clashes.set(m.id,[]).get(m.id)).push(x); (clashes.get(x)||clashes.set(x,[]).get(x)).push(m); } } }
-  const list = AGENDA==='proximos'
+  const all = AGENDA==='proximos'
     ? [...up.map(m=>({m, k:m.date+m.time})), ...eqUp.map(x=>({x, k:x.m.d+(x.m.t||'99:99')}))].sort((a,b)=>a.k.localeCompare(b.k))
     : [...past.map(m=>({m, k:m.date+m.time})), ...eqPast.map(x=>({x, k:x.m.d+(x.m.t||'00:00')}))].sort((a,b)=>b.k.localeCompare(a.k));
-  let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${up.length+eqUp.length})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${past.length+eqPast.length})</button></div>`;
+  // Selector Todo / Árbitro / Jugador / Entrenador (lo que solo sigo sale en Todo).
+  const cnt = r => r==='todo' ? all.length : all.filter(it=>itemRole(it)===r).length;
+  const list = AGROLE==='todo' ? all : all.filter(it=>itemRole(it)===AGROLE);
+  const nUp = AGROLE==='todo' ? up.length+eqUp.length : [...up.map(m=>({m})),...eqUp.map(x=>({x}))].filter(it=>itemRole(it)===AGROLE).length;
+  const nPast = AGROLE==='todo' ? past.length+eqPast.length : [...past.map(m=>({m})),...eqPast.map(x=>({x}))].filter(it=>itemRole(it)===AGROLE).length;
+  let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${nUp})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${nPast})</button></div>`;
+  html+=`<div class="agrole" role="group" aria-label="Ver partidos como">${[['todo','Todo'],['arbitro','Árbitro'],['jugador','Jugador'],['entrenador','Entrenador']].map(([r,t])=>{ const n=cnt(r); return `<button type="button" data-agrole="${r}" aria-pressed="${AGROLE===r}"${!n&&AGROLE!==r?' disabled':''}>${t} (${n})</button>`; }).join('')}</div>`;
+  if(!list.length && AGROLE!=='todo'){
+    html += `<div class="empty">No hay partidos ${AGENDA==='proximos'?'próximos':'jugados'} como ${({arbitro:'árbitro',jugador:'jugador',entrenador:'entrenador'})[AGROLE]}${filtering()?' con estos filtros':''}.</div>`;
+    box.innerHTML=html; return;
+  }
   if(!list.length){
     html += AGENDA==='proximos'
       ? `<div class="empty">No tienes partidos designados próximamente${filtering()?' con estos filtros':''}. En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.</div>`
@@ -1299,7 +1318,9 @@ function renderAgenda(allMs,res){
   }
   box.innerHTML=html;
 }
-$('agenda').addEventListener('click', e=>{ const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
+$('agenda').addEventListener('click', e=>{
+  const r=e.target.closest('button[data-agrole]'); if(r){ AGROLE=r.dataset.agrole; try{ localStorage.setItem('liq-agenda-rol',AGROLE); }catch(err){} render(); return; }
+  const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
 $('views').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();
