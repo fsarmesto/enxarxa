@@ -18,7 +18,7 @@
   "splashScreenFadeOutDuration": 300,
   "signingKey": { "path": "/home/trilogi/.config/fcvb/android.keystore", "alias": "liquidacion" },
   "appVersionName": "1.1.0",
-  "appVersionCode": 3,
+  "appVersionCode": 4,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://fsarmesto.github.io/laxarxa/manifest.webmanifest",
