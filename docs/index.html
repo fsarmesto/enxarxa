@@ -183,6 +183,9 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .sheet .dots i.on{background:var(--ink)}
 .sheet .nav{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .sheet .nav .primary{padding:10px 22px;font-size:16px}
+.sheet .nav{flex-wrap:wrap}
+.calopts{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.calopts a.go{display:block;text-align:center;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:10px 14px;color:var(--ink);text-decoration:none}
 .sheet .acts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
 .qr{display:flex;justify-content:center;margin:12px 0}
 .qr img,.qr canvas{width:200px;height:200px;image-rendering:pixelated;background:#fff;padding:8px;border-radius:6px}
@@ -548,6 +551,9 @@ details.cal[open]>summary::before{content:"▾ "}
         <p class="small muted">En el iPhone, primero añade la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde el icono.</p>
         <p class="small" id="pushState"></p>
         <div class="row" id="pushBtns"></div>
+        <h2 style="margin-top:16px">Calendario</h2>
+        <p class="small muted">Suscríbete a tus partidos desde Google Calendar o el calendario del iPhone: <span class="arb-only">designaciones (con pabellón y equipo arbitral) y </span>partidos de tus equipos activos en "Mis partidos", con horario y resultado. Se actualiza solo cada pocas horas.</p>
+        <div class="row" id="calBtns"><button id="btnCal">Añadir a mi calendario</button></div>
         <div class="arb-only"><h2 style="margin-top:16px">Compartir coche</h2>
         <p class="small muted">Si lo activas, te aviso en "Mis partidos" cuando otro árbitro que también lo tenga activado va ese día al mismo pabellón o a la misma población, por si os queréis organizar. Solo se ve entre quienes lo activan, y solo el nombre, la hora, el pabellón y la población de salida.</p>
         <div class="seg" style="margin-bottom:6px">Compartir coche<span class="segb" role="group" id="carSeg"><button type="button" data-car="1" aria-pressed="false">Sí</button><button type="button" data-car="0" aria-pressed="true">No</button></span></div>
@@ -1688,9 +1694,25 @@ $('guide').addEventListener('click', e=>{ if(e.target.id==='guide') closeGuide()
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('guide').classList.contains('hidden')) closeGuide(); });
 $('btnGuide').addEventListener('click', openGuide);
 $('btnShare').addEventListener('click', shareApp);
+$('btnCal').addEventListener('click', ()=>calSheet(false));
 
 // Compartir: el menú de compartir del móvil si lo hay; si no, enlace para copiar y un QR para escanear en persona.
 const SHARE_TEXT = 'App (no oficial) para árbitros de la FCVB: tus cobros, designaciones y partidos de tu equipo, con avisos. Entras con tu usuario de iSquad.';
+async function calSheet(nuevo){
+  if(GUEST){ toast('Sin guardar no hay calendario: entra guardando tus datos.'); return; }
+  const r = await callFn('calendario',{action:nuevo?'nuevo':'url'});
+  if(!r.ok||!r.url){ toast(r.error||'No se ha podido crear el enlace'); return; }
+  const web = r.url.replace(/^https:/,'webcal:');
+  $('guideSheet').innerHTML = `<div class="step-ico">📅</div><h2 id="guideTitle">Añadir a mi calendario</h2>
+    <p>Tus partidos aparecerán en tu calendario y se irán actualizando solos (horarios, cambios y resultados).</p>
+    <div class="calopts"><a class="go" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(web)}" target="_blank" rel="noopener">Google Calendar</a><a class="go" href="${web}">Calendario del iPhone / Mac / Outlook</a></div>
+    <p class="small muted">El enlace es personal: quien lo tenga ve tus partidos. Si lo has compartido sin querer, crea uno nuevo y el anterior dejará de funcionar.</p>
+    <div class="nav"><button id="cCopy">Copiar enlace</button><button class="ghost" id="cNew">Crear uno nuevo</button><button class="primary" id="gClose">Cerrar</button></div>`;
+  $('guide').classList.remove('hidden');
+  $('gClose').onclick=()=>$('guide').classList.add('hidden');
+  $('cCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(r.url); toast('Enlace copiado'); }catch(e){ toast(r.url); } };
+  $('cNew').onclick=()=>calSheet(true);
+}
 async function shareApp(){
   if(navigator.share){ try{ await navigator.share({ title:'Liquidación arbitral FCVB', text:SHARE_TEXT, url:APP_URL }); return; }catch(e){ if(e && e.name==='AbortError') return; } }
   $('guideSheet').innerHTML = `<div class="step-ico">📲</div><h2 id="guideTitle">Comparte la app</h2><p>Que lo escaneen con la cámara del móvil, o envíales el enlace.</p>

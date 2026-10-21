@@ -378,7 +378,18 @@ I.exact = {
 "Salud de la app": "Salut de l'app",
 "Solo lo ves tú. Si muchos árbitros fallan a la vez o la actualización automática se para, te llega un aviso.": "Només la veus tu. Si molts àrbitres fallen alhora o l'actualització automàtica s'atura, t'arriba un avís.",
 "Ábrelo para cargarlo.": "Obre'l per carregar-lo.",
-"jugador/entrenador": "jugador/entrenador"
+"jugador/entrenador": "jugador/entrenador",
+"Calendario": "Calendari",
+"Suscríbete a tus partidos desde Google Calendar o el calendario del iPhone:": "Subscriu-te als teus partits des de Google Calendar o el calendari de l'iPhone:",
+"designaciones (con pabellón y equipo arbitral) y": "designacions (amb pavelló i equip arbitral) i",
+"partidos de tus equipos activos en \"Mis partidos\", con horario y resultado. Se actualiza solo cada pocas horas.": "partits dels teus equips actius a \"Els meus partits\", amb horari i resultat. S'actualitza sol cada poques hores.",
+"Añadir a mi calendario": "Afegeix al meu calendari",
+"Tus partidos aparecerán en tu calendario y se irán actualizando solos (horarios, cambios y resultados).": "Els teus partits apareixeran al teu calendari i s'aniran actualitzant sols (horaris, canvis i resultats).",
+"Calendario del iPhone / Mac / Outlook": "Calendari de l'iPhone / Mac / Outlook",
+"El enlace es personal: quien lo tenga ve tus partidos. Si lo has compartido sin querer, crea uno nuevo y el anterior dejará de funcionar.": "L'enllaç és personal: qui el tingui veu els teus partits. Si l'has compartit sense voler, crea'n un de nou i l'anterior deixarà de funcionar.",
+"Crear uno nuevo": "Crea'n un de nou",
+"Sin guardar no hay calendario: entra guardando tus datos.": "Sense desar no hi ha calendari: entra desant les teves dades.",
+"No se ha podido crear el enlace": "No s'ha pogut crear l'enllaç"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
