@@ -244,6 +244,34 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 /* Vistas: Cobros / Mis partidos */
 .views{display:flex;gap:0;margin:0 0 22px;border:2px solid var(--ink);border-radius:3px;overflow:hidden;width:max-content;max-width:100%}
 .views button{border:0;border-radius:0;padding:10px 22px;font-family:var(--display);font-size:19px;font-weight:600;background:transparent;color:var(--ink)}
+@media (max-width:560px){ .views{width:100%} .views button{flex:1;padding:9px 4px;font-size:16px} }
+/* Resumen */
+.rs-mode{margin:0 0 16px}
+.rs-hero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin:0 0 20px}
+.rs-hero>div{background:var(--bg);padding:12px 12px 10px}
+.rs-hero .l{font-size:12px;color:var(--ink-3);font-weight:600}
+.rs-hero .v{font-family:var(--display);font-size:26px;font-weight:700;line-height:1.1}
+.rs-hero .s{font-size:11.5px;color:var(--ink-3)}
+@media (max-width:700px){ .rs-hero{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.rs-h{font-family:var(--display);font-size:21px;font-weight:600;margin:22px 0 8px;border-bottom:3px solid var(--rule);padding-bottom:4px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:150px;border-bottom:1px solid var(--ink-3);padding-top:18px}
+.bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative;cursor:default}
+.bars .b i{display:block;width:100%;max-width:34px;background:var(--ink);border-radius:4px 4px 0 0;min-height:2px}
+.bars .b.fut i{background:var(--ink-3)}
+.bars .b em{position:absolute;top:-16px;font-style:normal;font-size:11px;font-weight:700;color:var(--ink);white-space:nowrap}
+.bars .b:hover i,.bars .b:focus i{outline:2px solid var(--yellow);outline-offset:1px}
+.bars .b .tip{display:none;position:absolute;bottom:calc(100% + 4px);background:var(--ink);color:var(--bg);font-size:12px;padding:4px 8px;border-radius:3px;white-space:nowrap;z-index:2}
+.bars .b:hover .tip,.bars .b:focus .tip{display:block}
+.bars-x{display:flex;gap:2px}
+.bars-x span{flex:1;text-align:center;font-size:11px;color:var(--ink-3);padding-top:4px}
+.rs-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 28px}
+@media (max-width:700px){ .rs-list{grid-template-columns:1fr} }
+.rs-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.rs-row .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rs-row .c{color:var(--ink-3);font-size:13px}
+.rs-row .e{font-weight:700;min-width:84px;text-align:right}
+.rs-note{font-size:12.5px;color:var(--ink-3);margin-top:14px}
+@media print{ body *{visibility:hidden} #resumen,#resumen *{visibility:visible} #resumen{position:absolute;left:0;top:0;width:100%} .no-print{display:none!important} }
 .views button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .subviews{display:flex;gap:8px;margin:0 0 16px}
 .subviews button{border-width:2px;padding:5px 14px;font-size:14px}
@@ -411,6 +439,7 @@ details.cal[open]>summary::before{content:"▾ "}
     <button type="button" data-view="cobros" role="tab">Cobros</button>
     <button type="button" data-view="agenda" role="tab">Mis partidos</button>
     <button type="button" data-view="equipos" role="tab" id="tabEquipos">Equipos</button>
+    <button type="button" data-view="resumen" role="tab">Resumen</button>
   </div>
   <div class="banner hidden" id="banner"></div>
   <div class="alerts" id="alerts"></div>
@@ -420,6 +449,7 @@ details.cal[open]>summary::before{content:"▾ "}
   <div class="fsum hidden" id="fsum"></div>
   <div id="ledger"></div>
   <div id="agenda" class="hidden"></div>
+  <div id="resumen" class="hidden"></div>
   <div id="equipos" class="hidden">
     <div class="eq-h">Mis equipos</div>
     <p class="small" id="eqAuto" style="margin:0 0 4px;font-weight:600"></p>
@@ -880,10 +910,11 @@ function render(){
   for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.view===VIEW));
   if(GUEST && VIEW==='equipos') VIEW='agenda';
   $('tabEquipos').classList.toggle('hidden', GUEST);
-  led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos');
+  led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
   $('filters').classList.toggle('hidden', VIEW==='equipos'); if(VIEW==='equipos') $('fsum').classList.add('hidden');
   if(VIEW==='agenda'){ renderAgenda(allMs,res); renderSettings(); return; }
   if(VIEW==='equipos'){ renderEquipos(); renderSettings(); return; }
+  if(VIEW==='resumen'){ renderResumen(allMs,res); renderSettings(); return; }
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
@@ -1313,7 +1344,7 @@ try{ AGROLE=localStorage.getItem('liq-agenda-rol')||'todo'; }catch(e){}
 const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : it.x.f.rol ? 'jugador' : 'sigo');
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
 // Al abrir desde una notificación (?vista=agenda), directamente en esa pestaña.
-{ const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); } }
+{ const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos','resumen'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); } }
 const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
 // "PRIMERA DIVISION SENIOR FEMENINO" → "1ª Sén. Fem" (para la línea corta de la tarjeta).
 function shortComp(comp){
@@ -1444,6 +1475,52 @@ $('views').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();
 });
+
+/* ---------- Resumen de temporada y año (para la renta) ---------- */
+let RS_MODE='temporada';
+const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+// Fecha de cobro: la de "PAGADO - dd/mm/aaaa" de iSquad; si no, la del partido.
+const paidDate = m => { const x=(m.fcvb_pago||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return x ? `${x[3]}-${x[2]}-${x[1]}` : ''; };
+function renderResumen(allMs,res){
+  const box=$('resumen'), year=String(new Date().getFullYear());
+  const base = allMs.filter(m=>passes(m) && !isTerritorial(m));
+  // Temporada: partidos de la temporada elegida. Año: lo cobrado en el año natural por fecha de pago (para la renta).
+  const ms = RS_MODE==='temporada' ? base.filter(m=>seasonOf(m.date)===SEASON)
+    : base.filter(m=>payState(m)==='pagado' && (paidDate(m)||m.date).slice(0,4)===year);
+  const sum = f => ms.reduce((t,m)=>t+f(res.get(m.id),m),0);
+  const tarifas=sum(r=>r.tariff), gastos=sum(r=>r.dieta+r.travel+r.tolls), irpf=sum(r=>r.irpf), neto=sum(r=>r.total);
+  const cobrado=ms.filter(isPaid).reduce((t,m)=>t+res.get(m.id).total,0);
+  const jornadas=new Set(ms.map(m=>m.date+franjaOf(m))).size;
+  // Km aproximados: una ida y vuelta por pabellón y franja.
+  const trips=new Map(); for(const m of ms){ const k=m.date+franjaOf(m)+'|'+m.venue_key; trips.set(k, Math.max(trips.get(k)||0, kmFor(m))); }
+  const km=[...trips.values()].reduce((a,b)=>a+b*2,0);
+  const modeBtns = `<div class="segb rs-mode no-print" role="group"><button type="button" data-rs="temporada" aria-pressed="${RS_MODE==='temporada'}">Temporada ${seasonLabel(SEASON)}</button><button type="button" data-rs="anio" aria-pressed="${RS_MODE==='anio'}">Año ${year} · renta</button></div>`;
+  if(!ms.length){ box.innerHTML = modeBtns + `<div class="empty">${RS_MODE==='anio'?`Aún no hay cobros con fecha de ${year}.`:'No hay partidos en esta temporada.'}${filtering()?' (con estos filtros)':''}</div>`; return; }
+  const hero = RS_MODE==='temporada'
+    ? [['Neto de la temporada',eur(neto),`${eur(cobrado)} ya cobrado`],['Partidos',ms.length,`${jornadas} jornadas`],['Tarifas',eur(tarifas),`IRPF retenido ${eur(irpf)}`],['Dietas y desplazamiento',eur(gastos),`≈ ${Math.round(km).toLocaleString('es-ES')} km`]]
+    : [['Rendimientos (tarifas)',eur(tarifas),'lo que tributa'],['IRPF retenido',eur(irpf),'lo retiene la FCVB'],['Dietas y desplazamiento',eur(gastos),'exentos'],['Neto cobrado',eur(neto),`${ms.length} partidos`]];
+  let html = modeBtns + `<div class="rs-hero">${hero.map(([l,v,s])=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>`;
+  // Neto por mes (temporada: de agosto a julio; año: de enero a diciembre). Gris = previsión aún no cobrada.
+  const months = RS_MODE==='temporada' ? [7,8,9,10,11,0,1,2,3,4,5,6].map(mo=>({mo, y: mo>=7 ? +SEASON : +SEASON+1})) : [...Array(12)].map((_,mo)=>({mo, y:+year}));
+  const byM = months.map(({mo,y})=>{ const list=ms.filter(m=>{ const d=RS_MODE==='anio'?(paidDate(m)||m.date):m.date; return +d.slice(0,4)===y && +d.slice(5,7)-1===mo; });
+    return { mo, y, total:list.reduce((t,m)=>t+res.get(m.id).total,0), n:list.length, fut: list.length>0 && list.every(m=>!isPaid(m)) }; });
+  const max=Math.max(...byM.map(x=>x.total),1), best=byM.reduce((a,b)=>b.total>a.total?b:a);
+  html += `<div class="rs-h">Neto por mes</div><div class="bars" role="img" aria-label="Neto por mes">${byM.map(x=>`<div class="b${x.fut?' fut':''}" tabindex="0">${x.total?`<i style="height:${Math.max(2,x.total/max*100)}%"></i>`:''}${x===best&&x.total?`<em>${eur(x.total)}</em>`:''}<span class="tip">${MESES[x.mo]} ${x.y}: ${eur(x.total)} · ${x.n} partido${x.n===1?'':'s'}</span></div>`).join('')}</div>
+    <div class="bars-x">${byM.map(x=>`<span>${MESES[x.mo]}</span>`).join('')}</div>${byM.some(x=>x.fut)?'<p class="rs-note">En gris, meses solo con partidos aún no cobrados (previsión).</p>':''}`;
+  // Listas
+  const group = (keyOf) => { const g=new Map(); for(const m of ms){ for(const k of [].concat(keyOf(m)).filter(Boolean)){ const x=g.get(k)||g.set(k,{n:0,e:0}).get(k); x.n++; x.e+=res.get(m.id).total; } } return [...g].sort((a,b)=>b[1].n-a[1].n || b[1].e-a[1].e); };
+  const rows = (list, money=true, max=8) => list.slice(0,max).map(([k,x])=>`<div class="rs-row"><span class="n">${esc(k)}</span><span class="c">${x.n} partido${x.n===1?'':'s'}</span><span class="e">${money?eur(x.e):''}</span></div>`).join('');
+  const cats = group(m=>shortComp(m.comp)), roles = group(m=>m.staff_checked||String(m.id).startsWith('MAN-') ? crewLabel(m,m.role) : 'Rol sin leer');
+  const mates = group(m=>(Array.isArray(m.crew)?m.crew:[]).filter(c=>!c.me).map(c=>capName(c.n)));
+  const venues = group(m=>VENUES[m.venue_key]?.label || capName(m.venue||''));
+  html += `<div class="rs-list"><div><div class="rs-h">Por categoría</div>${rows(cats)}</div><div><div class="rs-h">Por designación</div>${rows(roles)}</div>
+    <div><div class="rs-h">Con quién has arbitrado más</div>${rows(mates,false) || '<p class="small muted">Los equipos arbitrales se guardan desde la temporada 26/27.</p>'}</div><div><div class="rs-h">Pabellones donde más has ido</div>${rows(venues)}</div></div>`;
+  html += `<p class="rs-note">${RS_MODE==='anio'?`Año ${year} por fecha de pago de la FCVB. Orientativo: para la declaración, el documento válido es el certificado de retenciones que emite la FCVB. `:''}Importes netos de IRPF${filtering()?', con los filtros puestos':''}.</p>
+    <div class="row no-print" style="margin-top:12px"><button id="rsPrint">Guardar como PDF / imprimir</button></div>`;
+  box.innerHTML=html;
+  $('rsPrint').onclick=()=>window.print();
+}
+$('resumen').addEventListener('click', e=>{ const b=e.target.closest('button[data-rs]'); if(!b) return; RS_MODE=b.dataset.rs; render(); });
 
 /* ---------- Guía de bienvenida (la primera vez) y compartir la app ---------- */
 const APP_URL = 'https://fsarmesto.github.io/liquidacion-arbitral-fcvb/';
