@@ -68,13 +68,16 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## Importes de la FCVB (mandan sobre el cálculo)
 
-- Login: desde el 20-oct-2026 `loginarbitros.php` redirige a `loginunico.php?area=arbitros` (formulario con
-  `csrf_token`, campos `login`/`password`/`lu_disp`); `loginIsquad()` en `isquad.ts`.
+- Login: iSquad alterna entre 2 pantallas. El 20-oct-2026 `loginarbitros.php` redirigía a `loginunico.php?area=arbitros`
+  (formulario con `csrf_token`, campos `login`/`password`/`lu_disp`) y el 21-oct volvió al revés. `loginIsquad()` en
+  `isquad.ts` pide el único y, si acaba en el clásico, entra por el clásico. Si todos los árbitros salen con
+  `last_error='credenciales'` a la vez, es esto: mirar a qué formulario lleva hoy `loginunico.php?area=arbitros`.
 - `arbitros_listado_recibos.php` (tabla `tabla_listado_recibos`, por temporada con la cookie): por partido tarifa,
   gastos (desplazamiento + dieta juntos) y estado del pago. Se guarda en `matches.fcvb_tarifa/fcvb_gastos/fcvb_pago`
   y en la web sustituye a la previsión; "PAGADO…" cuenta como cobrado. Se lee con regex (1 MB por página).
-- Comparación 20-oct (temporada 26/27, 12 árbitros, 165 partidos): tarifa igual en 165/165. Gastos: la FCVB cuenta
-  una ida y vuelta por pabellón y DÍA (no por franja) y la reparte entre los partidos; usa sus propios km.
+- Comparación 20-oct (temporada 26/27, 12 árbitros, 165 partidos): tarifa igual en 165/165. Gastos: la FCVB paga
+  una ida y vuelta por pabellón y FRANJA (27 de 30 días claros, 9 árbitros) y la reparte entre los partidos; usa sus
+  propios km. Un partido que empieza antes de las 15:00 cuenta como mañana aunque acabe por la tarde.
 - `arbitros_listado_facturas.php`: solo el neto de cada recibo.
 
 ## Km por carretera
@@ -87,7 +90,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Distancias: la FCVB paga **la ruta más corta**, pero no la "más corta" pura de ORS (`preference: shortest` da caminos
   de 90 min para ahorrar 2 km; el recibo de Vilanova → Els Arcs pagó 47 km = la normal, la pura daba 45). Se pide la
   ruta con `alternative_routes` (3, weight_factor 1.6) y se toma la de menos km; ORS solo da alternativas hasta ~100 km
-  (error 2004), más lejos la ruta normal. Son rutas sueltas: **200 al día** en el plan gratuito.
+  (error 2004), más lejos la ruta normal. Son rutas sueltas: **200 al día** en el plan gratuito. El cupo no se renueva a medianoche: es una ventana de 24 h desde
+  el primer uso (si se agota a las 15:30, hasta las 15:30 del día siguiente no hay rutas).
   Reserva sin cupo: **ORS Matrix** (solo la más rápida); esos km quedan `venues.km_rule='rapida'`.
   Cada pasada, con el tiempo y cupo sobrantes, recalcula con la ruta corta los km que no son `km_rule='corta'`
   (los antiguos y los de Matrix); los manuales no se tocan. Caché de rutas con prefijo `c:` (sin prefijo = antiguas, rápidas).

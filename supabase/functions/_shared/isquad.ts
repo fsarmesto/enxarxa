@@ -40,11 +40,24 @@ async function get(url: string, jar: Jar): Promise<Response> {
   return res;
 }
 
-// Login único de iSquad (desde el 20-oct-2026 loginarbitros.php redirige a loginunico.php?area=arbitros):
-// formulario con csrf_token; después se entra en el área de árbitros. Devuelve un rastro para diagnosticar.
+// iSquad alterna entre 2 logins: el único (loginunico.php?area=arbitros, con csrf_token; 20-oct-2026) y el clásico
+// (loginarbitros.php; el 21-oct volvió). Se pide el único y, si redirige al clásico, se entra por ahí.
+// Devuelve un rastro para diagnosticar.
 async function loginIsquad(jar: Jar, login: string, password: string): Promise<string> {
   const form = await get(`${BASE}/loginunico.php?area=arbitros`, jar);
   const html = await form.text();
+  if (/action="loginarbitros\.php"/.test(html)) {
+    const res = await fetch(`${BASE}/loginarbitros.php`, {
+      method: "POST", signal: T(), redirect: "manual",
+      body: new URLSearchParams({ login, password, qr_login: "0", utr: "" }),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar),
+        Origin: BASE, Referer: `${BASE}/loginarbitros.php`,
+      },
+    });
+    keep(jar, res); await res.body?.cancel();
+    return `clásico · post ${res.status} → ${res.headers.get("location")}`;
+  }
   const csrf = html.match(/name="csrf_token"\s+value="([^"]+)"/)?.[1] ?? "";
   const res = await fetch(`${BASE}/loginunico.php`, {
     method: "POST", signal: T(), redirect: "manual",
