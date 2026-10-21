@@ -124,7 +124,15 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   otra, es un homónimo). Comprobado 21-oct: 11 de 14 árbitros encontrados, todos por foto. Los añade como `auto`; si
   el árbitro los quita quedan `oculto` y no vuelven.
 - Web: pestaña "Equipos" y, en "Mis partidos", los partidos de los equipos con aviso de choque con un arbitraje
-  (mismo día a menos de 2 h 30 min, o mismo día con la hora por confirmar). Pendiente: resultados y clasificación.
+  (mismo día a menos de 2 h 30 min, o mismo día con la hora por confirmar).
+- Calendario completo con resultados: API del buscador público `voleibol.isquad.es/json/api/call.php/resultados/
+  busquedaGlobal?token=<token de la página>` (POST q=<nombre del equipo>, categoria=partidos, id_temporada, limit=20,
+  page). Devuelve por partido estado (Pendiente, Finalizado, Suspendido...), resultado en sets, fecha, hora,
+  `fecha_confirmada` (1 = horario confirmado; si no, hora provisional o 0:00 = sin horario), jornada, grupo e ids de
+  equipo. Sin pabellón: se cruza con el listado. Token: `let token = "..."` de cualquier página pública (caché 12 h,
+  se renueva si la API da error). `teamMatches` en `_shared/publico.ts`, caché `tm:<id_equipo>` 30 min.
+  En la web, etiquetas: Ganado/Perdido con el resultado, Por jugar · hora, hora sin confirmar, sin horario, Suspendido.
+  Pendiente: clasificación.
 
 ## Mis partidos (agenda, 21-oct-2026)
 

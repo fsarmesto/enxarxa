@@ -8,7 +8,7 @@
 //   plantillas (función indexar) se añaden solos (auto); los que quita no vuelven (oculto).
 // Las páginas públicas pesan ~1 MB cada una (el menú): todo pasa por la caché compartida pub_cache.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
-import { clubs, clubTeams, feed, huella, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, words } from "../_shared/publico.ts";
+import { clubs, clubTeams, feed, huella, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
 
 
 if (import.meta.main) Deno.serve(async (req) => {
@@ -111,7 +111,18 @@ if (import.meta.main) Deno.serve(async (req) => {
       const list = await feed(db);
       const partidos = list.filter((p) => favs.some((f: { club_id: string; team: string; cat: string }) => sameCat(f.cat, p.cat) &&
         ((f.club_id === p.cl && sameTeam(f.team, p.l)) || (f.club_id === p.cv && sameTeam(f.team, p.v)))));
-      return json({ ok: true, favs, partidos, indice });
+      // Calendario completo (jugados con resultado y por jugar) de los equipos con id; el pabellón, del listado.
+      const calendario: Record<string, unknown[]> = {};
+      await Promise.all(favs.filter((f: { id_equipo: string | null }) => f.id_equipo).map(async (f: { id_equipo: string; team: string }) => {
+        try {
+          const cal = await teamMatches(db, f.id_equipo, f.team);
+          calendario[f.id_equipo] = cal.map((m) => {
+            const fp = partidos.find((p) => p.d.slice(0, 10) === m.d && sameTeam(p.l, m.l) && sameTeam(p.v, m.v));
+            return { ...m, pab: fp?.pab || "", pista: fp?.pista || "" };
+          });
+        } catch { /* sin calendario: la web usa el listado */ }
+      }));
+      return json({ ok: true, favs, partidos, calendario, indice });
     }
   } catch (e) {
     return json({ error: "No se ha podido leer iSquad. Prueba en unos minutos.", detail: (e as Error).message }, 502);

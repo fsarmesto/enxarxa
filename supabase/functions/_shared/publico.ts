@@ -140,3 +140,56 @@ export function withGender(cat: string, comp: string) {
 // La categoría de la ficha del club no lleva género: "CUARTA DIVISION SENIOR" vale para "CUARTA DIVISION SENIOR FEMENINO".
 export const sameCat = (fav: string, full: string) => norm(full) === norm(fav) || norm(full).startsWith(norm(fav) + " ");
 
+
+// API del buscador público (la que usa el buscador de resultadosvoleibol): necesita el token que va en cada página
+// ("let token = ..."). Se guarda 12 h y se renueva si la API lo rechaza.
+const API = "https://voleibol.isquad.es/json/api/call.php/resultados/busquedaGlobal";
+async function apiToken(db: Db, renew = false): Promise<string> {
+  if (renew) await db.from("pub_cache").delete().eq("key", "token");
+  return await cached(db, "token", 12 * H, async () => {
+    const s = await getText(`${PUB}/competicion.php?id_superficie=1&seleccion=0&id_territorial=${TERRITORIAL}`);
+    const t = s.match(/let token = "([0-9a-f]+)"/)?.[1];
+    if (!t) throw new Error("sin token");
+    return t;
+  });
+}
+async function apiSearch(db: Db, params: Record<string, string>) {
+  for (const renew of [false, true]) {
+    const token = await apiToken(db, renew);
+    const r = await fetch(`${API}?token=${token}`, {
+      method: "POST", body: new URLSearchParams(params), signal: AbortSignal.timeout(20_000),
+      headers: { "User-Agent": UA, Origin: PUB, Referer: `${PUB}/` },
+    });
+    if (r.ok) return await r.json();
+    await r.body?.cancel();
+  }
+  throw new Error("API de iSquad no disponible");
+}
+
+// Calendario de la temporada de un equipo con estado y resultado (sets). Estados de iSquad: Pendiente, Finalizado,
+// Suspendido, Aplazado... "conf" = horario confirmado (si no, la hora es provisional o falta).
+export type PartidoEquipo = { id: string; d: string; t: string; conf: boolean; est: string; l: string; v: string; idl: string; idv: string;
+  rl: number | null; rv: number | null; j: string; g: string; comp: string };
+export function teamMatches(db: Db, idEquipo: string, name: string): Promise<PartidoEquipo[]> {
+  return cached(db, `tm:${idEquipo}`, 0.5 * H, async () => {
+    const out: PartidoEquipo[] = [];
+    for (let page = 1; page <= 6; page++) {
+      const res = await apiSearch(db, { q: name, id_temporada: seasonCode(), id_superficie: "1", seleccion: "0", limit: "20", categoria: "partidos", page: String(page) });
+      // deno-lint-ignore no-explicit-any
+      for (const p of (res?.data?.partidos || []) as any[]) {
+        if (String(p.id_local) !== idEquipo && String(p.id_visitante) !== idEquipo) continue;
+        const [dd, mm, yy] = String(p.fecha || "").split("/");
+        const hora = String(p.hora || "").padStart(5, "0");
+        out.push({
+          id: String(p.id_partido), d: yy ? `${yy}-${mm}-${dd}` : "", t: hora === "00:00" || hora === "0:00" ? "" : hora,
+          conf: String(p.fecha_confirmada) === "1", est: String(p.estado || ""), l: fixMojibake(String(p.nombre_local || "")).trim(),
+          v: fixMojibake(String(p.nombre_visitante || "")).trim(), idl: String(p.id_local), idv: String(p.id_visitante),
+          rl: p.resultado_local == null ? null : +p.resultado_local, rv: p.resultado_visitante == null ? null : +p.resultado_visitante,
+          j: String(p.jornada || ""), g: String(p.grupo || ""), comp: fixMojibake(String(p.nombre_competicion || "")),
+        });
+      }
+      if (!res?.has_more?.partidos) break;
+    }
+    return out.sort((a, b) => (a.d + a.t).localeCompare(b.d + b.t));
+  });
+}

@@ -258,6 +258,29 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .kind.ent{background:#1F5FAD;color:#fff}
 .kind.sig{background:var(--surface-2);color:var(--ink-2)}
 .clash{margin:8px 0 0;font-size:13.5px;font-weight:700;color:var(--pend)}
+/* Estado de un partido de equipo */
+.st{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:2px;white-space:nowrap;vertical-align:middle}
+.st.win{background:#1E7B34;color:#fff}
+.st.loss{background:var(--pend);color:#fff}
+.st.hora{background:var(--yellow);color:#000}
+.st.prov{background:var(--surface);color:var(--ink);border:1px dashed var(--ink-3)}
+.st.sin{background:var(--surface-2);color:var(--ink-2)}
+.st.sus{background:#5f5f5f;color:#fff}
+.ag.eq.done{opacity:.85}
+.res{font-family:var(--display);font-size:22px;font-weight:700;margin-left:8px;vertical-align:middle}
+details.cal{margin-top:6px}
+details.cal>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);list-style:none}
+details.cal>summary::-webkit-details-marker{display:none}
+details.cal>summary::before{content:"▸ "}
+details.cal[open]>summary::before{content:"▾ "}
+.calrow{display:grid;grid-template-columns:92px 1fr auto;gap:2px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.calrow:last-child{border-bottom:0}
+.calrow .dd{color:var(--ink-3);font-size:12.5px}
+.calrow b{font-weight:800}
+@media (max-width:560px){
+  .calrow{grid-template-columns:70px 1fr} .calrow .st{grid-column:2;justify-self:start}
+  #eqFavs .eq-row{flex-direction:column;align-items:stretch} #eqFavs .eq-row>button{align-self:flex-start;padding-left:0}
+}
 .teams b{font-weight:800}
 /* Equipos */
 .eq-search{display:flex;gap:8px;margin:0 0 14px}
@@ -1104,7 +1127,7 @@ function renderPush(){
 }
 
 /* ---------- Equipos (web pública de resultados de iSquad) ---------- */
-let EQ = {favs:[], partidos:[], indice:null}, EQ_RES=null, EQ_BUSY=false;
+let EQ = {favs:[], partidos:[], calendario:{}, indice:null}, EQ_RES=null, EQ_BUSY=false;
 const ROL_TXT = {jugador:['jug','Juegas'], entrenador:['ent','Entrenas'], invitado:['jug','Invitado']};
 const rolKind = r => ROL_TXT[r] || (r ? ['jug', capName(r)] : ['sig','Sigues']);
 const favKey = f => `${f.club_id}|${norm(f.team)}|${norm(f.cat)}`;
@@ -1112,21 +1135,53 @@ const isFav = t => EQ.favs.some(f=>favKey(f)===favKey(t));
 // La categoría del partido lleva género ("... SENIOR FEMENINO"); la de un equipo encontrado en la plantilla, a veces no.
 const sameCat = (fav, full) => norm(full)===norm(fav) || norm(full).startsWith(norm(fav)+' ');
 const plays = (f,p) => sameCat(f.cat,p.cat) && ((f.club_id===p.cl && norm(f.team)===norm(p.l)) || (f.club_id===p.cv && norm(f.team)===norm(p.v)));
-// Si en un partido están 2 equipos que sigo, cuenta el mío (jugador o entrenador) antes que uno que solo sigo.
-const teamOfMatch = p => { const fs=EQ.favs.filter(f=>plays(f,p)); return fs.find(f=>f.rol) || fs[0]; };
-const genOf = p => /\bFEM/.test(norm(p.comp))?' Femenino':/\bMASC/.test(norm(p.comp))?' Masculino':'';
 async function loadEquipos(){
   if(GUEST) return;
-  const r = await callFn('equipos',{action:'mis'}); if(r.ok){ EQ={favs:r.favs||[], partidos:r.partidos||[], indice:r.indice||null}; render(); }
+  const r = await callFn('equipos',{action:'mis'}); if(r.ok){ EQ={favs:r.favs||[], partidos:r.partidos||[], calendario:r.calendario||{}, indice:r.indice||null}; render(); }
 }
-function nextOf(f){ const t=today(); return EQ.partidos.filter(p=>p.d.slice(0,10)>=t && plays(f,p)).sort((a,b)=>a.d.localeCompare(b.d))[0]; }
 const pTime = p => p.c && p.d.slice(11,16)!=='00:00' ? p.d.slice(11,16) : '';
+// Calendario de un equipo en un formato común: el de la API de iSquad (todos, con resultado) o, si no hay, el del
+// listado de partidos (solo próximos). {d, t, conf, est, l, v, rl, rv, pab, pista, comp, mineLocal}
+function teamCal(f){
+  const cal=EQ.calendario[f.id_equipo];
+  if(cal) return cal.map(m=>({...m, mineLocal: m.idl===f.id_equipo}));
+  return EQ.partidos.filter(p=>plays(f,p)).map(p=>({d:p.d.slice(0,10), t:p.d.slice(11,16)==='00:00'?'':p.d.slice(11,16), conf:p.c,
+    est:'Pendiente', l:p.l, v:p.v, rl:null, rv:null, pab:p.pab, pista:p.pista, comp:`${p.cat} ${p.comp}`, mineLocal: p.cl===f.club_id && norm(p.l)===norm(f.team)}));
+}
+// Todos los partidos de mis equipos, sin repetir (si juegan 2 equipos que sigo, cuenta el mío).
+function teamItems(){
+  const seen=new Map();
+  for(const f of [...EQ.favs].sort((a,b)=>(a.rol?0:1)-(b.rol?0:1))) for(const m of teamCal(f)){
+    const k=`${m.d}|${norm(m.l)}|${norm(m.v)}`; if(!seen.has(k)) seen.set(k,{m,f});
+  }
+  return [...seen.values()];
+}
+const isDone = m => /FINALIZ/i.test(m.est);
+const isPending = m => /PENDIENTE/i.test(m.est) || !m.est;
+const hasTime = m => !!(m.t && m.conf);
+// Etiqueta de estado: jugado (con resultado), por jugar con horario, sin horario (o provisional), suspendido...
+function stChip(m){
+  if(isDone(m)){
+    if(m.rl==null||m.rv==null) return '<span class="st sus">Jugado</span>';
+    const mine = m.mineLocal ? [m.rl,m.rv] : [m.rv,m.rl];
+    return `<span class="st ${mine[0]>mine[1]?'win':'loss'}">${mine[0]>mine[1]?'Ganado':'Perdido'} ${mine[0]}-${mine[1]}</span>`;
+  }
+  if(!isPending(m)) return `<span class="st sus">${esc(capName(m.est))}</span>`;
+  if(hasTime(m)) return `<span class="st hora">Por jugar · ${esc(m.t)}</span>`;
+  if(m.t) return `<span class="st prov">Por jugar · ${esc(m.t)} sin confirmar</span>`;
+  return '<span class="st sin">Por jugar · sin horario</span>';
+}
+const nextOf = f => { const t=today(); return teamCal(f).filter(m=>m.d>=t && isPending(m)).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t))[0]; };
+const lastOf = f => teamCal(f).filter(isDone).sort((a,b)=>(b.d+b.t).localeCompare(a.d+a.t))[0];
+const vs = m => `${m.mineLocal?`<b>${esc(capName(m.l))}</b>`:esc(capName(m.l))} – ${!m.mineLocal?`<b>${esc(capName(m.v))}</b>`:esc(capName(m.v))}`;
 function renderEquipos(){
   const favs=[...EQ.favs].sort((a,b)=>(a.rol?0:1)-(b.rol?0:1) || a.team.localeCompare(b.team));
   $('eqFavs').innerHTML = favs.length ? favs.map(f=>{
-    const [k,txt]=rolKind(f.rol), n=nextOf(f);
-    const next = n ? `Próximo: ${esc(fmtShort(n.d.slice(0,10)))}${pTime(n)?' a las '+pTime(n):' (hora por confirmar)'} · ${esc(capName(n.l))} – ${esc(capName(n.v))}` : 'Sin partidos programados';
-    return `<div class="eq-row"><div><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}</div><div class="nx">${next}</div></div><button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div>`;
+    const [k,txt]=rolKind(f.rol), n=nextOf(f), l=lastOf(f), cal=teamCal(f);
+    const next = n ? `Próximo: ${esc(fmtTiny(n.d))} · ${vs(n)} ${stChip(n)}` : 'Sin partidos pendientes';
+    const last = l ? `<div class="nx">Último: ${esc(fmtTiny(l.d))} · ${vs(l)} ${stChip(l)}</div>` : '';
+    const calHtml = cal.length ? `<details class="cal" data-cal="${esc(favKey(f))}"${CAL_OPEN.has(favKey(f))?' open':''}><summary>Calendario de la temporada (${cal.length})</summary>${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}</span>${stChip(m)}</div>`).join('')}</details>` : '';
+    return `<div class="eq-row"><div style="flex:1;min-width:0"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}</div>${last}<div class="nx">${next}</div>${calHtml}</div><button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div>`;
   }).join('') : '<p class="muted small">No te he encontrado en ninguna plantilla de la FCVB de esta temporada. Si juegas o entrenas, busca tu equipo abajo y síguelo; también puedes seguir cualquier otro equipo.</p>';
   const ix=EQ.indice, auto=EQ.favs.filter(f=>f.auto).length;
   $('eqAuto').innerHTML = auto ? `Te he encontrado en ${auto} plantilla${auto===1?'':'s'} de la FCVB por tu foto de afiliado de iSquad.` : '';
@@ -1137,6 +1192,8 @@ function renderEquipos(){
   const teams=(EQ_RES.equipos||[]).map((t,i)=>{ const on=isFav(t); return `<div class="eq-row"><div><div class="n">${esc(capName(t.team))}</div><div class="s">${esc(capName(t.cat))} · ${esc(capName(t.club||''))}</div></div><button class="${on?'on':''}" data-fav="${i}">${on?'★ Siguiendo':'☆ Seguir'}</button></div>`; }).join('');
   $('eqRes').innerHTML = (clubs||teams) ? `<div class="eq-list">${clubs}${teams}</div>` : '<p class="muted small">No he encontrado ningún equipo ni club con ese nombre.</p>';
 }
+const CAL_OPEN=new Set();
+$('eqFavs').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-cal]'); if(d) d.open ? CAL_OPEN.add(d.dataset.cal) : CAL_OPEN.delete(d.dataset.cal); }, true);
 let eqTimer=null;
 $('eqQ').addEventListener('input', e=>{
   clearTimeout(eqTimer); const q=e.target.value.trim();
@@ -1186,19 +1243,20 @@ function renderAgenda(allMs,res){
   const pool=allMs.filter(m=>passes(m) && !isTerritorial(m));
   const up=pool.filter(m=>m.date>=t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   const past=pool.filter(m=>m.date<t && seasonOf(m.date)===SEASON).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
-  // Partidos de mis equipos (solo próximos: la web pública da los partidos desde hoy).
-  const eqUp = AGENDA==='proximos' ? EQ.partidos.map(p=>({p, f:teamOfMatch(p)})).filter(x=>x.f && x.p.d.slice(0,10)>=t
-    && passes({comp:`${x.p.cat} ${x.p.comp}`, id:'EQ', staff_checked:null})) : [];
+  // Partidos de mis equipos: los pendientes van a Próximos; los jugados (con resultado), a Jugados.
+  const eqAll = teamItems().filter(x=>passes({comp:`${x.f.cat} ${x.m.comp}`, id:'EQ', staff_checked:null}));
+  const eqUp = eqAll.filter(x=>x.m.d>=t && !isDone(x.m));
+  const eqPast = eqAll.filter(x=>(isDone(x.m) || x.m.d<t) && seasonOf(x.m.d)===SEASON);
   const toMin = (ds,tm) => new Date(ds+'T'+(tm||'12:00')+':00').getTime()/6e4;
-  // Choque: juegas o entrenas el mismo día a menos de 2 h 30 min de un arbitraje.
+  // Choque: juegas o entrenas el mismo día a menos de 2 h 30 min de un arbitraje (o ese día sin horario).
   const clashes = new Map();
-  for(const x of eqUp){ if(!x.f.rol) continue;
-    for(const m of up){ if(m.date!==x.p.d.slice(0,10)) continue;
-      if(!pTime(x.p) || Math.abs(toMin(m.date,m.time)-toMin(m.date,pTime(x.p)))<150){ (clashes.get(m.id)||clashes.set(m.id,[]).get(m.id)).push(x); (clashes.get(x)||clashes.set(x,[]).get(x)).push(m); } } }
+  for(const x of eqUp){ if(!x.f.rol || !isPending(x.m)) continue;
+    for(const m of up){ if(m.date!==x.m.d) continue;
+      if(!x.m.t || Math.abs(toMin(m.date,m.time)-toMin(m.date,x.m.t))<150){ (clashes.get(m.id)||clashes.set(m.id,[]).get(m.id)).push(x); (clashes.get(x)||clashes.set(x,[]).get(x)).push(m); } } }
   const list = AGENDA==='proximos'
-    ? [...up.map(m=>({m, k:m.date+m.time})), ...eqUp.map(x=>({x, k:x.p.d.slice(0,10)+(pTime(x.p)||'99:99')}))].sort((a,b)=>a.k.localeCompare(b.k))
-    : past.map(m=>({m, k:m.date+m.time}));
-  let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${up.length + (AGENDA==='proximos'?eqUp.length:0)})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${past.length})</button></div>`;
+    ? [...up.map(m=>({m, k:m.date+m.time})), ...eqUp.map(x=>({x, k:x.m.d+(x.m.t||'99:99')}))].sort((a,b)=>a.k.localeCompare(b.k))
+    : [...past.map(m=>({m, k:m.date+m.time})), ...eqPast.map(x=>({x, k:x.m.d+(x.m.t||'00:00')}))].sort((a,b)=>b.k.localeCompare(a.k));
+  let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${up.length+eqUp.length})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${past.length+eqPast.length})</button></div>`;
   if(!list.length){
     html += AGENDA==='proximos'
       ? `<div class="empty">No tienes partidos designados próximamente${filtering()?' con estos filtros':''}. En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.</div>`
@@ -1211,12 +1269,13 @@ function renderAgenda(allMs,res){
     html+=`<section class="ag-day"><h3><span>${esc(fmtShort(ds).replace(/^./,c=>c.toUpperCase()))}</span><span class="when${soon?' soon':''}">${w}</span></h3>`;
     for(const it of dl){
       if(it.x){
-        const {p,f}=it.x, [k,txt]=rolKind(f.rol), mine=norm(p.l)===norm(f.team)&&p.cl===f.club_id;
+        const {m:p,f}=it.x, [k,txt]=rolKind(f.rol), done=isDone(p);
         const cl=(clashes.get(it.x)||[]).map(m=>m.time).join(' y ');
-        html+=`<article class="ag eq"><div class="t">${pTime(p)||'—'}</div><div>
-          <div class="comp"><span class="kind ${k}">${txt}</span>${esc(capName(p.cat)+(/FEMENINO|MASCULINO|MIXTO/.test(norm(p.cat))?'':genOf(p)))}${pTime(p)?'':' · hora por confirmar'}</div>
-          <div class="teams">${mine?`<b>${esc(p.l)}</b>`:esc(p.l)} vs ${!mine?`<b>${esc(p.v)}</b>`:esc(p.v)}</div>
-          <div class="where"><div><strong>${esc(capName(p.pab||'Pabellón por confirmar'))}</strong><div class="addr">${esc(capName(p.pista||''))}</div></div>${p.pab?`<a class="map" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.pab+' Catalunya')}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>
+        html+=`<article class="ag eq${done?' done':''}"><div class="t">${hasTime(p)?esc(p.t):(p.t?esc(p.t)+'?':'—')}</div><div>
+          <div class="comp"><span class="kind ${k}">${txt}</span>${esc(capName(p.comp||f.cat))}</div>
+          <div class="teams">${vs(p)}${done&&p.rl!=null?`<span class="res">${p.rl}-${p.rv}</span>`:''}</div>
+          <div style="margin:0 0 8px">${stChip(p)}</div>
+          ${!done?`<div class="where"><div><strong>${esc(capName(p.pab||'Pabellón por confirmar'))}</strong><div class="addr">${esc(capName(p.pista||''))}</div></div>${p.pab?`<a class="map" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.pab+' Catalunya')}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>`:''}
           ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}
         </div></article>`;
         continue;
@@ -1233,7 +1292,7 @@ function renderAgenda(allMs,res){
         ${crew}
         <div class="where"><div><strong>${esc(VENUES[m.venue_key]?.label || m.venue || 'Pabellón sin indicar')}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?`<a class="map" href="${mapsUrl(m)}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>
         <div class="meta">${km?`${km} km`:''}${km&&r?' · ':''}${r?`${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}</div>
-        ${(clashes.get(m.id)||[]).length?`<div class="clash">⚠ Ese día ${(clashes.get(m.id)).map(x=>`${rolKind(x.f.rol)[1].toLowerCase()} con ${esc(capName(x.f.team))}${pTime(x.p)?' a las '+pTime(x.p):' (hora por confirmar)'}`).join(' y ')}</div>`:''}
+        ${(clashes.get(m.id)||[]).length?`<div class="clash">⚠ Ese día ${(clashes.get(m.id)).map(x=>`${rolKind(x.f.rol)[1].toLowerCase()} con ${esc(capName(x.f.team))}${x.m.t?' a las '+x.m.t+(x.m.conf?'':' (sin confirmar)'):' (sin horario)'}`).join(' y ')}</div>`:''}
       </div></article>`;
     }
     html+='</section>';
