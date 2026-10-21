@@ -350,7 +350,14 @@ I.exact = {
 "Idioma": "Idioma",
 "¿Quitar este partido de la lista?": "Vols treure aquest partit de la llista?",
 "Se borrará tu contraseña de iSquad guardada y todos tus partidos y ajustes. No se puede deshacer.": "S'esborrarà la contrasenya d'iSquad desada i tots els teus partits i la configuració. No es pot desfer.",
-"La app se muestra en": "L'app es mostra en"
+"La app se muestra en": "L'app es mostra en",
+"Designaciones publicadas (FCVB)": "Designacions publicades (FCVB)",
+"Solo lo ves tú. Qué categorías tienen ya partidos designados el próximo fin de semana, en toda la federación (de las fichas públicas de los árbitros en iSquad).": "Només el veus tu. Quines categories ja tenen partits designats el proper cap de setmana, a tota la federació (de les fitxes públiques dels àrbitres a iSquad).",
+"Ábrelo para cargarlo (tarda unos segundos).": "Obre'l per carregar-lo (triga uns segons).",
+"Cargando…": "Carregant…",
+"Leyendo las fichas de los árbitros en iSquad…": "Llegint les fitxes dels àrbitres a iSquad…",
+"Actualizar": "Actualitza",
+"Sin categoría reconocida": "Sense categoria reconeguda"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
@@ -387,6 +394,10 @@ I.rules = [
   [/^(.+) vuelve a salir en Mis partidos$/, '$1 torna a sortir a Els meus partits'],
   [/^(.+) ya no sale en Mis partidos$/, '$1 ja no surt a Els meus partits'],
   [/^Temporada (\d\d\/\d\d)$/, 'Temporada $1'],
+  [/^Con designaciones · (.+)$/, 'Amb designacions · $1'], [/^Sin designaciones · (.+)$/, 'Sense designacions · $1'], [/^Algunas · (.+)$/, 'Algunes · $1'],
+  [/^(\d+) designados$/, '$1 designats'],
+  [/^Del (.+) al (.+) · (\d+) partidos designados de (\d+) · leído (.+)$/, 'Del $1 al $2 · $3 partits designats de $4 · llegit $5'],
+  [/^(1ª|2ª|3ª|4ª|Superliga 2|Superliga|Preferente)? ?(Sénior|Júnior|Juvenil|Cadete|Infantil|Alevín|Amateur)? ?(Femenino|Masculino|Mixto)?$/, (m,d,a,g) => (d||a||g) ? [({'1ª':'1a','2ª':'2a','3ª':'3a','4ª':'4a','Superliga':'Superlliga','Superliga 2':'Superlliga 2','Preferente':'Preferent'})[d], ({'Sénior':'Sènior','Cadete':'Cadet','Alevín':'Aleví'})[a]||a, ({'Femenino':'Femení','Masculino':'Masculí','Mixto':'Mixt'})[g]].filter(Boolean).join(' ') : null],
   [/^Desplazamiento y dieta según los recibos de la FCVB \(la app calculaba (.+); la FCVB reparte los gastos del día entre los partidos\)$/, "Desplaçament i dieta segons els rebuts de la FCVB (l'app calculava $1; la FCVB reparteix les despeses del dia entre els partits)"],
   [/^· (.+)$/, (m,r) => I.exact[r] ? `· ${I.exact[r]}` : null],
   [/^Total temporada (.+)$/, 'Total temporada $1'],

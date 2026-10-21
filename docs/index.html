@@ -230,6 +230,11 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .rank-ctrl{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
 .rank{width:100%;border-collapse:collapse}
 .rank td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+.dg-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13.5px;color:var(--ink-2)}
+.dg-grp{font-family:var(--display);font-size:19px;font-weight:600;margin:16px 0 4px;border-bottom:2px solid var(--rule);padding-bottom:2px}
+.dg-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.dg-row .st{flex:none}
+.st.part{background:var(--surface);color:var(--ink);border:1px solid var(--yellow)}
 .rank td.pos{font-family:var(--display);font-weight:700;font-size:20px;width:34px;color:var(--ink-3)}
 .rank tr:nth-child(-n+3) td.pos{color:var(--ink)}
 .rank td.v{text-align:right;font-weight:700;white-space:nowrap;width:110px}
@@ -480,6 +485,12 @@ details.cal[open]>summary::before{content:"▾ "}
       </select></label>
     </div>
     <table class="rank" id="rankTable"></table>
+  </details>
+
+  <details class="panel hidden" id="desigPanel">
+    <summary>Designaciones publicadas (FCVB)</summary>
+    <p class="small muted">Solo lo ves tú. Qué categorías tienen ya partidos designados el próximo fin de semana, en toda la federación (de las fichas públicas de los árbitros en iSquad).</p>
+    <div id="desigBody"><p class="small muted">Ábrelo para cargarlo (tarda unos segundos).</p></div>
   </details>
 
   <details class="panel">
@@ -1667,6 +1678,7 @@ const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpper
 async function loadRanking(){
   if(GUEST) return;
   const r = await callFn('ranking'); if(!r.ok){ $('rankPanel').classList.add('hidden'); return; }
+  $('desigPanel').classList.remove('hidden');
   RANK=r.arbitros;
   const seasons=[...new Set(RANK.flatMap(a=>Object.keys(a.temporadas)))].sort().reverse();
   $('rankSeason').innerHTML=seasons.map(s=>`<option value="${s}"${s===SEASON?' selected':''}>${seasonLabel(s)}</option>`).join('');
@@ -1683,6 +1695,35 @@ function renderRanking(){
     || '<tr><td class="muted">Nadie tiene datos de esto en esta temporada.</td></tr>';
 }
 $('rankSeason').addEventListener('change', renderRanking);
+
+/* ---------- Designaciones publicadas (solo admins) ---------- */
+let DESIG=null, DESIG_BUSY=false;
+async function loadDesig(refresh){
+  if(DESIG_BUSY) return; DESIG_BUSY=true;
+  $('desigBody').innerHTML = `<p class="small muted">${refresh?'Leyendo las fichas de los árbitros en iSquad…':'Cargando…'}</p>`;
+  const r = await callFn('designadas', refresh?{refresh:true}:{}); DESIG_BUSY=false;
+  if(!r.ok){ $('desigBody').innerHTML = `<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; return; }
+  DESIG=r; renderDesig();
+}
+function renderDesig(){
+  const r=DESIG; if(!r) return;
+  const AGE=[['SEN','Sénior'],['JUN','Júnior'],['JUV','Juvenil'],['CAD','Cadete'],['INF','Infantil'],['ALE','Alevín'],['AMA','Amateur'],['OTRA','Otras']];
+  const DIV={SL:'Superliga',SL2:'Superliga 2','1':'1ª','2':'2ª','3':'3ª','4':'4ª',PREF:'Preferente',MA:'',OTROS:''};
+  const DORD=['SL','SL2','1','2','3','4','PREF','MA','OTROS'], GEN={F:'Femenino',M:'Masculino',X:'Mixto'};
+  const rows=r.categorias.map(c=>{ const p=compParts(c.cat); const age=/AMATEUR/.test(norm(c.cat))?'AMA':p.age; const div=/AMATEUR PRIMERA/.test(norm(c.cat))?'1':/AMATEUR SEGUNDA/.test(norm(c.cat))?'2':p.div; return {...c, age, div, gen:p.gen}; });
+  const chip=c=> c.desig===0 ? `<span class="st sin">Sin designaciones · 0/${c.total}</span>`
+    : c.desig/c.total>=0.5 ? `<span class="st win">Con designaciones · ${c.desig}/${c.total}</span>` : `<span class="st part">Algunas · ${c.desig}/${c.total}</span>`;
+  let html=`<div class="dg-head"><span>Del ${esc(fmtTiny(r.desde))} al ${esc(fmtTiny(r.hasta))} · ${r.designados} partidos designados de ${r.partidos} · leído ${esc(ago(r.actualizado))}</span><button class="ghost" id="dgRefresh">Actualizar</button></div>`;
+  for(const [a,al] of AGE){
+    const list=rows.filter(x=>x.age===a).sort((x,y)=>DORD.indexOf(x.div)-DORD.indexOf(y.div) || (x.gen||'').localeCompare(y.gen||''));
+    if(!list.length) continue;
+    html+=`<div class="dg-grp">${al}</div>`+list.map(c=>`<div class="dg-row"><span>${esc([DIV[c.div],al==='Alevín'||al==='Amateur'&&!DIV[c.div]?'':al,GEN[c.gen]||''].filter(Boolean).join(' ')||capName(c.cat))}</span>${chip(c)}</div>`).join('');
+  }
+  if(r.otras?.length) html+=`<div class="dg-grp">Sin categoría reconocida</div>`+r.otras.map(o=>`<div class="dg-row"><span>${esc(capName(o.comp))}</span><span class="st win">${o.n} designados</span></div>`).join('');
+  $('desigBody').innerHTML=html;
+  $('dgRefresh').onclick=()=>loadDesig(true);
+}
+$('desigPanel').addEventListener('toggle', e=>{ if(e.target.open && !DESIG) loadDesig(false); });
 $('rankMetric').addEventListener('change', renderRanking);
 
 function show(v){

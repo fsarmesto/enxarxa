@@ -9,7 +9,7 @@ poder seguir desde otra máquina. **El repo es público: aquí no van claves, co
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/liquidacion-arbitral-fcvb/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
   - Migraciones en `supabase/migrations` (001…005). Se aplican con `db push`, en orden.
@@ -34,7 +34,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account ranking notify equipos indexar vigilar coche; do
+for f in auth-isquad sync delete-account ranking notify equipos indexar vigilar coche designadas; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -168,6 +168,15 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   texto castellano exacto). Para encontrar lo que falta: recorrer la app en Chrome sin ventana con la app en catalán,
   recoger los textos visibles y buscar palabras castellanas (así se hizo el 21-oct).
 - Sin traducir: el Excel exportado y las notificaciones push (se generan en el servidor en castellano).
+
+## Panel de designaciones publicadas (admin, 21-oct-2026)
+
+- Función `designadas` (solo `ADMIN_LOGINS`): qué categorías tienen partidos designados de hoy al domingo, en toda
+  la FCVB. Fuente pública: `partidos_arbitro.php?id_arbitro=` (~0,5 KB, windows-1252) de cada árbitro de
+  `listado_arbitros.php` (~454; `partidos_arbitro_territorial.php` da 500), de 10 en 10 (~8 s). Cada designación
+  ("LOCAL - VISITANTE", fecha en texto) se cruza con el listado de partidos por fecha y local o visitante; si no,
+  por la competición (`compToCat`: "1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO). Caché `desig-global` 1 h.
+- En la web, panel "Designaciones publicadas (FCVB)" junto al ranking, se carga al abrirlo.
 
 ## Avisos al momento (función vigilar, 21-oct-2026)
 
