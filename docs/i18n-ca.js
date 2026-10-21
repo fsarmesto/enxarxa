@@ -405,7 +405,8 @@ I.exact = {
 "Grupo no válido": "Grup no vàlid",
 "Equipo no válido": "Equip no vàlid",
 "El email con el que entras en iSquad": "L'email amb què entres a iSquad",
-"Es tu email, no tu nombre ni tu DNI.": "És el teu email, no el teu nom ni el teu DNI."
+"Es tu email, no tu nombre ni tu DNI.": "És el teu email, no el teu nom ni el teu DNI.",
+"Tus partidos de la FCVB en un solo sitio: horarios, resultados, clasificación y avisos de tus equipos. Si arbitras, también tus designaciones y cobros (tarifas, dietas y desplazamientos).": "Els teus partits de la FCVB en un sol lloc: horaris, resultats, classificació i avisos dels teus equips. Si arbitres, també les teves designacions i cobraments (tarifes, dietes i desplaçaments)."
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
