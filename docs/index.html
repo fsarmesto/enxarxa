@@ -215,6 +215,33 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .pushcard{display:flex;gap:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:2px solid var(--ink);padding:12px 14px;margin:0 0 22px;font-size:14.5px}
 .pushcard .btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .pushcard strong{font-weight:700}
+/* Vistas: Cobros / Mis partidos */
+.views{display:flex;gap:0;margin:0 0 22px;border:2px solid var(--ink);border-radius:3px;overflow:hidden;width:max-content;max-width:100%}
+.views button{border:0;border-radius:0;padding:10px 22px;font-family:var(--display);font-size:19px;font-weight:600;background:transparent;color:var(--ink)}
+.views button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.subviews{display:flex;gap:8px;margin:0 0 16px}
+.subviews button{border-width:2px;padding:5px 14px;font-size:14px}
+.subviews button[aria-pressed="true"]{background:var(--yellow);border-color:var(--yellow);color:#000}
+/* Agenda */
+.ag-day{margin:0 0 22px}
+.ag-day h3{font-family:var(--display);font-size:21px;font-weight:600;margin:0 0 8px;padding-bottom:4px;border-bottom:3px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ag-day h3 .when{font-family:"Barlow",system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-3)}
+.ag-day h3 .when.soon{color:var(--pend)}
+.ag{display:grid;grid-template-columns:70px 1fr;gap:4px 14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.ag:last-child{border-bottom:0}
+.ag .t{font-family:var(--display);font-weight:700;font-size:26px;line-height:1}
+.ag .comp{font-weight:700}
+.ag .teams{font-size:15px;margin:2px 0 8px}
+.crew{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.crew span{font-size:13px;padding:3px 9px;border-radius:2px;background:var(--surface-2);color:var(--ink)}
+.crew span b{font-weight:700;margin-right:5px;color:var(--ink-3)}
+.crew span.me{background:var(--yellow);color:#000}
+.crew span.me b{color:#000}
+.where{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:14px}
+.where .addr{color:var(--ink-2);font-size:13px}
+.where a.map{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:5px 12px;color:var(--ink);text-decoration:none;white-space:nowrap}
+.ag .meta{font-size:13px;color:var(--ink-3);margin-top:6px}
+@media (max-width:560px){ .ag{grid-template-columns:1fr} .ag .t{font-size:24px} }
 .pushcard a.go,#pushBtns a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
 </style>
 </head>
@@ -274,6 +301,10 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
     <p class="sync" id="syncInfo"></p>
     <p class="sync" id="irpfInfo"></p>
   </div>
+  <div class="views" id="views" role="tablist">
+    <button type="button" data-view="cobros" role="tab">Cobros</button>
+    <button type="button" data-view="agenda" role="tab">Mis partidos</button>
+  </div>
   <div class="banner hidden" id="banner"></div>
   <div class="alerts" id="alerts"></div>
   <div class="pushcard hidden" id="pushCard"></div>
@@ -281,6 +312,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
   <div class="filters" id="filters"></div>
   <div class="fsum hidden" id="fsum"></div>
   <div id="ledger"></div>
+  <div id="agenda" class="hidden"></div>
 
   <details class="panel hidden" id="rankPanel">
     <summary>Ranking de árbitros</summary>
@@ -717,6 +749,9 @@ function render(){
 
   const led = $('ledger');
   renderFilters(ms,res);
+  for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.view===VIEW));
+  led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda');
+  if(VIEW==='agenda'){ renderAgenda(allMs,res); renderSettings(); return; }
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
@@ -1017,6 +1052,60 @@ function renderPush(){
   on('pOn',pushOn); on('cOn',pushOn); on('pOff',pushOff); on('pTest',pushTest); on('pInstall',install); on('cInstall',install);
   on('cNo',()=>{ try{ localStorage.setItem(PUSH_DISMISS,'1'); }catch(e){} renderPush(); });
 }
+
+/* ---------- Mis partidos (agenda) ---------- */
+const VIEW_KEY='liq-vista';
+let VIEW='cobros', AGENDA='proximos';
+try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
+const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
+const crewLabel=(m,f)=> f==='r2' && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIGA ?2/.test(norm(m.comp)) ? 'Juez de línea' : (CREW_LABEL[f] || capName(f));
+// Dirección legible: sin el país del final y en minúsculas con mayúscula inicial (iSquad la da en mayúsculas).
+const niceAddr = a => capName(String(a||'').replace(/,\s*(ESPA[ÑñN]A|ESPANYA|SPAIN)\s*$/i,'').replace(/ñ/g,'Ñ')).replace(/\b(De|Del|Dels|Des|La|Les|El|Els|I|D'|L')\b/g, w=>w.toLowerCase()).replace(/(^|,\s*)(\S)/g,(x,p,c)=>p+c.toUpperCase());
+const mapsUrl = m => 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(m.addr || m.venue || '');
+function whenLabel(ds){
+  const d=Math.round((new Date(ds+'T12:00:00')-new Date(today()+'T12:00:00'))/864e5);
+  return d===0?'Hoy': d===1?'Mañana': d===-1?'Ayer': d>1?`En ${d} días`:`Hace ${-d} días`;
+}
+function renderAgenda(allMs,res){
+  const box=$('agenda'), t=today();
+  const pool=allMs.filter(m=>passes(m) && !isTerritorial(m));
+  const up=pool.filter(m=>m.date>=t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const past=pool.filter(m=>m.date<t && seasonOf(m.date)===SEASON).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const list = AGENDA==='proximos' ? up : past;
+  let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${up.length})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${past.length})</button></div>`;
+  if(!list.length){
+    html += AGENDA==='proximos'
+      ? `<div class="empty">No tienes partidos designados próximamente${filtering()?' con estos filtros':''}. En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.</div>`
+      : `<div class="empty">No hay partidos jugados en esta temporada${filtering()?' con estos filtros':''}.</div>`;
+    box.innerHTML=html; return;
+  }
+  const days=new Map(); for(const m of list) (days.get(m.date)||days.set(m.date,[]).get(m.date)).push(m);
+  for(const [ds,dl] of days){
+    const w=whenLabel(ds), soon = ds>=t && (w==='Hoy'||w==='Mañana');
+    html+=`<section class="ag-day"><h3><span>${esc(fmtShort(ds).replace(/^./,c=>c.toUpperCase()))}</span><span class="when${soon?' soon':''}">${w}</span></h3>`;
+    for(const m of dl.sort((a,b)=>a.time.localeCompare(b.time))){
+      const crew = Array.isArray(m.crew) && m.crew.length
+        ? `<div class="crew">${m.crew.map(c=>`<span class="${c.me?'me':''}"><b>${esc(crewLabel(m,c.f))}</b>${c.me?'Tú':esc(capName(c.n))}</span>`).join('')}</div>`
+        : `<div class="crew"><span class="muted">El equipo arbitral se leerá de iSquad en la próxima actualización</span></div>`;
+      const city=(m.addr||'').match(/\d{5}\s+([^,]+)/), r=res.get(m.id), km=kmFor(m);
+      const est = m.estado && m.estado!=='FINALIZADO' ? ` · ${esc(m.estado.toLowerCase())}` : '';
+      html+=`<article class="ag"><div class="t">${esc(m.time)}</div><div>
+        <div class="comp">${esc(m.comp)}${est}</div>
+        <div class="teams">${esc(m.teams)}</div>
+        ${crew}
+        <div class="where"><div><strong>${esc(VENUES[m.venue_key]?.label || m.venue || 'Pabellón sin indicar')}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?`<a class="map" href="${mapsUrl(m)}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>
+        <div class="meta">${km?`${km} km`:''}${km&&r?' · ':''}${r?`${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}</div>
+      </div></article>`;
+    }
+    html+='</section>';
+  }
+  box.innerHTML=html;
+}
+$('agenda').addEventListener('click', e=>{ const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
+$('views').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-view]'); if(!b) return;
+  VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();
+});
 
 /* ---------- Ranking ---------- */
 let RANK=null;

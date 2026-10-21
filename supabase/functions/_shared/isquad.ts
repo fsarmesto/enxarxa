@@ -19,7 +19,10 @@ export type ScrapedMatch = {
   fcvb_limite?: string | null; fcvb_accion?: string | null; fcvb_campo?: boolean | null;
 };
 // Rol del árbitro y composición del equipo arbitral, sacados de "Ver Designación".
-export type Staff = { role: "r1" | "r2" | "an" | "jl"; team: "t1" | "t2a" | "t2b" | "t3" };
+export type Staff = { role: "r1" | "r2" | "an" | "jl"; team: "t1" | "t2a" | "t2b" | "t3"; crew?: Crew[] };
+// Equipo arbitral tal como sale en la designación: función ("r1", "r2", "an", "jl" o el texto de iSquad), nombre y si
+// es el propio árbitro. Solo el nombre: ni teléfonos ni correos.
+export type Crew = { f: string; n: string; me: boolean };
 
 type Jar = Map<string, string>;
 function keep(jar: Jar, res: Response) {
@@ -117,12 +120,13 @@ export function parseStaff(html: string, me: string[]): Staff | null {
   // deno-lint-ignore no-explicit-any
   const table = [...document.querySelectorAll("table")].find((t: any) => /EQUIPO ARBITRAL/i.test(t.textContent || ""));
   if (!table || !me.length) return null;
-  const people: { fn: string; mine: boolean }[] = [];
+  const people: { fn: string; mine: boolean; name: string }[] = [];
   for (const tr of table.querySelectorAll("tbody tr")) {
     const [a, b] = tr.querySelectorAll("td");
     if (!a || !b) continue;
-    const who = new Set(nameWords(b.childNodes?.[0]?.textContent || b.textContent || ""));
-    people.push({ fn: norm(a.textContent), mine: me.every((w) => who.has(w)) });
+    const name = (b.childNodes?.[0]?.textContent || b.textContent || "").replace(/\\(['"])/g, "$1").replace(/\s+/g, " ").trim();
+    const who = new Set(nameWords(name));
+    people.push({ fn: norm(a.textContent), mine: me.every((w) => who.has(w)), name });
   }
   const refs = people.filter((p) => /^ARBITRO/.test(p.fn));
   const scorers = people.filter((p) => /ANOTADOR/.test(p.fn));
@@ -130,7 +134,11 @@ export function parseStaff(html: string, me: string[]): Staff | null {
   if (!mine) return null;
   const team = refs.length >= 2 ? (scorers.length ? "t3" : "t2a") : (scorers.length ? "t2b" : "t1");
   const role = /ANOTADOR/.test(mine.fn) ? "an" : /LINEA/.test(mine.fn) ? "jl" : refs.indexOf(mine) === 1 ? "r2" : "r1";
-  return { role, team };
+  const crew: Crew[] = people.filter((p) => p.name).map((p) => ({
+    f: /ANOTADOR/.test(p.fn) ? "an" : /LINEA/.test(p.fn) ? "jl" : /^ARBITRO/.test(p.fn) ? (refs.indexOf(p) === 1 ? "r2" : "r1") : p.fn,
+    n: p.name, me: p.mine,
+  }));
+  return { role, team, crew };
 }
 
 async function fetchStaff(jar: Jar, desigId: string, me: string[]): Promise<Staff | null> {
@@ -195,7 +203,8 @@ export async function fetchDesignaciones(
   if (opts.needStaff) {
     const me = ownName(html);
     let n = 0;
-    for (const m of all) {
+    // Primero los más nuevos: los próximos partidos son los que más importan si no da tiempo a todos.
+    for (const m of [...all].sort((x, y) => (y.date + y.time).localeCompare(x.date + x.time))) {
       // Al acercarse la hora límite se deja de abrir designaciones: las que falten, en la siguiente pasada.
       if (opts.deadline && Date.now() > opts.deadline - 10_000) break;
       if (!m.desig_id || !opts.needStaff(m) || n++ >= STAFF_MAX_PER_RUN) continue;

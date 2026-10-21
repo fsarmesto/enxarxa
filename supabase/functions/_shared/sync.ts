@@ -345,10 +345,21 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
       for (const m of data || []) checked.add(m.id);
       if (!data || data.length < 1000) break;
     }
+    // Equipo arbitral con nombres (desde el 21-oct-2026): los partidos de esta temporada que aún no lo tienen se
+    // vuelven a abrir poco a poco (como mucho STAFF_MAX_PER_RUN por pasada).
+    const withCrew = new Set<string>();
+    for (let from = 0; ; from += 1000) {
+      const { data } = await db.from("matches").select("id").eq("user_id", userId).not("crew", "is", null)
+        .order("id").range(from, from + 999);
+      for (const m of data || []) withCrew.add(m.id);
+      if (!data || data.length < 1000) break;
+    }
+    const now = new Date(), seasonStart = `${now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1}-08-01`;
     const recent = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
     let nombre = "";
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
-      needStaff: (m: ScrapedMatch) => !checked.has(m.id) || m.date >= recent, deadline: opts.deadline,
+      needStaff: (m: ScrapedMatch) => !checked.has(m.id) || m.date >= recent || (!withCrew.has(m.id) && m.date >= seasonStart),
+      deadline: opts.deadline,
       onName: (n) => { nombre = n; },
     });
     if (nombre) await db.from("profiles").update({ nombre }).eq("user_id", userId);
