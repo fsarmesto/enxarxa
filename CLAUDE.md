@@ -9,16 +9,19 @@ poder seguir desde otra máquina. **El repo es público: aquí no van claves, co
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/liquidacion-arbitral-fcvb/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
   - Migraciones en `supabase/migrations` (001…005). Se aplican con `db push`, en orden.
-  - Cron (pg_cron + pg_net, `supabase/cron.sql`): `0 7,15 * * *` UTC (9:00 y 17:00 en verano).
+  - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
+    `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20).
 
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
 `CREDS_KEY` (cifra las contraseñas de iSquad; si se pierde, cada usuario solo tiene que volver a entrar),
-`CRON_SECRET`, `ORS_KEY` (OpenRouteService), contraseña de la base de datos. `ALLOWED_LOGINS` está vacío:
+`CRON_SECRET`, `ORS_KEY` (OpenRouteService), contraseña de la base de datos, `ADMIN_LOGINS` (quién ve el ranking),
+`VAPID_PUBLIC`/`VAPID_PRIVATE`/`VAPID_SUBJECT` (notificaciones; la pública también va en `docs/config.js`; si se
+cambian, todas las suscripciones dejan de valer y cada árbitro tiene que volver a activarlo). `ALLOWED_LOGINS` está vacío:
 puede entrar cualquier árbitro con cuenta de iSquad. Para desplegar hace falta un token personal de Supabase
 (`SUPABASE_ACCESS_TOKEN`, se crea en supabase.com/dashboard/account/tokens) y acceso de escritura al repo.
 
@@ -29,7 +32,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account ranking; do
+for f in auth-isquad sync delete-account ranking notify; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -95,6 +98,16 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `store()`, que en ese modo no hace nada; recargar = salir.
 - Ranking: función `ranking`, solo para los usuarios de iSquad del secret `ADMIN_LOGINS` (comprobado en el servidor
   con la sesión). La web muestra el panel solo si la función responde.
+
+## App instalable y recordatorio del domingo (21-oct-2026)
+
+- PWA: `manifest.webmanifest`, iconos PNG (`icon-192/512`, `icon-maskable`, `apple-touch-icon`), `sw.js` (solo
+  notificaciones, sin caché a propósito: la app se carga siempre de la red). En iPhone las notificaciones solo
+  funcionan con la app añadida a la pantalla de inicio (iOS 16.4+) y abierta desde el icono.
+- Web Push: tabla `push_subs` (sin políticas: solo la función `notify` con service role). La web suscribe con
+  `notify {action:"subscribe"}`, borra con `unsubscribe` y prueba con `test` (solo los dispositivos de ese árbitro).
+  El cron manda: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!". Las
+  suscripciones que devuelven 404/410 se borran solas. Forzar un envío a todos: `notify` con cron secret y `{"force":true}`.
 
 ## Km que paga la FCVB (aprendidos de los recibos)
 

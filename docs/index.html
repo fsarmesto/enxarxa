@@ -7,6 +7,11 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏐</text></svg>">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Liquidación">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -206,6 +211,10 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .rank .bar i{display:block;height:100%;background:var(--yellow)}
 .rank .sub{color:var(--ink-3);font-size:12px}
 .guest-note{font-size:13px;color:var(--ink-2);margin:6px 0 14px}
+/* App en el móvil y recordatorio */
+.pushcard{display:flex;gap:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:2px solid var(--ink);padding:12px 14px;margin:0 0 22px;font-size:14.5px}
+.pushcard .btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pushcard strong{font-weight:700}
 </style>
 </head>
 <body>
@@ -265,6 +274,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
   </div>
   <div class="banner hidden" id="banner"></div>
   <div class="alerts" id="alerts"></div>
+  <div class="pushcard hidden" id="pushCard"></div>
 
   <div class="filters" id="filters"></div>
   <div class="fsum hidden" id="fsum"></div>
@@ -324,6 +334,10 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
         <h2>Reglas que aplica</h2>
         <p class="small muted">Dietas por día y hora de inicio: lunes a jueves 10 € (9:00–13:00 y 16:00–20:29) o 13,50 € el resto; viernes 13,50 € (0:00–15:59 y 21:01–23:59); sábado 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); domingo y festivos 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59); un festivo entre semana fuera de esas franjas cobra la dieta normal de ese día. Una dieta por jornada; mañana (hasta las 14:59) y tarde (desde las 15:00) cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones. Los festivos de Catalunya se detectan solos; los locales de cada municipio, no: en esos casos, y siempre que no cuadre, cambia la dieta a mano en el partido.</p>
         <p class="small muted">Tarifa según competición, rol y equipo arbitral (anexo FCVB 2026/27). El rol y cuántos árbitros y anotadores había se leen de la designación en iSquad. Superliga y Superliga 2 las liquida la RFEVB. Los partidos de selecciones territoriales no tienen tarifa: solo se cuentan si la FCVB ha pagado gastos por ellos.</p>
+        <h2 style="margin-top:16px">Recordatorio del domingo</h2>
+        <p class="small muted">Los domingos a las 20:00, una notificación en el móvil: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!". En el iPhone, primero añade la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde el icono.</p>
+        <p class="small" id="pushState"></p>
+        <div class="row" id="pushBtns"></div>
         <h2 style="margin-top:16px">Tu cuenta</h2>
         <p class="small muted" id="accountInfo"></p>
         <button class="danger" id="btnDelete">Borrar mi cuenta y mis datos</button>
@@ -908,7 +922,7 @@ async function enterGuest(){
   P={isquad_login:login, nombre:r.nombre, origin:'', rate:'0.26', min_travel:'4', irpf:'2', last_sync:new Date().toISOString(), last_error:null};
   MATCHES=(r.matches||[]).map(m=>({cat:null, team:'t1', role:'r1', tolls:0, holiday:false, no_dieta:null, paid:false, km_override:null, dieta_override:null, ...m}));
   VENUES={}; for(const m of MATCHES) VENUES[m.venue_key] ||= {venue_key:m.venue_key, label:null, km:null, km_source:null};
-  learnFcvbKm(); show('app'); render();
+  learnFcvbKm(); show('app'); render(); renderPush();
 }
 $('authForm').addEventListener('submit', async e=>{
   e.preventDefault();
@@ -925,6 +939,74 @@ $('authForm').addEventListener('submit', async e=>{
   $('aPass').value='';
   await start();
 });
+
+/* ---------- App instalable y recordatorio del domingo (Web Push) ---------- */
+const PUSH_DISMISS='liq-push-ahora-no';
+let INSTALL_EVT=null, PUSH_SUB=null;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const b64u = s => { const p='='.repeat((4-s.length%4)%4), b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c=>c.charCodeAt(0)); };
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); INSTALL_EVT=e; renderPush(); });
+async function initPush(){
+  if(!('serviceWorker' in navigator)) return;
+  try{ const reg=await navigator.serviceWorker.register('sw.js'); PUSH_SUB = pushSupported() ? await reg.pushManager.getSubscription() : null; }catch(e){}
+  // Si este navegador ya estaba suscrito, se vuelve a asociar al árbitro que ha entrado (por si ha cambiado de cuenta).
+  if(PUSH_SUB && !GUEST && USER) callFn('notify',{action:'subscribe', sub:PUSH_SUB.toJSON()});
+  renderPush();
+}
+async function pushOn(){
+  if(!pushSupported()){ toast(isIOS ? 'En el iPhone, añade primero la app a la pantalla de inicio y ábrela desde el icono' : 'Este navegador no admite notificaciones'); return; }
+  const perm = await Notification.requestPermission();
+  if(perm!=='granted'){ renderPush(); toast('Sin permiso no se pueden enviar notificaciones'); return; }
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    PUSH_SUB = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64u(window.APP_CONFIG.VAPID_PUBLIC)});
+    const r = await callFn('notify',{action:'subscribe', sub:PUSH_SUB.toJSON()});
+    if(!r.ok) throw new Error(r.error);
+    toast('Recordatorio activado: los domingos a las 20:00');
+  }catch(e){ PUSH_SUB=null; toast('No se ha podido activar el recordatorio. Prueba de nuevo.'); }
+  renderPush();
+}
+async function pushOff(){
+  if(PUSH_SUB){ const ep=PUSH_SUB.endpoint; try{ await PUSH_SUB.unsubscribe(); }catch(e){} PUSH_SUB=null; await callFn('notify',{action:'unsubscribe', endpoint:ep}); }
+  toast('Recordatorio desactivado'); renderPush();
+}
+async function pushTest(){
+  const r = await callFn('notify',{action:'test'});
+  toast(r.ok ? 'Enviada: te llegará en unos segundos' : (r.error||'No se ha podido enviar'));
+}
+function renderPush(){
+  if(!$('pushCard')) return;
+  const denied = 'Notification' in window && Notification.permission==='denied';
+  const iosNeedsInstall = isIOS && !isStandalone();
+  // Estado y botones en Ajustes.
+  let st, btns='';
+  if(GUEST){ st='Sin guardar no se pueden recibir recordatorios.'; }
+  else if(PUSH_SUB){ st='✓ Activado en este dispositivo.'; btns='<button id="pTest">Enviar una prueba</button><button class="ghost" id="pOff">Desactivar</button>'; }
+  else if(iosNeedsInstall){ st='En el iPhone: Compartir → "Añadir a pantalla de inicio", y ábrela desde el icono para activarlo.'; }
+  else if(!pushSupported()){ st='Este navegador no admite notificaciones.'; }
+  else if(denied){ st='Has bloqueado las notificaciones de esta web: actívalas en los ajustes del navegador.'; }
+  else { st='No está activado en este dispositivo.'; btns='<button class="primary" id="pOn">Activar el recordatorio</button>'; }
+  if(INSTALL_EVT && !isStandalone()) btns+='<button id="pInstall">Instalar la app</button>';
+  $('pushState').textContent=st; $('pushBtns').innerHTML=btns;
+  // Aviso arriba: solo si aún no está activado, se puede hacer algo y no ha dicho "Ahora no".
+  let dismissed=false; try{ dismissed=!!localStorage.getItem(PUSH_DISMISS); }catch(e){}
+  const card=$('pushCard');
+  const can = !GUEST && !PUSH_SUB && !denied && (iosNeedsInstall || pushSupported() || INSTALL_EVT);
+  if(!can || dismissed){ card.classList.add('hidden'); }
+  else {
+    const txt = iosNeedsInstall
+      ? '<strong>Instala la app en el iPhone</strong> para recibir el recordatorio del domingo: pulsa Compartir y "Añadir a pantalla de inicio", y ábrela desde el icono.'
+      : '<strong>¿Quieres un recordatorio el domingo?</strong> A las 20:00: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!"';
+    card.innerHTML=`<div>${txt}</div><div class="btns">${!iosNeedsInstall&&pushSupported()?'<button class="primary" id="cOn">Activar</button>':''}${INSTALL_EVT&&!isStandalone()?'<button id="cInstall">Instalar la app</button>':''}<button class="ghost" id="cNo">Ahora no</button></div>`;
+    card.classList.remove('hidden');
+  }
+  const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
+  const install=async()=>{ if(!INSTALL_EVT) return; INSTALL_EVT.prompt(); await INSTALL_EVT.userChoice; INSTALL_EVT=null; renderPush(); };
+  on('pOn',pushOn); on('cOn',pushOn); on('pOff',pushOff); on('pTest',pushTest); on('pInstall',install); on('cInstall',install);
+  on('cNo',()=>{ try{ localStorage.setItem(PUSH_DISMISS,'1'); }catch(e){} renderPush(); });
+}
 
 /* ---------- Ranking ---------- */
 let RANK=null;
@@ -956,7 +1038,7 @@ async function start(){
   if(!session){ show('auth'); return; }
   USER = session.user;
   try{ await loadAll(); }catch(e){ await sb.auth.signOut(); show('auth'); return; }
-  show('app'); render(); loadRanking();
+  show('app'); render(); loadRanking(); initPush();
 }
 start();
 </script>

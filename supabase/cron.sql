@@ -15,3 +15,18 @@ select cron.schedule(
   );
   $$
 );
+
+-- Recordatorio del domingo a las 20:00 de Madrid (función notify). Se lanza a las 18 y a las 19 UTC para cubrir
+-- horario de verano e invierno; la función solo envía si en Madrid son las 20.
+select cron.schedule(
+  'recordatorio-domingo',
+  '0 18,19 * * 0',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/notify',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 60000
+  );
+  $$
+);
