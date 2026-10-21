@@ -342,6 +342,9 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .agc .ref,.calrow .ref{font-size:12.5px;color:var(--ink-2);margin-top:3px}
 .agc .ref b,.calrow .ref b{color:var(--ink);font-weight:700}
 .agc .ref.none,.calrow .ref.none{color:var(--ink-3)}
+.agc .car{font-size:12.5px;color:#1E7B34;font-weight:600;margin-top:4px}
+:root[data-theme="dark"] .agc .car{color:#5BD07A}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .agc .car{color:#5BD07A} }
 @media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 12px;gap:4px 10px} .agc .tm{font-size:22px} }
 .res{font-family:var(--display);font-size:22px;font-weight:700;margin-left:8px;vertical-align:middle}
 details.cal{margin-top:6px}
@@ -520,6 +523,10 @@ details.cal[open]>summary::before{content:"▾ "}
         <p class="small muted">En el iPhone, primero añade la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde el icono.</p>
         <p class="small" id="pushState"></p>
         <div class="row" id="pushBtns"></div>
+        <h2 style="margin-top:16px">Compartir coche</h2>
+        <p class="small muted">Si lo activas, te aviso en "Mis partidos" cuando otro árbitro que también lo tenga activado va ese día al mismo pabellón o a la misma población, por si os queréis organizar. Solo se ve entre quienes lo activan, y solo el nombre, la hora, el pabellón y la población de salida.</p>
+        <div class="seg" style="margin-bottom:6px">Compartir coche<span class="segb" role="group" id="carSeg"><button type="button" data-car="1" aria-pressed="false">Sí</button><button type="button" data-car="0" aria-pressed="true">No</button></span></div>
+        <p class="small muted" id="carInfo"></p>
         <h2 style="margin-top:16px">Tu cuenta</h2>
         <p class="small muted" id="accountInfo"></p>
         <div class="row" style="margin-bottom:12px"><button id="btnGuide">Ver la guía</button><button id="btnShare">Compartir la app</button></div>
@@ -955,6 +962,7 @@ function render(){
   renderSettings();
 }
 function renderSettings(){
+  renderCoche();
   $('origin').value=P.origin; $('rate').value=P.rate; $('minTravel').value=P.min_travel;
   const iv=String(+P.irpf||0), preset=[...$('irpf').options].some(o=>o.value===iv);
   $('irpf').value = preset ? iv : 'otro'; $('irpfOtherL').classList.toggle('hidden', preset); if(!preset) $('irpfOther').value=iv;
@@ -1460,7 +1468,7 @@ function renderAgenda(allMs,res){
         <div><div class="top"><span class="kind arb">Arbitras${myRole?`<small>${esc(myRole)}</small>`:''}</span>${others.length?`<span class="small muted">con ${others.map(c=>esc(capName(c.n).split(' ')[0])).join(', ')}</span>`:''}</div>
           <div class="tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div>
           <div class="sub">${esc(shortComp(m.comp))} · ${esc(venue)}</div>
-          ${clashArb}</div>
+          ${clashArb}${carLine(m)}</div>
         <span class="chev">▼</span></summary><div class="more">${more}</div></details>`;
     }
     html+='</section>';
@@ -1475,6 +1483,30 @@ $('views').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();
 });
+
+/* ---------- Compartir coche ---------- */
+let COCHE = { activo:false, sug:{}, n:0 };
+async function loadCoche(){
+  if(GUEST) return;
+  const r = await callFn('coche',{action:'sugerencias'});
+  if(r.ok){ COCHE = { activo:!!r.activo, sug:r.sugerencias||{}, n:r.participantes||0 }; render(); }
+}
+function renderCoche(){
+  for(const b of $('carSeg').querySelectorAll('button')) b.setAttribute('aria-pressed', String((b.dataset.car==='1')===COCHE.activo));
+  $('carInfo').textContent = COCHE.activo ? `Activado. ${COCHE.n>1 ? `Sois ${COCHE.n} árbitros con esta opción.` : 'De momento eres el único con esta opción: compártela con otros árbitros.'}` : '';
+}
+$('carSeg').addEventListener('click', async e=>{
+  const b=e.target.closest('button[data-car]'); if(!b) return; const v=b.dataset.car==='1'; if(v===COCHE.activo) return;
+  COCHE.activo=v; renderCoche();
+  const r=await callFn('coche',{action:'activar', activo:v});
+  if(!r.ok){ COCHE.activo=!v; renderCoche(); toast(r.error||'No se ha podido guardar'); return; }
+  toast(v?'Compartir coche activado':'Compartir coche desactivado'); loadCoche();
+});
+// Línea de la tarjeta: quién más va ese día al mismo pabellón o a la misma población.
+function carLine(m){
+  const l=COCHE.activo && COCHE.sug[m.id]; if(!l||!l.length) return '';
+  return l.map(o=>`<div class="car">🚗 ${esc(o.nombre)} ${o.mismo_partido?'va a tu mismo partido':`también va a ${esc(o.mismo_pabellon?o.pabellon:o.poblacion)} (${esc(o.hora)}${o.mismo_pabellon?'':' · '+esc(o.pabellon)})`}${o.origen?` · sale de ${esc(o.origen)}`:''}</div>`).join('');
+}
 
 /* ---------- Resumen de temporada y año (para la renta) ---------- */
 let RS_MODE='temporada';
@@ -1608,7 +1640,7 @@ async function start(){
   if(!session){ show('auth'); return; }
   USER = session.user;
   try{ await loadAll(); }catch(e){ await sb.auth.signOut(); show('auth'); return; }
-  show('app'); render(); loadRanking(); initPush(); loadEquipos(); setTimeout(maybeGuide, 600);
+  show('app'); render(); loadRanking(); initPush(); loadEquipos(); loadCoche(); setTimeout(maybeGuide, 600);
 }
 start();
 </script>
