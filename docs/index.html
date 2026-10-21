@@ -1265,13 +1265,17 @@ function renderAgenda(allMs,res){
   const all = AGENDA==='proximos'
     ? [...up.map(m=>({m, k:m.date+m.time})), ...eqUp.map(x=>({x, k:x.m.d+(x.m.t||'99:99')}))].sort((a,b)=>a.k.localeCompare(b.k))
     : [...past.map(m=>({m, k:m.date+m.time})), ...eqPast.map(x=>({x, k:x.m.d+(x.m.t||'00:00')}))].sort((a,b)=>b.k.localeCompare(a.k));
-  // Selector Todo / Árbitro / Jugador / Entrenador (lo que solo sigo sale en Todo).
+  // Selector Todo / Árbitro / Jugador / Entrenador (lo que solo sigo sale en Todo). Solo salen los tipos de los que
+  // hay partidos (próximos o jugados), y si solo hay uno, no sale el selector.
+  const everything = [...up.map(m=>({m})), ...past.map(m=>({m})), ...eqUp.map(x=>({x})), ...eqPast.map(x=>({x}))];
+  const roles = ['arbitro','jugador','entrenador'].filter(r=>everything.some(it=>itemRole(it)===r));
+  if(roles.length<2 || !roles.includes(AGROLE)) AGROLE='todo';
   const cnt = r => r==='todo' ? all.length : all.filter(it=>itemRole(it)===r).length;
   const list = AGROLE==='todo' ? all : all.filter(it=>itemRole(it)===AGROLE);
   const nUp = AGROLE==='todo' ? up.length+eqUp.length : [...up.map(m=>({m})),...eqUp.map(x=>({x}))].filter(it=>itemRole(it)===AGROLE).length;
   const nPast = AGROLE==='todo' ? past.length+eqPast.length : [...past.map(m=>({m})),...eqPast.map(x=>({x}))].filter(it=>itemRole(it)===AGROLE).length;
   let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${nUp})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${nPast})</button></div>`;
-  html+=`<div class="agrole" role="group" aria-label="Ver partidos como">${[['todo','Todo'],['arbitro','Árbitro'],['jugador','Jugador'],['entrenador','Entrenador']].map(([r,t])=>{ const n=cnt(r); return `<button type="button" data-agrole="${r}" aria-pressed="${AGROLE===r}"${!n&&AGROLE!==r?' disabled':''}>${t} (${n})</button>`; }).join('')}</div>`;
+  if(roles.length>=2) html+=`<div class="agrole" role="group" aria-label="Ver partidos como">${[['todo','Todo'],['arbitro','Árbitro'],['jugador','Jugador'],['entrenador','Entrenador']].filter(([r])=>r==='todo'||roles.includes(r)).map(([r,t])=>`<button type="button" data-agrole="${r}" aria-pressed="${AGROLE===r}">${t} (${cnt(r)})</button>`).join('')}</div>`;
   if(!list.length && AGROLE!=='todo'){
     html += `<div class="empty">No hay partidos ${AGENDA==='proximos'?'próximos':'jugados'} como ${({arbitro:'árbitro',jugador:'jugador',entrenador:'entrenador'})[AGROLE]}${filtering()?' con estos filtros':''}.</div>`;
     box.innerHTML=html; return;
