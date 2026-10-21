@@ -322,11 +322,11 @@ details.cal[open]>summary::before{content:"▾ "}
 .eq-row button.on{background:var(--yellow);border-color:var(--yellow);color:#000}
 .eq-row.off .n,.eq-row.off .nx,.eq-row.off details.cal{opacity:.5}
 .eq-row .acts{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
-.sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;user-select:none}
-.sw input{appearance:none;-webkit-appearance:none;width:38px;height:22px;border-radius:11px;background:var(--line);position:relative;cursor:pointer;margin:0;transition:background .15s}
-.sw input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .15s}
-.sw input:checked{background:#1E7B34}
-.sw input:checked::after{left:19px}
+.seg{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.segb{display:inline-flex;border:2px solid var(--ink);border-radius:3px;overflow:hidden}
+.segb button{border:0;border-radius:0;padding:3px 11px;font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.02em;color:var(--ink);background:transparent}
+.segb button[aria-pressed="true"]{background:var(--yellow);color:#000}
+.segb button+button{border-left:2px solid var(--ink)}
 .eq-h{font-family:var(--display);font-size:22px;font-weight:600;margin:6px 0 6px;border-bottom:3px solid var(--rule);padding-bottom:4px}
 .pushcard a.go,#pushBtns a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
 </style>
@@ -1218,7 +1218,7 @@ function renderEquipos(){
     const calHtml = cal.length ? `<details class="cal" data-cal="${esc(favKey(f))}"${CAL_OPEN.has(favKey(f))?' open':''}><summary>Calendario de la temporada (${cal.length})</summary>${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}</span>${stChip(m)}</div>`).join('')}</details>` : '';
     const on = f.activo!==false;
     return `<div class="eq-row${on?'':' off'}"><div style="flex:1;min-width:0"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}${on?'':' · <b>no sale en Mis partidos</b>'}</div>${last}<div class="nx">${next}</div>${calHtml}</div>
-      <div class="acts"><label class="sw" title="Que sus partidos salgan o no en Mis partidos"><input type="checkbox" data-act="${esc(favKey(f))}"${on?' checked':''}>En Mis partidos</label><button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div></div>`;
+      <div class="acts"><div class="seg">En Mis partidos<span class="segb" role="group"><button type="button" data-act="${esc(favKey(f))}" data-v="1" aria-pressed="${on}">Mostrar</button><button type="button" data-act="${esc(favKey(f))}" data-v="0" aria-pressed="${!on}">Ocultar</button></span></div><button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div></div>`;
   }).join('') : '<p class="muted small">No te he encontrado en ninguna plantilla de la FCVB de esta temporada. Si juegas o entrenas, busca tu equipo abajo y síguelo; también puedes seguir cualquier otro equipo.</p>';
   const ix=EQ.indice, auto=EQ.favs.filter(f=>f.auto).length;
   $('eqAuto').innerHTML = auto ? `Te he encontrado en ${auto} plantilla${auto===1?'':'s'} de la FCVB por tu foto de afiliado de iSquad.` : '';
@@ -1230,10 +1230,11 @@ function renderEquipos(){
   $('eqRes').innerHTML = (clubs||teams) ? `<div class="eq-list">${clubs}${teams}</div>` : '<p class="muted small">No he encontrado ningún equipo ni club con ese nombre.</p>';
 }
 const CAL_OPEN=new Set();
-$('eqFavs').addEventListener('change', async e=>{
-  const k=e.target.dataset.act; if(!k) return;
-  const f=EQ.favs.find(x=>favKey(x)===k); if(!f) return;
-  f.activo=e.target.checked; render();
+$('eqFavs').addEventListener('click', async e=>{
+  const b=e.target.closest('button[data-act]'); if(!b) return;
+  const f=EQ.favs.find(x=>favKey(x)===b.dataset.act); if(!f) return;
+  const v=b.dataset.v==='1'; if((f.activo!==false)===v) return;
+  f.activo=v; render();
   const r=await callFn('equipos',{action:'activar', club_id:f.club_id, team:f.team, cat:f.cat, activo:f.activo});
   if(!r.ok){ f.activo=!f.activo; render(); toast(r.error||'No se ha podido guardar'); }
   else toast(f.activo ? `${capName(f.team)} vuelve a salir en Mis partidos` : `${capName(f.team)} ya no sale en Mis partidos`);
