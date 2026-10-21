@@ -169,6 +169,23 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
   table.m td.paycell button.pay{width:100%;padding:9px;font-size:14px}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+/* Guía de bienvenida y compartir */
+.ovl{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;padding:0}
+.ovl.hidden{display:none}
+.sheet{background:var(--bg);color:var(--ink);width:100%;max-width:520px;border-radius:12px 12px 0 0;padding:22px 20px calc(18px + env(safe-area-inset-bottom,0px));max-height:92vh;overflow:auto}
+@media (min-width:700px){ .ovl{align-items:center} .sheet{border-radius:10px} }
+.sheet .step-ico{font-size:40px;line-height:1;margin-bottom:10px}
+.sheet h2{font-family:var(--display);font-size:26px;margin:0 0 8px}
+.sheet p{font-size:15px;color:var(--ink-2)}
+.sheet ul{margin:6px 0 12px;padding-left:20px;color:var(--ink-2);font-size:15px}
+.sheet .dots{display:flex;gap:6px;justify-content:center;margin:16px 0 14px}
+.sheet .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.sheet .dots i.on{background:var(--ink)}
+.sheet .nav{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sheet .nav .primary{padding:10px 22px;font-size:16px}
+.sheet .acts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.qr{display:flex;justify-content:center;margin:12px 0}
+.qr img,.qr canvas{width:200px;height:200px;image-rendering:pixelated;background:#fff;padding:8px;border-radius:6px}
 .hidden{display:none !important}
 
 /* Entrar */
@@ -475,6 +492,7 @@ details.cal[open]>summary::before{content:"▾ "}
         <div class="row" id="pushBtns"></div>
         <h2 style="margin-top:16px">Tu cuenta</h2>
         <p class="small muted" id="accountInfo"></p>
+        <div class="row" style="margin-bottom:12px"><button id="btnGuide">Ver la guía</button><button id="btnShare">Compartir la app</button></div>
         <button class="danger" id="btnDelete">Borrar mi cuenta y mis datos</button>
       </div>
     </div>
@@ -483,6 +501,7 @@ details.cal[open]>summary::before{content:"▾ "}
 
 <main id="loadingView"><p class="muted" style="text-align:center;margin-top:20vh">Cargando tus partidos…</p></main>
 <div class="toast" id="toast"></div>
+<div class="ovl hidden" id="guide" role="dialog" aria-modal="true" aria-labelledby="guideTitle"><div class="sheet" id="guideSheet"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
@@ -1426,6 +1445,61 @@ $('views').addEventListener('click', e=>{
   VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();
 });
 
+/* ---------- Guía de bienvenida (la primera vez) y compartir la app ---------- */
+const APP_URL = 'https://fsarmesto.github.io/liquidacion-arbitral-fcvb/';
+const GUIDE_KEY = 'liq-guia-vista';
+let GUIDE_STEP = 0;
+function guideSteps(){
+  const install = offerApk() ? `<a class="go" href="${APK_URL}" download>Descargar la app Android</a>`
+    : INSTALL_EVT && !isStandalone() ? '<button id="gInstall">Instalar la app</button>'
+    : (isIOS && !isStandalone()) ? '<p class="small">En el iPhone: pulsa <b>Compartir</b> y <b>"Añadir a pantalla de inicio"</b>, y ábrela desde el icono.</p>' : '';
+  const push = !GUEST && !PUSH_SUB && pushSupported() && !(isIOS && !isStandalone()) ? '<button class="primary" id="gPush">Activar avisos</button>' : (PUSH_SUB ? '<p class="small"><b>✓ Avisos activados en este dispositivo.</b></p>' : '');
+  return [
+    { ico:'💶', t:'Tus cobros, solos', h:`<p>Cada partido con su tarifa, dieta, desplazamiento e IRPF. Cuando la FCVB lo liquida, salen sus importes.</p>
+      <ul><li><b>Pide el pago a tiempo:</b> la FCVB solo deja pedirlo hasta el día siguiente al partido. Te aviso arriba con la fecha límite.</li><li>Pendiente, solicitado, cobrado y lo que no se pidió a tiempo, de un vistazo.</li></ul>` },
+    { ico:'📅', t:'Tus partidos y tus equipos', h:`<p>En <b>Mis partidos</b> tienes tus designaciones con el equipo arbitral, el pabellón y "Cómo llegar".</p>
+      <ul><li>Si juegas o entrenas, te encuentro solo en las plantillas de la FCVB y añado tus partidos con su horario y resultado.</li><li>Te aviso si te designan a la hora a la que juegas.</li></ul>` },
+    { ico:'🔔', t:'Instálala y activa los avisos', h:`<p>Te aviso al momento de <b>designaciones nuevas o cambiadas</b>, de cuando <b>tus partidos de jugador tienen horario</b>, y los domingos te recuerdo revisar tus cobros.</p>
+      <div class="acts">${install}${push}</div>
+      <p class="small muted" style="margin-top:12px">¿Conoces a más árbitros? <button class="ghost" id="gShare" style="padding-left:0">Comparte la app</button></p>` },
+  ];
+}
+function renderGuide(){
+  const st=guideSteps(), i=GUIDE_STEP, x=st[i];
+  $('guideSheet').innerHTML = `<div class="step-ico">${x.ico}</div><h2 id="guideTitle">${x.t}</h2>${x.h}
+    <div class="dots">${st.map((_,k)=>`<i class="${k===i?'on':''}"></i>`).join('')}</div>
+    <div class="nav"><button class="ghost" id="gSkip">${i===st.length-1?'':'Saltar'}</button>${i<st.length-1?'<button class="primary" id="gNext">Siguiente</button>':'<button class="primary" id="gDone">Empezar</button>'}</div>`;
+  const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
+  on('gNext',()=>{ GUIDE_STEP++; renderGuide(); });
+  on('gSkip',closeGuide); on('gDone',closeGuide);
+  on('gPush', async()=>{ await pushOn(); renderGuide(); });
+  on('gInstall', async()=>{ if(!INSTALL_EVT) return; INSTALL_EVT.prompt(); await INSTALL_EVT.userChoice; INSTALL_EVT=null; renderGuide(); });
+  on('gShare', shareApp);
+}
+function openGuide(){ GUIDE_STEP=0; renderGuide(); $('guide').classList.remove('hidden'); }
+function closeGuide(){ $('guide').classList.add('hidden'); try{ localStorage.setItem(GUIDE_KEY,'1'); }catch(e){} }
+function maybeGuide(){ let seen=false; try{ seen=!!localStorage.getItem(GUIDE_KEY); }catch(e){} if(!seen && !GUEST) openGuide(); }
+$('guide').addEventListener('click', e=>{ if(e.target.id==='guide') closeGuide(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('guide').classList.contains('hidden')) closeGuide(); });
+$('btnGuide').addEventListener('click', openGuide);
+$('btnShare').addEventListener('click', shareApp);
+
+// Compartir: el menú de compartir del móvil si lo hay; si no, enlace para copiar y un QR para escanear en persona.
+const SHARE_TEXT = 'App (no oficial) para árbitros de la FCVB: tus cobros, designaciones y partidos de tu equipo, con avisos. Entras con tu usuario de iSquad.';
+async function shareApp(){
+  if(navigator.share){ try{ await navigator.share({ title:'Liquidación arbitral FCVB', text:SHARE_TEXT, url:APP_URL }); return; }catch(e){ if(e && e.name==='AbortError') return; } }
+  $('guideSheet').innerHTML = `<div class="step-ico">📲</div><h2 id="guideTitle">Comparte la app</h2><p>Que lo escaneen con la cámara del móvil, o envíales el enlace.</p>
+    <div class="qr" id="qrBox"></div><p style="text-align:center;word-break:break-all"><b>${APP_URL}</b></p>
+    <div class="nav"><button id="gCopy">Copiar enlace</button><button class="primary" id="gClose">Cerrar</button></div>`;
+  $('guide').classList.remove('hidden');
+  $('gClose').onclick=()=>$('guide').classList.add('hidden');
+  $('gCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(APP_URL); toast('Enlace copiado'); }catch(e){ toast(APP_URL); } };
+  try{
+    if(!window.QRCode) await new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload=ok; sc.onerror=ko; document.head.appendChild(sc); });
+    new QRCode($('qrBox'), { text:APP_URL, width:200, height:200, colorDark:'#000000', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
+  }catch(e){ $('qrBox').innerHTML='<p class="small muted">No se ha podido generar el QR: comparte el enlace.</p>'; }
+}
+
 /* ---------- Ranking ---------- */
 let RANK=null;
 const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpperCase());
@@ -1457,7 +1531,7 @@ async function start(){
   if(!session){ show('auth'); return; }
   USER = session.user;
   try{ await loadAll(); }catch(e){ await sb.auth.signOut(); show('auth'); return; }
-  show('app'); render(); loadRanking(); initPush(); loadEquipos();
+  show('app'); render(); loadRanking(); initPush(); loadEquipos(); setTimeout(maybeGuide, 600);
 }
 start();
 </script>
