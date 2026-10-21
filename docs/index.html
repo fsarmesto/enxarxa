@@ -19,7 +19,7 @@ label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);
    Pendiente = rojo; cobrado = negro relleno. El marcador de arriba es negro en los dos temas. */
 :root{
   --yellow:#FFD100; --red:#D2232A; --black:#000000;
-  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F2F2F2; --ink:#000000; --ink-2:#4A4A4A; --ink-3:#7A7A7A;
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F2F2F2; --ink:#000000; --ink-2:#4A4A4A; --ink-3:#707070;
   --line:#DCDCDC; --rule:#000000;
   --accent:#000000; --accent-ink:#FFFFFF; --pend:#D2232A; --pend-bg:#FCE9EA;
   --paid-bg:#000000; --paid-ink:#FFFFFF; --neg:#D2232A; --focus:#D2232A;
@@ -58,7 +58,7 @@ button:disabled{opacity:.55;cursor:default}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button.ghost{border-color:transparent;padding:4px 8px;text-decoration:underline;text-underline-offset:3px;font-weight:500}
 button.danger{color:var(--neg);border-color:var(--neg)}
-button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 input,select,textarea{background:var(--surface);border:1px solid var(--line);border-bottom-color:var(--ink-3);border-radius:2px;padding:6px 8px}
 input[type=number]{width:72px;text-align:right}
 input[type=text]{width:100%}
@@ -285,7 +285,7 @@ body.dep .arb-only{display:none!important}
 .rs-row .e{font-weight:700;min-width:84px;text-align:right}
 .rs-note{font-size:12.5px;color:var(--ink-3);margin-top:14px}
 @media print{ body *{visibility:hidden} #resumen,#resumen *{visibility:visible} #resumen{position:absolute;left:0;top:0;width:100%} .no-print{display:none!important} }
-.views button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.views button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
 body:not([data-vista="cobros"]) #alerts{display:none}
 .board .statline{display:flex;align-items:center;gap:8px;width:100%;margin:16px 0 0;padding:0;border:0;background:none;color:var(--board-2);
   font:500 13px/20px var(--body,inherit);text-align:left;cursor:default;min-height:20px}
@@ -306,6 +306,37 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .board .score{margin-top:14px}
 @media (prefers-reduced-motion:reduce){.scorewrap,.board .statline .chev{transition:none}}
 .views button.dot::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red,#e5383b);margin-left:6px;vertical-align:middle}
+/* Pestañas en una barra fija abajo en el móvil (#2): iconos y texto, la activa marcada arriba; en escritorio, como siempre. */
+.views .ico{display:none}
+@media (max-width:720px){
+  .views{position:fixed;left:0;right:0;bottom:0;z-index:40;width:auto;max-width:none;margin:0;border:0;border-top:1px solid var(--line);border-radius:0;overflow:visible;background:var(--bg);padding:0 0 env(safe-area-inset-bottom,0px);box-shadow:0 -2px 12px rgba(0,0,0,.08)}
+  .views button{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;padding:6px 2px;font-size:13px;line-height:1.1;white-space:nowrap;color:var(--ink-2)}
+  .views button span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .views .ico{display:block;width:22px;height:22px}
+  .views button[aria-selected="true"]{background:transparent;color:var(--ink);box-shadow:inset 0 3px 0 var(--red)}
+  .views button.dot::after{position:absolute;top:8px;left:calc(50% + 9px);margin:0}
+  #appView{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  body:has(#appView:not(.hidden)) .toast{bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+}
+/* Cabecera compacta al bajar en el móvil (#3): una barra fija aparte que entra por arriba cuando la cabecera grande
+   ya no se ve; la grande no cambia de tamaño, así el contenido no salta. */
+.minibar{display:none}
+@media (max-width:720px){
+  .minibar{display:flex;position:fixed;top:0;left:0;right:0;z-index:45;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top,0px)) 16px 6px;background:var(--board);color:var(--board-ink);border-bottom:3px solid var(--yellow);transform:translateY(-110%);transition:transform .2s ease}
+  .minibar.on{transform:none}
+  .minibar strong{flex:1;font-family:var(--display);font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .minibar button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 10px;border-color:transparent;color:var(--board-ink);background:transparent}
+}
+@media (prefers-reduced-motion:reduce){ .minibar{transition:none} }
+/* Cómo llegar: coche, transporte público o andando (#4) */
+.travelsel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 16px;font-size:13.5px;color:var(--ink-2)}
+.travelsel .segb{flex-wrap:wrap;max-width:100%}   /* con el texto muy grande, las opciones bajan de línea */
+/* Zonas táctiles de al menos 44 px en pantallas táctiles (#10) */
+@media (pointer:coarse){
+  .subviews button,.agrole button,.segb button,.seasons button,a.map,button.ghost,button.pay{min-height:44px}
+  a.map{display:inline-flex;align-items:center}
+  input[type=checkbox]{width:20px;height:20px}
+}
 .subviews{display:flex;gap:8px;margin:0 0 16px}
 .subviews button{border-width:2px;padding:5px 14px;font-size:14px}
 .subviews button[aria-pressed="true"]{background:var(--yellow);border-color:var(--yellow);color:#000}
@@ -471,6 +502,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 </main>
 
 <!-- ============ App ============ -->
+<div class="minibar" id="miniBar" inert><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" id="mbOut">Salir</button></div>
 <main id="appView" class="hidden">
   <div class="board">
     <div class="top">
@@ -498,11 +530,11 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <p class="sync arb-only">Importes orientativos: manda el recibo de la FCVB.</p>
     </div></div>
   </div>
-  <div class="views" id="views" role="tablist">
-    <button type="button" data-view="cobros" role="tab" class="arb-only">Cobros</button>
-    <button type="button" data-view="agenda" role="tab">Mis partidos</button>
-    <button type="button" data-view="equipos" role="tab" id="tabEquipos">Equipos</button>
-    <button type="button" data-view="resumen" role="tab" class="arb-only">Resumen</button>
+  <div class="views" id="views" role="tablist" aria-label="Pestañas">
+    <button type="button" data-view="cobros" role="tab" class="arb-only"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 6.6A6.5 6.5 0 1 0 17.5 17.4M4 10.5h9M4 13.5h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Cobros</span></button>
+    <button type="button" data-view="agenda" role="tab"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></g></svg><span>Mis partidos</span></button>
+    <button type="button" data-view="equipos" role="tab" id="tabEquipos"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14c2.4.3 4 1.9 4.5 4.5"/></g></svg><span>Equipos</span></button>
+    <button type="button" data-view="resumen" role="tab" class="arb-only"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5M3 20h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Resumen</span></button>
   </div>
   <div class="banner hidden" id="banner"></div>
   <div class="alerts" id="alerts"></div>
@@ -1045,7 +1077,7 @@ function render(){
 
   const led = $('ledger');
   renderFilters(ms,res);
-  for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.view===VIEW));
+  for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.view===VIEW));
   if(GUEST && VIEW==='equipos') VIEW='agenda';
   if(DEP && (VIEW==='cobros' || VIEW==='resumen')) VIEW='agenda';
   // Lo de dinero (cifras, IRPF, Excel, avisos de pedir el pago) solo en Cobros; la temporada, en Cobros y Resumen.
@@ -1194,16 +1226,18 @@ function loadXlsx(){
 function buildWorkbook(){
   const {ms:allMs,res} = compute();
   const ms = allMs.filter(m=>seasonOf(m.date)===SEASON);
+  // En el idioma de la app (#5): cabeceras, textos y nombre de la hoja pasan por tr(), como lo que se ve en pantalla.
   const head = ['Fecha','Hora','Código','Competición','Categoría','Partido','Pabellón','Población','Rol','Equipo arbitral',
-                'Tarifa','Dieta','Km ida','Desplazamiento (o gastos FCVB)','Peajes','Bruto',`IRPF (${String(+P.irpf||0).replace('.',',')} %)`,'Neto','Estado iSquad','Cobrado','Importes'];
+                'Tarifa','Dieta','Km ida','Desplazamiento (o gastos FCVB)','Peajes','Bruto','IRPF','Neto','Estado iSquad','Cobrado','Importes'].map(tr);
+  head[16] += ` (${String(+P.irpf||0).replace('.',',')} %)`;
   const rows = ms.map(m=>{
     const r=res.get(m.id), city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
     // Fecha como número de serie de Excel: con un Date, la zona horaria la movería un día.
     const serial = (Date.UTC(+m.date.slice(0,4), +m.date.slice(5,7)-1, +m.date.slice(8,10)) - Date.UTC(1899,11,30)) / 864e5;
-    return [serial, m.time, m.id.split('@')[0], m.comp, CATS[catOf(m)].label, m.teams,
-      VENUES[m.venue_key]?.label || m.venue, city ? city[1].trim() : '', ROLE_OPTS[m.role],
-      m.role==='jl' ? '' : TEAM_OPTS[m.team], r.tariff, r.fcvb ? null : r.dieta, kmFor(m)||null, r.travel, r.tolls, r.gross, r.irpf, r.total,
-      (m.estado||'').toLowerCase(), PAY_LABEL[payState(m)], r.fcvb ? 'FCVB' : 'previsión app'];
+    return [serial, m.time, m.id.split('@')[0], m.comp, tr(CATS[catOf(m)].label), m.teams,
+      VENUES[m.venue_key]?.label || m.venue, city ? city[1].trim() : '', tr(ROLE_OPTS[m.role]),
+      m.role==='jl' ? '' : tr(TEAM_OPTS[m.team]), r.tariff, r.fcvb ? null : r.dieta, kmFor(m)||null, r.travel, r.tolls, r.gross, r.irpf, r.total,
+      tr((m.estado||'').toLowerCase()), tr(PAY_LABEL[payState(m)]), r.fcvb ? 'FCVB' : tr('previsión app')];
   });
   const sum = i => +rows.reduce((t,x)=>t+(+x[i]||0),0).toFixed(2);
   const n = rows.length, last = n+1;
@@ -1211,8 +1245,9 @@ function buildWorkbook(){
   const net = st => +ms.filter(m=>st.includes(payState(m))).reduce((t,m)=>t+res.get(m.id).total,0).toFixed(2);
   const pend = net(['solicitado','solicitar','sinrecibo','futuro']), paidNet = net(['pagado']);
   const pad = Array(17).fill('');
-  rows.push([], ['Total','','','','','','','','','', totals[0], totals[1], null, totals[2], totals[3], totals[4], totals[5], totals[6]],
-    ['Pendiente de cobro (neto)', ...pad.slice(1), pend], ['Ya cobrado (neto)', ...pad.slice(1), paidNet]);
+  rows.push([], [tr('Total'),'','','','','','','','','', totals[0], totals[1], null, totals[2], totals[3], totals[4], totals[5], totals[6]],
+    [tr('Pendiente de cobro (neto)'), ...pad.slice(1), pend], [tr('Ya cobrado (neto)'), ...pad.slice(1), paidNet],
+    [], [tr('Importes orientativos: manda el recibo de la FCVB.')]);   // #7
   const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
   const EUR = '#,##0.00 "€"';
   for(let R=1; R<=last+4; R++){
@@ -1223,14 +1258,14 @@ function buildWorkbook(){
   ws['!autofilter'] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:n,c:head.length-1}})};
   ws['!freeze'] = {xSplit:0, ySplit:1};
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, `Temporada ${seasonLabel(SEASON).replace('/','-')}`);
+  XLSX.utils.book_append_sheet(wb, ws, `${tr('Temporada')} ${seasonLabel(SEASON).replace('/','-')}`);
   return wb;
 }
 $('btnExport').addEventListener('click', async ()=>{
   const b=$('btnExport'); b.disabled=true;
   try{
     await loadXlsx();
-    XLSX.writeFile(buildWorkbook(), `liquidacion-FCVB-${seasonLabel(SEASON).replace('/','-')}.xlsx`);
+    XLSX.writeFile(buildWorkbook(), `${LANG==='ca'?'liquidacio':'liquidacion'}-FCVB-${seasonLabel(SEASON).replace('/','-')}.xlsx`);
   }catch(e){ toast('No se ha podido generar el Excel. Revisa la conexión.'); }
   b.disabled=false;
 });
@@ -1555,11 +1590,14 @@ const crewLabel=(m,f)=> f==='r2' && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIG
 const niceAddr = a => capName(String(a||'').replace(/,\s*(ESPA[ÑñN]A|ESPANYA|SPAIN)\s*$/i,'').replace(/ñ/g,'Ñ')).replace(/\b(De|Del|Dels|Des|La|Les|El|Els|I|D'|L')\b/g, w=>w.toLowerCase()).replace(/(^|,\s*)(\S)/g,(x,p,c)=>p+c.toUpperCase());
 // Botón "Cómo llegar": Google Maps. En iPhone se abre la app de Google Maps (comgooglemaps://) y, si no está instalada
 // (la página sigue a la vista pasado un momento), Apple Maps. dir = ruta a una dirección; si no, búsqueda por nombre.
+// Modo (#4): coche, transporte público o andando, elegido en Mis partidos y recordado en el navegador (liq-ruta).
+const TRAVEL_KEY='liq-ruta';
+let TRAVEL = (()=>{ try{ const v=localStorage.getItem(TRAVEL_KEY); return ['driving','transit','walking'].includes(v)?v:'driving'; }catch(e){ return 'driving'; } })();
 function mapLink(dest, dir){
-  const q = encodeURIComponent(dest);
-  const web = dir ? `https://www.google.com/maps/dir/?api=1&destination=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
-  const app = dir ? `comgooglemaps://?daddr=${q}&directionsmode=driving` : `comgooglemaps://?q=${q}`;
-  const apple = dir ? `https://maps.apple.com/?daddr=${q}&dirflg=d` : `https://maps.apple.com/?q=${q}`;
+  const q = encodeURIComponent(dest), apf = {driving:'d', transit:'r', walking:'w'}[TRAVEL];
+  const web = dir ? `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=${TRAVEL}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
+  const app = dir ? `comgooglemaps://?daddr=${q}&directionsmode=${TRAVEL}` : `comgooglemaps://?q=${q}`;
+  const apple = dir ? `https://maps.apple.com/?daddr=${q}&dirflg=${apf}` : `https://maps.apple.com/?q=${q}`;
   return `<a class="map" href="${web}" data-gm="${app}" data-am="${apple}" target="_blank" rel="noopener">Cómo llegar</a>`;
 }
 document.addEventListener('click', e=>{
@@ -1603,6 +1641,7 @@ function renderAgenda(allMs,res){
   const nUp = role==='todo' ? up.length+eqUp.length : [...up.map(m=>({m})),...eqUp.map(x=>({x}))].filter(it=>itemRole(it)===role).length;
   const nPast = role==='todo' ? past.length+eqPast.length : [...past.map(m=>({m})),...eqPast.map(x=>({x}))].filter(it=>itemRole(it)===role).length;
   let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${nUp})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${nPast})</button></div>`;
+  if(AGENDA==='proximos') html+=`<div class="travelsel"><span>Cómo llegar:</span><span class="segb" role="group" aria-label="Cómo llegar">${[['driving','Coche'],['transit','Transporte'],['walking','Andando']].map(([k,t])=>`<button type="button" data-tm="${k}" aria-pressed="${TRAVEL===k}">${t}</button>`).join('')}</span></div>`;
   if(roles.length>=2) html+=`<div class="agrole" role="group" aria-label="Ver partidos como">${[['todo','Todo'],['arbitro','Árbitro'],['jugador','Jugador'],['entrenador','Entrenador']].filter(([r])=>r==='todo'||roles.includes(r)).map(([r,t])=>`<button type="button" data-agrole="${r}" aria-pressed="${role===r}">${t} (${cnt(r)})</button>`).join('')}</div>`;
   if(!list.length && role!=='todo'){
     html += `<div class="empty">No hay partidos ${AGENDA==='proximos'?'próximos':'jugados'} como ${({arbitro:'árbitro',jugador:'jugador',entrenador:'entrenador'})[role]}${filtering()?' con estos filtros':''}.</div>`;
@@ -1670,6 +1709,10 @@ $('agenda').addEventListener('toggle', e=>{ const d=e.target.closest('details[da
 $('agenda').addEventListener('click', e=>{
   const r=e.target.closest('button[data-agrole]'); if(r){ AGROLE=r.dataset.agrole; try{ localStorage.setItem('liq-agenda-rol',AGROLE); }catch(err){} render(); return; }
   const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
+$('agenda').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-tm]'); if(!b) return;
+  TRAVEL=b.dataset.tm; try{ localStorage.setItem(TRAVEL_KEY, TRAVEL); }catch(err){} render();
+});
 $('views').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();
@@ -1738,7 +1781,7 @@ function renderResumen(allMs,res){
   const venues = group(m=>VENUES[m.venue_key]?.label || capName(m.venue||''));
   html += `<div class="rs-list"><div><div class="rs-h">Por categoría</div>${rows(cats)}</div><div><div class="rs-h">Por designación</div>${rows(roles)}</div>
     <div><div class="rs-h">Con quién has arbitrado más</div>${rows(mates,false) || '<p class="small muted">Los equipos arbitrales se guardan desde la temporada 26/27.</p>'}</div><div><div class="rs-h">Pabellones donde más has ido</div>${rows(venues)}</div></div>`;
-  html += `<p class="rs-note">${RS_MODE==='anio'?`Año ${year} por fecha de pago de la FCVB. Orientativo: para la declaración, el documento válido es el certificado de retenciones que emite la FCVB. `:''}Importes netos de IRPF${filtering()?', con los filtros puestos':''}.</p>
+  html += `<p class="rs-note">${RS_MODE==='anio'?`Año ${year} por fecha de pago de la FCVB. Orientativo: para la declaración, el documento válido es el certificado de retenciones que emite la FCVB. `:''}Importes netos de IRPF${filtering()?', con los filtros puestos':''}.</p><p class="rs-note">Importes orientativos: manda el recibo de la FCVB.</p>
     <div class="row no-print" style="margin-top:12px"><button id="rsPrint">Guardar como PDF / imprimir</button></div>`;
   box.innerHTML=html;
   $('rsPrint').onclick=()=>window.print();
@@ -1909,6 +1952,18 @@ async function loadSalud(){
 }
 $('saludPanel').addEventListener('toggle', e=>{ if(e.target.open) loadSalud(); });
 
+// Cabecera compacta (#3): visible cuando la fila del título de la cabecera grande sale de la pantalla.
+{ const top=document.querySelector('#appView .board .top'), mb=$('miniBar');
+  const check=()=>{
+    const on = !$('appView').classList.contains('hidden') && top.getBoundingClientRect().bottom < 0;
+    if(on===mb.classList.contains('on')) return;
+    mb.classList.toggle('on', on); mb.inert = !on;
+    if(on) $('mbSync').hidden = getComputedStyle($('btnSync')).display==='none';
+  };
+  addEventListener('scroll', check, {passive:true});   // una medida por evento: barata y sin depender de requestAnimationFrame
+  $('mbSync').addEventListener('click', ()=>$('btnSync').click());
+  $('mbOut').addEventListener('click', logout);
+}
 function show(v){
   const a=document.getElementById('apkLogin'); if(a) a.classList.toggle('hidden', !offerApk()); for(const x of ['auth','app','loading']) $(x+'View').classList.toggle('hidden', x!==v); }
 async function start(){
