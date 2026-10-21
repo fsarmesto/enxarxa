@@ -1,5 +1,5 @@
 /* Páginas legales (privacidad.html, aviso-legal.html): mismos colores y tipografía que la app (docs/index.html). */
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap");
+@import url("vendor/fonts/fonts.css");
 :root{
   --yellow:#FFD100; --bg:#FFFFFF; --ink:#000000; --ink-2:#4A4A4A; --ink-3:#7A7A7A; --line:#DCDCDC; --link:#000000;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif; color-scheme:light;

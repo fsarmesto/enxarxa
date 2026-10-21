@@ -12,9 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="EnXarxa">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="vendor/fonts/fonts.css" rel="stylesheet">
 <style>
 label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);margin-top:4px}
 /* Colores de la Federació Catalana de Voleibol: amarillo, rojo y negro.
@@ -459,7 +457,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
           <strong>Antes de seguir:</strong> para traer tus designaciones automáticamente, esta app guarda tu usuario y contraseña de iSquad <strong>cifrados</strong> y los usa solo para leer tu página de designaciones un par de veces al día. No es una app oficial de la FCVB ni de iSquad. Puedes borrar tu cuenta, con la contraseña y todos tus datos, en cualquier momento desde Ajustes.
         </div>
         <label class="chk small" style="display:flex;margin-bottom:8px;white-space:normal"><input type="checkbox" id="aAge"> Tengo 14 años o más</label>
-        <label class="chk small" style="display:flex;margin-bottom:14px;white-space:normal"><input type="checkbox" id="aConsent"> <span>Lo entiendo y acepto la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a></span></label>
+        <label class="chk small" style="display:flex;margin-bottom:14px;white-space:normal"><input type="checkbox" id="aConsent"> <span>Lo entiendo y acepto las <a href="condiciones.html" target="_blank" rel="noopener">condiciones de uso</a> y la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a></span></label>
       </div>
       <label class="chk small" style="margin-bottom:4px;white-space:normal"><input type="checkbox" id="aGuest"> Entrar sin guardar nada</label>
       <p class="guest-note hidden" id="guestNote">No se crea cuenta ni se guarda nada: ni tu usuario, ni tu contraseña, ni tus partidos. Se leen de iSquad en este momento (puede tardar hasta un minuto) y desaparecen al cerrar la pestaña. Sin actualizaciones automáticas.</p>
@@ -469,7 +467,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   </section>
   <p class="muted small">Entras con los mismos datos que en iSquad. La primera vez tarda unos segundos porque trae tus partidos.</p>
   <p class="small hidden" id="apkLogin"><a href="app/enxarxa.apk" download style="color:inherit;font-weight:700">Descarga la app para Android</a> · gratis, con recordatorio del domingo.</p>
-  <p class="small muted legal-links"><a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
+  <p class="small muted legal-links"><a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
 </main>
 
 <!-- ============ App ============ -->
@@ -594,7 +592,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
         <p class="small muted" id="accountInfo"></p>
         <div class="row" style="margin-bottom:12px"><button id="btnGuide">Ver la guía</button><button id="btnShare">Compartir la app</button></div>
         <button class="danger" id="btnDelete">Borrar mi cuenta y mis datos</button>
-        <p class="small muted legal-links" style="margin-top:14px"><a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
+        <p class="small muted legal-links" style="margin-top:14px"><a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
       </div>
     </div>
   </details>
@@ -604,7 +602,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 <div class="toast" id="toast"></div>
 <div class="ovl hidden" id="guide" role="dialog" aria-modal="true" aria-labelledby="guideTitle"><div class="sheet" id="guideSheet"></div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="vendor/supabase-2.45.4.js"></script>
 <script src="config.js"></script>
 <script src="i18n-ca.js"></script>
 <script>
@@ -1188,7 +1186,7 @@ async function callFn(name, body){
   return {ok:r.ok, ...j};
 }
 /* ---------- Exportar a Excel (temporada seleccionada) ---------- */
-const XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+const XLSX_URL = 'vendor/xlsx-0.18.5.full.min.js';
 function loadXlsx(){
   if(window.XLSX) return Promise.resolve();
   return new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src=XLSX_URL; sc.onload=ok; sc.onerror=ko; document.head.appendChild(sc); });
@@ -1790,17 +1788,17 @@ function openGuide(){ GUIDE_STEP=0; renderGuide(); $('guide').classList.remove('
 function closeGuide(){ if(CONSENT_OPEN) return; $('guide').classList.add('hidden'); try{ localStorage.setItem(GUIDE_KEY,'1'); }catch(e){} }
 // Edad mínima y política: las cuentas sin aceptar la versión vigente ven este aviso (no se puede cerrar) antes que nada.
 // POLICY_VERSION tiene que coincidir con supabase/functions/_shared/politica.ts.
-const POLICY_VERSION = '2026-10-22';
-const LEGAL_LINKS = '<a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a>';
+const POLICY_VERSION = '2026-10-22.2';
+const LEGAL_LINKS = '<a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a>';
 const UNDER14 = 'Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.';
 let CONSENT_OPEN = false;
 const needsConsent = () => !GUEST && P && P.policy_version!==POLICY_VERSION;
 function openConsent(){
   CONSENT_OPEN = true;
   $('guideSheet').innerHTML = `<div class="step-ico">🔒</div><h2 id="guideTitle">Antes de seguir</h2>
-    <p>He actualizado la política de privacidad. Para seguir usando la app, confirma tu edad y acéptala.</p>
+    <p>He actualizado las condiciones de uso y la política de privacidad. Para seguir usando la app, confirma tu edad y acéptalas.</p>
     <label class="chk" style="margin:6px 0 4px;white-space:normal"><input type="checkbox" id="cAge"> Tengo 14 años o más</label>
-    <label class="chk" style="margin:6px 0 4px;white-space:normal"><input type="checkbox" id="cPol"> <span>He leído y acepto la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a></span></label>
+    <label class="chk" style="margin:6px 0 4px;white-space:normal"><input type="checkbox" id="cPol"> <span>He leído y acepto las <a href="condiciones.html" target="_blank" rel="noopener">condiciones de uso</a> y la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a></span></label>
     <p class="small muted legal-links" style="margin:4px 0 0">${LEGAL_LINKS}</p>
     <div class="err" id="cErr" role="alert"></div>
     <div class="nav"><button class="ghost" id="cOut">Salir</button><button class="primary" id="cOk">Continuar</button></div>`;
@@ -1811,7 +1809,7 @@ function openConsent(){
       $('cErr').innerHTML = esc(tr(UNDER14)) + ` <button class="ghost" id="cDel" style="padding-left:0">${esc(tr('Borrar mi cuenta y mis datos'))}</button>`;
       $('cDel').onclick=()=>$('btnDelete').click(); return;
     }
-    if(!$('cPol').checked){ $('cErr').textContent=tr('Para seguir, acepta la política de privacidad.'); return; }
+    if(!$('cPol').checked){ $('cErr').textContent=tr('Para seguir, acepta las condiciones de uso y la política de privacidad.'); return; }
     $('cOk').disabled=true;
     const {error} = await sb.rpc('aceptar_politica',{v:POLICY_VERSION});
     $('cOk').disabled=false;
@@ -1852,7 +1850,7 @@ async function shareApp(){
   $('gClose').onclick=()=>$('guide').classList.add('hidden');
   $('gCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(APP_URL); toast('Enlace copiado'); }catch(e){ toast(APP_URL); } };
   try{
-    if(!window.QRCode) await new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload=ok; sc.onerror=ko; document.head.appendChild(sc); });
+    if(!window.QRCode) await new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src='vendor/qrcode-1.0.0.min.js'; sc.onload=ok; sc.onerror=ko; document.head.appendChild(sc); });
     new QRCode($('qrBox'), { text:APP_URL, width:200, height:200, colorDark:'#000000', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
   }catch(e){ $('qrBox').innerHTML='<p class="small muted">No se ha podido generar el QR: comparte el enlace.</p>'; }
 }

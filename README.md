@@ -68,7 +68,9 @@ Las tarifas y dietas están en `docs/index.html` (objeto `CATS` y función `diet
 ## No oficial
 Vòlei EnXarxa es un proyecto personal, gratuito y sin ánimo de lucro de Ferran Sanchís. No es una app oficial de la Federació Catalana de Voleibol ni de iSquad/Toools, ni tiene relación con ellas. Los nombres de la FCVB, de iSquad y de los clubes se usan solo para describir de dónde salen los datos. Los importes son orientativos: manda el recibo de la FCVB. Si iSquad cambia su web, el lector de designaciones (`supabase/functions/_shared/isquad.ts`) puede necesitar ajustes.
 
-Política de privacidad: https://fsarmesto.github.io/enxarxa/privacidad.html · Aviso legal: https://fsarmesto.github.io/enxarxa/aviso-legal.html
+Condiciones de uso: https://fsarmesto.github.io/enxarxa/condiciones.html · Política de privacidad: https://fsarmesto.github.io/enxarxa/privacidad.html · Aviso legal: https://fsarmesto.github.io/enxarxa/aviso-legal.html · Borrar la cuenta: https://fsarmesto.github.io/enxarxa/eliminar-cuenta.html
+
+Documentación de protección de datos (registro de actividades, análisis de riesgos, encargados y brechas): carpeta [`legal/`](legal/).
 
 ## Licencia
 Todos los derechos reservados (ver [LICENSE](LICENSE)): el código se puede consultar, pero no copiar, modificar ni reutilizar sin permiso del autor. Para pedirlo: fsarmesto@gmail.com.

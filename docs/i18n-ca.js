@@ -420,6 +420,13 @@ I.exact = {
 "Lo entiendo y acepto la": "Ho entenc i accepto la",
 "He leído y acepto la": "He llegit i accepto la",
 "política de privacidad": "política de privacitat",
+"Condiciones de uso": "Condicions d'ús",
+"condiciones de uso": "condicions d'ús",
+"Lo entiendo y acepto las": "Ho entenc i accepto les",
+"He leído y acepto las": "He llegit i accepto les",
+"y la": "i la",
+"Para seguir, acepta las condiciones de uso y la política de privacidad.": "Per continuar, accepta les condicions d'ús i la política de privacitat.",
+"He actualizado las condiciones de uso y la política de privacidad. Para seguir usando la app, confirma tu edad y acéptalas.": "He actualitzat les condicions d'ús i la política de privacitat. Per continuar fent servir l'app, confirma la teva edat i accepta-les.",
 "Importes orientativos: manda el recibo de la FCVB.": "Imports orientatius: mana el rebut de la FCVB.",
 "Para seguir, acepta la política de privacidad.": "Per continuar, accepta la política de privacitat.",
 "He actualizado la política de privacidad. Para seguir usando la app, confirma tu edad y acéptala.": "He actualitzat la política de privacitat. Per continuar fent servir l'app, confirma la teva edat i accepta-la."

@@ -158,7 +158,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 ## Guía, resumen y compartir coche (21-oct-2026)
 
 - Guía de 3 pasos la primera vez (localStorage `liq-guia-vista`) y "Compartir la app" (navigator.share o enlace + QR
-  con qrcodejs 1.0.0 de cdnjs, cargado al pulsar). Ambos también en Ajustes.
+  con qrcodejs 1.0.0 de `docs/vendor`, cargado al pulsar). Ambos también en Ajustes.
 - Pestaña "Resumen" (`renderResumen`): temporada (neto por mes, por categoría, por designación, compañeros más
   frecuentes, pabellones) o año natural para la renta (solo lo cobrado, por la fecha de "PAGADO - dd/mm/aaaa").
   Respeta los filtros. PDF con window.print() y estilos @media print (solo #resumen).
@@ -203,12 +203,20 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## Privacidad, aviso legal y licencia (22-oct-2026, decidido por Ferran)
 
-- Páginas `docs/privacidad.html` y `docs/aviso-legal.html` (estilos `legal.css`, idioma `legal.js`): castellano y catalán
+- Páginas `docs/condiciones.html` (condiciones de uso), `docs/privacidad.html`, `docs/aviso-legal.html` y
+  `docs/eliminar-cuenta.html` (cómo borrar la cuenta; Google Play pide un enlace así), con `legal.css` y `legal.js`: castellano y catalán
   en la misma página, se ve el de `liq-lang` o el del móvil; selector ES/CA. Enlazadas desde la pantalla de entrar,
   la guía, Ajustes y el aviso de aceptación. Contacto: fsarmesto@gmail.com. Si cambia su contenido: actualizar la
-  fecha de las 2 versiones y subir `POLICY_VERSION` (vigente `2026-10-22`), que vuelve a pedir la aceptación a todos.
-- Alta: la casilla de consentimiento es "Lo entiendo y acepto la política de privacidad" (con enlace). Aviso a las
-  cuentas existentes: edad y "He leído y acepto la política de privacidad", las 2 obligatorias.
+  fecha de las 2 versiones y subir `POLICY_VERSION` (vigente `2026-10-22.2`, condiciones y política), que vuelve a
+  pedir la aceptación a todos.
+- Documentación interna en `legal/`: registro de actividades, análisis de riesgos (hace de evaluación de impacto
+  simplificada), encargados (Supabase: su DPA va incluido en sus condiciones, no hay que firmar nada) y brechas.
+  Revisarla al tratar datos nuevos o cambiar de proveedor.
+- La web no carga nada de terceros: tipografías Barlow en `docs/vendor/fonts` y supabase-js, SheetJS y qrcodejs en
+  `docs/vendor` (licencias en `docs/vendor/LICENCIAS.md`). En la vista previa, sustituir `vendor/supabase-2.45.4.js`.
+- Alta: la casilla de consentimiento es "Lo entiendo y acepto las condiciones de uso y la política de privacidad"
+  (con enlaces). Aviso a las cuentas existentes: edad y "He leído y acepto las condiciones de uso y la política de
+  privacidad", las 2 obligatorias.
 - Cuentas sin usar: `profiles.last_active` (migración 025; la web llama a `marcar_actividad` al abrir). Función
   `inactivas` (cron diario 10:00 UTC): a los 6 meses sin abrir la app borra la cuenta; 30 días antes, un aviso a quien
   tiene notificaciones (una vez, `pub_cache aviso-inactiva:`). El sync automático no cuenta como uso.

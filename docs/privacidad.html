@@ -11,7 +11,8 @@
 <body>
 <!-- Política de privacidad (tarea legal, 22-oct-2026). Castellano y catalán en la misma página: se ve el del idioma de
      la app (localStorage liq-lang) o el del móvil. Si cambia el contenido, subir POLICY_VERSION (docs/index.html y
-     supabase/functions/_shared/politica.ts) para volver a pedir la aceptación. -->
+     supabase/functions/_shared/politica.ts) para volver a pedir la aceptación. Lo que hay detrás (registro de
+     actividades, análisis de riesgos, encargados, brechas) está en legal/ del repo. -->
 <header class="board"><a class="back" href="./">← <span data-es>Volver a la app</span><span data-ca>Torna a l'app</span></a>
   <div class="lang" role="group"><button type="button" data-set="es">ES</button><button type="button" data-set="ca">CA</button></div>
   <h1><span data-es>Política de privacidad</span><span data-ca>Política de privacitat</span></h1>
@@ -38,24 +39,30 @@
 </ul>
 
 <h2>Base legal</h2>
-<p>Tu consentimiento, que das al entrar por primera vez y puedes retirar en cualquier momento borrando tu cuenta.</p>
+<p>Para tus datos, tu consentimiento, que das al entrar por primera vez y puedes retirar en cualquier momento borrando tu cuenta. Para los pocos datos de otras personas que aparecen en la app (abajo), el interés legítimo de enseñarte tu propia información de iSquad tal como ya la ves allí.</p>
 
 <h2>Datos de otras personas</h2>
-<p>De las plantillas públicas de los equipos solo se guardan huellas cifradas, que no permiten saber nombres. Los nombres de tus compañeros de equipo arbitral se muestran porque ya los ves en iSquad.</p>
+<p>De las plantillas públicas de los equipos solo se guardan huellas cifradas, que no permiten saber nombres. Los nombres de tus compañeros de equipo arbitral se muestran porque ya los ves en iSquad. Si alguien quiere que su nombre no salga, puede pedirlo en <a href="mailto:fsarmesto@gmail.com">fsarmesto@gmail.com</a>.</p>
 
 <h2>Quién más interviene</h2>
-<p>La app funciona con servicios de terceros que tratan datos por cuenta del responsable: Supabase (base de datos y servidor, en la Unión Europea), GitHub Pages (alojamiento de la web), OpenRouteService y Photon (cálculo de distancias a partir de las direcciones de los pabellones y de tu población) y los servicios de notificaciones de Google, Apple o Microsoft, según tu dispositivo. Las tipografías y algunas librerías se cargan de Google Fonts, jsDelivr y cdnjs. No se venden ni se ceden datos a nadie, y no hay publicidad ni analítica.</p>
+<p>La app funciona con servicios de terceros que tratan datos por cuenta del responsable: Supabase (base de datos y servidor, en la Unión Europea), GitHub Pages (alojamiento de la web), OpenRouteService y Photon (cálculo de distancias a partir de las direcciones de los pabellones y de tu población) y los servicios de notificaciones de Google, Apple o Microsoft, según tu dispositivo. La base de datos está en la Unión Europea (París). Supabase y GitHub son empresas de EE. UU.: si algún dato sale de la UE, lo cubren las cláusulas contractuales tipo de la Comisión Europea incluidas en sus contratos. No se venden ni se ceden datos a nadie, y no hay publicidad ni analítica. La web no carga nada de otros sitios (ni tipografías ni librerías).</p>
+
+<h2>Lo que se guarda en tu navegador</h2>
+<p>La app guarda en tu navegador la sesión (para no pedirte el usuario cada vez) y tus preferencias: idioma, pestaña, temporada, filtros y si ya viste la guía. Son necesarias para que funcione y no necesitan consentimiento. No hay cookies de publicidad ni de análisis.</p>
+
+<h2>Seguridad</h2>
+<p>Las contraseñas y sesiones de iSquad se guardan cifradas (AES-GCM) y todas las conexiones van cifradas. Cada usuario solo puede leer sus propios datos. Si hubiera una brecha de seguridad que afectara a tus datos, se avisaría a la autoridad de protección de datos en 72 horas y, si hubiera un riesgo alto para ti, también a ti.</p>
 
 <h2>Cuánto tiempo</h2>
 <p>Mientras tengas cuenta. Si una cuenta lleva 6 meses sin abrir la app, se borra con todos sus datos; si tiene las notificaciones activadas, se avisa 30 días antes. Al borrar tu cuenta se elimina todo al momento: contraseña y sesión guardadas, partidos, ajustes, suscripciones y el enlace del calendario.</p>
 
 <h2>Tus derechos</h2>
-<p>Puedes acceder a tus datos, corregirlos, borrarlos, llevártelos (exportación a Excel) u oponerte a su uso. Para borrarlo todo: Ajustes → Borrar mi cuenta y mis datos. Para cualquier otra petición: <a href="mailto:fsarmesto@gmail.com">fsarmesto@gmail.com</a>. Si crees que no se respetan tus derechos, puedes reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es" rel="noopener">aepd.es</a>) o la Autoritat Catalana de Protecció de Dades (<a href="https://apdcat.gencat.cat" rel="noopener">apdcat.cat</a>).</p>
+<p>Puedes acceder a tus datos, corregirlos, borrarlos, llevártelos (exportación a Excel) u oponerte a su uso. Para borrarlo todo: Ajustes → Borrar mi cuenta y mis datos (<a href="eliminar-cuenta.html">más detalles</a>). Para cualquier otra petición: <a href="mailto:fsarmesto@gmail.com">fsarmesto@gmail.com</a>. Si crees que no se respetan tus derechos, puedes reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es" rel="noopener">aepd.es</a>) o la Autoritat Catalana de Protecció de Dades (<a href="https://apdcat.gencat.cat" rel="noopener">apdcat.cat</a>).</p>
 
 <h2>Edad mínima</h2>
 <p>La app es para mayores de 14 años.</p>
 
-<p class="muted"><a href="aviso-legal.html">Aviso legal</a></p>
+<p class="muted"><a href="condiciones.html">Condiciones de uso</a> · <a href="aviso-legal.html">Aviso legal</a></p>
 </main>
 
 <main lang="ca" data-ca>
@@ -78,24 +85,30 @@
 </ul>
 
 <h2>Base legal</h2>
-<p>El teu consentiment, que dones quan entres per primera vegada i pots retirar en qualsevol moment esborrant el teu compte.</p>
+<p>Per a les teves dades, el teu consentiment, que dones quan entres per primera vegada i pots retirar en qualsevol moment esborrant el teu compte. Per a les poques dades d'altres persones que surten a l'app (a sota), l'interès legítim d'ensenyar-te la teva pròpia informació d'iSquad tal com ja la veus allà.</p>
 
 <h2>Dades d'altres persones</h2>
-<p>De les plantilles públiques dels equips només es desen empremtes xifrades, que no permeten saber noms. Els noms dels teus companys d'equip arbitral es mostren perquè ja els veus a iSquad.</p>
+<p>De les plantilles públiques dels equips només es desen empremtes xifrades, que no permeten saber noms. Els noms dels teus companys d'equip arbitral es mostren perquè ja els veus a iSquad. Si algú vol que el seu nom no surti, ho pot demanar a <a href="mailto:fsarmesto@gmail.com">fsarmesto@gmail.com</a>.</p>
 
 <h2>Qui més hi intervé</h2>
-<p>L'app funciona amb serveis de tercers que tracten dades per compte del responsable: Supabase (base de dades i servidor, a la Unió Europea), GitHub Pages (allotjament del web), OpenRouteService i Photon (càlcul de distàncies a partir de les adreces dels pavellons i de la teva població) i els serveis de notificacions de Google, Apple o Microsoft, segons el teu dispositiu. Les tipografies i algunes llibreries es carreguen de Google Fonts, jsDelivr i cdnjs. No es venen ni es cedeixen dades a ningú, i no hi ha publicitat ni analítica.</p>
+<p>L'app funciona amb serveis de tercers que tracten dades per compte del responsable: Supabase (base de dades i servidor, a la Unió Europea), GitHub Pages (allotjament del web), OpenRouteService i Photon (càlcul de distàncies a partir de les adreces dels pavellons i de la teva població) i els serveis de notificacions de Google, Apple o Microsoft, segons el teu dispositiu. La base de dades és a la Unió Europea (París). Supabase i GitHub són empreses dels EUA: si alguna dada surt de la UE, la cobreixen les clàusules contractuals tipus de la Comissió Europea incloses en els seus contractes. No es venen ni es cedeixen dades a ningú, i no hi ha publicitat ni analítica. El web no carrega res d'altres llocs (ni tipografies ni llibreries).</p>
+
+<h2>El que es desa al teu navegador</h2>
+<p>L'app desa al teu navegador la sessió (per no demanar-te l'usuari cada vegada) i les teves preferències: idioma, pestanya, temporada, filtres i si ja vas veure la guia. Són necessàries perquè funcioni i no necessiten consentiment. No hi ha galetes de publicitat ni d'anàlisi.</p>
+
+<h2>Seguretat</h2>
+<p>Les contrasenyes i sessions d'iSquad es desen xifrades (AES-GCM) i totes les connexions van xifrades. Cada usuari només pot llegir les seves pròpies dades. Si hi hagués una bretxa de seguretat que afectés les teves dades, s'avisaria l'autoritat de protecció de dades en 72 hores i, si hi hagués un risc alt per a tu, també a tu.</p>
 
 <h2>Quant de temps</h2>
 <p>Mentre tinguis compte. Si un compte fa 6 mesos que no obre l'app, s'esborra amb totes les seves dades; si té les notificacions activades, s'avisa 30 dies abans. Quan esborres el teu compte s'elimina tot al moment: contrasenya i sessió desades, partits, configuració, subscripcions i l'enllaç del calendari.</p>
 
 <h2>Els teus drets</h2>
-<p>Pots accedir a les teves dades, corregir-les, esborrar-les, emportar-te-les (exportació a Excel) o oposar-te al seu ús. Per esborrar-ho tot: Configuració → Esborra el meu compte i les meves dades. Per a qualsevol altra petició: <a href="mailto:fsarmesto@gmail.com">fsarmesto@gmail.com</a>. Si creus que no es respecten els teus drets, pots reclamar davant de l'Agencia Española de Protección de Datos (<a href="https://www.aepd.es" rel="noopener">aepd.es</a>) o l'Autoritat Catalana de Protecció de Dades (<a href="https://apdcat.gencat.cat" rel="noopener">apdcat.cat</a>).</p>
+<p>Pots accedir a les teves dades, corregir-les, esborrar-les, emportar-te-les (exportació a Excel) o oposar-te al seu ús. Per esborrar-ho tot: Configuració → Esborra el meu compte i les meves dades (<a href="eliminar-cuenta.html">més detalls</a>). Per a qualsevol altra petició: <a href="mailto:fsarmesto@gmail.com">fsarmesto@gmail.com</a>. Si creus que no es respecten els teus drets, pots reclamar davant de l'Agencia Española de Protección de Datos (<a href="https://www.aepd.es" rel="noopener">aepd.es</a>) o l'Autoritat Catalana de Protecció de Dades (<a href="https://apdcat.gencat.cat" rel="noopener">apdcat.cat</a>).</p>
 
 <h2>Edat mínima</h2>
 <p>L'app és per a majors de 14 anys.</p>
 
-<p class="muted"><a href="aviso-legal.html">Avís legal</a></p>
+<p class="muted"><a href="condiciones.html">Condicions d'ús</a> · <a href="aviso-legal.html">Avís legal</a></p>
 </main>
 <script src="legal.js"></script>
 </body>
