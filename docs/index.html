@@ -609,15 +609,16 @@ const estCells = (m,r,km) => `<td class="n" data-l="Dieta"><input type="number" 
 const fcvbCells = r => `<td class="n" data-l="Dieta"><span class="muted" title="La FCVB da la dieta y el desplazamiento juntos">incl.</span></td>
           <td class="n" data-l="Gastos">${eur(r.travel)}<span class="shared" title="Desplazamiento y dieta según los recibos de la FCVB (la app calculaba ${eur(r.est.gastos)}; la FCVB reparte los gastos del día entre los partidos)">gastos FCVB</span></td>`;
 /* ---------- Filtros (designación, división, categoría y género) ---------- */
-const DIVS=[['SL','Superliga'],['SL2','Superliga 2'],['1','1ª División'],['2','2ª División'],['3','3ª División'],['4','4ª División'],['PREF','Preferente'],['AM1','Amateur 1ª'],['AM2','Amateur 2ª'],['SEL','Selecciones'],['U','Sin división']];
+const DIVS=[['SL','Superliga'],['SL2','Superliga 2'],['1','1ª División'],['2','2ª División'],['3','3ª División'],['4','4ª División'],['PREF','Preferente'],['MA','Máster/Alevín'],['OTROS','Otros']];
 const AGES=[['SEN','Sénior'],['JUN','Júnior'],['JUV','Juvenil'],['CAD','Cadete'],['INF','Infantil'],['ALE','Alevín'],['AMA','Amateur'],['OTRA','Otras']];
 const GENS=[['F','Femenino'],['M','Masculino'],['X','Mixto']];
 const ROLES=[['r1','R1 · Primer árbitro'],['r2','R2 · Segundo árbitro'],['an','Anotador'],['jl','Juez de línea']];
 // La competición de iSquad trae división, edad y género juntos: "CUARTA DIVISION CADETE FEMENINO".
 function compParts(comp){
   const c=norm(comp);
-  const div = /SELECCI/.test(c)?'SEL' : /SUPERLIGA ?2/.test(c)?'SL2' : /SUPERLIGA/.test(c)?'SL' : /AMATEUR PRIMERA/.test(c)?'AM1' : /AMATEUR SEGUNDA/.test(c)?'AM2'
-    : /PRIMERA/.test(c)?'1' : /SEGUNDA/.test(c)?'2' : /TERCERA/.test(c)?'3' : /CUARTA/.test(c)?'4' : /PREFERENT/.test(c)?'PREF' : 'U';
+  // Máster/Alevín: Alevín y Amateur (Máster/Veteranos). Otros: selecciones territoriales y lo que no encaje.
+  const div = /SELECCI/.test(c)?'OTROS' : /AMATEUR|MASTER|VETERA|ALEVI/.test(c)?'MA' : /SUPERLIGA ?2/.test(c)?'SL2' : /SUPERLIGA/.test(c)?'SL'
+    : /PRIMERA/.test(c)?'1' : /SEGUNDA/.test(c)?'2' : /TERCERA/.test(c)?'3' : /CUARTA/.test(c)?'4' : /PREFERENT/.test(c)?'PREF' : 'OTROS';
   const age = /SENIOR|SUPERLIGA/.test(c)?'SEN' : /JUNIOR/.test(c)?'JUN' : /JUVENIL/.test(c)?'JUV' : /CADET/.test(c)?'CAD' : /INFANTIL/.test(c)?'INF' : /ALEVI/.test(c)?'ALE' : /AMATEUR/.test(c)?'AMA' : 'OTRA';
   const gen = /FEMENI/.test(c)?'F' : /MASCULI/.test(c)?'M' : /MIXT/.test(c)?'X' : '';
   return {div,age,gen};
@@ -626,6 +627,8 @@ const roleOf = m => (m.staff_checked || String(m.id).startsWith('MAN-')) ? m.rol
 const FILTER_KEY='liq-filtros';
 let FILT={role:'',div:'',age:'',gen:''};
 try{ Object.assign(FILT, JSON.parse(localStorage.getItem(FILTER_KEY)||'{}')); }catch(e){}
+// Un filtro guardado con una opción que ya no existe se descarta (si no, la lista saldría vacía sin motivo visible).
+for(const [k,opts] of [['role',ROLES],['div',DIVS],['age',AGES],['gen',GENS]]) if(FILT[k] && !opts.some(([v])=>v===FILT[k])) FILT[k]='';
 const FGET={role:roleOf, div:m=>compParts(m.comp).div, age:m=>compParts(m.comp).age, gen:m=>compParts(m.comp).gen};
 const passes=(m,skip)=>Object.entries(FILT).every(([k,v])=>!v || k===skip || FGET[k](m)===v);
 const filtering=()=>Object.values(FILT).some(Boolean);
