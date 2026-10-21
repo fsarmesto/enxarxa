@@ -274,4 +274,10 @@ EXACT = {
 "Pendiente": "Pendent",
 "· Cobrado": "· Cobrat",
 "Tus equipos: horarios, árbitros y resultados": "Els teus equips: horaris, àrbitres i resultats",
+# Edad mínima y política (21-oct-2026)
+"Tengo 14 años o más": "Tinc 14 anys o més",
+"Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.": "Aquesta app és per a majors de 14 anys. Si en tens menys, demana a la teva mare, pare o tutor que la faci servir per tu.",
+"Antes de seguir": "Abans de continuar",
+"La app es solo para mayores de 14 años. Confírmalo para seguir usándola.": "L'app és només per a majors de 14 anys. Confirma-ho per continuar fent-la servir.",
+"Continuar": "Continua",
 }

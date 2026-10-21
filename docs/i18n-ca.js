@@ -409,7 +409,12 @@ I.exact = {
 "Tus partidos de la FCVB en un solo sitio: horarios, resultados, clasificación y avisos de tus equipos. Si arbitras, también tus designaciones y cobros (tarifas, dietas y desplazamientos).": "Els teus partits de la FCVB en un sol lloc: horaris, resultats, classificació i avisos dels teus equips. Si arbitres, també les teves designacions i cobraments (tarifes, dietes i desplaçaments).",
 "Pendiente": "Pendent",
 "· Cobrado": "· Cobrat",
-"Tus equipos: horarios, árbitros y resultados": "Els teus equips: horaris, àrbitres i resultats"
+"Tus equipos: horarios, árbitros y resultados": "Els teus equips: horaris, àrbitres i resultats",
+"Tengo 14 años o más": "Tinc 14 anys o més",
+"Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.": "Aquesta app és per a majors de 14 anys. Si en tens menys, demana a la teva mare, pare o tutor que la faci servir per tu.",
+"Antes de seguir": "Abans de continuar",
+"La app es solo para mayores de 14 años. Confírmalo para seguir usándola.": "L'app és només per a majors de 14 anys. Confirma-ho per continuar fent-la servir.",
+"Continuar": "Continua"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

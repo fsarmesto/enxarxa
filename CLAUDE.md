@@ -20,7 +20,7 @@ Repo `fsarmesto/enxarxa`, web https://fsarmesto.github.io/enxarxa/. Las direccio
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…005). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…020). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
@@ -189,6 +189,16 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   texto castellano exacto). Para encontrar lo que falta: recorrer la app en Chrome sin ventana con la app en catalán,
   recoger los textos visibles y buscar palabras castellanas (así se hizo el 21-oct).
 - Sin traducir: el Excel exportado y las notificaciones push (se generan en el servidor en castellano).
+
+## Edad mínima y política aceptada (21-oct-2026)
+
+- Mayores de 14 años (por debajo hace falta el consentimiento de los padres). Cuenta nueva: casilla "Tengo 14 años o más"
+  (`aAge`) además de la de consentimiento; sin ella no se crea la cuenta (la web lo para y `auth-isquad` también: `age14`).
+- `profiles.consent_at` y `profiles.policy_version` (migración 020). Las cuentas nuevas los guardan al crearse; el resto
+  ve al entrar un aviso que no se puede cerrar (`openConsent`) y acepta con la función SQL `aceptar_politica(v)` (la fecha
+  la pone el servidor). Si no marca la casilla: mensaje para menores y botón de borrar la cuenta.
+- Versión vigente en `POLICY_VERSION`, en 2 sitios que tienen que coincidir: `docs/index.html` y
+  `supabase/functions/_shared/politica.ts`. Cambiarla vuelve a pedir la aceptación a todos.
 
 ## Panel de designaciones publicadas (admin, 21-oct-2026)
 

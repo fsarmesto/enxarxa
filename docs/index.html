@@ -466,7 +466,8 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
         <div class="notice" id="arbNotice">
           <strong>Antes de seguir:</strong> para traer tus designaciones automáticamente, esta app guarda tu usuario y contraseña de iSquad <strong>cifrados</strong> y los usa solo para leer tu página de designaciones un par de veces al día. No es una app oficial de la FCVB ni de iSquad. Puedes borrar tu cuenta, con la contraseña y todos tus datos, en cualquier momento desde Ajustes.
         </div>
-        <label class="chk small" style="margin-bottom:14px"><input type="checkbox" id="aConsent"> Lo entiendo y quiero continuar</label>
+        <label class="chk small" style="display:flex;margin-bottom:8px;white-space:normal"><input type="checkbox" id="aAge"> Tengo 14 años o más</label>
+        <label class="chk small" style="display:flex;margin-bottom:14px;white-space:normal"><input type="checkbox" id="aConsent"> Lo entiendo y quiero continuar</label>
       </div>
       <label class="chk small" style="margin-bottom:4px;white-space:normal"><input type="checkbox" id="aGuest"> Entrar sin guardar nada</label>
       <p class="guest-note hidden" id="guestNote">No se crea cuenta ni se guarda nada: ni tu usuario, ni tu contraseña, ni tus partidos. Se leen de iSquad en este momento (puede tardar hasta un minuto) y desaparecen al cerrar la pestaña. Sin actualizaciones automáticas.</p>
@@ -1295,9 +1296,10 @@ $('authForm').addEventListener('submit', async e=>{
   e.preventDefault();
   if($('aGuest').checked) return enterGuest();
   const needSetup = !$('setupBlock').classList.contains('hidden');
+  if(needSetup && !$('aAge').checked){ $('aErr').textContent=tr(UNDER14); return; }
   if(needSetup && ((!SETUP_DEP && !$('aOrigin').value.trim()) || !$('aConsent').checked)){ $('aErr').textContent='Indica tu población y marca la casilla para continuar.'; return; }
   $('aErr').textContent=''; $('aBtn').disabled=true; $('aBtn').textContent= needSetup ? 'Trayendo tus partidos…' : 'Comprobando con iSquad…';
-  const r = await callFn('auth-isquad',{login:$('aLogin').value, password:$('aPass').value, origin:$('aOrigin').value, consent:$('aConsent').checked});
+  const r = await callFn('auth-isquad',{login:$('aLogin').value, password:$('aPass').value, origin:$('aOrigin').value, consent:$('aConsent').checked, age14:$('aAge').checked});
   $('aBtn').disabled=false; $('aBtn').textContent='Entrar';
   if(r.needSetup){
     // Jugador o entrenador (no árbitro): sin población y con su propio aviso de qué se guarda.
@@ -1805,8 +1807,35 @@ function renderGuide(){
   on('gShare', shareApp);
 }
 function openGuide(){ GUIDE_STEP=0; renderGuide(); $('guide').classList.remove('hidden'); }
-function closeGuide(){ $('guide').classList.add('hidden'); try{ localStorage.setItem(GUIDE_KEY,'1'); }catch(e){} }
-function maybeGuide(){ let seen=false; try{ seen=!!localStorage.getItem(GUIDE_KEY); }catch(e){} if(!seen && !GUEST) openGuide(); }
+function closeGuide(){ if(CONSENT_OPEN) return; $('guide').classList.add('hidden'); try{ localStorage.setItem(GUIDE_KEY,'1'); }catch(e){} }
+// Edad mínima y política: las cuentas sin aceptar la versión vigente ven este aviso (no se puede cerrar) antes que nada.
+// POLICY_VERSION tiene que coincidir con supabase/functions/_shared/politica.ts.
+const POLICY_VERSION = '2026-10-21';
+const UNDER14 = 'Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.';
+let CONSENT_OPEN = false;
+const needsConsent = () => !GUEST && P && P.policy_version!==POLICY_VERSION;
+function openConsent(){
+  CONSENT_OPEN = true;
+  $('guideSheet').innerHTML = `<div class="step-ico">🔒</div><h2 id="guideTitle">Antes de seguir</h2>
+    <p>La app es solo para mayores de 14 años. Confírmalo para seguir usándola.</p>
+    <label class="chk" style="margin:6px 0 4px;white-space:normal"><input type="checkbox" id="cAge"> Tengo 14 años o más</label>
+    <div class="err" id="cErr" role="alert"></div>
+    <div class="nav"><button class="ghost" id="cOut">Salir</button><button class="primary" id="cOk">Continuar</button></div>`;
+  $('guide').classList.remove('hidden');
+  $('cOut').onclick=()=>{ CONSENT_OPEN=false; $('guide').classList.add('hidden'); logout(); };
+  $('cOk').onclick=async()=>{
+    if(!$('cAge').checked){
+      $('cErr').innerHTML = esc(tr(UNDER14)) + ` <button class="ghost" id="cDel" style="padding-left:0">${esc(tr('Borrar mi cuenta y mis datos'))}</button>`;
+      $('cDel').onclick=()=>$('btnDelete').click(); return;
+    }
+    $('cOk').disabled=true;
+    const {error} = await sb.rpc('aceptar_politica',{v:POLICY_VERSION});
+    $('cOk').disabled=false;
+    if(error){ $('cErr').textContent=tr('No se ha podido guardar'); return; }
+    P.policy_version=POLICY_VERSION; CONSENT_OPEN=false; $('guide').classList.add('hidden'); maybeGuide();
+  };
+}
+function maybeGuide(){ if(needsConsent()) return openConsent(); let seen=false; try{ seen=!!localStorage.getItem(GUIDE_KEY); }catch(e){} if(!seen && !GUEST) openGuide(); }
 $('guide').addEventListener('click', e=>{ if(e.target.id==='guide') closeGuide(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('guide').classList.contains('hidden')) closeGuide(); });
 $('btnGuide').addEventListener('click', openGuide);
@@ -1922,7 +1951,7 @@ async function start(){
   if(!session){ show('auth'); return; }
   USER = session.user;
   try{ await loadAll(); }catch(e){ await sb.auth.signOut(); show('auth'); return; }
-  show('app'); render(); loadRanking(); initPush(); loadEquipos(); loadCoche(); setTimeout(maybeGuide, 600);
+  show('app'); render(); loadRanking(); initPush(); loadEquipos(); loadCoche(); if(needsConsent()) openConsent(); else setTimeout(maybeGuide, 600);
 }
 start();
 </script>
