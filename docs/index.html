@@ -244,7 +244,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 /* Vistas: Cobros / Mis partidos */
 .views{display:flex;gap:0;margin:0 0 22px;border:2px solid var(--ink);border-radius:3px;overflow:hidden;width:max-content;max-width:100%}
 .views button{border:0;border-radius:0;padding:10px 22px;font-family:var(--display);font-size:19px;font-weight:600;background:transparent;color:var(--ink)}
-@media (max-width:560px){ .views{width:100%} .views button{flex:1;padding:9px 4px;font-size:16px} }
+@media (max-width:560px){ .views{width:100%} .views button{flex:1 1 auto;padding:9px 6px;font-size:15px;white-space:nowrap} }
 /* Resumen */
 .rs-mode{margin:0 0 16px}
 .rs-hero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin:0 0 20px}
@@ -394,6 +394,7 @@ details.cal[open]>summary::before{content:"▾ "}
     <p>Tus partidos de iSquad con tarifas, dietas y desplazamientos. Cuando la FCVB ya ha liquidado un partido (recibos de iSquad), se usan sus importes; mientras tanto, una previsión según el anexo.</p>
   </div>
   <section>
+    <div class="seg" data-noi18n style="justify-content:flex-end;width:100%;margin-bottom:12px"><span class="segb lang-seg" role="group"><button type="button" data-lang="es">ES</button><button type="button" data-lang="ca">CA</button></span></div>
     <form id="authForm" autocomplete="on">
       <label class="f">Usuario de iSquad<input type="text" id="aLogin" name="username" autocomplete="username" required></label>
       <label class="f">Contraseña de iSquad<input type="password" id="aPass" name="password" autocomplete="current-password" required></label>
@@ -527,6 +528,8 @@ details.cal[open]>summary::before{content:"▾ "}
         <p class="small muted">Si lo activas, te aviso en "Mis partidos" cuando otro árbitro que también lo tenga activado va ese día al mismo pabellón o a la misma población, por si os queréis organizar. Solo se ve entre quienes lo activan, y solo el nombre, la hora, el pabellón y la población de salida.</p>
         <div class="seg" style="margin-bottom:6px">Compartir coche<span class="segb" role="group" id="carSeg"><button type="button" data-car="1" aria-pressed="false">Sí</button><button type="button" data-car="0" aria-pressed="true">No</button></span></div>
         <p class="small muted" id="carInfo"></p>
+        <h2 style="margin-top:16px">Idioma</h2>
+        <div class="seg" data-noi18n><span class="segb lang-seg" role="group"><button type="button" data-lang="es">Castellano</button><button type="button" data-lang="ca">Català</button></span></div>
         <h2 style="margin-top:16px">Tu cuenta</h2>
         <p class="small muted" id="accountInfo"></p>
         <div class="row" style="margin-bottom:12px"><button id="btnGuide">Ver la guía</button><button id="btnShare">Compartir la app</button></div>
@@ -542,6 +545,7 @@ details.cal[open]>summary::before{content:"▾ "}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
+<script src="i18n-ca.js"></script>
 <script>
 'use strict';
 const sb = supabase.createClient(window.APP_CONFIG.SUPABASE_URL, window.APP_CONFIG.SUPABASE_ANON_KEY);
@@ -622,6 +626,45 @@ function dietaFor(dateStr, mins, holiday){
   return ((m>=540 && m<=780) || (m>=960 && m<=1229)) ? 10 : 13.5;
 }
 
+/* ---------- Idioma (castellano / catalán) ---------- */
+// Por defecto el del móvil; se recuerda en el navegador. Los textos se traducen al pintarse (ver "Traducción").
+let LANG = 'es';
+try{ LANG = localStorage.getItem('liq-lang') || ((navigator.language||'').toLowerCase().startsWith('ca') ? 'ca' : 'es'); }catch(e){}
+const LOC = () => LANG==='ca' ? 'ca-ES' : 'es-ES';
+document.documentElement.lang = LANG;
+
+/* ---------- Traducción (castellano → catalán) ----------
+   La app se escribe en castellano y, con el catalán elegido, cada texto que se pinta se traduce con el diccionario de
+   i18n-ca.js (texto entero, patrones con números y expresiones sueltas). Lo marcado con data-noi18n no se toca. */
+const I18N = window.I18N_CA;
+const FRAG_RE = I18N ? I18N.frags.map(([a,b])=>[new RegExp(`(^|[^\\p{L}\\p{N}])${a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?=$|[^\\p{L}\\p{N}])`,'gu'), b]) : [];
+function tr(text){
+  if(LANG!=='ca' || !I18N || typeof text!=='string') return text;
+  const k=text.trim(); if(!k || !/[a-záéíóúñ]/i.test(k)) return text;
+  let out=I18N.exact[k];
+  if(out==null) for(const [re,rep] of I18N.rules){ const m=k.match(re); if(m){ const r = typeof rep==='function' ? rep(...m) : k.replace(re,rep); if(r!=null){ out=r; break; } } }
+  if(out==null){ out=k; for(const [re,b] of FRAG_RE) out=out.replace(re,(_,p)=>p+b); }
+  return out===k ? text : text.replace(k,out);
+}
+const TR_ATTRS=['placeholder','title','aria-label'];
+function translateNode(n){
+  if(LANG!=='ca' || !n) return;
+  if(n.nodeType===3){ const p=n.parentElement; if(!p || p.closest('script,style,[data-noi18n]')) return; const v=tr(n.nodeValue); if(v!==n.nodeValue) n.nodeValue=v; return; }
+  if(n.nodeType!==1 || n.closest('script,style,[data-noi18n]')) return;
+  for(const el of [n, ...n.querySelectorAll('[placeholder],[title],[aria-label]')]) for(const a of TR_ATTRS){ const v=el.getAttribute&&el.getAttribute(a); if(v){ const t=tr(v); if(t!==v) el.setAttribute(a,t); } }
+  const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT); let t; while((t=w.nextNode())) translateNode(t);
+}
+if(LANG==='ca'){
+  document.title = tr(document.title);
+  new MutationObserver(muts=>{ for(const m of muts){ if(m.type==='characterData') translateNode(m.target); else m.addedNodes.forEach(translateNode); } })
+    .observe(document.body,{childList:true,subtree:true,characterData:true});
+  translateNode(document.body);
+}
+// Cambiar de idioma: se guarda y se recarga (así todo, también lo fijo de la página, sale en el idioma nuevo).
+function setLang(l){ if(l===LANG) return; try{ localStorage.setItem('liq-lang', l); }catch(e){} location.reload(); }
+document.addEventListener('click', e=>{ const b=e.target.closest('button[data-lang]'); if(b) setLang(b.dataset.lang); });
+document.querySelectorAll('button[data-lang]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.lang===LANG)));
+
 /* ---------- Estado ---------- */
 // Modo sin guardar: los datos viven solo en memoria y ninguna escritura sale del navegador.
 let GUEST = false;
@@ -680,7 +723,7 @@ function payState(m){
 }
 const isPaid = m => payState(m)==='pagado';
 const PAY_LABEL = {pagado:'Sí', solicitado:'Solicitado', solicitar:'Por solicitar', perdido:'Plazo terminado', nada:'Sin importe', sinrecibo:'No', futuro:'No'};
-const fmtShort = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+const fmtShort = ds => new Date(ds+'T12:00:00').toLocaleDateString(LOC(),{weekday:'long',day:'numeric',month:'long'});
 // Población según iSquad (lo que va detrás del código postal). La FCVB paga los km de población a población,
 // no hasta el pabellón: todos los pabellones de Barcelona se pagan igual, y uno que iSquad pone mal de
 // población se paga como esa población.
@@ -799,14 +842,13 @@ $('seasons').addEventListener('click', e=>{
 });
 
 /* ---------- Render ---------- */
-const eur = v => v.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
-const DAYS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-const fmtDay = ds => { const d=new Date(ds+'T12:00:00'); return `${DAYS[d.getDay()]} ${d.getDate()} ${d.toLocaleDateString('es-ES',{month:'long'})}`; };
+const eur = v => v.toLocaleString(LOC(),{style:'currency',currency:'EUR'});
+const fmtDay = ds => new Date(ds+'T12:00:00').toLocaleDateString(LOC(),{weekday:'long',day:'numeric',month:'long'}).replace(',','');
 function weekStart(ds){ const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.toISOString().slice(0,10); }
-function weekRange(ws){ const mon=new Date(ws+'T12:00:00'); const sun=new Date(mon); sun.setDate(mon.getDate()+6); const f=x=>x.toLocaleDateString('es-ES',{day:'numeric',month:'short'}); return `${f(mon)} – ${f(sun)}`; }
+function weekRange(ws){ const mon=new Date(ws+'T12:00:00'); const sun=new Date(mon); sun.setDate(mon.getDate()+6); const f=x=>x.toLocaleDateString(LOC(),{day:'numeric',month:'short'}); return `${f(mon)} – ${f(sun)}`; }
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sel = (f,id,opts,cur) => `<select data-f="${f}" data-id="${esc(id)}">`+Object.entries(opts).map(([k,v])=>`<option value="${k}"${k===cur?' selected':''}>${esc(v)}</option>`).join('')+'</select>';
-function ago(ts){ if(!ts) return 'nunca'; const d=new Date(ts); return d.toLocaleString('es-ES',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
+function ago(ts){ if(!ts) return 'nunca'; const d=new Date(ts); return d.toLocaleString(LOC(),{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
 
 // Dieta y desplazamiento: previsión de la app (editable) o lo que ha liquidado la FCVB (juntos, como en iSquad).
 const estCells = (m,r,km) => `<td class="n" data-l="Dieta"><input type="number" step="0.5" min="0" data-f="dieta" data-id="${esc(m.id)}" value="${r.dieta||''}" placeholder="0" aria-label="Dieta">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${esc(m.id)}" title="Volver a la dieta automática (${eur(r.dietaAuto)})">auto</button>`:(r.dietaShared&&r.dieta?'<span class="shared">jornada</span>':'')}</td>
@@ -868,7 +910,7 @@ function payTag(m){
 // Avisos arriba (de todas las temporadas): pagos por pedir con su plazo y partidos de hoy/ayer aún sin recibo.
 // Plegados por defecto; se recuerda cuál se ha abierto mientras la página está abierta (render() repinta a menudo).
 const ALERT_OPEN = new Set();
-const fmtTiny = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'}).replace(/[.,]/g,'');
+const fmtTiny = ds => new Date(ds+'T12:00:00').toLocaleDateString(LOC(),{weekday:'short',day:'numeric',month:'short'}).replace(/[.,]/g,'');
 function renderAlerts(ms, res){
   const t=today(), out=[];
   const item = m => `<li>${esc(fmtTiny(m.date))} ${esc(m.time)} · ${esc(capName(m.comp))} · ${eur(res.get(m.id).total)}</li>`;
@@ -1001,7 +1043,7 @@ $('ledger').addEventListener('click', async e=>{
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.dietaAuto){ patchMatch(b.dataset.dietaAuto,{dieta_override:null}); return; }
   if(b.dataset.pay){ const m=MATCHES.find(x=>x.id===b.dataset.pay); if(m) patchMatch(m.id,{paid:!m.paid}); return; }
-  if(b.dataset.del && confirm('¿Quitar este partido de la lista?')){
+  if(b.dataset.del && confirm(tr('¿Quitar este partido de la lista?'))){
     MATCHES = MATCHES.filter(m=>m.id!==b.dataset.del); render();
     await store().from('matches').delete().eq('user_id',USER.id).eq('id',b.dataset.del);
   }
@@ -1109,7 +1151,7 @@ $('btnSync').addEventListener('click', async ()=>{
   await loadAll(); render();
 });
 $('btnDelete').addEventListener('click', async ()=>{
-  if(!confirm('Se borrará tu contraseña de iSquad guardada y todos tus partidos y ajustes. No se puede deshacer.')) return;
+  if(!confirm(tr('Se borrará tu contraseña de iSquad guardada y todos tus partidos y ajustes. No se puede deshacer.'))) return;
   const r = await callFn('delete-account');
   if(!r.ok){ toast(r.error||'No se ha podido borrar'); return; }
   await sb.auth.signOut(); location.reload();
@@ -1510,7 +1552,7 @@ function carLine(m){
 
 /* ---------- Resumen de temporada y año (para la renta) ---------- */
 let RS_MODE='temporada';
-const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MESES=new Proxy([], { get:(_,i)=> typeof i==='string' && /^\d+$/.test(i) ? new Date(2026,+i,1).toLocaleDateString(LOC(),{month:'short'}).replace(/[.]/g,'').replace(/^de /,'') : undefined });
 // Fecha de cobro: la de "PAGADO - dd/mm/aaaa" de iSquad; si no, la del partido.
 const paidDate = m => { const x=(m.fcvb_pago||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return x ? `${x[3]}-${x[2]}-${x[1]}` : ''; };
 function renderResumen(allMs,res){
@@ -1529,7 +1571,7 @@ function renderResumen(allMs,res){
   const modeBtns = `<div class="segb rs-mode no-print" role="group"><button type="button" data-rs="temporada" aria-pressed="${RS_MODE==='temporada'}">Temporada ${seasonLabel(SEASON)}</button><button type="button" data-rs="anio" aria-pressed="${RS_MODE==='anio'}">Año ${year} · renta</button></div>`;
   if(!ms.length){ box.innerHTML = modeBtns + `<div class="empty">${RS_MODE==='anio'?`Aún no hay cobros con fecha de ${year}.`:'No hay partidos en esta temporada.'}${filtering()?' (con estos filtros)':''}</div>`; return; }
   const hero = RS_MODE==='temporada'
-    ? [['Neto de la temporada',eur(neto),`${eur(cobrado)} ya cobrado`],['Partidos',ms.length,`${jornadas} jornadas`],['Tarifas',eur(tarifas),`IRPF retenido ${eur(irpf)}`],['Dietas y desplazamiento',eur(gastos),`≈ ${Math.round(km).toLocaleString('es-ES')} km`]]
+    ? [['Neto de la temporada',eur(neto),`${eur(cobrado)} ya cobrado`],['Partidos',ms.length,`${jornadas} jornadas`],['Tarifas',eur(tarifas),`IRPF retenido ${eur(irpf)}`],['Dietas y desplazamiento',eur(gastos),`≈ ${Math.round(km).toLocaleString(LOC())} km`]]
     : [['Rendimientos (tarifas)',eur(tarifas),'lo que tributa'],['IRPF retenido',eur(irpf),'lo retiene la FCVB'],['Dietas y desplazamiento',eur(gastos),'exentos'],['Neto cobrado',eur(neto),`${ms.length} partidos`]];
   let html = modeBtns + `<div class="rs-hero">${hero.map(([l,v,s])=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>`;
   // Neto por mes (temporada: de agosto a julio; año: de enero a diciembre). Gris = previsión aún no cobrada.

@@ -157,6 +157,18 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   30 días, otros árbitros con la opción activada que ese día van al mismo pabellón o a la misma población (nombre
   como sale en sus designaciones, hora, pabellón, población de salida). Línea 🚗 en la tarjeta del arbitraje.
 
+## Catalán (21-oct-2026)
+
+- Idioma en `LANG` (localStorage `liq-lang`; por defecto el del móvil), selector en Ajustes y en la pantalla de entrar;
+  cambiar recarga la página. Fechas y meses con `LOC()` (es-ES / ca-ES).
+- La app se escribe en castellano. Con catalán, `translateNode` (MutationObserver sobre body) traduce cada texto que se
+  pinta con `docs/i18n-ca.js`: `exact` (texto entero), `rules` (patrones con números o datos) y `frags` (expresiones
+  por palabras completas). Lo marcado `data-noi18n` no se toca; los datos de iSquad no coinciden con las claves.
+- **Al cambiar o añadir un texto en index.html, hay que añadir su traducción** en `i18n-ca.js` (las claves son el
+  texto castellano exacto). Para encontrar lo que falta: recorrer la app en Chrome sin ventana con la app en catalán,
+  recoger los textos visibles y buscar palabras castellanas (así se hizo el 21-oct).
+- Sin traducir: el Excel exportado y las notificaciones push (se generan en el servidor en castellano).
+
 ## Avisos al momento (función vigilar, 21-oct-2026)
 
 - Cada 10 minutos, de 7:00 a 24:00 de Madrid, y solo para quien tiene notificaciones (`push_subs`):
