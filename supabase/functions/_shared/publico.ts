@@ -193,3 +193,14 @@ export function teamMatches(db: Db, idEquipo: string, name: string): Promise<Par
     return out.sort((a, b) => (a.d + a.t).localeCompare(b.d + b.t));
   });
 }
+
+// Árbitro de un partido según su "Previo" público (previo.php, ~800 KB): solo el primero ("ARBITRO"); la web pública
+// no muestra el segundo ni el anotador. Sale en cuanto la FCVB lo designa. Caché: 3 h si aún no se ha jugado (lo
+// pueden designar o cambiar), 30 días si ya se jugó.
+export function matchReferee(db: Db, idPartido: string, jugado: boolean): Promise<string> {
+  return cached(db, `ref:${idPartido}`, (jugado ? 30 * 24 : 3) * H, async () => {
+    const s = await getText(`${PUB}/previo.php?id_partido=${encodeURIComponent(idPartido)}`);
+    const m = s.match(/<div class="div1">\s*<div>\s*ARBITRO\s*<\/div>\s*<div>\s*([^<]*?)\s*<\/div>/i);
+    return m ? text(fixMojibake(m[1])) : "";
+  });
+}
