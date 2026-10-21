@@ -335,7 +335,8 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
   <div id="agenda" class="hidden"></div>
   <div id="equipos" class="hidden">
     <div class="eq-h">Mis equipos</div>
-    <p class="small muted" style="margin:0 0 6px">Los equipos en los que juegas o entrenas, y los que quieres seguir. Sus próximos partidos salen también en "Mis partidos", y te aviso si te designan cuando juegas o entrenas.</p>
+    <p class="small" id="eqAuto" style="margin:0 0 4px;font-weight:600"></p>
+    <p class="small muted" style="margin:0 0 6px">Los equipos en los que juegas o entrenas (la app los encuentra sola en las plantillas públicas), y los que quieras seguir. Sus próximos partidos salen también en "Mis partidos", y te aviso si te designan cuando juegas o entrenas.</p>
     <div class="eq-list" id="eqFavs"></div>
     <div class="eq-h">Buscar equipos</div>
     <div class="eq-search"><input type="search" id="eqQ" placeholder="Equipo o club (p. ej. Sagrat Cor, Begues…)" autocomplete="off"></div>
@@ -1086,7 +1087,7 @@ function renderPush(){
 }
 
 /* ---------- Equipos (web pública de resultados de iSquad) ---------- */
-let EQ = {favs:[], partidos:[]}, EQ_RES=null, EQ_BUSY=false;
+let EQ = {favs:[], partidos:[], indice:null}, EQ_RES=null, EQ_BUSY=false;
 const ROL_TXT = {jugador:['jug','Juegas'], entrenador:['ent','Entrenas'], invitado:['jug','Invitado']};
 const rolKind = r => ROL_TXT[r] || (r ? ['jug', capName(r)] : ['sig','Sigues']);
 const favKey = f => `${f.club_id}|${norm(f.team)}|${norm(f.cat)}`;
@@ -1099,7 +1100,7 @@ const teamOfMatch = p => { const fs=EQ.favs.filter(f=>plays(f,p)); return fs.fin
 const genOf = p => /\bFEM/.test(norm(p.comp))?' Femenino':/\bMASC/.test(norm(p.comp))?' Masculino':'';
 async function loadEquipos(){
   if(GUEST) return;
-  const r = await callFn('equipos',{action:'mis'}); if(r.ok){ EQ={favs:r.favs||[], partidos:r.partidos||[]}; render(); }
+  const r = await callFn('equipos',{action:'mis'}); if(r.ok){ EQ={favs:r.favs||[], partidos:r.partidos||[], indice:r.indice||null}; render(); }
 }
 function nextOf(f){ const t=today(); return EQ.partidos.filter(p=>p.d.slice(0,10)>=t && plays(f,p)).sort((a,b)=>a.d.localeCompare(b.d))[0]; }
 const pTime = p => p.c && p.d.slice(11,16)!=='00:00' ? p.d.slice(11,16) : '';
@@ -1108,8 +1109,11 @@ function renderEquipos(){
   $('eqFavs').innerHTML = favs.length ? favs.map(f=>{
     const [k,txt]=rolKind(f.rol), n=nextOf(f);
     const next = n ? `Próximo: ${esc(fmtShort(n.d.slice(0,10)))}${pTime(n)?' a las '+pTime(n):' (hora por confirmar)'} · ${esc(capName(n.l))} – ${esc(capName(n.v))}` : 'Sin partidos programados';
-    return `<div class="eq-row"><div><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}</div><div class="nx">${next}</div></div><button class="ghost" data-unfav="${esc(favKey(f))}">Dejar de seguir</button></div>`;
-  }).join('') : '<p class="muted small">Aún no sigues ningún equipo. Búscalo abajo, o busca tu club y pulsa "Búscame en este club" para encontrar los equipos donde juegas o entrenas.</p>';
+    return `<div class="eq-row"><div><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}</div><div class="nx">${next}</div></div><button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div>`;
+  }).join('') : '<p class="muted small">No te he encontrado en ninguna plantilla de la FCVB de esta temporada. Si juegas o entrenas, busca tu equipo abajo y síguelo; también puedes seguir cualquier otro equipo.</p>';
+  const ix=EQ.indice, auto=EQ.favs.filter(f=>f.auto).length;
+  $('eqAuto').innerHTML = auto ? `Te he encontrado en ${auto} plantilla${auto===1?'':'s'} de la FCVB por tu foto de afiliado de iSquad.` : '';
+  if(ix && ix.total && ix.revisados<ix.total) $('eqAuto').innerHTML += ` Revisando plantillas: ${ix.revisados} de ${ix.total}.`;
   if(!EQ_RES){ $('eqRes').innerHTML=''; return; }
   if(EQ_RES.loading){ $('eqRes').innerHTML='<p class="muted small">Buscando…</p>'; return; }
   const clubs=(EQ_RES.clubs||[]).map(c=>`<div class="eq-row"><div><div class="n">${esc(capName(c.name))}</div><div class="s">Club</div></div><button data-findme="${esc(c.id)}"${EQ_BUSY?' disabled':''}>${EQ_BUSY===c.id?'Buscándote en sus plantillas…':'Búscame en este club'}</button></div>`).join('');

@@ -9,19 +9,21 @@ poder seguir desde otra máquina. **El repo es público: aquí no van claves, co
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/liquidacion-arbitral-fcvb/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
   - Migraciones en `supabase/migrations` (001…005). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
-    `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20).
+    `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
+    `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días).
 
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
 `CREDS_KEY` (cifra las contraseñas de iSquad; si se pierde, cada usuario solo tiene que volver a entrar),
 `CRON_SECRET`, `ORS_KEY` (OpenRouteService), contraseña de la base de datos, `ADMIN_LOGINS` (quién ve el ranking),
 `VAPID_PUBLIC`/`VAPID_PRIVATE`/`VAPID_SUBJECT` (notificaciones; la pública también va en `docs/config.js`; si se
-cambian, todas las suscripciones dejan de valer y cada árbitro tiene que volver a activarlo). `ALLOWED_LOGINS` está vacío:
+cambian, todas las suscripciones dejan de valer y cada árbitro tiene que volver a activarlo), `ROSTER_SALT`
+(huellas del índice de plantillas; si cambia, hay que reindexar: `update pub_teams set checked_at=null`). `ALLOWED_LOGINS` está vacío:
 puede entrar cualquier árbitro con cuenta de iSquad. Para desplegar hace falta un token personal de Supabase
 (`SUPABASE_ACCESS_TOKEN`, se crea en supabase.com/dashboard/account/tokens) y acceso de escritura al repo.
 
@@ -32,7 +34,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account ranking notify equipos; do
+for f in auth-isquad sync delete-account ranking notify equipos indexar; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -114,6 +116,13 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   (migración 013): de la plantilla solo se guarda el rol del propio árbitro, nunca nombres de otros (hay menores).
 - Categoría del partido = categoría + género sacado de la competición ("CUARTA DIVISION SENIOR FEMENINO"); la de un
   equipo encontrado en la ficha del club no lleva género: se compara por prefijo (`sameCat`).
+- Encontrar al árbitro sin que haga nada: la cabecera de su área de iSquad lleva su foto de afiliado
+  (`images/afiliacion/imagen_<id>.jpeg`, se guarda en `profiles.foto` en cada sync) y las plantillas públicas usan la
+  misma. La función `indexar` (migraciones 014-015) recorre los ~166 clubs y ~1.500 equipos (120 páginas por pasada,
+  ~15 s; el índice completo, en unas 15 pasadas) y guarda por persona la huella HMAC de foto y nombre, el perfil y si
+  tenía foto. En `equipos mis` se cruzan: por foto siempre; por nombre solo si esa persona no tiene foto (si tiene
+  otra, es un homónimo). Comprobado 21-oct: 11 de 14 árbitros encontrados, todos por foto. Los añade como `auto`; si
+  el árbitro los quita quedan `oculto` y no vuelven.
 - Web: pestaña "Equipos" y, en "Mis partidos", los partidos de los equipos con aviso de choque con un arbitraje
   (mismo día a menos de 2 h 30 min, o mismo día con la hora por confirmar). Pendiente: resultados y clasificación.
 

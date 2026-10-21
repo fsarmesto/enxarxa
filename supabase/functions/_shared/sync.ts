@@ -356,13 +356,13 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     }
     const now = new Date(), seasonStart = `${now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1}-08-01`;
     const recent = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
-    let nombre = "";
+    let nombre = "", foto = "";
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
       needStaff: (m: ScrapedMatch) => !checked.has(m.id) || m.date >= recent || (!withCrew.has(m.id) && m.date >= seasonStart),
       deadline: opts.deadline,
-      onName: (n) => { nombre = n; },
+      onName: (n, f) => { nombre = n; foto = f; },
     });
-    if (nombre) await db.from("profiles").update({ nombre }).eq("user_id", userId);
+    if (nombre) await db.from("profiles").update({ nombre, ...(foto ? { foto } : {}) }).eq("user_id", userId);
     await storeMatches(db, userId, matches);
     if (opts.km === "wait") await fillKm(db, userId, opts.deadline);
     else if (opts.km === "background") background(fillKm(db, userId, opts.deadline));

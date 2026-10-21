@@ -159,7 +159,7 @@ const STAFF_MAX_PER_RUN = 120;
 
 export async function fetchDesignaciones(
   login: string, password: string,
-  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number; onName?: (name: string) => void } = {},
+  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number; onName?: (name: string, foto: string) => void } = {},
 ): Promise<WithStaff[]> {
   const jar: Jar = new Map();
   await loginIsquad(jar, login, password);
@@ -198,7 +198,9 @@ export async function fetchDesignaciones(
     // deno-lint-ignore no-explicit-any
     const { document } = parseHTML(html) as any;
     const name = (document.querySelector(".contact-container")?.textContent || "").replace(/\s+/g, " ").trim();
-    if (name) opts.onName(name);
+    // Foto de afiliado de la cabecera ("images/afiliacion/imagen_<id>.jpeg"): la misma de las plantillas públicas.
+    const foto = (document.querySelector(".contact img")?.getAttribute("src") || "").match(/images\/afiliacion\/(.+)$/)?.[1] || "";
+    if (name) opts.onName(name, foto);
   }
   if (opts.needStaff) {
     const me = ownName(html);
