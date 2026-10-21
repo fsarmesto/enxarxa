@@ -464,8 +464,10 @@ details.cal[open]>summary::before{content:"▾ "}
         <h2>Reglas que aplica</h2>
         <p class="small muted">Dietas por día y hora de inicio: lunes a jueves 10 € (9:00–13:00 y 16:00–20:29) o 13,50 € el resto; viernes 13,50 € (0:00–15:59 y 21:01–23:59); sábado 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); domingo y festivos 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59); un festivo entre semana fuera de esas franjas cobra la dieta normal de ese día. Una dieta por jornada; mañana (hasta las 14:59) y tarde (desde las 15:00) cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones. Los festivos de Catalunya se detectan solos; los locales de cada municipio, no: en esos casos, y siempre que no cuadre, cambia la dieta a mano en el partido.</p>
         <p class="small muted">Tarifa según competición, rol y equipo arbitral (anexo FCVB 2026/27). El rol y cuántos árbitros y anotadores había se leen de la designación en iSquad. Superliga y Superliga 2 las liquida la RFEVB. Los partidos de selecciones territoriales no tienen tarifa: solo se cuentan si la FCVB ha pagado gastos por ellos.</p>
-        <h2 style="margin-top:16px">Recordatorio del domingo</h2>
-        <p class="small muted">Los domingos a las 20:00, una notificación en el móvil: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!". En el iPhone, primero añade la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde el icono.</p>
+        <h2 style="margin-top:16px">Notificaciones</h2>
+        <p class="small muted">Con las notificaciones activadas te aviso al momento (se mira cada 10 minutos, de 7:00 a 24:00) de:</p>
+        <ul class="small muted" style="margin:0 0 8px;padding-left:18px"><li>designaciones nuevas, cambiadas o anuladas;</li><li>partidos de tus equipos (donde juegas o entrenas) cuando ya tienen horario, cambian de fecha u hora o se suspenden;</li><li>y los domingos a las 20:00: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!".</li></ul>
+        <p class="small muted">En el iPhone, primero añade la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde el icono.</p>
         <p class="small" id="pushState"></p>
         <div class="row" id="pushBtns"></div>
         <h2 style="margin-top:16px">Tu cuenta</h2>
@@ -1115,7 +1117,7 @@ async function pushOn(){
     PUSH_SUB = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64u(window.APP_CONFIG.VAPID_PUBLIC)});
     const r = await callFn('notify',{action:'subscribe', sub:PUSH_SUB.toJSON()});
     if(!r.ok) throw new Error(r.error);
-    toast('Recordatorio activado: los domingos a las 20:00');
+    toast('Notificaciones activadas');
   }catch(e){ PUSH_SUB=null; toast('No se ha podido activar el recordatorio. Prueba de nuevo.'); }
   renderPush();
 }
@@ -1138,7 +1140,7 @@ function renderPush(){
   else if(iosNeedsInstall){ st='En el iPhone: Compartir → "Añadir a pantalla de inicio", y ábrela desde el icono para activarlo.'; }
   else if(!pushSupported()){ st='Este navegador no admite notificaciones.'; }
   else if(denied){ st='Has bloqueado las notificaciones de esta web: actívalas en los ajustes del navegador.'; }
-  else { st='No está activado en este dispositivo.'; btns='<button class="primary" id="pOn">Activar el recordatorio</button>'; }
+  else { st='No está activado en este dispositivo.'; btns='<button class="primary" id="pOn">Activar las notificaciones</button>'; }
   if(offerApk()) btns+=`<a class="go" href="${APK_URL}" download>Descargar la app Android</a>`;
   else if(INSTALL_EVT && !isStandalone()) btns+='<button id="pInstall">Instalar la app</button>';
   $('pushState').textContent=st; $('pushBtns').innerHTML=btns;
@@ -1149,8 +1151,8 @@ function renderPush(){
   if(!can || dismissed){ card.classList.add('hidden'); }
   else {
     const txt = iosNeedsInstall
-      ? '<strong>Instala la app en el iPhone</strong> para recibir el recordatorio del domingo: pulsa Compartir y "Añadir a pantalla de inicio", y ábrela desde el icono.'
-      : '<strong>¿Quieres un recordatorio el domingo?</strong> A las 20:00: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!"';
+      ? '<strong>Instala la app en el iPhone</strong> para recibir avisos de designaciones y horarios: pulsa Compartir y "Añadir a pantalla de inicio", y ábrela desde el icono.'
+      : '<strong>¿Te aviso al momento?</strong> Designaciones nuevas o cambiadas, horarios de tus partidos de jugador y el recordatorio del domingo.';
     const apk = offerApk() ? `<a class="go" href="${APK_URL}" download>Descargar la app Android</a>` : (INSTALL_EVT&&!isStandalone()?'<button id="cInstall">Instalar la app</button>':'');
     card.innerHTML=`<div>${txt}</div><div class="btns">${!iosNeedsInstall&&pushSupported()?'<button class="primary" id="cOn">Activar</button>':''}${apk}<button class="ghost" id="cNo">Ahora no</button></div>`;
     card.classList.remove('hidden');
@@ -1278,6 +1280,8 @@ try{ AGROLE=localStorage.getItem('liq-agenda-rol')||'todo'; }catch(e){}
 // De quién es cada partido de la agenda: arbitraje, jugador (también invitado), entrenador o un equipo que solo sigo.
 const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : it.x.f.rol ? 'jugador' : 'sigo');
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
+// Al abrir desde una notificación (?vista=agenda), directamente en esa pestaña.
+{ const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); } }
 const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
 // "PRIMERA DIVISION SENIOR FEMENINO" → "1ª Sén. Fem" (para la línea corta de la tarjeta).
 function shortComp(comp){

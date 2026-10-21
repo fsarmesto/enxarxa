@@ -9,13 +9,13 @@ poder seguir desde otra máquina. **El repo es público: aquí no van claves, co
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/liquidacion-arbitral-fcvb/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
   - Migraciones en `supabase/migrations` (001…005). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
-    `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días).
+    `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
 
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
@@ -34,7 +34,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account ranking notify equipos indexar; do
+for f in auth-isquad sync delete-account ranking notify equipos indexar vigilar; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -141,6 +141,18 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   más nuevas y repasa poco a poco las de la temporada en curso que aún no tienen `crew`.
 - En la web, pestañas "Cobros" / "Mis partidos" (`VIEW`, recordada en localStorage `liq-vista`); la agenda
   (`renderAgenda`) tiene "Próximos" y "Jugados" de la temporada, respeta los filtros y enlaza a Google Maps.
+
+## Avisos al momento (función vigilar, 21-oct-2026)
+
+- Cada 10 minutos, de 7:00 a 24:00 de Madrid, y solo para quien tiene notificaciones (`push_subs`):
+  1. sync rápido de cada árbitro (función sync, modo `quick`: solo designaciones de la temporada en curso, sin recibos
+     ni km, sin tocar `last_sync`) y `designChanges` (en `_shared/sync.ts`) compara con lo guardado: nueva, cambio de
+     fecha/hora/pabellón, anulada. El sync completo del cron (`mode: "sync"`) también avisa. El primer alta no.
+  2. calendario (API pública) de los equipos donde juega o entrena (activos en "Mis partidos") contra la foto anterior
+     `pub_cache snap:<id_equipo>`: ya hay horario, cambio de horario o fecha, suspendido/aplazado (`teamChanges`).
+     La primera pasada de un equipo solo guarda la foto.
+- Envío en `_shared/push.ts` (también lo usa `notify`). La notificación abre la app en `?vista=agenda`.
+- Coste: 1 login a iSquad por suscrito cada 10 minutos (17 horas al día) y 1 consulta ligera por equipo vigilado.
 
 ## App instalable y recordatorio del domingo (21-oct-2026)
 

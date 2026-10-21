@@ -159,7 +159,7 @@ const STAFF_MAX_PER_RUN = 120;
 
 export async function fetchDesignaciones(
   login: string, password: string,
-  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number; onName?: (name: string, foto: string) => void } = {},
+  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number; onName?: (name: string, foto: string) => void; quick?: boolean } = {},
 ): Promise<WithStaff[]> {
   const jar: Jar = new Map();
   await loginIsquad(jar, login, password);
@@ -172,11 +172,13 @@ export async function fetchDesignaciones(
   const out: ScrapedMatch[] = [];
   // También la temporada anterior: al empezar una nueva, los partidos pendientes de cobro siguen allí.
   // Recibos de cada temporada (lo que la FCVB liquida). Si alguno falla no se envía ninguno: así no se borra lo leído antes.
+  // Modo rápido (vigilancia de designaciones nuevas): solo la temporada en curso y sin recibos.
   const recibos: Recibo[] = [];
-  let recibosOk = true;
-  for (const season of [previous, current]) {
+  let recibosOk = !opts.quick;
+  for (const season of opts.quick ? [current] : [previous, current]) {
     if (!season) continue;
     out.push(...(parseDesignaciones(await designaciones(jar, season)) ?? []));
+    if (opts.quick) continue;
     try {
       const r = await get(`${BASE}/arbitros_listado_recibos.php`, jar);
       const list = r.status === 200 ? parseRecibos(await r.text()) : null;

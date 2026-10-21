@@ -2,7 +2,7 @@
 // - Cron (cabecera x-cron-secret, sin cuerpo): reparte el trabajo en una ejecución por árbitro, porque en una sola
 //   no caben la CPU y la memoria de leer las páginas de iSquad de todos. Primero los partidos (en paralelo) y,
 //   con el tiempo que quede, los km (uno detrás de otro: el candado de km solo deja uno a la vez).
-// - Cron con {user_id, mode: "sync" | "km"}: el trabajo de un árbitro.
+// - Cron con {user_id, mode: "sync" | "km" | "quick"}: el trabajo de un árbitro (quick = vigilancia rápida).
 // - Con la sesión de un usuario: solo ese usuario (botón "Actualizar ahora").
 import { admin, cors, fillKm, json, syncUser, userFromRequest } from "../_shared/sync.ts";
 
@@ -15,7 +15,9 @@ Deno.serve(async (req) => {
   if (secret && req.headers.get("x-cron-secret") === secret) {
     let body: { user_id?: string; mode?: string } = {};
     try { body = await req.json(); } catch { /* sin cuerpo: reparto */ }
-    if (body.user_id && body.mode === "sync") return json(await syncUser(db, body.user_id, { km: "none", deadline }));
+    if (body.user_id && body.mode === "sync") return json(await syncUser(db, body.user_id, { km: "none", deadline, notify: true }));
+    // Vigilancia (función vigilar): solo designaciones de la temporada en curso, avisando de lo nuevo o cambiado.
+    if (body.user_id && body.mode === "quick") return json(await syncUser(db, body.user_id, { km: "none", deadline, quick: true, notify: true }));
     if (body.user_id && body.mode === "km") return json({ km: await fillKm(db, body.user_id, deadline) });
 
     const self = `${Deno.env.get("SUPABASE_URL")}/functions/v1/sync`;

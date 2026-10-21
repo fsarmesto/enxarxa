@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 import { decrypt } from "./crypto.ts";
 import { fetchDesignaciones, IsquadAuthError, ScrapedMatch, venueLabel, WithStaff } from "./isquad.ts";
+import { cap, Msg, sendToUser, shortDate } from "./push.ts";
 
 export const admin = (): SupabaseClient =>
   createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -295,7 +296,7 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
   } finally { await dropLock(db, holder); }
 }
 
-export async function storeMatches(db: SupabaseClient, userId: string, matches: WithStaff[]) {
+export async function storeMatches(db: SupabaseClient, userId: string, matches: WithStaff[], opts: { quick?: boolean } = {}) {
   const now = new Date().toISOString();
   if (matches.length) {
     // Solo se envían las columnas que vienen de iSquad: lo que el árbitro marca a mano no se toca.
@@ -323,7 +324,9 @@ export async function storeMatches(db: SupabaseClient, userId: string, matches: 
   if (fresh.size) {
     await db.from("venues").insert([...fresh].map(([k, m]) => ({ user_id: userId, venue_key: k, label: venueLabel(m.venue, m.addr), km: null })));
   }
-  await db.from("profiles").update({ last_sync: now, last_error: null }).eq("user_id", userId);
+  // En modo rápido solo se ha leído la temporada en curso: last_sync no se toca, o los partidos de la anterior
+  // parecerían "ya no aparece en iSquad".
+  await db.from("profiles").update(opts.quick ? { last_error: null } : { last_sync: now, last_error: null }).eq("user_id", userId);
 }
 
 // Trabajo que sigue tras responder (Supabase mantiene viva la función hasta que acaba).
@@ -332,7 +335,39 @@ export const background = (p: Promise<unknown>) => { const rt = (globalThis as a
 
 // km: "wait" = calcular los km antes de volver; "background" = después de responder; "none" = no calcularlos aquí.
 // deadline: hora límite de la petición (cuenta desde que llegó, no desde que empieza el cálculo de km).
-export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: "wait" | "background" | "none"; deadline: number }) {
+// Cambios en las designaciones próximas entre lo guardado y lo que trae iSquad: nuevas, cambiadas (fecha, hora o
+// pabellón) y quitadas. Se avisa por notificación al árbitro.
+export type Prev = { id: string; date: string; time: string; venue: string; comp: string; teams: string; role: string; staff_checked: string | null };
+async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], now: WithStaff[]) {
+  const msgs = designChanges(prev, now);
+  for (const msg of msgs.slice(0, 5)) await sendToUser(db, userId, msg);
+  return msgs.length;
+}
+export function designChanges(prev: Prev[], now: WithStaff[]): Msg[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const before = new Map(prev.map((m) => [m.id, m]));
+  const after = new Map(now.filter((m) => m.date >= today).map((m) => [m.id, m]));
+  const vs = (t: string) => cap(t).replace(/ vs /i, " – ");
+  const role = (r?: string) => ({ r1: "R1", r2: "R2", an: "Anotador", jl: "Juez de línea" } as Record<string, string>)[r || ""] || "";
+  const line = (m: { date: string; time: string; teams: string; venue: string }) => `${shortDate(m.date)} · ${m.time}`;
+  const msgs: Msg[] = [];
+  for (const [id, m] of after) {
+    const p = before.get(id);
+    if (!p) {
+      msgs.push({ title: `Nueva designación · ${line(m)}`, body: `${vs(m.teams)}${m.staff ? ` · ${role(m.staff.role)}` : ""} · ${cap(m.venue)}`, tag: `desig-${id}`, url: "./?vista=agenda" });
+    } else if (p.date !== m.date || p.time !== m.time || p.venue !== m.venue) {
+      const what = p.date !== m.date ? `antes ${shortDate(p.date)} ${p.time}` : p.time !== m.time ? `antes a las ${p.time}` : `antes en ${cap(p.venue)}`;
+      msgs.push({ title: `Cambio en tu designación · ${line(m)}`, body: `${vs(m.teams)} · ${cap(m.venue)} (${what})`, tag: `desig-${id}`, url: "./?vista=agenda" });
+    }
+  }
+  // Quitadas: solo si iSquad ha devuelto la temporada (si viniera vacía por un fallo, no se avisa de nada).
+  if (now.length) for (const [id, p] of before) {
+    if (!after.has(id) && p.date >= today) msgs.push({ title: `Designación anulada · ${line(p)}`, body: `${vs(p.teams)} ya no aparece en tus designaciones de iSquad`, tag: `desig-${id}`, url: "./?vista=agenda" });
+  }
+  return msgs;
+}
+
+export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: "wait" | "background" | "none"; deadline: number; quick?: boolean; notify?: boolean }) {
   const { data: cred } = await db.from("isquad_credentials").select("secret").eq("user_id", userId).maybeSingle();
   const { data: prof } = await db.from("profiles").select("isquad_login").eq("user_id", userId).maybeSingle();
   if (!cred || !prof) return { ok: false, error: "sin_credenciales" };
@@ -357,16 +392,23 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     const now = new Date(), seasonStart = `${now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1}-08-01`;
     const recent = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
     let nombre = "", foto = "";
+    // Designaciones próximas guardadas, para avisar de lo nuevo o cambiado.
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: prev } = opts.notify
+      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
+      : { data: null };
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
+      quick: opts.quick,
       needStaff: (m: ScrapedMatch) => !checked.has(m.id) || m.date >= recent || (!withCrew.has(m.id) && m.date >= seasonStart),
       deadline: opts.deadline,
       onName: (n, f) => { nombre = n; foto = f; },
     });
     if (nombre) await db.from("profiles").update({ nombre, ...(foto ? { foto } : {}) }).eq("user_id", userId);
-    await storeMatches(db, userId, matches);
+    await storeMatches(db, userId, matches, { quick: opts.quick });
+    const avisos = prev ? await notifyChanges(db, userId, prev as Prev[], matches).catch(() => 0) : 0;
     if (opts.km === "wait") await fillKm(db, userId, opts.deadline);
     else if (opts.km === "background") background(fillKm(db, userId, opts.deadline));
-    return { ok: true, count: matches.length };
+    return { ok: true, count: matches.length, avisos };
   } catch (e) {
     const code = e instanceof IsquadAuthError ? "credenciales" : "conexion";
     await db.from("profiles").update({ last_error: code }).eq("user_id", userId);

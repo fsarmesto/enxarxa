@@ -3,39 +3,14 @@
 //   las 18 y a las 19 UTC (horario de verano e invierno) y aquí solo se envía si en Madrid son las 20.
 //   Con {force:true} se envía ya (para probar).
 // - Con la sesión del árbitro: {action:"subscribe", sub}, {action:"unsubscribe", endpoint}, {action:"test"}.
-import webpush from "npm:web-push@3.6.7";
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
+import { madridNow, send, Sub } from "../_shared/push.ts";
 
 const REMINDER = {
   title: "Liquidación arbitral",
   body: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!",
   tag: "domingo",
 };
-
-webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT")!, Deno.env.get("VAPID_PUBLIC")!, Deno.env.get("VAPID_PRIVATE")!);
-
-type Sub = { endpoint: string; p256dh: string; auth: string };
-// deno-lint-ignore no-explicit-any
-async function send(db: any, subs: Sub[], msg: Record<string, string>) {
-  let ok = 0, gone = 0, fail = 0;
-  await Promise.all(subs.map(async (s) => {
-    try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(msg), { TTL: 6 * 3600 });
-      ok++; await db.from("push_subs").update({ last_sent: new Date().toISOString() }).eq("endpoint", s.endpoint);
-    } catch (e) {
-      // 404/410: el navegador ya no tiene esa suscripción (app desinstalada, permisos quitados): se borra.
-      const code = (e as { statusCode?: number }).statusCode;
-      if (code === 404 || code === 410) { gone++; await db.from("push_subs").delete().eq("endpoint", s.endpoint); } else fail++;
-    }
-  }));
-  return { ok, gone, fail };
-}
-
-function madridNow() {
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", hour12: false })
-    .formatToParts(new Date()).map((x) => [x.type, x.value]));
-  return { weekday: p.weekday, hour: +p.hour };
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
