@@ -20,7 +20,7 @@ Repo `fsarmesto/enxarxa`, web https://fsarmesto.github.io/enxarxa/. Las direccio
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…020). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…021). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
@@ -254,6 +254,13 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   3. el día que arbitra, 2 h después del último partido, "Pide el pago de hoy antes de mañana" con la dieta que le
      corresponde (`_shared/dieta.ts`, mismas reglas que la web: franja, día, festivos, sin dieta en alevín/amateur y
      finales/concentraciones). Una vez al día (`pub_cache aviso-cobro:<user>:<fecha>`); no si ya está solicitado.
+- Designaciones anuladas (issue #1, 21-oct-2026): antes el partido quitado se quedaba en `matches` sin marca y vigilar
+  avisaba de "Designación anulada" en cada pasada. Ahora (migración 021): la primera lectura en la que falta solo pone
+  `missing_since` (iSquad a veces no devuelve un partido una vez); si en la siguiente sigue faltando, un aviso y
+  `cancelled_at` (las marcas se guardan antes de enviar). Si vuelve a salir, el upsert de `storeMatches` pone las dos a
+  null y avisa "Designación recuperada". Las anuladas no salen en la web (`isHidden`), ni en el calendario, compartir
+  coche ni el aviso de cobro. Tope contra bucles: `push_log` (user_id, key): cada aviso de cambio de designación sale
+  una sola vez (claves `nueva:id`, `cambio:id:fecha|hora|pabellón`, `anulada:id:missing_since`, `recuperada:…`).
 - En la web, la dieta que corresponde (`dietaOf`, de `compute()` vía `LAST_RES`) sale en el aviso de cobro, junto al
   estado de cada partido por pedir y en la tarjeta de la agenda: "🍽 Te corresponde dieta: … · ponla al pedir el pago".
 - Un partido aún no jugado puede tener ya su recibo vacío en iSquad: `payState` lo trata como futuro hasta su día.

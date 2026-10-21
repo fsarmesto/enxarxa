@@ -52,7 +52,7 @@ async function ics(db: any, userId: string) {
     ev.push(["BEGIN:VEVENT", `UID:${uid}@liquidacion-arbitral-fcvb`, `DTSTAMP:${stamp}`, ...start, `SUMMARY:${esc(summary)}`, ...(location ? [`LOCATION:${esc(location)}`] : []),
       ...(description ? [`DESCRIPTION:${esc(description)}`] : []), "END:VEVENT"]);
   // Arbitrajes
-  const { data: ms } = await db.from("matches").select("id, date, time, comp, teams, venue, addr, role, staff_checked, crew").eq("user_id", userId).gte("date", since).not("comp", "ilike", "%SELECCI%");
+  const { data: ms } = await db.from("matches").select("id, date, time, comp, teams, venue, addr, role, staff_checked, crew").eq("user_id", userId).gte("date", since).not("comp", "ilike", "%SELECCI%").is("cancelled_at", null);
   for (const m of ms || []) {
     const crew = Array.isArray(m.crew) ? m.crew.map((c: { f: string; n: string; me: boolean }) => `${ROL[c.f] || c.f}: ${c.me ? "Tú" : cap(c.n)}`).join("\n") : "";
     event(`arb-${m.id}`, [`DTSTART;TZID=Europe/Madrid:${dt(m.date, m.time)}`, `DTEND;TZID=Europe/Madrid:${dt(...(plus(m.date, m.time, 120).split(" ") as [string, string]))}`],

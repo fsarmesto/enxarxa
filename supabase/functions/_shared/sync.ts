@@ -301,7 +301,7 @@ export async function storeMatches(db: SupabaseClient, userId: string, matches: 
   if (matches.length) {
     // Solo se envían las columnas que vienen de iSquad: lo que el árbitro marca a mano no se toca.
     const { error } = await db.from("matches").upsert(
-      matches.map(({ staff: _s, ...m }) => ({ ...m, user_id: userId, last_seen: now })),
+      matches.map(({ staff: _s, ...m }) => ({ ...m, user_id: userId, last_seen: now, missing_since: null, cancelled_at: null })),
       { onConflict: "user_id,id" },
     );
     if (error) throw error;
@@ -336,35 +336,54 @@ export const background = (p: Promise<unknown>) => { const rt = (globalThis as a
 // km: "wait" = calcular los km antes de volver; "background" = después de responder; "none" = no calcularlos aquí.
 // deadline: hora límite de la petición (cuenta desde que llegó, no desde que empieza el cálculo de km).
 // Cambios en las designaciones próximas entre lo guardado y lo que trae iSquad: nuevas, cambiadas (fecha, hora o
-// pabellón) y quitadas. Se avisa por notificación al árbitro.
-export type Prev = { id: string; date: string; time: string; venue: string; comp: string; teams: string; role: string; staff_checked: string | null };
+// pabellón), quitadas y recuperadas. Se avisa por notificación al árbitro.
+// Quitada: la primera lectura en la que falta solo apunta missing_since (iSquad a veces no devuelve un partido una vez);
+// si en la siguiente sigue faltando, se avisa una vez y se marca cancelled_at, y ya no se vuelve a evaluar.
+export type Prev = { id: string; date: string; time: string; venue: string; comp: string; teams: string; role: string; staff_checked: string | null;
+  missing_since?: string | null; cancelled_at?: string | null };
+type Change = Msg & { key: string };
 async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], now: WithStaff[]) {
-  const msgs = designChanges(prev, now);
-  for (const msg of msgs.slice(0, 5)) await sendToUser(db, userId, msg);
-  return msgs.length;
+  const { msgs, missing, cancelled } = designChanges(prev, now);
+  // Las marcas se guardan antes de enviar: si el envío falla, el bucle no vuelve.
+  const ts = new Date().toISOString();
+  for (const id of missing) await db.from("matches").update({ missing_since: ts }).eq("user_id", userId).eq("id", id);
+  for (const id of cancelled) await db.from("matches").update({ cancelled_at: ts }).eq("user_id", userId).eq("id", id);
+  if (!msgs.length) return 0;
+  // Cada aviso, una sola vez: solo se envían los que entran nuevos en push_log.
+  const { data: fresh } = await db.from("push_log").upsert(msgs.map((m) => ({ user_id: userId, key: m.key })),
+    { onConflict: "user_id,key", ignoreDuplicates: true }).select("key");
+  const ok = new Set((fresh || []).map((r) => r.key));
+  const send = msgs.filter((m) => ok.has(m.key));
+  for (const { key: _k, ...msg } of send.slice(0, 5)) await sendToUser(db, userId, msg);
+  return send.length;
 }
-export function designChanges(prev: Prev[], now: WithStaff[]): Msg[] {
+export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[]; missing: string[]; cancelled: string[] } {
   const today = new Date().toISOString().slice(0, 10);
   const before = new Map(prev.map((m) => [m.id, m]));
   const after = new Map(now.filter((m) => m.date >= today).map((m) => [m.id, m]));
   const vs = (t: string) => cap(t).replace(/ vs /i, " – ");
   const role = (r?: string) => ({ r1: "R1", r2: "R2", an: "Anotador", jl: "Juez de línea" } as Record<string, string>)[r || ""] || "";
   const line = (m: { date: string; time: string; teams: string; venue: string }) => `${shortDate(m.date)} · ${m.time}`;
-  const msgs: Msg[] = [];
+  const msgs: Change[] = [], missing: string[] = [], cancelled: string[] = [];
   for (const [id, m] of after) {
     const p = before.get(id);
     if (!p) {
-      msgs.push({ title: `Nueva designación · ${line(m)}`, body: `${vs(m.teams)}${m.staff ? ` · ${role(m.staff.role)}` : ""} · ${cap(m.venue)}`, tag: `desig-${id}`, url: "./?vista=agenda" });
+      msgs.push({ key: `nueva:${id}`, title: `Nueva designación · ${line(m)}`, body: `${vs(m.teams)}${m.staff ? ` · ${role(m.staff.role)}` : ""} · ${cap(m.venue)}`, tag: `desig-${id}`, url: "./?vista=agenda" });
+    } else if (p.cancelled_at) {
+      msgs.push({ key: `recuperada:${id}:${p.cancelled_at}`, title: `Designación recuperada · ${line(m)}`, body: `${vs(m.teams)} vuelve a aparecer en tus designaciones de iSquad · ${cap(m.venue)}`, tag: `desig-${id}`, url: "./?vista=agenda" });
     } else if (p.date !== m.date || p.time !== m.time || p.venue !== m.venue) {
       const what = p.date !== m.date ? `antes ${shortDate(p.date)} ${p.time}` : p.time !== m.time ? `antes a las ${p.time}` : `antes en ${cap(p.venue)}`;
-      msgs.push({ title: `Cambio en tu designación · ${line(m)}`, body: `${vs(m.teams)} · ${cap(m.venue)} (${what})`, tag: `desig-${id}`, url: "./?vista=agenda" });
+      msgs.push({ key: `cambio:${id}:${m.date}|${m.time}|${m.venue}`, title: `Cambio en tu designación · ${line(m)}`, body: `${vs(m.teams)} · ${cap(m.venue)} (${what})`, tag: `desig-${id}`, url: "./?vista=agenda" });
     }
   }
   // Quitadas: solo si iSquad ha devuelto la temporada (si viniera vacía por un fallo, no se avisa de nada).
   if (now.length) for (const [id, p] of before) {
-    if (!after.has(id) && p.date >= today) msgs.push({ title: `Designación anulada · ${line(p)}`, body: `${vs(p.teams)} ya no aparece en tus designaciones de iSquad`, tag: `desig-${id}`, url: "./?vista=agenda" });
+    if (after.has(id) || p.date < today || p.cancelled_at) continue;
+    if (!p.missing_since) { missing.push(id); continue; }
+    cancelled.push(id);
+    msgs.push({ key: `anulada:${id}:${p.missing_since}`, title: `Designación anulada · ${line(p)}`, body: `${vs(p.teams)} ya no aparece en tus designaciones de iSquad`, tag: `desig-${id}`, url: "./?vista=agenda" });
   }
-  return msgs;
+  return { msgs, missing, cancelled };
 }
 
 export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: "wait" | "background" | "none"; deadline: number; quick?: boolean; notify?: boolean }) {
@@ -395,7 +414,7 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     // Designaciones próximas guardadas, para avisar de lo nuevo o cambiado.
     const today = new Date().toISOString().slice(0, 10);
     const { data: prev } = opts.notify
-      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
+      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked, missing_since, cancelled_at").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
       : { data: null };
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
       quick: opts.quick,

@@ -32,10 +32,10 @@ Deno.serve(async (req) => {
   const { data: others } = await db.from("profiles").select("user_id, nombre, origin").eq("coche", true).neq("user_id", user.id);
   if (!others?.length) return json({ ok: true, activo: true, sugerencias: {}, participantes: 1 });
   const cols = "id, user_id, date, time, venue, venue_key, addr, crew, teams";
-  const { data: mine } = await db.from("matches").select(cols).eq("user_id", user.id).gte("date", today).lte("date", until);
+  const { data: mine } = await db.from("matches").select(cols).eq("user_id", user.id).gte("date", today).lte("date", until).is("cancelled_at", null);
   if (!mine?.length) return json({ ok: true, activo: true, sugerencias: {}, participantes: others.length + 1 });
   const dates = [...new Set((mine as M[]).map((m) => m.date))];
-  const { data: theirs } = await db.from("matches").select(cols).in("user_id", others.map((o) => o.user_id)).in("date", dates);
+  const { data: theirs } = await db.from("matches").select(cols).in("user_id", others.map((o) => o.user_id)).in("date", dates).is("cancelled_at", null);
   const who = new Map(others.map((o) => [o.user_id, o]));
   // Nombre "Nombre Apellido" tal como sale en sus designaciones (la cabecera de iSquad lo da al revés).
   const displayName = (m: M) => cap((m.crew || []).find((c) => c.me)?.n || who.get(m.user_id)?.nombre || "");
