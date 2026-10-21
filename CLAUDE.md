@@ -12,6 +12,33 @@ Repo `fsarmesto/enxarxa`, web https://fsarmesto.github.io/enxarxa/. Las direccio
 `io.github.fsarmesto.liquidacion` (no cambiar: sería otra app). Los UID del iCal siguen con `@liquidacion-arbitral-fcvb`
 (no cambiar: duplicaría eventos). Carpeta local en casa: `C:\Users\Puru\FCVBARB\carpetas\EnXarxa\laxarxa`.
 
+## Al empezar una sesión local
+
+- Ejecutar `gh issue list` y decirle a Ferran qué issues hay abiertos (en casa lo hace solo un hook SessionStart).
+- Al arreglar un issue: comentar en el issue qué se ha cambiado (`gh issue comment N`, con el hash del commit) y
+  cerrarlo con el commit (`Fixes #N` en el mensaje); comprobar después que ha quedado cerrado.
+
+## Trabajo desde GitHub (@claude)
+
+Ferran puede escribir @claude en un issue o en un PR (también desde el móvil) y el trabajo se hace en GitHub Actions
+(`.github/workflows/claude.yml`, anthropics/claude-code-action@v1, con el token de su suscripción en el secret
+`CLAUDE_CODE_OAUTH_TOKEN`). Solo se activa si quien escribe es el dueño del repo y solo lee sus comentarios.
+`main` está protegida (regla del repo: solo un admin puede escribir en ella), así que el trabajo va siempre en una
+rama `claude/...` con PR. Reglas para esos trabajos:
+
+- Solo se toca `docs/`, `README.md` y `LICENSE`. Excepciones: `tools/i18n/exact.py` (para las traducciones) y
+  `.github/capturas/` (para las capturas del PR). Nada de `supabase/`, migraciones, funciones, secretos ni workflows.
+- Si un issue necesita base de datos o funciones de Supabase, no se hace: se comenta en el issue qué haría falta y
+  se deja para una sesión local.
+- Todo texto nuevo de la interfaz, con su traducción al catalán: añadirlo en `tools/i18n/exact.py` y regenerar con
+  `python3 tools/i18n/gen.py tools/i18n docs/i18n-ca.js`. Las páginas legales llevan las 2 versiones dentro.
+- Capturas a 390 px de ancho, en claro y en oscuro, adjuntas al PR: copiar `docs/` a una carpeta temporal, cambiar
+  `<script src="vendor/supabase-2.45.4.js"></script>` por un `supabase` simulado con datos INVENTADOS (nunca
+  reales), servirla con `python3 -m http.server` y meter la página en un iframe de 390 px; `google-chrome
+  --headless=new --screenshot` (oscuro: `--blink-settings=preferredColorScheme=0`). Guardar los PNG en
+  `.github/capturas/<número del issue>/`, subirlos en la rama y enlazarlos en la descripción del PR.
+- El PR lo abre Claude contra `main` (`gh pr create`) con "Fixes #N". Ferran lo revisa y lo fusiona.
+
 ## Piezas
 
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
