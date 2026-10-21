@@ -403,7 +403,9 @@ I.exact = {
 "No se ha podido cargar la clasificación": "No s'ha pogut carregar la classificació",
 "No se han podido cargar": "No s'han pogut carregar",
 "Grupo no válido": "Grup no vàlid",
-"Equipo no válido": "Equip no vàlid"
+"Equipo no válido": "Equip no vàlid",
+"El email con el que entras en iSquad": "L'email amb què entres a iSquad",
+"Es tu email, no tu nombre ni tu DNI.": "És el teu email, no el teu nom ni el teu DNI."
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

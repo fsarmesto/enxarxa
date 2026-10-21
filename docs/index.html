@@ -16,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);margin-top:4px}
 /* Colores de la Federació Catalana de Voleibol: amarillo, rojo y negro.
    Pendiente = rojo; cobrado = negro relleno. El marcador de arriba es negro en los dos temas. */
 :root{
@@ -437,7 +438,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   <section>
     <div class="seg" data-noi18n style="justify-content:flex-end;width:100%;margin-bottom:12px"><span class="segb lang-seg" role="group"><button type="button" data-lang="es">ES</button><button type="button" data-lang="ca">CA</button></span></div>
     <form id="authForm" autocomplete="on">
-      <label class="f">Usuario de iSquad<input type="text" id="aLogin" name="username" autocomplete="username" required></label>
+      <label class="f">Usuario de iSquad<input type="text" id="aLogin" name="username" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="El email con el que entras en iSquad" required><span class="hint">Es tu email, no tu nombre ni tu DNI.</span></label>
       <label class="f">Contraseña de iSquad<input type="password" id="aPass" name="password" autocomplete="current-password" required></label>
       <div id="setupBlock" class="hidden">
         <label class="f" id="aOriginL">Población desde la que sales a arbitrar<input type="text" id="aOrigin" placeholder="Capellades"></label>
