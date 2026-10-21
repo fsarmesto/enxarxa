@@ -178,6 +178,12 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   2. calendario (API pública) de los equipos donde juega o entrena (activos en "Mis partidos") contra la foto anterior
      `pub_cache snap:<id_equipo>`: ya hay horario, cambio de horario o fecha, suspendido/aplazado (`teamChanges`).
      La primera pasada de un equipo solo guarda la foto.
+  3. el día que arbitra, 2 h después del último partido, "Pide el pago de hoy antes de mañana" con la dieta que le
+     corresponde (`_shared/dieta.ts`, mismas reglas que la web: franja, día, festivos, sin dieta en alevín/amateur y
+     finales/concentraciones). Una vez al día (`pub_cache aviso-cobro:<user>:<fecha>`); no si ya está solicitado.
+- En la web, la dieta que corresponde (`dietaOf`, de `compute()` vía `LAST_RES`) sale en el aviso de cobro, junto al
+  estado de cada partido por pedir y en la tarjeta de la agenda: "🍽 Te corresponde dieta: … · ponla al pedir el pago".
+- Un partido aún no jugado puede tener ya su recibo vacío en iSquad: `payState` lo trata como futuro hasta su día.
 - Envío en `_shared/push.ts` (también lo usa `notify`). La notificación abre la app en `?vista=agenda`.
 - Coste: 1 login a iSquad por suscrito cada 10 minutos (17 horas al día) y 1 consulta ligera por equipo vigilado.
 
