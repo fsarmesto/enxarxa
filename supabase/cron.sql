@@ -30,3 +30,17 @@ select cron.schedule(
   );
   $$
 );
+
+-- Cuentas sin usar 6 meses: aviso 30 días antes y borrado (función inactivas). Cada día a las 10:00 UTC.
+select cron.schedule(
+  'inactivas',
+  '0 10 * * *',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/inactivas',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 60000
+  );
+  $$
+);

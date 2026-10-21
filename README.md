@@ -59,11 +59,16 @@ En el móvil se puede instalar como app: menú del navegador → **Añadir a pan
 |---|---|
 | `auth-isquad` | Comprueba usuario y contraseña contra iSquad. La primera vez pide población y consentimiento, crea la cuenta, guarda la contraseña cifrada y trae los partidos. |
 | `sync` | Con `x-cron-secret`: actualiza a todos los usuarios. Con sesión: solo al usuario. |
-| `delete-account` | Borra cuenta, contraseña guardada, partidos y pabellones. |
+| `delete-account` | Borra la cuenta con todos sus datos (contraseña y sesión guardadas, partidos, pabellones, avisos, equipos, calendario). |
 | `matches` | Partidos. La sincronización solo actualiza los datos de iSquad; rol, equipo arbitral, peajes, cobrado, etc. nunca se pisan. |
 | `venues` | Km de ida por pabellón, por usuario. |
 
 Las tarifas y dietas están en `docs/index.html` (objeto `CATS` y función `dietaFor`). Al cambiar de temporada, actualízalas desde el nuevo anexo.
 
-## Aviso
-App no oficial, sin relación con la FCVB ni con iSquad/Toools. Si iSquad cambia su web, el lector de designaciones (`supabase/functions/_shared/isquad.ts`) puede necesitar ajustes.
+## No oficial
+Vòlei EnXarxa es un proyecto personal, gratuito y sin ánimo de lucro de Ferran Sanchís. No es una app oficial de la Federació Catalana de Voleibol ni de iSquad/Toools, ni tiene relación con ellas. Los nombres de la FCVB, de iSquad y de los clubes se usan solo para describir de dónde salen los datos. Los importes son orientativos: manda el recibo de la FCVB. Si iSquad cambia su web, el lector de designaciones (`supabase/functions/_shared/isquad.ts`) puede necesitar ajustes.
+
+Política de privacidad: https://fsarmesto.github.io/enxarxa/privacidad.html · Aviso legal: https://fsarmesto.github.io/enxarxa/aviso-legal.html
+
+## Licencia
+Todos los derechos reservados (ver [LICENSE](LICENSE)): el código se puede consultar, pero no copiar, modificar ni reutilizar sin permiso del autor. Para pedirlo: fsarmesto@gmail.com.

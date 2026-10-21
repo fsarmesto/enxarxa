@@ -408,6 +408,16 @@ export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[];
   return { msgs, missing, gone, renamed };
 }
 
+// Borrar una cuenta con todo: las tablas cuelgan de auth.users con "on delete cascade" (perfil, credenciales y sesión,
+// partidos, pabellones, push_subs, fav_teams, push_log); la caché compartida guarda algunas claves con el user_id
+// (ficha:, aviso-cobro:, aviso-inactiva:), que se borran aparte.
+export async function borrarCuenta(db: SupabaseClient, userId: string) {
+  const { error } = await db.auth.admin.deleteUser(userId);
+  if (error) return false;
+  await db.from("pub_cache").delete().like("key", `%${userId}%`);
+  return true;
+}
+
 // Una sesión de iSquad se intenta reutilizar durante 6 h desde su login; después, login nuevo.
 const SESSION_TTL = 6 * 3600_000;
 // Logins a iSquad por día (pub_cache "logins:AAAA-MM-DD", función SQL atómica), para medir la carga que le damos.

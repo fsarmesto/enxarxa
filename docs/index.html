@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Liquidación">
+<meta name="apple-mobile-web-app-title" content="EnXarxa">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -250,6 +250,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .hl-row.bad .s{color:var(--pend);font-weight:600}
 .st.part{background:var(--surface);color:var(--ink);border:1px solid var(--yellow)}
 body.dep .arb-only{display:none!important}
+.legal-links a,label.chk a{color:inherit;font-weight:600}
 .guest-note{font-size:13px;color:var(--ink-2);margin:6px 0 14px}
 /* App en el móvil y recordatorio */
 .pushcard{display:flex;gap:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:2px solid var(--ink);padding:12px 14px;margin:0 0 22px;font-size:14.5px}
@@ -458,7 +459,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
           <strong>Antes de seguir:</strong> para traer tus designaciones automáticamente, esta app guarda tu usuario y contraseña de iSquad <strong>cifrados</strong> y los usa solo para leer tu página de designaciones un par de veces al día. No es una app oficial de la FCVB ni de iSquad. Puedes borrar tu cuenta, con la contraseña y todos tus datos, en cualquier momento desde Ajustes.
         </div>
         <label class="chk small" style="display:flex;margin-bottom:8px;white-space:normal"><input type="checkbox" id="aAge"> Tengo 14 años o más</label>
-        <label class="chk small" style="display:flex;margin-bottom:14px;white-space:normal"><input type="checkbox" id="aConsent"> Lo entiendo y quiero continuar</label>
+        <label class="chk small" style="display:flex;margin-bottom:14px;white-space:normal"><input type="checkbox" id="aConsent"> <span>Lo entiendo y acepto la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a></span></label>
       </div>
       <label class="chk small" style="margin-bottom:4px;white-space:normal"><input type="checkbox" id="aGuest"> Entrar sin guardar nada</label>
       <p class="guest-note hidden" id="guestNote">No se crea cuenta ni se guarda nada: ni tu usuario, ni tu contraseña, ni tus partidos. Se leen de iSquad en este momento (puede tardar hasta un minuto) y desaparecen al cerrar la pestaña. Sin actualizaciones automáticas.</p>
@@ -468,6 +469,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   </section>
   <p class="muted small">Entras con los mismos datos que en iSquad. La primera vez tarda unos segundos porque trae tus partidos.</p>
   <p class="small hidden" id="apkLogin"><a href="app/enxarxa.apk" download style="color:inherit;font-weight:700">Descarga la app para Android</a> · gratis, con recordatorio del domingo.</p>
+  <p class="small muted legal-links"><a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
 </main>
 
 <!-- ============ App ============ -->
@@ -495,6 +497,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       </div>
       <p class="sync" id="syncInfo"></p>
       <p class="sync arb-only" id="irpfInfo"></p>
+      <p class="sync arb-only">Importes orientativos: manda el recibo de la FCVB.</p>
     </div></div>
   </div>
   <div class="views" id="views" role="tablist">
@@ -591,6 +594,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
         <p class="small muted" id="accountInfo"></p>
         <div class="row" style="margin-bottom:12px"><button id="btnGuide">Ver la guía</button><button id="btnShare">Compartir la app</button></div>
         <button class="danger" id="btnDelete">Borrar mi cuenta y mis datos</button>
+        <p class="small muted legal-links" style="margin-top:14px"><a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
       </div>
     </div>
   </details>
@@ -1773,6 +1777,7 @@ function renderGuide(){
   const st=guideSteps(), i=GUIDE_STEP, x=st[i];
   $('guideSheet').innerHTML = `<div class="step-ico">${x.ico}</div><h2 id="guideTitle">${x.t}</h2>${x.h}
     <div class="dots">${st.map((_,k)=>`<i class="${k===i?'on':''}"></i>`).join('')}</div>
+    <p class="small muted legal-links" style="text-align:center;margin:0 0 10px">${LEGAL_LINKS}</p>
     <div class="nav"><button class="ghost" id="gSkip">${i===st.length-1?'':'Saltar'}</button>${i<st.length-1?'<button class="primary" id="gNext">Siguiente</button>':'<button class="primary" id="gDone">Empezar</button>'}</div>`;
   const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
   on('gNext',()=>{ GUIDE_STEP++; renderGuide(); });
@@ -1785,15 +1790,18 @@ function openGuide(){ GUIDE_STEP=0; renderGuide(); $('guide').classList.remove('
 function closeGuide(){ if(CONSENT_OPEN) return; $('guide').classList.add('hidden'); try{ localStorage.setItem(GUIDE_KEY,'1'); }catch(e){} }
 // Edad mínima y política: las cuentas sin aceptar la versión vigente ven este aviso (no se puede cerrar) antes que nada.
 // POLICY_VERSION tiene que coincidir con supabase/functions/_shared/politica.ts.
-const POLICY_VERSION = '2026-10-21';
+const POLICY_VERSION = '2026-10-22';
+const LEGAL_LINKS = '<a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a>';
 const UNDER14 = 'Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.';
 let CONSENT_OPEN = false;
 const needsConsent = () => !GUEST && P && P.policy_version!==POLICY_VERSION;
 function openConsent(){
   CONSENT_OPEN = true;
   $('guideSheet').innerHTML = `<div class="step-ico">🔒</div><h2 id="guideTitle">Antes de seguir</h2>
-    <p>La app es solo para mayores de 14 años. Confírmalo para seguir usándola.</p>
+    <p>He actualizado la política de privacidad. Para seguir usando la app, confirma tu edad y acéptala.</p>
     <label class="chk" style="margin:6px 0 4px;white-space:normal"><input type="checkbox" id="cAge"> Tengo 14 años o más</label>
+    <label class="chk" style="margin:6px 0 4px;white-space:normal"><input type="checkbox" id="cPol"> <span>He leído y acepto la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a></span></label>
+    <p class="small muted legal-links" style="margin:4px 0 0">${LEGAL_LINKS}</p>
     <div class="err" id="cErr" role="alert"></div>
     <div class="nav"><button class="ghost" id="cOut">Salir</button><button class="primary" id="cOk">Continuar</button></div>`;
   $('guide').classList.remove('hidden');
@@ -1803,6 +1811,7 @@ function openConsent(){
       $('cErr').innerHTML = esc(tr(UNDER14)) + ` <button class="ghost" id="cDel" style="padding-left:0">${esc(tr('Borrar mi cuenta y mis datos'))}</button>`;
       $('cDel').onclick=()=>$('btnDelete').click(); return;
     }
+    if(!$('cPol').checked){ $('cErr').textContent=tr('Para seguir, acepta la política de privacidad.'); return; }
     $('cOk').disabled=true;
     const {error} = await sb.rpc('aceptar_politica',{v:POLICY_VERSION});
     $('cOk').disabled=false;
@@ -1909,6 +1918,7 @@ async function start(){
   if(!session){ show('auth'); return; }
   USER = session.user;
   try{ await loadAll(); }catch(e){ await sb.auth.signOut(); show('auth'); return; }
+  sb.rpc('marcar_actividad').then(()=>{}, ()=>{});   // las cuentas sin abrir la app en 6 meses se borran
   show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); if(needsConsent()) openConsent(); else setTimeout(maybeGuide, 600);
 }
 start();

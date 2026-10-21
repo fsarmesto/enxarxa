@@ -201,6 +201,26 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Versión vigente en `POLICY_VERSION`, en 2 sitios que tienen que coincidir: `docs/index.html` y
   `supabase/functions/_shared/politica.ts`. Cambiarla vuelve a pedir la aceptación a todos.
 
+## Privacidad, aviso legal y licencia (22-oct-2026, decidido por Ferran)
+
+- Páginas `docs/privacidad.html` y `docs/aviso-legal.html` (estilos `legal.css`, idioma `legal.js`): castellano y catalán
+  en la misma página, se ve el de `liq-lang` o el del móvil; selector ES/CA. Enlazadas desde la pantalla de entrar,
+  la guía, Ajustes y el aviso de aceptación. Contacto: fsarmesto@gmail.com. Si cambia su contenido: actualizar la
+  fecha de las 2 versiones y subir `POLICY_VERSION` (vigente `2026-10-22`), que vuelve a pedir la aceptación a todos.
+- Alta: la casilla de consentimiento es "Lo entiendo y acepto la política de privacidad" (con enlace). Aviso a las
+  cuentas existentes: edad y "He leído y acepto la política de privacidad", las 2 obligatorias.
+- Cuentas sin usar: `profiles.last_active` (migración 025; la web llama a `marcar_actividad` al abrir). Función
+  `inactivas` (cron diario 10:00 UTC): a los 6 meses sin abrir la app borra la cuenta; 30 días antes, un aviso a quien
+  tiene notificaciones (una vez, `pub_cache aviso-inactiva:`). El sync automático no cuenta como uso.
+- Borrar una cuenta (`borrarCuenta` en `_shared/sync.ts`, la usan `delete-account` e `inactivas`): todo cuelga de
+  auth.users en cascada (perfil con cal_token, credenciales y sesión, partidos, pabellones, push_subs, fav_teams,
+  push_log) y se borran aparte las claves de `pub_cache` con su user_id (ficha:, aviso-cobro:, aviso-inactiva:).
+- En Cobros, bajo las cifras: "Importes orientativos: manda el recibo de la FCVB."
+- Licencia: todos los derechos reservados (`LICENSE`): el código se puede consultar, no reutilizar sin permiso escrito
+  de Ferran (con permiso, citándole y enlazando el repo). El repo tiene que seguir público para GitHub Pages gratis.
+- iPhone: `apple-mobile-web-app-title` era "Liquidación" (por eso los avisos salían con ese nombre); ahora "EnXarxa".
+  Quien la tenga añadida a la pantalla de inicio tiene que quitarla y volver a añadirla para que cambie.
+
 ## Panel de designaciones publicadas (admin, 21-oct-2026)
 
 - Función `designadas` (solo `ADMIN_LOGINS`): qué categorías tienen partidos designados de hoy al domingo, en toda

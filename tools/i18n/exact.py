@@ -280,4 +280,11 @@ EXACT = {
 "Antes de seguir": "Abans de continuar",
 "La app es solo para mayores de 14 años. Confírmalo para seguir usándola.": "L'app és només per a majors de 14 anys. Confirma-ho per continuar fent-la servir.",
 "Continuar": "Continua",
+# Política de privacidad y aviso legal (22-oct-2026)
+"Política de privacidad": "Política de privacitat", "Aviso legal": "Avís legal",
+"Lo entiendo y acepto la": "Ho entenc i accepto la", "He leído y acepto la": "He llegit i accepto la",
+"política de privacidad": "política de privacitat",
+"Importes orientativos: manda el recibo de la FCVB.": "Imports orientatius: mana el rebut de la FCVB.",
+"Para seguir, acepta la política de privacidad.": "Per continuar, accepta la política de privacitat.",
+"He actualizado la política de privacidad. Para seguir usando la app, confirma tu edad y acéptala.": "He actualitzat la política de privacitat. Per continuar fent servir l'app, confirma la teva edat i accepta-la.",
 }
