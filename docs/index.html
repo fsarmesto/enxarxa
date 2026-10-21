@@ -187,6 +187,25 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .score .br b{color:var(--board-ink);font-weight:600}
 .lost{color:var(--board-pend)}
 .tag.bad{background:var(--pend);color:#fff}
+/* Filtros */
+.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 10px}
+.filters label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.filters select{width:100%;padding:9px 10px;font-size:14.5px;font-weight:600;text-transform:none;letter-spacing:0;border:2px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink)}
+.filters select.on{border-color:var(--ink);background:var(--yellow);color:#000}
+.fsum{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;font-size:14px;margin:0 0 24px;padding:10px 12px;background:var(--surface-2)}
+.fsum strong{font-family:var(--display);font-size:19px}
+@media (max-width:760px){ .filters{grid-template-columns:repeat(2,minmax(0,1fr))} }
+/* Ranking */
+.rank-ctrl{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.rank{width:100%;border-collapse:collapse}
+.rank td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+.rank td.pos{font-family:var(--display);font-weight:700;font-size:20px;width:34px;color:var(--ink-3)}
+.rank tr:nth-child(-n+3) td.pos{color:var(--ink)}
+.rank td.v{text-align:right;font-weight:700;white-space:nowrap;width:110px}
+.rank .bar{height:6px;background:var(--surface-2);margin-top:5px}
+.rank .bar i{display:block;height:100%;background:var(--yellow)}
+.rank .sub{color:var(--ink-3);font-size:12px}
+.guest-note{font-size:13px;color:var(--ink-2);margin:6px 0 14px}
 </style>
 </head>
 <body>
@@ -211,6 +230,8 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
         </div>
         <label class="chk small" style="margin-bottom:14px"><input type="checkbox" id="aConsent"> Lo entiendo y quiero continuar</label>
       </div>
+      <label class="chk small" style="margin-bottom:4px;white-space:normal"><input type="checkbox" id="aGuest"> Entrar sin guardar nada</label>
+      <p class="guest-note hidden" id="guestNote">No se crea cuenta ni se guarda nada: ni tu usuario, ni tu contraseña, ni tus partidos. Se leen de iSquad en este momento (puede tardar hasta un minuto) y desaparecen al cerrar la pestaña. Sin actualizaciones automáticas.</p>
       <button class="primary" type="submit" id="aBtn">Entrar</button>
       <div class="err" id="aErr" role="alert"></div>
     </form>
@@ -245,7 +266,25 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
   <div class="banner hidden" id="banner"></div>
   <div class="alerts" id="alerts"></div>
 
+  <div class="filters" id="filters"></div>
+  <div class="fsum hidden" id="fsum"></div>
   <div id="ledger"></div>
+
+  <details class="panel hidden" id="rankPanel">
+    <summary>Ranking de árbitros</summary>
+    <p class="small muted">Solo lo ves tú. Todos los árbitros que usan la app, con los importes de los recibos de la FCVB.</p>
+    <div class="rank-ctrl">
+      <label class="small">Temporada <select id="rankSeason"></select></label>
+      <label class="small">Ordenar por <select id="rankMetric">
+        <option value="partidos">Partidos pitados</option><option value="jornadas">Jornadas</option>
+        <option value="cobrado">Cobrado</option><option value="liquidado">Liquidado (cobrado + pendiente)</option>
+        <option value="tarifa">Tarifas</option><option value="gastos">Gastos (desplazamiento y dietas)</option>
+        <option value="r1">Partidos como R1</option><option value="r2">Partidos como R2</option>
+        <option value="an">Partidos como anotador</option><option value="perdido">No solicitado a tiempo</option>
+      </select></label>
+    </div>
+    <table class="rank" id="rankTable"></table>
+  </details>
 
   <details class="panel">
     <summary>Añadir un partido a mano</summary>
@@ -284,7 +323,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
       <div>
         <h2>Reglas que aplica</h2>
         <p class="small muted">Dietas por día y hora de inicio: lunes a jueves 10 € (9:00–13:00 y 16:00–20:29) o 13,50 € el resto; viernes 13,50 € (0:00–15:59 y 21:01–23:59); sábado 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); domingo y festivos 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59); un festivo entre semana fuera de esas franjas cobra la dieta normal de ese día. Una dieta por jornada; mañana (hasta las 14:59) y tarde (desde las 15:00) cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones. Los festivos de Catalunya se detectan solos; los locales de cada municipio, no: en esos casos, y siempre que no cuadre, cambia la dieta a mano en el partido.</p>
-        <p class="small muted">Tarifa según competición, rol y equipo arbitral (anexo FCVB 2026/27). El rol y cuántos árbitros y anotadores había se leen de la designación en iSquad. Superliga y Superliga 2 las liquida la RFEVB. Los partidos de selecciones territoriales no se cuentan.</p>
+        <p class="small muted">Tarifa según competición, rol y equipo arbitral (anexo FCVB 2026/27). El rol y cuántos árbitros y anotadores había se leen de la designación en iSquad. Superliga y Superliga 2 las liquida la RFEVB. Los partidos de selecciones territoriales no tienen tarifa: solo se cuentan si la FCVB ha pagado gastos por ellos.</p>
         <h2 style="margin-top:16px">Tu cuenta</h2>
         <p class="small muted" id="accountInfo"></p>
         <button class="danger" id="btnDelete">Borrar mi cuenta y mis datos</button>
@@ -379,6 +418,11 @@ function dietaFor(dateStr, mins, holiday){
 }
 
 /* ---------- Estado ---------- */
+// Modo sin guardar: los datos viven solo en memoria y ninguna escritura sale del navegador.
+let GUEST = false;
+const NODB = { from(){ let row=null; const o={ update(){return o}, upsert(){return o}, delete(){return o}, eq(){return o}, in(){return o}, select(){return o},
+  insert(r){ row=r; return o }, single(){ return Promise.resolve({data:row,error:null}) }, then(a,b){ return Promise.resolve({data:row,error:null}).then(a,b) } }; return o; } };
+const store = () => GUEST ? NODB : sb;
 let USER = null, P = null, MATCHES = [], VENUES = {};
 
 // PostgREST devuelve como mucho 1000 filas por consulta: los partidos se piden por páginas.
@@ -564,6 +608,46 @@ const estCells = (m,r,km) => `<td class="n" data-l="Dieta"><input type="number" 
           <td class="n" data-l="Despl.">${r.travel?eur(r.travel):(km?'<span class="muted">—</span>':'<span class="tag warn">km?</span>')}${r.travelShared&&r.travel?'<span class="shared">mismo pabellón</span>':''}${r.travel&&r.kmSrc==='fcvb'?'<span class="shared" title="Km que la FCVB te paga a esta población según tus recibos">km FCVB</span>':''}${r.travel&&r.kmSrc==='min'?'<span class="shared" title="Según tus recibos, la FCVB paga el mínimo a esta población">mínimo FCVB</span>':''}${r.travel&&r.kmSrc==='aprox'?'<span class="shared" title="No se encontró la dirección exacta: km hasta el centro de la población. Corrígelos si no cuadran.">km aprox.</span>':''}</td>`;
 const fcvbCells = r => `<td class="n" data-l="Dieta"><span class="muted" title="La FCVB da la dieta y el desplazamiento juntos">incl.</span></td>
           <td class="n" data-l="Gastos">${eur(r.travel)}<span class="shared" title="Desplazamiento y dieta según los recibos de la FCVB (la app calculaba ${eur(r.est.gastos)}; la FCVB reparte los gastos del día entre los partidos)">gastos FCVB</span></td>`;
+/* ---------- Filtros (designación, división, categoría y género) ---------- */
+const DIVS=[['SL','Superliga'],['SL2','Superliga 2'],['1','1ª División'],['2','2ª División'],['3','3ª División'],['4','4ª División'],['PREF','Preferente'],['AM1','Amateur 1ª'],['AM2','Amateur 2ª'],['SEL','Selecciones'],['U','Sin división']];
+const AGES=[['SEN','Sénior'],['JUN','Júnior'],['JUV','Juvenil'],['CAD','Cadete'],['INF','Infantil'],['ALE','Alevín'],['AMA','Amateur'],['OTRA','Otras']];
+const GENS=[['F','Femenino'],['M','Masculino'],['X','Mixto']];
+const ROLES=[['r1','R1 · Primer árbitro'],['r2','R2 · Segundo árbitro'],['an','Anotador'],['jl','Juez de línea']];
+// La competición de iSquad trae división, edad y género juntos: "CUARTA DIVISION CADETE FEMENINO".
+function compParts(comp){
+  const c=norm(comp);
+  const div = /SELECCI/.test(c)?'SEL' : /SUPERLIGA ?2/.test(c)?'SL2' : /SUPERLIGA/.test(c)?'SL' : /AMATEUR PRIMERA/.test(c)?'AM1' : /AMATEUR SEGUNDA/.test(c)?'AM2'
+    : /PRIMERA/.test(c)?'1' : /SEGUNDA/.test(c)?'2' : /TERCERA/.test(c)?'3' : /CUARTA/.test(c)?'4' : /PREFERENT/.test(c)?'PREF' : 'U';
+  const age = /SENIOR|SUPERLIGA/.test(c)?'SEN' : /JUNIOR/.test(c)?'JUN' : /JUVENIL/.test(c)?'JUV' : /CADET/.test(c)?'CAD' : /INFANTIL/.test(c)?'INF' : /ALEVI/.test(c)?'ALE' : /AMATEUR/.test(c)?'AMA' : 'OTRA';
+  const gen = /FEMENI/.test(c)?'F' : /MASCULI/.test(c)?'M' : /MIXT/.test(c)?'X' : '';
+  return {div,age,gen};
+}
+const roleOf = m => (m.staff_checked || String(m.id).startsWith('MAN-')) ? m.role : '';
+const FILTER_KEY='liq-filtros';
+let FILT={role:'',div:'',age:'',gen:''};
+try{ Object.assign(FILT, JSON.parse(localStorage.getItem(FILTER_KEY)||'{}')); }catch(e){}
+const FGET={role:roleOf, div:m=>compParts(m.comp).div, age:m=>compParts(m.comp).age, gen:m=>compParts(m.comp).gen};
+const passes=(m,skip)=>Object.entries(FILT).every(([k,v])=>!v || k===skip || FGET[k](m)===v);
+const filtering=()=>Object.values(FILT).some(Boolean);
+function renderFilters(ms,res){
+  const groups=[['role','Designación',ROLES,'Todas'],['div','División',DIVS,'Todas'],['age','Categoría',AGES,'Todas'],['gen','Género',GENS,'Todos']];
+  $('filters').innerHTML = groups.map(([k,label,opts,all])=>{
+    // Cada desplegable cuenta los partidos que cumplen los otros filtros: así se ve qué combinaciones existen.
+    const pool=ms.filter(m=>passes(m,k)), cnt=new Map(); for(const m of pool){ const v=FGET[k](m); cnt.set(v,(cnt.get(v)||0)+1); }
+    const o=opts.filter(([v])=>cnt.get(v)||FILT[k]===v).map(([v,t])=>`<option value="${v}"${FILT[k]===v?' selected':''}>${esc(t)} (${cnt.get(v)||0})</option>`).join('');
+    return `<label>${label}<select data-filter="${k}" class="${FILT[k]?'on':''}"><option value="">${all} (${pool.length})</option>${o}</select></label>`;
+  }).join('');
+  const box=$('fsum');
+  if(!filtering()){ box.classList.add('hidden'); return; }
+  const sel=ms.filter(m=>passes(m)), tot=sel.reduce((t,m)=>t+res.get(m.id).total,0);
+  const by=k=>sel.filter(m=>roleOf(m)===k).length, parts=[['r1','R1'],['r2','R2'],['an','anotador'],['jl','juez de línea']].map(([k,t])=>by(k)?`${by(k)} como ${t}`:'').filter(Boolean);
+  box.innerHTML=`<div><strong>${sel.length} partido${sel.length===1?'':'s'} · ${eur(tot)}</strong>${parts.length&&!FILT.role?` <span class="muted">· ${parts.join(', ')}</span>`:''}</div><button class="ghost" id="btnClearF">Quitar filtros</button>`;
+  box.classList.remove('hidden');
+  $('btnClearF').onclick=()=>{ FILT={role:'',div:'',age:'',gen:''}; saveFilters(); render(); };
+}
+function saveFilters(){ try{ localStorage.setItem(FILTER_KEY, JSON.stringify(FILT)); }catch(e){} }
+$('filters').addEventListener('change', e=>{ const k=e.target.dataset.filter; if(!k) return; FILT[k]=e.target.value; saveFilters(); render(); });
+
 // Lo que hay que hacer con el cobro de este partido, debajo del botón.
 function payTag(m){
   const st=payState(m), lim=limitOf(m);
@@ -605,15 +689,19 @@ function render(){
   $('sCount').textContent=ms.length;
   const jc = new Set(ms.map(m=>m.date+franjaOf(m))).size;
   $('sCountL').textContent = `Partidos en ${jc} jornada${jc===1?'':'s'}`;
-  $('syncInfo').textContent = `Última actualización desde iSquad: ${ago(P.last_sync)}. Se actualiza sola dos veces al día.`;
+  $('syncInfo').textContent = GUEST ? `Leído de iSquad: ${ago(P.last_sync)}. Sin guardar: no se actualiza solo.` : `Última actualización desde iSquad: ${ago(P.last_sync)}. Se actualiza sola dos veces al día.`;
   const b = $('banner');
-  if(P.last_error==='credenciales'){ b.innerHTML='iSquad ya no acepta tu contraseña guardada. <button class="ghost" id="btnRelogin">Vuelve a entrar</button> con la nueva y se actualizará.'; b.classList.remove('hidden'); $('btnRelogin').onclick=logout; }
+  if(GUEST){ b.innerHTML='<strong>Modo sin guardar.</strong> No se ha guardado nada: al cerrar o recargar esta pestaña desaparece todo. Los cambios que hagas tampoco se guardan.'; b.classList.remove('hidden'); }
+  else if(P.last_error==='credenciales'){ b.innerHTML='iSquad ya no acepta tu contraseña guardada. <button class="ghost" id="btnRelogin">Vuelve a entrar</button> con la nueva y se actualizará.'; b.classList.remove('hidden'); $('btnRelogin').onclick=logout; }
   else if(P.last_error==='conexion'){ b.textContent='La última actualización no pudo conectar con iSquad. Se reintentará sola.'; b.classList.remove('hidden'); }
   else b.classList.add('hidden');
 
   const led = $('ledger');
+  renderFilters(ms,res);
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
-  const weeks = new Map(); for(const m of ms){ const w=weekStart(m.date); (weeks.get(w)||weeks.set(w,[]).get(w)).push(m); }
+  const shown = ms.filter(m=>passes(m));
+  if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
+  const weeks = new Map(); for(const m of shown){ const w=weekStart(m.date); (weeks.get(w)||weeks.set(w,[]).get(w)).push(m); }
   const syncT = P.last_sync ? new Date(P.last_sync).getTime() : 0;
   let html='';
   for(const [w,list] of [...weeks].sort((a,b)=>b[0].localeCompare(a[0]))){
@@ -653,7 +741,8 @@ function renderSettings(){
   $('origin').value=P.origin; $('rate').value=P.rate; $('minTravel').value=P.min_travel;
   const iv=String(+P.irpf||0), preset=[...$('irpf').options].some(o=>o.value===iv);
   $('irpf').value = preset ? iv : 'otro'; $('irpfOtherL').classList.toggle('hidden', preset); if(!preset) $('irpfOther').value=iv;
-  $('accountInfo').textContent = `Conectada a iSquad como ${P.isquad_login}.`;
+  $('accountInfo').textContent = GUEST ? `Sin guardar: datos de ${P.isquad_login} leídos de iSquad solo para esta pestaña.` : `Conectada a iSquad como ${P.isquad_login}.`;
+  $('btnDelete').classList.toggle('hidden', GUEST);
   const keys=Object.keys(VENUES).sort((a,b)=>(VENUES[a].label||a).localeCompare(VENUES[b].label||b));
   $('venueTable').innerHTML = keys.map(k=>`<tr><td>${esc(VENUES[k].label||k)}<div class="muted small">${esc(k)}${VENUES[k].km_source==='poblacion'?' · km aproximados al centro de la población':''}</div></td><td><input type="number" step="1" data-venue="${esc(k)}" value="${VENUES[k].km??''}" placeholder="?"> km</td></tr>`).join('') || '<tr><td class="muted">Sin pabellones todavía.</td></tr>';
 }
@@ -663,14 +752,14 @@ function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('sho
 async function patchMatch(id, patch){
   const m = MATCHES.find(x=>x.id===id); if(!m) return;
   Object.assign(m, patch); render();
-  const {error} = await sb.from('matches').update(patch).eq('user_id', USER.id).eq('id', id);
+  const {error} = await store().from('matches').update(patch).eq('user_id', USER.id).eq('id', id);
   if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
 }
 async function setVenueKm(key, km){
   // Si vacías los km, se vuelven a calcular en la siguiente actualización.
   const km_source = km==null ? null : 'manual';
   VENUES[key] = {...(VENUES[key]||{venue_key:key}), km, km_source}; render();
-  const {error} = await sb.from('venues').upsert({user_id:USER.id, venue_key:key, label:VENUES[key].label||null, km, km_source, ...(km==null?{km_tried_at:null}:{})});
+  const {error} = await store().from('venues').upsert({user_id:USER.id, venue_key:key, label:VENUES[key].label||null, km, km_source, ...(km==null?{km_tried_at:null}:{})});
   if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
 }
 
@@ -689,19 +778,19 @@ $('ledger').addEventListener('click', async e=>{
   if(b.dataset.pay){ const m=MATCHES.find(x=>x.id===b.dataset.pay); if(m) patchMatch(m.id,{paid:!m.paid}); return; }
   if(b.dataset.del && confirm('¿Quitar este partido de la lista?')){
     MATCHES = MATCHES.filter(m=>m.id!==b.dataset.del); render();
-    await sb.from('matches').delete().eq('user_id',USER.id).eq('id',b.dataset.del);
+    await store().from('matches').delete().eq('user_id',USER.id).eq('id',b.dataset.del);
   }
   if(b.dataset.week){
     const v=b.dataset.paid==='1'; const ids=MATCHES.filter(m=>weekStart(m.date)===b.dataset.week).map(m=>m.id);
     MATCHES.forEach(m=>{ if(ids.includes(m.id)) m.paid=v; }); render();
-    const {error}=await sb.from('matches').update({paid:v}).eq('user_id',USER.id).in('id',ids);
+    const {error}=await store().from('matches').update({paid:v}).eq('user_id',USER.id).in('id',ids);
     if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
   }
 });
 $('venueTable').addEventListener('change', e=>{ const k=e.target.dataset.venue; if(k!=null) setVenueKm(k, e.target.value===''?null:+e.target.value); });
 async function setIrpf(v){
   if(!(v>=0 && v<=50)){ toast('El IRPF tiene que estar entre 0 y 50 %'); renderSettings(); return; }
-  P.irpf=v; render(); const {error}=await sb.from('profiles').update({irpf:v}).eq('user_id',USER.id);
+  P.irpf=v; render(); const {error}=await store().from('profiles').update({irpf:v}).eq('user_id',USER.id);
   if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
 }
 $('irpf').addEventListener('change', e=>{
@@ -712,7 +801,7 @@ $('irpfOther').addEventListener('change', e=>{ if(e.target.value!=='') setIrpf(+
 for(const [id,f] of [['origin','origin'],['rate','rate'],['minTravel','min_travel']]){
   $(id).addEventListener('change', async e=>{
     const v = f==='origin' ? e.target.value.trim() : (+e.target.value||0); if(f==='origin'&&!v) return;
-    P[f]=v; render(); const {error}=await sb.from('profiles').update({[f]:v}).eq('user_id',USER.id);
+    P[f]=v; render(); const {error}=await store().from('profiles').update({[f]:v}).eq('user_id',USER.id);
     if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
   });
 }
@@ -721,10 +810,10 @@ $('btnAddManual').addEventListener('click', async ()=>{
   if(!g('mDate')||!g('mTime')||!g('mComp')){ toast('Fecha, hora y competición son obligatorias'); return; }
   const row={user_id:USER.id, id:'MAN-'+Date.now(), comp:g('mComp'), phase:'', teams:g('mTeams'), estado:'', date:g('mDate'), time:g('mTime'), venue:g('mVenue'), addr:g('mAddr')};
   row.venue_key = venueKey(row.venue,row.addr);
-  const {data,error}=await sb.from('matches').insert(row).select().single();
+  const {data,error}=await store().from('matches').insert(row).select().single();
   if(error){ toast('No se ha podido añadir'); return; }
   MATCHES.push(data);
-  if(!VENUES[row.venue_key]){ VENUES[row.venue_key]={venue_key:row.venue_key,label:row.venue||row.venue_key,km:null}; await sb.from('venues').insert({user_id:USER.id,venue_key:row.venue_key,label:VENUES[row.venue_key].label}); }
+  if(!VENUES[row.venue_key]){ VENUES[row.venue_key]={venue_key:row.venue_key,label:row.venue||row.venue_key,km:null}; await store().from('venues').insert({user_id:USER.id,venue_key:row.venue_key,label:VENUES[row.venue_key].label}); }
   for(const id of ['mComp','mTeams','mVenue','mAddr']) $(id).value='';
   render(); toast('Partido añadido');
 });
@@ -786,6 +875,7 @@ $('btnExport').addEventListener('click', async ()=>{
 });
 
 $('btnSync').addEventListener('click', async ()=>{
+  if(GUEST){ toast('Sin guardar no hay actualizaciones: sal y vuelve a entrar para leer iSquad de nuevo.'); return; }
   const b=$('btnSync'); b.disabled=true; b.textContent='Actualizando…';
   const r = await callFn('sync');
   b.disabled=false; b.textContent='Actualizar ahora';
@@ -799,12 +889,27 @@ $('btnDelete').addEventListener('click', async ()=>{
   if(!r.ok){ toast(r.error||'No se ha podido borrar'); return; }
   await sb.auth.signOut(); location.reload();
 });
-async function logout(){ await sb.auth.signOut(); show('auth'); }
+async function logout(){ if(GUEST){ location.reload(); return; } await sb.auth.signOut(); show('auth'); }
 $('btnLogout').addEventListener('click', logout);
 
 /* ---------- Entrar ---------- */
+$('aGuest').addEventListener('change', e=>{ $('guestNote').classList.toggle('hidden', !e.target.checked); if(e.target.checked) $('setupBlock').classList.add('hidden'); });
+async function enterGuest(){
+  $('aErr').textContent=''; $('aBtn').disabled=true; $('aBtn').textContent='Leyendo iSquad… (hasta 1 minuto)';
+  const login=$('aLogin').value.trim();
+  const r = await callFn('auth-isquad',{login, password:$('aPass').value, save:false});
+  $('aBtn').disabled=false; $('aBtn').textContent='Entrar';
+  if(!r.ok || !r.guest){ $('aErr').textContent = r.error || 'No se ha podido entrar. Prueba de nuevo.'; return; }
+  $('aPass').value='';
+  GUEST=true; USER={id:'guest'};
+  P={isquad_login:login, nombre:r.nombre, origin:'', rate:'0.26', min_travel:'4', irpf:'2', last_sync:new Date().toISOString(), last_error:null};
+  MATCHES=(r.matches||[]).map(m=>({cat:null, team:'t1', role:'r1', tolls:0, holiday:false, no_dieta:null, paid:false, km_override:null, dieta_override:null, ...m}));
+  VENUES={}; for(const m of MATCHES) VENUES[m.venue_key] ||= {venue_key:m.venue_key, label:null, km:null, km_source:null};
+  learnFcvbKm(); show('app'); render();
+}
 $('authForm').addEventListener('submit', async e=>{
   e.preventDefault();
+  if($('aGuest').checked) return enterGuest();
   const needSetup = !$('setupBlock').classList.contains('hidden');
   if(needSetup && (!$('aOrigin').value.trim() || !$('aConsent').checked)){ $('aErr').textContent='Indica tu población y marca la casilla para continuar.'; return; }
   $('aErr').textContent=''; $('aBtn').disabled=true; $('aBtn').textContent= needSetup ? 'Trayendo tus partidos…' : 'Comprobando con iSquad…';
@@ -818,13 +923,37 @@ $('authForm').addEventListener('submit', async e=>{
   await start();
 });
 
+/* ---------- Ranking ---------- */
+let RANK=null;
+const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpperCase());
+async function loadRanking(){
+  if(GUEST) return;
+  const r = await callFn('ranking'); if(!r.ok){ $('rankPanel').classList.add('hidden'); return; }
+  RANK=r.arbitros;
+  const seasons=[...new Set(RANK.flatMap(a=>Object.keys(a.temporadas)))].sort().reverse();
+  $('rankSeason').innerHTML=seasons.map(s=>`<option value="${s}"${s===SEASON?' selected':''}>${seasonLabel(s)}</option>`).join('');
+  $('rankPanel').classList.remove('hidden'); renderRanking();
+}
+function renderRanking(){
+  if(!RANK) return;
+  const s=$('rankSeason').value, k=$('rankMetric').value, money=['cobrado','liquidado','tarifa','gastos','perdido'].includes(k);
+  const rows=RANK.map(a=>({a, t:a.temporadas[s]||{}})).filter(x=>(x.t[k]||0)>0).sort((x,y)=>(y.t[k]||0)-(x.t[k]||0));
+  const max=rows[0]?.t[k]||1;
+  $('rankTable').innerHTML = rows.map((x,i)=>`<tr><td class="pos">${i+1}</td><td><div>${esc(capName(x.a.nombre))}</div>
+    <div class="sub">${x.t.partidos||0} partidos · ${x.t.jornadas||0} jornadas · ${eur(x.t.cobrado||0)} cobrado${x.a.origen?' · '+esc(capName(x.a.origen)):''}</div>
+    <div class="bar"><i style="width:${Math.round((x.t[k]||0)/max*100)}%"></i></div></td><td class="v">${money?eur(x.t[k]):x.t[k]}</td></tr>`).join('')
+    || '<tr><td class="muted">Nadie tiene datos de esto en esta temporada.</td></tr>';
+}
+$('rankSeason').addEventListener('change', renderRanking);
+$('rankMetric').addEventListener('change', renderRanking);
+
 function show(v){ for(const x of ['auth','app','loading']) $(x+'View').classList.toggle('hidden', x!==v); }
 async function start(){
   const {data:{session}} = await sb.auth.getSession();
   if(!session){ show('auth'); return; }
   USER = session.user;
   try{ await loadAll(); }catch(e){ await sb.auth.signOut(); show('auth'); return; }
-  show('app'); render();
+  show('app'); render(); loadRanking();
 }
 start();
 </script>

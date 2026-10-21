@@ -9,7 +9,7 @@ poder seguir desde otra máquina. **El repo es público: aquí no van claves, co
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/liquidacion-arbitral-fcvb/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
   - Migraciones en `supabase/migrations` (001…005). Se aplican con `db push`, en orden.
@@ -29,7 +29,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account; do
+for f in auth-isquad sync delete-account ranking; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -79,6 +79,22 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   una ida y vuelta por pabellón y FRANJA (27 de 30 días claros, 9 árbitros) y la reparte entre los partidos; usa sus
   propios km. Un partido que empieza antes de las 15:00 cuenta como mañana aunque acabe por la tarde.
 - `arbitros_listado_facturas.php`: solo el neto de cada recibo.
+
+## Cobros, filtros, modo sin guardar y ranking (21-oct-2026)
+
+- Recibos: además de tarifa/gastos/estado se guardan `fcvb_limite` ("Fin cambios": el pago se pide en iSquad solo
+  hasta el DÍA SIGUIENTE al partido; si no, "PLAZO SOLICITUD PAGO TERMINADO" y no se cobra), `fcvb_accion`
+  (editar | procesando | factura) y `fcvb_campo` (tarifa cobrada en el pabellón). Migración 010.
+  En la web `payState()`: pagado, solicitado, solicitar, perdido, nada, sinrecibo, futuro; avisos arriba y desglose
+  de lo pendiente en la cabecera. Pie de la tabla de iSquad: importe no solicitado / solicitado / pagado.
+- Filtros (`renderFilters`): designación (rol leído de iSquad), división, categoría de edad y género sacados del
+  texto de la competición (`compParts`); cada desplegable cuenta los partidos que cumplen los demás filtros.
+  Se recuerdan en el navegador (localStorage `liq-filtros`).
+- Entrar sin guardar: `auth-isquad` con `save:false` lee iSquad (con equipo arbitral de todos los partidos) y
+  devuelve los partidos sin crear cuenta ni guardar nada. En la web `GUEST`: todas las escrituras pasan por
+  `store()`, que en ese modo no hace nada; recargar = salir.
+- Ranking: función `ranking`, solo para los usuarios de iSquad del secret `ADMIN_LOGINS` (comprobado en el servidor
+  con la sesión). La web muestra el panel solo si la función responde.
 
 ## Km que paga la FCVB (aprendidos de los recibos)
 

@@ -7,7 +7,7 @@ import { admin, background, cors, json, storeMatches, syncUser } from "../_share
 Deno.serve(async (req) => {
   const started = Date.now();
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  let body: { login?: string; password?: string; origin?: string; consent?: boolean };
+  let body: { login?: string; password?: string; origin?: string; consent?: boolean; save?: boolean };
   try { body = await req.json(); } catch { return json({ error: "Petición no válida" }, 400); }
   const login = (body.login || "").trim(), password = body.password || "";
   if (!login || !password) return json({ error: "Escribe tu usuario y contraseña de iSquad" }, 400);
@@ -15,6 +15,25 @@ Deno.serve(async (req) => {
 
   const allow = (Deno.env.get("ALLOWED_LOGINS") || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   if (allow.length && !allow.includes(key)) return json({ error: "Esta cuenta no tiene acceso. Pide a quien gestiona la app que te añada." }, 403);
+
+  // Sin guardar: se lee iSquad (partidos, recibos y equipo arbitral) y se devuelve todo al navegador. No se crea
+  // cuenta ni se guarda nada (ni usuario, ni contraseña, ni partidos); al cerrar la pestaña desaparece.
+  if (body.save === false) {
+    let nombre = "";
+    try {
+      const list = await fetchDesignaciones(login, password, {
+        needStaff: () => true, deadline: started + 120_000, onName: (n) => { nombre = n; },
+      });
+      const now = new Date().toISOString();
+      return json({
+        guest: true, nombre,
+        matches: list.map(({ staff, ...m }) => ({ ...m, ...(staff ?? {}), staff_checked: staff ? now : null, last_seen: now })),
+      });
+    } catch (e) {
+      if (e instanceof IsquadAuthError) return json({ error: "iSquad no acepta ese usuario y contraseña" }, 401);
+      return json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502);
+    }
+  }
 
   let matches: ScrapedMatch[];
   try { matches = await fetchDesignaciones(login, password); }
