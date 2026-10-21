@@ -234,6 +234,9 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .dg-grp{font-family:var(--display);font-size:19px;font-weight:600;margin:16px 0 4px;border-bottom:2px solid var(--rule);padding-bottom:2px}
 .dg-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
 .dg-row .st{flex:none}
+.hl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.hl-row .s{grid-column:1/-1;font-size:12.5px;color:var(--ink-3)}
+.hl-row.bad .s{color:var(--pend);font-weight:600}
 .st.part{background:var(--surface);color:var(--ink);border:1px solid var(--yellow)}
 .rank td.pos{font-family:var(--display);font-weight:700;font-size:20px;width:34px;color:var(--ink-3)}
 .rank tr:nth-child(-n+3) td.pos{color:var(--ink)}
@@ -487,6 +490,12 @@ details.cal[open]>summary::before{content:"▾ "}
       </select></label>
     </div>
     <table class="rank" id="rankTable"></table>
+  </details>
+
+  <details class="panel hidden" id="saludPanel">
+    <summary>Salud de la app</summary>
+    <p class="small muted">Solo lo ves tú. Si muchos árbitros fallan a la vez o la actualización automática se para, te llega un aviso.</p>
+    <div id="saludBody"><p class="small muted">Ábrelo para cargarlo.</p></div>
   </details>
 
   <details class="panel hidden" id="desigPanel">
@@ -1702,7 +1711,7 @@ const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpper
 async function loadRanking(){
   if(GUEST) return;
   const r = await callFn('ranking'); if(!r.ok){ $('rankPanel').classList.add('hidden'); return; }
-  $('desigPanel').classList.remove('hidden');
+  $('desigPanel').classList.remove('hidden'); $('saludPanel').classList.remove('hidden');
   RANK=r.arbitros;
   const seasons=[...new Set(RANK.flatMap(a=>Object.keys(a.temporadas)))].sort().reverse();
   $('rankSeason').innerHTML=seasons.map(s=>`<option value="${s}"${s===SEASON?' selected':''}>${seasonLabel(s)}</option>`).join('');
@@ -1750,6 +1759,21 @@ function renderDesig(){
   $('dgRefresh').onclick=()=>loadDesig(true);
 }
 $('desigPanel').addEventListener('toggle', e=>{ if(e.target.open && !DESIG) loadDesig(false); });
+
+/* ---------- Salud de la app (solo admins) ---------- */
+async function loadSalud(){
+  $('saludBody').innerHTML='<p class="small muted">Cargando…</p>';
+  const r=await callFn('designadas',{action:'salud'});
+  if(!r.ok){ $('saludBody').innerHTML=`<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; return; }
+  const arb=r.usuarios.filter(u=>u.tipo!=='deportista'), dep=r.usuarios.length-arb.length, err=arb.filter(u=>u.last_error);
+  const c=r.cache||{}, h=k=>c[k]?ago(c[k]):'—';
+  let html=`<div class="dg-head"><span>${r.usuarios.length} usuarios (${arb.length} árbitros${dep?`, ${dep} jugadores o entrenadores`:''}) · ${err.length?`<b style="color:var(--pend)">${err.length} con error</b>`:'ninguno con error'} · ${r.dispositivos} dispositivos con avisos</span><button class="ghost" id="hlRefresh">Actualizar</button></div>
+    <p class="small muted">Índice de plantillas: ${r.indice.revisados} de ${r.indice.equipos} equipos · partidos de la federación leídos ${h('feed')} · designaciones ${h('desig-global')} · vigilancia de equipos ${r.vigilancia?ago(r.vigilancia):'—'}</p>`;
+  html+=r.usuarios.map(u=>`<div class="hl-row${u.last_error?' bad':''}"><span>${esc(capName(u.nombre))}</span><span class="small muted">${u.tipo==='deportista'?'jugador/entrenador':'árbitro'}${u.avisos?` · 🔔 ${u.avisos}`:''}</span>
+    <span class="s">${u.tipo==='deportista' ? `alta ${esc(ago(u.alta))}` : u.last_error ? `Error: ${esc(u.last_error)} · última actualización ${esc(ago(u.last_sync))}` : `Actualizado ${esc(ago(u.last_sync))}`}</span></div>`).join('');
+  $('saludBody').innerHTML=html; $('hlRefresh').onclick=loadSalud;
+}
+$('saludPanel').addEventListener('toggle', e=>{ if(e.target.open) loadSalud(); });
 $('rankMetric').addEventListener('change', renderRanking);
 
 function show(v){

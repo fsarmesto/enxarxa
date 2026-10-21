@@ -187,6 +187,12 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   ("LOCAL - VISITANTE", fecha en texto) se cruza con el listado de partidos por fecha y local o visitante; si no,
   por la competición (`compToCat`: "1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO). Caché `desig-global` 1 h.
 - En la web, panel "Designaciones publicadas (FCVB)" junto al ranking, se carga al abrirlo.
+- Cron `designadas-hora` (`5 * * * *`, la función solo trabaja de 8 a 22 h de Madrid): recalcula, compara con la foto
+  `desig-snap:<domingo>` y avisa a los admins de las categorías que pasan de 0 a tener designaciones (sin Alevín ni
+  Amateur/Máster). Además `revisarSalud`: si la mitad o más de los árbitros tiene `last_error` o el último sync tiene
+  más de 13 h, aviso a los admins (como mucho uno cada 6 h por motivo, `pub_cache salud-aviso:`).
+- Panel "Salud de la app" (admin): `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
+  dispositivos, índice de plantillas y edad de las cachés.
 
 ## Avisos al momento (función vigilar, 21-oct-2026)
 
