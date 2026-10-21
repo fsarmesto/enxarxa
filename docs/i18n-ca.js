@@ -406,7 +406,10 @@ I.exact = {
 "Equipo no válido": "Equip no vàlid",
 "El email con el que entras en iSquad": "L'email amb què entres a iSquad",
 "Es tu email, no tu nombre ni tu DNI.": "És el teu email, no el teu nom ni el teu DNI.",
-"Tus partidos de la FCVB en un solo sitio: horarios, resultados, clasificación y avisos de tus equipos. Si arbitras, también tus designaciones y cobros (tarifas, dietas y desplazamientos).": "Els teus partits de la FCVB en un sol lloc: horaris, resultats, classificació i avisos dels teus equips. Si arbitres, també les teves designacions i cobraments (tarifes, dietes i desplaçaments)."
+"Tus partidos de la FCVB en un solo sitio: horarios, resultados, clasificación y avisos de tus equipos. Si arbitras, también tus designaciones y cobros (tarifas, dietas y desplazamientos).": "Els teus partits de la FCVB en un sol lloc: horaris, resultats, classificació i avisos dels teus equips. Si arbitres, també les teves designacions i cobraments (tarifes, dietes i desplaçaments).",
+"Pendiente": "Pendent",
+"· Cobrado": "· Cobrat",
+"Tus equipos: horarios, árbitros y resultados": "Els teus equips: horaris, àrbitres i resultats"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
@@ -423,6 +426,8 @@ I.rules = [
   [/^Año (\d{4}) · renta$/, 'Any $1 · renda'],
   [/^con (.+)$/, 'amb $1'],
   [/^Semana (.+)$/, 'Setmana $1'],
+  [/^Actualizado: (.+)$/, 'Actualitzat: $1'],
+  [/^Sin guardar · leído de iSquad: (.+)$/, "Sense desar · llegit d'iSquad: $1"],
   [/^Te he encontrado en (\d+) plantillas? de la FCVB por tu foto de afiliado de iSquad\.(.*)$/, (m,n,r) => `T'he trobat en ${n} ${n==='1'?'plantilla':'plantilles'} de la FCVB per la teva foto d'afiliat d'iSquad.${r.replace(/Revisando plantillas: (\d+) de (\d+)\./,'Revisant plantilles: $1 de $2.')}`],
   [/^Sales en la plantilla: (.+)$/, (m,r) => `Surts a la plantilla: ${({jugador:'jugador',entrenador:'entrenador',invitado:'convidat'})[r]||r}`],
   [/^Te he encontrado en (\d+) equipos?$/, (m,n) => `T'he trobat en ${n} ${n==='1'?'equip':'equips'}`],

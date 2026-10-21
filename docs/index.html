@@ -296,8 +296,24 @@ body.dep .arb-only{display:none!important}
 .rs-note{font-size:12.5px;color:var(--ink-3);margin-top:14px}
 @media print{ body *{visibility:hidden} #resumen,#resumen *{visibility:visible} #resumen{position:absolute;left:0;top:0;width:100%} .no-print{display:none!important} }
 .views button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-body:not([data-vista="cobros"]) :is(.board .score,#irpfInfo,#btnExport,#alerts){display:none}
-body:not([data-vista="cobros"]):not([data-vista="resumen"]) #seasons{display:none}
+body:not([data-vista="cobros"]) #alerts{display:none}
+.board .statline{display:flex;align-items:center;gap:8px;width:100%;margin:16px 0 0;padding:0;border:0;background:none;color:var(--board-2);
+  font:500 13px/20px var(--body,inherit);text-align:left;cursor:default;min-height:20px}
+.board .statline .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.board .statline .txt b{color:var(--board-ink);font-weight:700}
+.board .statline .txt b.p{color:var(--board-pend)}
+.board .statline .chev{display:none;transition:transform .25s}
+body[data-vista="cobros"]:not(.dep) .board .statline{cursor:pointer}
+body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:inline}
+.board .statline[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.board .statline:disabled{opacity:1;color:var(--board-2)}
+.board .statline:focus-visible{outline:2px solid var(--yellow);outline-offset:3px}
+.scorewrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
+.scorewrap>.inner{overflow:hidden;min-height:0}
+.scorewrap.open{grid-template-rows:1fr}
+.scoreacts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.board .score{margin-top:14px}
+@media (prefers-reduced-motion:reduce){.scorewrap,.board .statline .chev{transition:none}}
 .views button.dot::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red,#e5383b);margin-left:6px;vertical-align:middle}
 .subviews{display:flex;gap:8px;margin:0 0 16px}
 .subviews button{border-width:2px;padding:5px 14px;font-size:14px}
@@ -470,20 +486,23 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
         <div><h1>LaXarxa</h1><p class="sub"><span>App no oficial</span><a class="gh" href="https://github.com/fsarmesto" target="_blank" rel="noopener" title="GitHub de fsarmesto"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>fsarmesto</a></p></div>
       </div>
       <div class="actions">
-        <div class="seasons hidden" id="seasons" role="group" aria-label="Temporada"></div>
-        <button id="btnExport" class="arb-only">Exportar a Excel</button>
         <button id="btnSync" class="arb-only">Actualizar ahora</button>
         <button class="ghost" id="btnLogout">Salir</button>
       </div>
     </div>
-    <div class="score arb-only">
-      <div class="pending"><div class="l">Pendiente de cobro</div><div class="v" id="sPending">0,00 €</div><div class="br" id="sPendBr"></div></div>
-      <div><div class="l">Ya cobrado</div><div class="v" id="sPaid">0,00 €</div></div>
-      <div><div class="l" id="sTotalL">Total temporada</div><div class="v" id="sTotal">0,00 €</div></div>
-      <div><div class="l" id="sCountL">Partidos</div><div class="v" id="sCount">0</div></div>
-    </div>
-    <p class="sync" id="syncInfo"></p>
-    <p class="sync arb-only" id="irpfInfo"></p>
+    <!-- Una sola línea de estado, igual de alta en todas las pestañas: en Cobros abre y cierra las cifras. -->
+    <button type="button" class="statline" id="statLine" aria-expanded="false" aria-controls="scoreWrap"><span class="txt" id="statTxt"></span><span class="chev" aria-hidden="true">▾</span></button>
+    <div class="scorewrap" id="scoreWrap"><div class="inner">
+      <div class="scoreacts arb-only"><div class="seasons hidden" id="seasons" role="group" aria-label="Temporada"></div><button id="btnExport">Exportar a Excel</button></div>
+      <div class="score arb-only">
+        <div class="pending"><div class="l">Pendiente de cobro</div><div class="v" id="sPending">0,00 €</div><div class="br" id="sPendBr"></div></div>
+        <div><div class="l">Ya cobrado</div><div class="v" id="sPaid">0,00 €</div></div>
+        <div><div class="l" id="sTotalL">Total temporada</div><div class="v" id="sTotal">0,00 €</div></div>
+        <div><div class="l" id="sCountL">Partidos</div><div class="v" id="sCount">0</div></div>
+      </div>
+      <p class="sync" id="syncInfo"></p>
+      <p class="sync arb-only" id="irpfInfo"></p>
+    </div></div>
   </div>
   <div class="views" id="views" role="tablist">
     <button type="button" data-view="cobros" role="tab" class="arb-only">Cobros</button>
@@ -901,7 +920,8 @@ function renderSeasons(){
   box.classList.toggle('hidden', all.length < 2);
   box.innerHTML = all.map(s=>`<button type="button" data-season="${s}" aria-pressed="${s===SEASON}">${seasonLabel(s)}</button>`).join('');
 }
-$('seasons').addEventListener('click', e=>{
+// Selector de temporada: en las cifras de Cobros y en Resumen (los dos con data-season).
+document.addEventListener('click', e=>{
   const b=e.target.closest('button[data-season]'); if(!b) return;
   SEASON=b.dataset.season; try{ localStorage.setItem(SEASON_KEY, SEASON); }catch(err){}
   render();
@@ -1002,6 +1022,24 @@ function renderAlerts(ms, res){
   $('alerts').innerHTML=out.join('');
 }
 $('alerts').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-alert]'); if(d) d.open ? ALERT_OPEN.add(d.dataset.alert) : ALERT_OPEN.delete(d.dataset.alert); }, true);
+// Línea de estado de la cabecera (una sola línea en todas las pestañas, así la cabecera no cambia de altura): en Cobros
+// resume lo pendiente y lo cobrado y abre o cierra las cifras grandes (se recuerda); en el resto, la última actualización.
+let SCORE_OPEN = true; try{ SCORE_OPEN = localStorage.getItem('liq-cifras')!=='0'; }catch(e){}
+let STAT_LAST = null;
+function renderStatLine(pend, paid){
+  if(pend!=null) STAT_LAST={pend,paid};
+  const cobros = VIEW==='cobros' && !DEP, open = cobros && SCORE_OPEN, line=$('statLine');
+  $('statTxt').innerHTML = cobros && STAT_LAST ? `Pendiente <b class="p">${eur(STAT_LAST.pend)}</b> · Cobrado <b>${eur(STAT_LAST.paid)}</b>`
+    : DEP ? 'Tus equipos: horarios, árbitros y resultados'
+    : GUEST ? `Sin guardar · leído de iSquad: ${esc(ago(P.last_sync))}` : `Actualizado: ${esc(ago(P.last_sync))}`;
+  line.disabled = !cobros; line.setAttribute('aria-expanded', String(open));
+  $('scoreWrap').classList.toggle('open', open);
+}
+$('statLine').addEventListener('click', ()=>{
+  if(VIEW!=='cobros' || DEP) return;
+  SCORE_OPEN = !SCORE_OPEN; try{ localStorage.setItem('liq-cifras', SCORE_OPEN?'1':'0'); }catch(e){}
+  renderStatLine();
+});
 function render(){
   pickSeason(); renderSeasons();
   const {ms:allMs,res} = compute(); LAST_RES = res;
@@ -1034,6 +1072,7 @@ function render(){
   // Lo de dinero (cifras, IRPF, Excel, avisos de pedir el pago) solo en Cobros; la temporada, en Cobros y Resumen.
   document.body.dataset.vista=VIEW;
   $('views').querySelector('[data-view="cobros"]').classList.toggle('dot', VIEW!=='cobros' && !!$('alerts').innerHTML);
+  renderStatLine(pend, paid);
   $('tabEquipos').classList.toggle('hidden', GUEST);
   led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
   $('filters').classList.toggle('hidden', VIEW==='equipos'); if(VIEW==='equipos') $('fsum').classList.add('hidden');
@@ -1698,7 +1737,7 @@ function renderResumen(allMs,res){
   // Km aproximados: una ida y vuelta por pabellón y franja.
   const trips=new Map(); for(const m of ms){ const k=m.date+franjaOf(m)+'|'+m.venue_key; trips.set(k, Math.max(trips.get(k)||0, kmFor(m))); }
   const km=[...trips.values()].reduce((a,b)=>a+b*2,0);
-  const modeBtns = `<div class="segb rs-mode no-print" role="group"><button type="button" data-rs="temporada" aria-pressed="${RS_MODE==='temporada'}">Temporada ${seasonLabel(SEASON)}</button><button type="button" data-rs="anio" aria-pressed="${RS_MODE==='anio'}">Año ${year} · renta</button></div>`;
+  const modeBtns = `<div class="segb rs-mode no-print" role="group"><button type="button" data-rs="temporada" aria-pressed="${RS_MODE==='temporada'}">Temporada ${seasonLabel(SEASON)}</button><button type="button" data-rs="anio" aria-pressed="${RS_MODE==='anio'}">Año ${year} · renta</button></div>` + (RS_MODE==='temporada' && seasonsAvailable().length>1 ? ` <div class="segb rs-mode no-print" role="group" aria-label="Temporada">${seasonsAvailable().map(x=>`<button type="button" data-season="${x}" aria-pressed="${x===SEASON}">${seasonLabel(x)}</button>`).join('')}</div>` : '');
   if(!ms.length){ box.innerHTML = modeBtns + `<div class="empty">${RS_MODE==='anio'?`Aún no hay cobros con fecha de ${year}.`:'No hay partidos en esta temporada.'}${filtering()?' (con estos filtros)':''}</div>`; return; }
   const hero = RS_MODE==='temporada'
     ? [['Neto de la temporada',eur(neto),`${eur(cobrado)} ya cobrado`],['Partidos',ms.length,`${jornadas} jornadas`],['Tarifas',eur(tarifas),`IRPF retenido ${eur(irpf)}`],['Dietas y desplazamiento',eur(gastos),`≈ ${Math.round(km).toLocaleString(LOC())} km`]]
