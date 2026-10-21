@@ -99,6 +99,14 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Ranking: función `ranking`, solo para los usuarios de iSquad del secret `ADMIN_LOGINS` (comprobado en el servidor
   con la sesión). La web muestra el panel solo si la función responde.
 
+## Mis partidos (agenda, 21-oct-2026)
+
+- `matches.crew` (migración 012): equipo arbitral de la designación `[{f, n, me}]` (f = r1/r2/an/jl o el texto de
+  iSquad; solo nombres, ni teléfonos ni correos). Lo rellena `parseStaff`; el sync abre primero las designaciones
+  más nuevas y repasa poco a poco las de la temporada en curso que aún no tienen `crew`.
+- En la web, pestañas "Cobros" / "Mis partidos" (`VIEW`, recordada en localStorage `liq-vista`); la agenda
+  (`renderAgenda`) tiene "Próximos" y "Jugados" de la temporada, respeta los filtros y enlaza a Google Maps.
+
 ## App instalable y recordatorio del domingo (21-oct-2026)
 
 - PWA: `manifest.webmanifest`, iconos PNG (`icon-192/512`, `icon-maskable`, `apple-touch-icon`), `sw.js` (solo
