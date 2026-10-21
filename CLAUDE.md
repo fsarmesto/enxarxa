@@ -9,7 +9,7 @@ poder seguir desde otra máquina. **El repo es público: aquí no van claves, co
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/liquidacion-arbitral-fcvb/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
   - Migraciones en `supabase/migrations` (001…005). Se aplican con `db push`, en orden.
@@ -32,7 +32,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account ranking notify; do
+for f in auth-isquad sync delete-account ranking notify equipos; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -98,6 +98,24 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `store()`, que en ese modo no hace nada; recargar = salir.
 - Ranking: función `ranking`, solo para los usuarios de iSquad del secret `ADMIN_LOGINS` (comprobado en el servidor
   con la sesión). La web muestra el panel solo si la función responde.
+
+## Equipos (web pública de resultados, 21-oct-2026)
+
+- Fuente: `resultadosvoleibol.isquad.es` (la que enlaza fcvolei.cat), sin login. Cada página pesa ~1 MB por el menú.
+  - Todos los partidos de la federación desde hoy: POST `json/partidos_equipos_consultas.php`
+    (`accion=obtener_partidos`, `id_ambito=17` = FCVB, `fecha_actual`, `consulta=0`, `id_superficie=1`): ~7.000
+    filas (13 MB) con local, visitante, ids de club, competición, categoría, fecha y pabellón. Sin resultados.
+  - Clubs: `listado_clubs.php`; equipos de un club: `club.php?id=` (id_equipo, nombre, categoría sin género);
+    plantilla: `equipo.php?id_equipo=&id_territorial=17` (tabla `tabla-plantilla`: nombre, perfil Jugador/Invitado/Entrenador).
+  - Calendario iCal de un equipo (3 KB, sin pabellón ni resultado): `voleibol.isquad.es/json/equipo_google_calendar.php?id_equipo=&v=<firma de la ficha>`.
+  - Textos con UTF-8 leído como Windows-1252 ("PAVELLÃ“"): `fixMojibake` ANTES de limpiar espacios (la "à" acaba en 0xA0).
+- Función `equipos` (con sesión): buscar, seguir/dejar, buscarme (repasa las plantillas de un club) y mis (favoritos +
+  próximos partidos). Caché compartida `pub_cache` (feed 3 h, clubs y equipos de club 7 días). Tabla `fav_teams`
+  (migración 013): de la plantilla solo se guarda el rol del propio árbitro, nunca nombres de otros (hay menores).
+- Categoría del partido = categoría + género sacado de la competición ("CUARTA DIVISION SENIOR FEMENINO"); la de un
+  equipo encontrado en la ficha del club no lleva género: se compara por prefijo (`sameCat`).
+- Web: pestaña "Equipos" y, en "Mis partidos", los partidos de los equipos con aviso de choque con un arbitraje
+  (mismo día a menos de 2 h 30 min, o mismo día con la hora por confirmar). Pendiente: resultados y clasificación.
 
 ## Mis partidos (agenda, 21-oct-2026)
 

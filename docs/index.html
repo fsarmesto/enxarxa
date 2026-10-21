@@ -242,6 +242,25 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .where a.map{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:5px 12px;color:var(--ink);text-decoration:none;white-space:nowrap}
 .ag .meta{font-size:13px;color:var(--ink-3);margin-top:6px}
 @media (max-width:560px){ .ag{grid-template-columns:1fr} .ag .t{font-size:24px} }
+.ag.eq .t{color:var(--ink-3)}
+.kind{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:2px;margin-right:6px;vertical-align:middle;text-transform:uppercase;letter-spacing:.03em}
+.kind.arb{background:var(--ink);color:var(--bg)}
+.kind.jug{background:#1E7B34;color:#fff}
+.kind.ent{background:#1F5FAD;color:#fff}
+.kind.sig{background:var(--surface-2);color:var(--ink-2)}
+.clash{margin:8px 0 0;font-size:13.5px;font-weight:700;color:var(--pend)}
+.teams b{font-weight:800}
+/* Equipos */
+.eq-search{display:flex;gap:8px;margin:0 0 14px}
+.eq-search input{flex:1;font-size:16px;padding:10px 12px;border:2px solid var(--ink);border-radius:3px}
+.eq-list{display:grid;gap:0;margin:0 0 26px}
+.eq-row{display:flex;justify-content:space-between;align-items:center;gap:8px 14px;flex-wrap:wrap;padding:11px 0;border-bottom:1px solid var(--line)}
+.eq-row .n{font-weight:700}
+.eq-row .s{font-size:13px;color:var(--ink-3)}
+.eq-row .nx{font-size:13.5px;color:var(--ink-2);margin-top:3px}
+.eq-row button{white-space:nowrap}
+.eq-row button.on{background:var(--yellow);border-color:var(--yellow);color:#000}
+.eq-h{font-family:var(--display);font-size:22px;font-weight:600;margin:6px 0 6px;border-bottom:3px solid var(--rule);padding-bottom:4px}
 .pushcard a.go,#pushBtns a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
 </style>
 </head>
@@ -304,6 +323,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
   <div class="views" id="views" role="tablist">
     <button type="button" data-view="cobros" role="tab">Cobros</button>
     <button type="button" data-view="agenda" role="tab">Mis partidos</button>
+    <button type="button" data-view="equipos" role="tab" id="tabEquipos">Equipos</button>
   </div>
   <div class="banner hidden" id="banner"></div>
   <div class="alerts" id="alerts"></div>
@@ -313,6 +333,14 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
   <div class="fsum hidden" id="fsum"></div>
   <div id="ledger"></div>
   <div id="agenda" class="hidden"></div>
+  <div id="equipos" class="hidden">
+    <div class="eq-h">Mis equipos</div>
+    <p class="small muted" style="margin:0 0 6px">Los equipos en los que juegas o entrenas, y los que quieres seguir. Sus próximos partidos salen también en "Mis partidos", y te aviso si te designan cuando juegas o entrenas.</p>
+    <div class="eq-list" id="eqFavs"></div>
+    <div class="eq-h">Buscar equipos</div>
+    <div class="eq-search"><input type="search" id="eqQ" placeholder="Equipo o club (p. ej. Sagrat Cor, Begues…)" autocomplete="off"></div>
+    <div id="eqRes"></div>
+  </div>
 
   <details class="panel hidden" id="rankPanel">
     <summary>Ranking de árbitros</summary>
@@ -668,7 +696,7 @@ function compParts(comp){
   const div = /SELECCI/.test(c)?'OTROS' : /AMATEUR|MASTER|VETERA|ALEVI/.test(c)?'MA' : /SUPERLIGA ?2/.test(c)?'SL2' : /SUPERLIGA/.test(c)?'SL'
     : /PRIMERA/.test(c)?'1' : /SEGUNDA/.test(c)?'2' : /TERCERA/.test(c)?'3' : /CUARTA/.test(c)?'4' : /PREFERENT/.test(c)?'PREF' : 'OTROS';
   const age = /SENIOR|SUPERLIGA/.test(c)?'SEN' : /JUNIOR/.test(c)?'JUN' : /JUVENIL/.test(c)?'JUV' : /CADET/.test(c)?'CAD' : /INFANTIL/.test(c)?'INF' : /ALEVI/.test(c)?'ALE' : /AMATEUR/.test(c)?'AMA' : 'OTRA';
-  const gen = /FEMENI/.test(c)?'F' : /MASCULI/.test(c)?'M' : /MIXT/.test(c)?'X' : '';
+  const gen = /FEMENI|\bFEM\b/.test(c)?'F' : /MASCULI|\bMASC\b/.test(c)?'M' : /MIXT/.test(c)?'X' : '';
   return {div,age,gen};
 }
 const roleOf = m => (m.staff_checked || String(m.id).startsWith('MAN-')) ? m.role : '';
@@ -750,8 +778,12 @@ function render(){
   const led = $('ledger');
   renderFilters(ms,res);
   for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.view===VIEW));
-  led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda');
+  if(GUEST && VIEW==='equipos') VIEW='agenda';
+  $('tabEquipos').classList.toggle('hidden', GUEST);
+  led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos');
+  $('filters').classList.toggle('hidden', VIEW==='equipos'); if(VIEW==='equipos') $('fsum').classList.add('hidden');
   if(VIEW==='agenda'){ renderAgenda(allMs,res); renderSettings(); return; }
+  if(VIEW==='equipos'){ renderEquipos(); renderSettings(); return; }
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
@@ -1053,6 +1085,68 @@ function renderPush(){
   on('cNo',()=>{ try{ localStorage.setItem(PUSH_DISMISS,'1'); }catch(e){} renderPush(); });
 }
 
+/* ---------- Equipos (web pública de resultados de iSquad) ---------- */
+let EQ = {favs:[], partidos:[]}, EQ_RES=null, EQ_BUSY=false;
+const ROL_TXT = {jugador:['jug','Juegas'], entrenador:['ent','Entrenas'], invitado:['jug','Invitado']};
+const rolKind = r => ROL_TXT[r] || (r ? ['jug', capName(r)] : ['sig','Sigues']);
+const favKey = f => `${f.club_id}|${norm(f.team)}|${norm(f.cat)}`;
+const isFav = t => EQ.favs.some(f=>favKey(f)===favKey(t));
+// La categoría del partido lleva género ("... SENIOR FEMENINO"); la de un equipo encontrado en la plantilla, a veces no.
+const sameCat = (fav, full) => norm(full)===norm(fav) || norm(full).startsWith(norm(fav)+' ');
+const plays = (f,p) => sameCat(f.cat,p.cat) && ((f.club_id===p.cl && norm(f.team)===norm(p.l)) || (f.club_id===p.cv && norm(f.team)===norm(p.v)));
+// Si en un partido están 2 equipos que sigo, cuenta el mío (jugador o entrenador) antes que uno que solo sigo.
+const teamOfMatch = p => { const fs=EQ.favs.filter(f=>plays(f,p)); return fs.find(f=>f.rol) || fs[0]; };
+const genOf = p => /\bFEM/.test(norm(p.comp))?' Femenino':/\bMASC/.test(norm(p.comp))?' Masculino':'';
+async function loadEquipos(){
+  if(GUEST) return;
+  const r = await callFn('equipos',{action:'mis'}); if(r.ok){ EQ={favs:r.favs||[], partidos:r.partidos||[]}; render(); }
+}
+function nextOf(f){ const t=today(); return EQ.partidos.filter(p=>p.d.slice(0,10)>=t && plays(f,p)).sort((a,b)=>a.d.localeCompare(b.d))[0]; }
+const pTime = p => p.c && p.d.slice(11,16)!=='00:00' ? p.d.slice(11,16) : '';
+function renderEquipos(){
+  const favs=[...EQ.favs].sort((a,b)=>(a.rol?0:1)-(b.rol?0:1) || a.team.localeCompare(b.team));
+  $('eqFavs').innerHTML = favs.length ? favs.map(f=>{
+    const [k,txt]=rolKind(f.rol), n=nextOf(f);
+    const next = n ? `Próximo: ${esc(fmtShort(n.d.slice(0,10)))}${pTime(n)?' a las '+pTime(n):' (hora por confirmar)'} · ${esc(capName(n.l))} – ${esc(capName(n.v))}` : 'Sin partidos programados';
+    return `<div class="eq-row"><div><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}</div><div class="nx">${next}</div></div><button class="ghost" data-unfav="${esc(favKey(f))}">Dejar de seguir</button></div>`;
+  }).join('') : '<p class="muted small">Aún no sigues ningún equipo. Búscalo abajo, o busca tu club y pulsa "Búscame en este club" para encontrar los equipos donde juegas o entrenas.</p>';
+  if(!EQ_RES){ $('eqRes').innerHTML=''; return; }
+  if(EQ_RES.loading){ $('eqRes').innerHTML='<p class="muted small">Buscando…</p>'; return; }
+  const clubs=(EQ_RES.clubs||[]).map(c=>`<div class="eq-row"><div><div class="n">${esc(capName(c.name))}</div><div class="s">Club</div></div><button data-findme="${esc(c.id)}"${EQ_BUSY?' disabled':''}>${EQ_BUSY===c.id?'Buscándote en sus plantillas…':'Búscame en este club'}</button></div>`).join('');
+  const teams=(EQ_RES.equipos||[]).map((t,i)=>{ const on=isFav(t); return `<div class="eq-row"><div><div class="n">${esc(capName(t.team))}</div><div class="s">${esc(capName(t.cat))} · ${esc(capName(t.club||''))}</div></div><button class="${on?'on':''}" data-fav="${i}">${on?'★ Siguiendo':'☆ Seguir'}</button></div>`; }).join('');
+  $('eqRes').innerHTML = (clubs||teams) ? `<div class="eq-list">${clubs}${teams}</div>` : '<p class="muted small">No he encontrado ningún equipo ni club con ese nombre.</p>';
+}
+let eqTimer=null;
+$('eqQ').addEventListener('input', e=>{
+  clearTimeout(eqTimer); const q=e.target.value.trim();
+  if(q.length<3){ EQ_RES=null; renderEquipos(); return; }
+  eqTimer=setTimeout(async()=>{ EQ_RES={loading:true}; renderEquipos(); const r=await callFn('equipos',{action:'buscar', q}); if($('eqQ').value.trim()===q){ EQ_RES=r.ok?r:{equipos:[],clubs:[]}; if(!r.ok) toast(r.error||'No se ha podido buscar'); renderEquipos(); } }, 350);
+});
+$('equipos').addEventListener('click', async e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.fav!=null){
+    const t=EQ_RES.equipos[+b.dataset.fav]; if(!t) return;
+    if(isFav(t)){ EQ.favs=EQ.favs.filter(f=>favKey(f)!==favKey(t)); renderEquipos(); await callFn('equipos',{action:'dejar', ...t}); loadEquipos(); return; }
+    b.disabled=true; b.textContent='Mirando la plantilla…';
+    const r=await callFn('equipos',{action:'seguir', club_id:t.club_id, team:t.team, cat:t.cat});
+    if(!r.ok){ toast(r.error||'No se ha podido seguir'); renderEquipos(); return; }
+    toast(r.fav.rol ? `Sales en la plantilla: ${rolKind(r.fav.rol)[1].toLowerCase()}` : 'Siguiendo el equipo');
+    await loadEquipos(); renderEquipos(); return;
+  }
+  if(b.dataset.unfav){
+    const f=EQ.favs.find(x=>favKey(x)===b.dataset.unfav); if(!f) return;
+    EQ.favs=EQ.favs.filter(x=>x!==f); render(); await callFn('equipos',{action:'dejar', club_id:f.club_id, team:f.team, cat:f.cat}); loadEquipos(); return;
+  }
+  if(b.dataset.findme){
+    EQ_BUSY=b.dataset.findme; renderEquipos();
+    const r=await callFn('equipos',{action:'buscarme', club_id:b.dataset.findme});
+    EQ_BUSY=false;
+    if(!r.ok) toast(r.error||'No se ha podido buscar');
+    else toast(r.found.length ? `Te he encontrado en ${r.found.length} equipo${r.found.length===1?'':'s'}` : `No sales en ninguna plantilla de este club (${r.checked} equipos)`);
+    await loadEquipos(); renderEquipos();
+  }
+});
+
 /* ---------- Mis partidos (agenda) ---------- */
 const VIEW_KEY='liq-vista';
 let VIEW='cobros', AGENDA='proximos';
@@ -1071,21 +1165,44 @@ function renderAgenda(allMs,res){
   const pool=allMs.filter(m=>passes(m) && !isTerritorial(m));
   const up=pool.filter(m=>m.date>=t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   const past=pool.filter(m=>m.date<t && seasonOf(m.date)===SEASON).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
-  const list = AGENDA==='proximos' ? up : past;
-  let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${up.length})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${past.length})</button></div>`;
+  // Partidos de mis equipos (solo próximos: la web pública da los partidos desde hoy).
+  const eqUp = AGENDA==='proximos' ? EQ.partidos.map(p=>({p, f:teamOfMatch(p)})).filter(x=>x.f && x.p.d.slice(0,10)>=t
+    && passes({comp:`${x.p.cat} ${x.p.comp}`, id:'EQ', staff_checked:null})) : [];
+  const toMin = (ds,tm) => new Date(ds+'T'+(tm||'12:00')+':00').getTime()/6e4;
+  // Choque: juegas o entrenas el mismo día a menos de 2 h 30 min de un arbitraje.
+  const clashes = new Map();
+  for(const x of eqUp){ if(!x.f.rol) continue;
+    for(const m of up){ if(m.date!==x.p.d.slice(0,10)) continue;
+      if(!pTime(x.p) || Math.abs(toMin(m.date,m.time)-toMin(m.date,pTime(x.p)))<150){ (clashes.get(m.id)||clashes.set(m.id,[]).get(m.id)).push(x); (clashes.get(x)||clashes.set(x,[]).get(x)).push(m); } } }
+  const list = AGENDA==='proximos'
+    ? [...up.map(m=>({m, k:m.date+m.time})), ...eqUp.map(x=>({x, k:x.p.d.slice(0,10)+(pTime(x.p)||'99:99')}))].sort((a,b)=>a.k.localeCompare(b.k))
+    : past.map(m=>({m, k:m.date+m.time}));
+  let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${up.length + (AGENDA==='proximos'?eqUp.length:0)})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${past.length})</button></div>`;
   if(!list.length){
     html += AGENDA==='proximos'
       ? `<div class="empty">No tienes partidos designados próximamente${filtering()?' con estos filtros':''}. En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.</div>`
       : `<div class="empty">No hay partidos jugados en esta temporada${filtering()?' con estos filtros':''}.</div>`;
     box.innerHTML=html; return;
   }
-  const days=new Map(); for(const m of list) (days.get(m.date)||days.set(m.date,[]).get(m.date)).push(m);
+  const days=new Map(); for(const it of list){ const d=it.k.slice(0,10); (days.get(d)||days.set(d,[]).get(d)).push(it); }
   for(const [ds,dl] of days){
     const w=whenLabel(ds), soon = ds>=t && (w==='Hoy'||w==='Mañana');
     html+=`<section class="ag-day"><h3><span>${esc(fmtShort(ds).replace(/^./,c=>c.toUpperCase()))}</span><span class="when${soon?' soon':''}">${w}</span></h3>`;
-    for(const m of dl.sort((a,b)=>a.time.localeCompare(b.time))){
+    for(const it of dl){
+      if(it.x){
+        const {p,f}=it.x, [k,txt]=rolKind(f.rol), mine=norm(p.l)===norm(f.team)&&p.cl===f.club_id;
+        const cl=(clashes.get(it.x)||[]).map(m=>m.time).join(' y ');
+        html+=`<article class="ag eq"><div class="t">${pTime(p)||'—'}</div><div>
+          <div class="comp"><span class="kind ${k}">${txt}</span>${esc(capName(p.cat)+(/FEMENINO|MASCULINO|MIXTO/.test(norm(p.cat))?'':genOf(p)))}${pTime(p)?'':' · hora por confirmar'}</div>
+          <div class="teams">${mine?`<b>${esc(p.l)}</b>`:esc(p.l)} vs ${!mine?`<b>${esc(p.v)}</b>`:esc(p.v)}</div>
+          <div class="where"><div><strong>${esc(capName(p.pab||'Pabellón por confirmar'))}</strong><div class="addr">${esc(capName(p.pista||''))}</div></div>${p.pab?`<a class="map" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.pab+' Catalunya')}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>
+          ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}
+        </div></article>`;
+        continue;
+      }
+      const m=it.m;
       const crew = Array.isArray(m.crew) && m.crew.length
-        ? `<div class="crew">${m.crew.map(c=>`<span class="${c.me?'me':''}"><b>${esc(crewLabel(m,c.f))}</b>${c.me?'Tú':esc(capName(c.n))}</span>`).join('')}</div>`
+        ? `<div class="crew"><span class="kind arb" style="align-self:center">Arbitras</span>${m.crew.map(c=>`<span class="${c.me?'me':''}"><b>${esc(crewLabel(m,c.f))}</b>${c.me?'Tú':esc(capName(c.n))}</span>`).join('')}</div>`
         : `<div class="crew"><span class="muted">El equipo arbitral se leerá de iSquad en la próxima actualización</span></div>`;
       const city=(m.addr||'').match(/\d{5}\s+([^,]+)/), r=res.get(m.id), km=kmFor(m);
       const est = m.estado && m.estado!=='FINALIZADO' ? ` · ${esc(m.estado.toLowerCase())}` : '';
@@ -1095,6 +1212,7 @@ function renderAgenda(allMs,res){
         ${crew}
         <div class="where"><div><strong>${esc(VENUES[m.venue_key]?.label || m.venue || 'Pabellón sin indicar')}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?`<a class="map" href="${mapsUrl(m)}" target="_blank" rel="noopener">Cómo llegar</a>`:''}</div>
         <div class="meta">${km?`${km} km`:''}${km&&r?' · ':''}${r?`${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}</div>
+        ${(clashes.get(m.id)||[]).length?`<div class="clash">⚠ Ese día ${(clashes.get(m.id)).map(x=>`${rolKind(x.f.rol)[1].toLowerCase()} con ${esc(capName(x.f.team))}${pTime(x.p)?' a las '+pTime(x.p):' (hora por confirmar)'}`).join(' y ')}</div>`:''}
       </div></article>`;
     }
     html+='</section>';
@@ -1138,7 +1256,7 @@ async function start(){
   if(!session){ show('auth'); return; }
   USER = session.user;
   try{ await loadAll(); }catch(e){ await sb.auth.signOut(); show('auth'); return; }
-  show('app'); render(); loadRanking(); initPush();
+  show('app'); render(); loadRanking(); initPush(); loadEquipos();
 }
 start();
 </script>
