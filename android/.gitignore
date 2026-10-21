@@ -1,0 +1,5 @@
+# Proyecto generado por Bubblewrap a partir de twa-manifest.json: se regenera con `bubblewrap update`.
+*
+!.gitignore
+!twa-manifest.json
+!README.md

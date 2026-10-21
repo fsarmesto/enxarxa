@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Liquidación arbitral FCVB</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏐</text></svg>">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#000000">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -215,6 +215,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .pushcard{display:flex;gap:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:2px solid var(--ink);padding:12px 14px;margin:0 0 22px;font-size:14.5px}
 .pushcard .btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .pushcard strong{font-weight:700}
+.pushcard a.go,#pushBtns a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -246,6 +247,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
     </form>
   </section>
   <p class="muted small">Entras con los mismos datos que en iSquad. La primera vez tarda unos segundos porque trae tus partidos.</p>
+  <p class="small hidden" id="apkLogin"><a href="app/liquidacion-arbitral-fcvb.apk" download style="color:inherit;font-weight:700">Descarga la app para Android</a> · gratis, con recordatorio del domingo.</p>
 </main>
 
 <!-- ============ App ============ -->
@@ -945,6 +947,12 @@ const PUSH_DISMISS='liq-push-ahora-no';
 let INSTALL_EVT=null, PUSH_SUB=null;
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+// App Android (TWA): se abre con el referrer android-app://. Fuera de ella, en un Android, se ofrece descargarla.
+const APK_URL = 'app/liquidacion-arbitral-fcvb.apk';
+const isAndroid = /Android/i.test(navigator.userAgent);
+const inAndroidApp = () => document.referrer.startsWith('android-app://') || (()=>{ try{ return !!sessionStorage.getItem('liq-twa'); }catch(e){ return false; } })();
+try{ if(document.referrer.startsWith('android-app://')) sessionStorage.setItem('liq-twa','1'); }catch(e){}
+const offerApk = () => isAndroid && !inAndroidApp() && !isStandalone();
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const b64u = s => { const p='='.repeat((4-s.length%4)%4), b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c=>c.charCodeAt(0)); };
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); INSTALL_EVT=e; renderPush(); });
@@ -988,7 +996,8 @@ function renderPush(){
   else if(!pushSupported()){ st='Este navegador no admite notificaciones.'; }
   else if(denied){ st='Has bloqueado las notificaciones de esta web: actívalas en los ajustes del navegador.'; }
   else { st='No está activado en este dispositivo.'; btns='<button class="primary" id="pOn">Activar el recordatorio</button>'; }
-  if(INSTALL_EVT && !isStandalone()) btns+='<button id="pInstall">Instalar la app</button>';
+  if(offerApk()) btns+=`<a class="go" href="${APK_URL}" download>Descargar la app Android</a>`;
+  else if(INSTALL_EVT && !isStandalone()) btns+='<button id="pInstall">Instalar la app</button>';
   $('pushState').textContent=st; $('pushBtns').innerHTML=btns;
   // Aviso arriba: solo si aún no está activado, se puede hacer algo y no ha dicho "Ahora no".
   let dismissed=false; try{ dismissed=!!localStorage.getItem(PUSH_DISMISS); }catch(e){}
@@ -999,7 +1008,8 @@ function renderPush(){
     const txt = iosNeedsInstall
       ? '<strong>Instala la app en el iPhone</strong> para recibir el recordatorio del domingo: pulsa Compartir y "Añadir a pantalla de inicio", y ábrela desde el icono.'
       : '<strong>¿Quieres un recordatorio el domingo?</strong> A las 20:00: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!"';
-    card.innerHTML=`<div>${txt}</div><div class="btns">${!iosNeedsInstall&&pushSupported()?'<button class="primary" id="cOn">Activar</button>':''}${INSTALL_EVT&&!isStandalone()?'<button id="cInstall">Instalar la app</button>':''}<button class="ghost" id="cNo">Ahora no</button></div>`;
+    const apk = offerApk() ? `<a class="go" href="${APK_URL}" download>Descargar la app Android</a>` : (INSTALL_EVT&&!isStandalone()?'<button id="cInstall">Instalar la app</button>':'');
+    card.innerHTML=`<div>${txt}</div><div class="btns">${!iosNeedsInstall&&pushSupported()?'<button class="primary" id="cOn">Activar</button>':''}${apk}<button class="ghost" id="cNo">Ahora no</button></div>`;
     card.classList.remove('hidden');
   }
   const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
@@ -1032,7 +1042,8 @@ function renderRanking(){
 $('rankSeason').addEventListener('change', renderRanking);
 $('rankMetric').addEventListener('change', renderRanking);
 
-function show(v){ for(const x of ['auth','app','loading']) $(x+'View').classList.toggle('hidden', x!==v); }
+function show(v){
+  const a=document.getElementById('apkLogin'); if(a) a.classList.toggle('hidden', !offerApk()); for(const x of ['auth','app','loading']) $(x+'View').classList.toggle('hidden', x!==v); }
 async function start(){
   const {data:{session}} = await sb.auth.getSession();
   if(!session){ show('auth'); return; }

@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#000"/><rect y="432" width="512" height="80" fill="#FFD100"/><text x="256" y="300" font-family="Arial Narrow,Arial,sans-serif" font-weight="700" font-size="190" fill="#FFD100" text-anchor="middle">€</text><circle cx="400" cy="120" r="44" fill="#D2232A"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#000"/>
+  <g transform="rotate(-14 256 270)">
+    <path d="M418 300 C 470 330, 470 420, 420 470" fill="none" stroke="#D2232A" stroke-width="18" stroke-linecap="round"/>
+    <circle cx="410" cy="292" r="22" fill="none" stroke="#FFD100" stroke-width="14"/>
+    <rect x="40" y="196" width="200" height="84" rx="16" fill="#FFD100"/>
+    <circle cx="290" cy="290" r="128" fill="#FFD100"/>
+    <text x="290" y="350" font-family="Barlow Condensed, Liberation Sans, Arial, sans-serif" font-weight="700" font-size="176" fill="#000" text-anchor="middle">€</text>
+  </g>
+</svg>
