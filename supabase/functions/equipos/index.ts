@@ -5,11 +5,13 @@
 //   equipo y, si sale el árbitro, se guarda si es jugador o entrenador (de la plantilla no se guarda nada más).
 // - {action:"activar", club_id, team, cat, activo}: un equipo seguido sale o no en "Mis partidos".
 // - {action:"buscarme", club_id}: repasa las plantillas de todos los equipos de un club y sigue los que le incluyen.
+// - {action:"clasificacion", torneo}: clasificación del grupo. {action:"historial", torneo, id_equipo, team}: partidos de
+//   un equipo en ese grupo (jugados con resultado y por jugar).
 // - {action:"mis"}: favoritos y sus próximos partidos. Antes, los equipos donde sale el árbitro según el índice de
 //   plantillas (función indexar) se añaden solos (auto); los que quita no vuelven (oculto).
 // Las páginas públicas pesan ~1 MB cada una (el menú): todo pasa por la caché compartida pub_cache.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
-import { clubs, clubTeams, feed, huella, matchOfficials, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
+import { clubs, clubTeams, feed, standings, huella, matchOfficials, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
 
 
 if (import.meta.main) Deno.serve(async (req) => {
@@ -41,6 +43,15 @@ if (import.meta.main) Deno.serve(async (req) => {
       // Clubs que coinciden (para "Búscame en este club").
       const cm = cl.filter((c) => norm(c.name).includes(q)).slice(0, 10);
       return json({ ok: true, equipos: out.slice(0, 60), clubs: cm });
+    }
+
+    if (body.action === "clasificacion" || body.action === "historial") {
+      const b = body as { torneo?: string; id_equipo?: string; team?: string };
+      if (!/^\d+$/.test(b.torneo || "")) return json({ error: "Grupo no válido" }, 400);
+      if (body.action === "clasificacion") return json({ ok: true, filas: await standings(db, b.torneo!) });
+      if (!/^\d+$/.test(b.id_equipo || "") || !b.team) return json({ error: "Equipo no válido" }, 400);
+      const cal = await teamMatches(db, b.id_equipo!, b.team);
+      return json({ ok: true, partidos: cal.filter((m) => m.tor === b.torneo) });
     }
 
     if (body.action === "activar") {

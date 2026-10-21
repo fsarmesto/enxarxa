@@ -9,7 +9,7 @@ poder seguir desde otra máquina. **El repo es público: aquí no van claves, co
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/liquidacion-arbitral-fcvb/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
   - Migraciones en `supabase/migrations` (001…005). Se aplican con `db push`, en orden.
@@ -34,7 +34,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account ranking notify equipos indexar vigilar coche designadas; do
+for f in auth-isquad sync delete-account ranking notify equipos indexar vigilar coche designadas calendario; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -193,6 +193,21 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   más de 13 h, aviso a los admins (como mucho uno cada 6 h por motivo, `pub_cache salud-aviso:`).
 - Panel "Salud de la app" (admin): `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
   dispositivos, índice de plantillas y edad de las cachés.
+
+## Calendario y clasificación (21-oct-2026)
+
+- Función `calendario`: `GET ?t=<cal_token>` devuelve un iCal (sin sesión: el token secreto de `profiles.cal_token`,
+  migración 019, es la llave) con los arbitrajes desde hace 30 días (pabellón y equipo arbitral) y los partidos de los
+  equipos activos y no ocultos de "Mis partidos" (resultado, "hora provisional/por confirmar", sin hora = todo el día).
+  `POST {action:"url"|"nuevo"}` con sesión: el enlace (lo crea) o uno nuevo (el viejo deja de valer). En la web,
+  Ajustes → Calendario: Google Calendar (`calendar.google.com/calendar/r?cid=webcal://…`), webcal para iPhone/Mac/Outlook,
+  copiar y regenerar. Google refresca las suscripciones cuando quiere (horas); el iPhone según REFRESH-INTERVAL.
+- Clasificación: `equipos {action:"clasificacion", torneo}` lee `clasificacion.php?id=<id_torneo>` (~900 KB, caché
+  `cla:<torneo>` 1 h; columnas Pos, Equipo, racha, PT, PJ, PG, PP, SF, SC, PF, PC). `{action:"historial", torneo,
+  id_equipo, team}`: partidos de ese equipo en el grupo (busquedaGlobal filtrado por `id_torneo`). `teamMatches` guarda
+  ahora `tor` (id_torneo) y `fase` (caché `tm2:`). En la web, botón "Clasificación" en cada equipo de Equipos: hoja con
+  la tabla (tu equipo en amarillo, pestañas si hay varias fases) y al tocar un equipo, sus partidos del grupo.
+- Ojo: 32 partidos tienen el pabellón con U+FFFD ("PAVELL�") desde el sync de designaciones: viene roto de iSquad.
 
 ## Avisos al momento (función vigilar, 21-oct-2026)
 

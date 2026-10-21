@@ -169,9 +169,9 @@ async function apiSearch(db: Db, params: Record<string, string>) {
 // Calendario de la temporada de un equipo con estado y resultado (sets). Estados de iSquad: Pendiente, Finalizado,
 // Suspendido, Aplazado... "conf" = horario confirmado (si no, la hora es provisional o falta).
 export type PartidoEquipo = { id: string; d: string; t: string; conf: boolean; est: string; l: string; v: string; idl: string; idv: string;
-  rl: number | null; rv: number | null; j: string; g: string; comp: string };
+  rl: number | null; rv: number | null; j: string; g: string; comp: string; tor: string; fase: string };
 export function teamMatches(db: Db, idEquipo: string, name: string): Promise<PartidoEquipo[]> {
-  return cached(db, `tm:${idEquipo}`, 0.5 * H, async () => {
+  return cached(db, `tm2:${idEquipo}`, 0.5 * H, async () => {
     const out: PartidoEquipo[] = [];
     for (let page = 1; page <= 6; page++) {
       const res = await apiSearch(db, { q: name, id_temporada: seasonCode(), id_superficie: "1", seleccion: "0", limit: "20", categoria: "partidos", page: String(page) });
@@ -186,11 +186,37 @@ export function teamMatches(db: Db, idEquipo: string, name: string): Promise<Par
           v: fixMojibake(String(p.nombre_visitante || "")).trim(), idl: String(p.id_local), idv: String(p.id_visitante),
           rl: p.resultado_local == null ? null : +p.resultado_local, rv: p.resultado_visitante == null ? null : +p.resultado_visitante,
           j: String(p.jornada || ""), g: String(p.grupo || ""), comp: fixMojibake(String(p.nombre_competicion || "")),
+          tor: String(p.id_torneo || ""), fase: fixMojibake(String(p.nombre_fase || "")),
         });
       }
       if (!res?.has_more?.partidos) break;
     }
     return out.sort((a, b) => (a.d + a.t).localeCompare(b.d + b.t));
+  });
+}
+
+// Clasificación de un grupo (torneo) según la web pública (clasificacion.php, ~900 KB): una fila por equipo con
+// posición, puntos, partidos, sets, puntos de juego y racha de los 5 últimos (G/P/-). Caché 1 h.
+export type FilaClasif = { pos: number; id: string; n: string; esc: string; pt: number; pj: number; pg: number; pp: number;
+  sf: number; sc: number; pf: number; pc: number; racha: string };
+export function standings(db: Db, torneo: string): Promise<FilaClasif[]> {
+  return cached(db, `cla:${torneo}`, H, async () => {
+    const s = await getText(`${PUB}/clasificacion.php?seleccion=0&id=${encodeURIComponent(torneo)}&id_ambito=0&id_territorial=${TERRITORIAL}&id_superficie=1&iframe=0`);
+    const i = s.indexOf("table-striped clasificacion"), tb = i < 0 ? "" : s.slice(s.indexOf("<tbody", i), s.indexOf("</table>", i));
+    const out: FilaClasif[] = [];
+    for (const tr of tb.split(/<tr[\s>]/).slice(1)) {
+      const td = [...tr.matchAll(/<td([^>]*)>([\s\S]*?)<\/td>/g)];
+      if (td.length < 13) continue;
+      const num = (k: number) => { const m = td[k][1].match(/data-export="(-?\d+)"/) || text(td[k][2]).match(/-?\d+/); return m ? +(m[1] ?? m[0]) : 0; };
+      out.push({
+        pos: num(0), id: tr.match(/id_equipo=(\d+)/)?.[1] || "", n: text(fixMojibake(td[1][1].match(/data-export="([^"]*)"/)?.[1] || td[1][2])),
+        esc: tr.match(/src='(http[^']*afiliacion_clubs[^']*)'/)?.[1]?.replace(/^http:/, "https:") || "",
+        racha: [...td[2][2].matchAll(/class='(\w+) racha'/g)].map((m) => m[1] === "ganado" ? "G" : m[1] === "perdido" ? "P" : "-").join(""),
+        pt: num(3), pj: num(4), pg: num(5), pp: num(6), sf: num(7), sc: num(8), pf: num(9), pc: num(10),
+      });
+    }
+    if (!out.length) throw new Error("sin clasificación");
+    return out;
   });
 }
 

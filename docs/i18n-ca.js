@@ -389,7 +389,21 @@ I.exact = {
 "El enlace es personal: quien lo tenga ve tus partidos. Si lo has compartido sin querer, crea uno nuevo y el anterior dejará de funcionar.": "L'enllaç és personal: qui el tingui veu els teus partits. Si l'has compartit sense voler, crea'n un de nou i l'anterior deixarà de funcionar.",
 "Crear uno nuevo": "Crea'n un de nou",
 "Sin guardar no hay calendario: entra guardando tus datos.": "Sense desar no hi ha calendari: entra desant les teves dades.",
-"No se ha podido crear el enlace": "No s'ha pogut crear l'enllaç"
+"No se ha podido crear el enlace": "No s'ha pogut crear l'enllaç",
+"Clasificación": "Classificació",
+"Equipo": "Equip",
+"Racha": "Ratxa",
+"Sets": "Sets",
+"Ganado": "Guanyat",
+"Perdido": "Perdut",
+"Toca un equipo para ver sus partidos": "Toca un equip per veure'n els partits",
+"Cargando partidos…": "Carregant partits…",
+"(contra tu equipo)": "(contra el teu equip)",
+"Sin partidos en este grupo.": "Sense partits en aquest grup.",
+"No se ha podido cargar la clasificación": "No s'ha pogut carregar la classificació",
+"No se han podido cargar": "No s'han pogut carregar",
+"Grupo no válido": "Grup no vàlid",
+"Equipo no válido": "Equip no vàlid"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

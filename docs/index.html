@@ -387,6 +387,23 @@ details.cal[open]>summary::before{content:"▾ "}
 .eq-row button.on{background:var(--yellow);border-color:var(--yellow);color:#000}
 .eq-row.off .n,.eq-row.off .nx,.eq-row.off details.cal{opacity:.5}
 .eq-row .acts{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.clas-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.clas-tabs button{font-size:13px;padding:4px 10px}
+.clas-tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+table.clas{width:100%;border-collapse:collapse;font-size:14px;margin:4px 0 12px}
+table.clas th{font-size:11.5px;color:var(--ink-3);font-weight:700;text-align:center;padding:4px 3px;border-bottom:2px solid var(--ink)}
+table.clas th:nth-child(2){text-align:left}
+table.clas td{padding:7px 3px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle}
+table.clas td.tn{text-align:left;font-weight:600;line-height:1.2}
+table.clas td.tn img{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:3px;background:#fff}
+table.clas tr.fila{cursor:pointer}
+table.clas tr.me td{background:var(--yellow);color:#000}
+table.clas td.pt{font-family:var(--display);font-size:18px;font-weight:700}
+table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;color:var(--ink)}
+.racha{display:inline-flex;gap:2px}
+.racha i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.racha i.G{background:#1f9d55} .racha i.P{background:#d64545}
+@media (max-width:560px){ table.clas .hm{display:none} }
 .seg{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
 .segb{display:inline-flex;border:2px solid var(--ink);border-radius:3px;overflow:hidden}
 .segb button{border:0;border-radius:0;padding:3px 11px;font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.02em;color:var(--ink);background:transparent}
@@ -1382,7 +1399,7 @@ function renderEquipos(){
     const calHtml = cal.length ? `<details class="cal" data-cal="${esc(favKey(f))}"${CAL_OPEN.has(favKey(f))?' open':''}><summary>Calendario de la temporada (${cal.length})</summary>${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}${refLine(m)}</span>${stChip(m)}</div>`).join('')}</details>` : '';
     const on = f.activo!==false;
     return `<div class="eq-row${on?'':' off'}"><div style="flex:1;min-width:0"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}${on?'':' · <b>no sale en Mis partidos</b>'}</div>${last}<div class="nx">${next}</div>${calHtml}</div>
-      <div class="acts"><div class="seg">En Mis partidos<span class="segb" role="group"><button type="button" data-act="${esc(favKey(f))}" data-v="1" aria-pressed="${on}">Mostrar</button><button type="button" data-act="${esc(favKey(f))}" data-v="0" aria-pressed="${!on}">Ocultar</button></span></div><button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div></div>`;
+      <div class="acts"><div class="seg">En Mis partidos<span class="segb" role="group"><button type="button" data-act="${esc(favKey(f))}" data-v="1" aria-pressed="${on}">Mostrar</button><button type="button" data-act="${esc(favKey(f))}" data-v="0" aria-pressed="${!on}">Ocultar</button></span></div>${cal.some(m=>m.tor)?`<button data-clas="${esc(favKey(f))}">Clasificación</button>`:''}<button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div></div>`;
   }).join('') : '<p class="muted small">No te he encontrado en ninguna plantilla de la FCVB de esta temporada. Si juegas o entrenas, busca tu equipo abajo y síguelo; también puedes seguir cualquier otro equipo.</p>';
   const ix=EQ.indice, auto=EQ.favs.filter(f=>f.auto).length;
   $('eqAuto').innerHTML = auto ? `Te he encontrado en ${auto} plantilla${auto===1?'':'s'} de la FCVB por tu foto de afiliado de iSquad.` : '';
@@ -1392,6 +1409,34 @@ function renderEquipos(){
   const clubs=(EQ_RES.clubs||[]).map(c=>`<div class="eq-row"><div><div class="n">${esc(capName(c.name))}</div><div class="s">Club</div></div><button data-findme="${esc(c.id)}"${EQ_BUSY?' disabled':''}>${EQ_BUSY===c.id?'Buscándote en sus plantillas…':'Búscame en este club'}</button></div>`).join('');
   const teams=(EQ_RES.equipos||[]).map((t,i)=>{ const on=isFav(t); return `<div class="eq-row"><div><div class="n">${esc(capName(t.team))}</div><div class="s">${esc(capName(t.cat))} · ${esc(capName(t.club||''))}</div></div><button class="${on?'on':''}" data-fav="${i}">${on?'★ Siguiendo':'☆ Seguir'}</button></div>`; }).join('');
   $('eqRes').innerHTML = (clubs||teams) ? `<div class="eq-list">${clubs}${teams}</div>` : '<p class="muted small">No he encontrado ningún equipo ni club con ese nombre.</p>';
+}
+// Clasificación del grupo de un equipo seguido; al tocar un equipo, sus partidos en el grupo (historial).
+const torLabel = m => [m.fase, m.g].filter(Boolean).map(capName).join(' · ') || capName(m.comp);
+async function openClas(f, torneo){
+  const cal=teamCal(f), tors=[...new Map(cal.filter(m=>m.tor).map(m=>[m.tor,m])).values()];
+  if(!tors.length) return;
+  torneo = torneo || (nextOf(f)||lastOf(f)||tors[tors.length-1]).tor || tors[0].tor;
+  const cur=tors.find(m=>m.tor===torneo)||tors[0];
+  const head=`<h2 id="guideTitle">Clasificación</h2><p class="small muted" style="margin:0 0 10px">${esc(capName(cur.comp))}</p>`
+    + (tors.length>1?`<div class="clas-tabs">${tors.map(m=>`<button type="button" data-tor="${esc(m.tor)}" aria-pressed="${m.tor===torneo}">${esc(torLabel(m))}</button>`).join('')}</div>`:`<p class="small" style="margin:0 0 6px"><b>${esc(torLabel(cur))}</b></p>`);
+  const close='<div class="nav"><span class="small muted">Toca un equipo para ver sus partidos</span><button class="primary" id="gClose">Cerrar</button></div>';
+  $('guideSheet').innerHTML = head+'<p class="muted small">Cargando…</p>'+close;
+  $('guide').classList.remove('hidden'); $('gClose').onclick=()=>$('guide').classList.add('hidden');
+  const r=await callFn('equipos',{action:'clasificacion', torneo});
+  if($('guide').classList.contains('hidden')) return;
+  const body = !r.ok ? `<p class="small">${esc(r.error||'No se ha podido cargar la clasificación')}</p>`
+    : `<table class="clas"><thead><tr><th>#</th><th>Equipo</th><th>PT</th><th>PJ</th><th>G-P</th><th class="hm">Sets</th><th class="hm">Racha</th></tr></thead><tbody>${r.filas.map(x=>`<tr class="fila${x.id===f.id_equipo?' me':''}" data-id="${esc(x.id)}" data-n="${esc(x.n)}"><td>${x.pos}</td><td class="tn">${x.esc?`<img src="${esc(x.esc)}" alt="" loading="lazy">`:''}${esc(capName(x.n))}</td><td class="pt">${x.pt}</td><td>${x.pj}</td><td>${x.pg}-${x.pp}</td><td class="hm">${x.sf}-${x.sc}</td><td class="hm"><span class="racha">${[...x.racha].filter(c=>c!=='-').map(c=>`<i class="${c}" title="${c==='G'?'Ganado':'Perdido'}"></i>`).join('')}</span></td></tr>`).join('')}</tbody></table>`;
+  $('guideSheet').innerHTML = head+body+close;
+  $('gClose').onclick=()=>$('guide').classList.add('hidden');
+  $('guideSheet').querySelectorAll('[data-tor]').forEach(b=>b.onclick=()=>openClas(f,b.dataset.tor));
+  $('guideSheet').querySelectorAll('tr.fila').forEach(tr=>tr.onclick=async()=>{
+    const nx=tr.nextElementSibling; if(nx&&nx.classList.contains('hist')){ nx.remove(); return; }
+    const h=document.createElement('tr'); h.className='hist'; const cs=[...tr.children].filter(td=>getComputedStyle(td).display!=='none').length;
+    h.innerHTML=`<td colspan="${cs}" class="small muted">Cargando partidos…</td>`; tr.after(h);
+    const id=tr.dataset.id, rr=await callFn('equipos',{action:'historial', torneo, id_equipo:id, team:tr.dataset.n});
+    const ms=(rr.partidos||[]).map(m=>({...m, mineLocal:m.idl===id}));
+    h.innerHTML=`<td colspan="${cs}">${!rr.ok?esc(rr.error||'No se han podido cargar'):ms.length?ms.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${esc(capName(m.l))} – ${esc(capName(m.v))}${(m.idl===f.id_equipo||m.idv===f.id_equipo)&&id!==f.id_equipo?' <b>(contra tu equipo)</b>':''}</span>${stChip(m)}</div>`).join(''):'<span class="small muted">Sin partidos en este grupo.</span>'}</td>`;
+  });
 }
 const CAL_OPEN=new Set();
 $('eqFavs').addEventListener('click', async e=>{
@@ -1421,6 +1466,7 @@ $('equipos').addEventListener('click', async e=>{
     toast(r.fav.rol ? `Sales en la plantilla: ${rolKind(r.fav.rol)[1].toLowerCase()}` : 'Siguiendo el equipo');
     await loadEquipos(); renderEquipos(); return;
   }
+  if(b.dataset.clas){ const f=EQ.favs.find(x=>favKey(x)===b.dataset.clas); if(f) openClas(f); return; }
   if(b.dataset.unfav){
     const f=EQ.favs.find(x=>favKey(x)===b.dataset.unfav); if(!f) return;
     EQ.favs=EQ.favs.filter(x=>x!==f); render(); await callFn('equipos',{action:'dejar', club_id:f.club_id, team:f.team, cat:f.cat}); loadEquipos(); return;
