@@ -1,6 +1,9 @@
-# Liquidación arbitral FCVB
+# Vòlei EnXarxa
 
-Web app para árbitros de la FCVB: trae las designaciones de iSquad automáticamente y calcula tarifa, dieta y desplazamiento de cada partido según el anexo de la temporada 2026/27, con totales por semana, pendiente de cobro y acumulado.
+App web (no oficial) para árbitros, jugadores y entrenadores de la FCVB: https://fsarmesto.github.io/enxarxa/
+
+- Jugadores y entrenadores: los partidos de sus equipos, horarios, resultados, clasificación y avisos de cambios.
+- Árbitros, además: trae las designaciones de iSquad automáticamente y calcula tarifa, dieta y desplazamiento de cada partido según el anexo de la temporada 2026/27, con totales por semana, pendiente de cobro y acumulado.
 
 - **Frontend:** `docs/` (HTML estático, GitHub Pages).
 - **Backend:** Supabase (base de datos, sesiones y funciones). Plan gratuito.

@@ -1,16 +1,21 @@
-# LaXarxa (antes "Liquidación arbitral FCVB" y "Vòlei FCVB") — contexto para seguir el trabajo
+# Vòlei EnXarxa (antes "Liquidación arbitral FCVB", "Vòlei FCVB" y "LaXarxa") — contexto para seguir el trabajo
 
-El 21-oct-2026 la app dejó de ser solo para árbitros y pasó a llamarse LaXarxa (la red de vóley y la red de gente):
-repo `fsarmesto/laxarxa`, web https://fsarmesto.github.io/laxarxa/. Las direcciones viejas (`/liquidacion-arbitral-fcvb/`,
-`/volei-fcvb/`) las sirve el repo `fsarmesto.github.io`: redirigen y mantienen los avisos viejos (`sw.js` puente);
-`initPush` pasa la suscripción del service worker viejo al nuevo y lo da de baja. El paquete Android sigue siendo
+El 21-oct-2026 la app dejó de ser solo para árbitros y pasó a llamarse LaXarxa; ese mismo día se cambió a
+**Vòlei EnXarxa** porque "La Xarxa" es la marca de la Xarxa Audiovisual Local (Diputació de Barcelona, La Xarxa+).
+"EnXarxa" comprobado en la OEPM (nada en apps, deporte ni software). El dominio enxarxa.cat es de la Fundació en Xarxa
+(educación, también tiene app en Play/App Store): no usarlo ni mencionarlo; Ferran lo sabe y sigue adelante.
+Nombre completo "Vòlei EnXarxa" (con acento catalán también en castellano: título, cabecera, manifest `name`,
+notificaciones, calendario), `short_name` "EnXarxa" (bajo el icono; Android corta a ~12 caracteres).
+Repo `fsarmesto/enxarxa`, web https://fsarmesto.github.io/enxarxa/. Las direcciones viejas (`/liquidacion-arbitral-fcvb/`,
+`/volei-fcvb/`, `/laxarxa/`) las sirve el repo `fsarmesto.github.io`: redirigen a la nueva y mantienen los avisos viejos
+(`sw.js` puente); `initPush` pasa la suscripción del service worker viejo al nuevo y lo da de baja. El paquete Android sigue siendo
 `io.github.fsarmesto.liquidacion` (no cambiar: sería otra app). Los UID del iCal siguen con `@liquidacion-arbitral-fcvb`
-(no cambiar: duplicaría eventos). La carpeta local sigue siendo `~/liquidacion-arbitral-fcvb`.
+(no cambiar: duplicaría eventos). Carpeta local en casa: `C:\Users\Puru\FCVBARB\carpetas\EnXarxa\laxarxa`.
 
 ## Piezas
 
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
-  URL: https://fsarmesto.github.io/laxarxa/
+  URL: https://fsarmesto.github.io/enxarxa/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`

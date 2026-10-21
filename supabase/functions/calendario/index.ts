@@ -76,6 +76,6 @@ async function ics(db: any, userId: string) {
     }
   }
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Liquidacion arbitral FCVB//ES", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
-    "X-WR-CALNAME:Mis partidos (FCVB)", "X-WR-TIMEZONE:Europe/Madrid", "REFRESH-INTERVAL;VALUE=DURATION:PT3H", "X-PUBLISHED-TTL:PT3H",
+    "X-WR-CALNAME:Vòlei EnXarxa", "X-WR-TIMEZONE:Europe/Madrid", "REFRESH-INTERVAL;VALUE=DURATION:PT3H", "X-PUBLISHED-TTL:PT3H",
     ...TZ, ...ev.flat(), "END:VCALENDAR"].map(fold).join("\r\n") + "\r\n";
 }

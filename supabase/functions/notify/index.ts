@@ -7,7 +7,7 @@ import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
 import { madridNow, send, Sub } from "../_shared/push.ts";
 
 const REMINDER = {
-  title: "LaXarxa",
+  title: "Vòlei EnXarxa",
   body: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!",
   tag: "domingo",
 };
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
   if (body.action === "test") {
     const { data } = await db.from("push_subs").select("endpoint, p256dh, auth").eq("user_id", user.id);
     if (!data?.length) return json({ error: "Este usuario no tiene ningún dispositivo con el recordatorio activado" }, 404);
-    return json({ ok: true, sent: await send(db, data, { ...REMINDER, title: "Prueba · LaXarxa", tag: "prueba" }) });
+    return json({ ok: true, sent: await send(db, data, { ...REMINDER, title: "Prueba · Vòlei EnXarxa", tag: "prueba" }) });
   }
   return json({ error: "Acción no válida" }, 400);
 });
