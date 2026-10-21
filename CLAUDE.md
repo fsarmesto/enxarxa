@@ -172,6 +172,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## Catalán (21-oct-2026)
 
+- Generador en `tools/i18n/`: añadir textos en `exact.py` (o reglas/fragmentos en `gen.py`) y regenerar con
+  `python3 tools/i18n/gen.py tools/i18n docs/i18n-ca.js`. No editar `docs/i18n-ca.js` a mano.
+
 - Idioma en `LANG` (localStorage `liq-lang`; por defecto el del móvil), selector en Ajustes y en la pantalla de entrar;
   cambiar recarga la página. Fechas y meses con `LOC()` (es-ES / ca-ES).
 - La app se escribe en castellano. Con catalán, `translateNode` (MutationObserver sobre body) traduce cada texto que se

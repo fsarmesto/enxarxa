@@ -1,0 +1,89 @@
+import json,sys
+sys.path.insert(0, sys.argv[1]); from exact import EXACT
+FRAGS = [
+ ("partidos de la federación leídos","partits de la federació llegits"), ("vigilancia de equipos","vigilància d'equips"),
+ ("dispositivos con avisos","dispositius amb avisos"), ("jugadores o entrenadores","jugadors o entrenadors"),
+ ("ninguno con error","cap amb error"), ("con error","amb error"), ("Índice de plantillas:","Índex de plantilles:"),
+ ("última actualización","última actualització"), ("Actualizado","Actualitzat"), ("Error:","Error:"),
+ ("usuarios","usuaris"), ("árbitros","àrbitres"), ("designaciones","designacions"), ("equipos","equips"), ("alta","alta"),
+ ("en total: ponla en la hoja de gastos al pedir el pago.","en total: posa-la al full de despeses quan demanis el pagament."),
+ ("ponla al pedir el pago","posa-la quan demanis el pagament"),
+ ("Te corresponde dieta:","Et correspon dieta:"),
+ ("No tienes partidos designados próximamente","No tens partits designats properament"),
+ ("En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.","Quan la FCVB publiqui les teves designacions a iSquad apareixeran aquí, amb l'equip arbitral i el pavelló."),
+ ("No hay partidos jugados en esta temporada","No hi ha partits jugats en aquesta temporada"),
+ ("No hay partidos en esta temporada","No hi ha partits en aquesta temporada"),
+ ("⚠ Coincide con tu arbitraje de las","⚠ Coincideix amb el teu arbitratge de les"),
+ ("km aproximados al centro de la población","km aproximats al centre de la població"),
+ ("encontrado en su plantilla","trobat a la seva plantilla"),
+ ("va a tu mismo partido","va al teu mateix partit"),
+ ("Pide el pago antes del","Demana el pagament abans del"),
+ ("Revisando plantillas:","Revisant plantilles:"),
+ ("con estos filtros","amb aquests filtres"),
+ ("también va a","també va a"),
+ ("IRPF retenido","IRPF retingut"),
+ ("como juez de línea","com a jutge de línia"), ("como anotador","com a anotador"), ("como R1","com a R1"), ("como R2","com a R2"),
+ ("⚠ Ese día","⚠ Aquell dia"),
+ ("Juegas con","Jugues amb"), ("Entrenas con","Entrenes amb"), ("Sigues con","Segueixes"), ("Invitado con","Convidat amb"),
+ ("juegas con","jugues amb"), ("entrenas con","entrenes amb"), ("sigues con","segueixes"), ("invitado con","convidat amb"),
+ ("(sin confirmar)","(sense confirmar)"), ("(sin horario)","(sense horari)"),
+ ("ya cobrado","ja cobrat"), ("Próximo:","Proper:"), ("Último:","Últim:"),
+ ("de hoy","d'avui"), ("de ayer","d'ahir"), ("sale de","surt de"), ("a las","a les"),
+ ("partidos","partits"), ("partido","partit"), ("jornadas","jornades"), ("cobrado","cobrat"),
+ ("Cobro","Cobrament"), ("pendiente","pendent"), ("festivo","festiu"), ("y","i"),
+]
+RULES = r"""[
+  // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
+  [/^(.+?) \((\d+)\)$/, (m,l,n) => { const t = I.exact[l] || l.replace(/^Jugados /,'Jugats ').replace(/^Calendario de la temporada$/,'Calendari de la temporada'); return t===l && !/^Jugados |^Calendario/.test(l) ? null : `${t} (${n})`; }],
+  [/^En (\d+) días?$/, "D'aquí a $1 dies"],
+  [/^Hace (\d+) días?$/, "Fa $1 dies"],
+  [/^(\d+) partidos?$/, (m,n) => `${n} ${n==='1'?'partit':'partits'}`],
+  [/^(\d+) jornadas?$/, (m,n) => `${n} ${n==='1'?'jornada':'jornades'}`],
+  [/^Partidos en (\d+) jornadas?$/, (m,n) => `Partits en ${n} ${n==='1'?'jornada':'jornades'}`],
+  [/^Ganado (.+)$/, 'Guanyat $1'], [/^Perdido (.+)$/, 'Perdut $1'],
+  [/^Por jugar · (\d{1,2}:\d{2})$/, 'Per jugar · $1'],
+  [/^Por jugar · (\d{1,2}:\d{2}) sin confirmar$/, 'Per jugar · $1 sense confirmar'],
+  [/^✓ Pagado(.*)$/, '✓ Pagat$1'],
+  [/^Año (\d{4}) · renta$/, 'Any $1 · renda'],
+  [/^con (.+)$/, 'amb $1'],
+  [/^Semana (.+)$/, 'Setmana $1'],
+  [/^Actualizado: (.+)$/, 'Actualitzat: $1'],
+  [/^Sin guardar · leído de iSquad: (.+)$/, "Sense desar · llegit d'iSquad: $1"],
+  [/^Te he encontrado en (\d+) plantillas? de la FCVB por tu foto de afiliado de iSquad\.(.*)$/, (m,n,r) => `T'he trobat en ${n} ${n==='1'?'plantilla':'plantilles'} de la FCVB per la teva foto d'afiliat d'iSquad.${r.replace(/Revisando plantillas: (\d+) de (\d+)\./,'Revisant plantilles: $1 de $2.')}`],
+  [/^Sales en la plantilla: (.+)$/, (m,r) => `Surts a la plantilla: ${({jugador:'jugador',entrenador:'entrenador',invitado:'convidat'})[r]||r}`],
+  [/^Te he encontrado en (\d+) equipos?$/, (m,n) => `T'he trobat en ${n} ${n==='1'?'equip':'equips'}`],
+  [/^No sales en ninguna plantilla de este club \((\d+) equipos?\)$/, "No surts a cap plantilla d'aquest club ($1 equips)"],
+  [/^Activado\. Sois (\d+) árbitros con esta opción\.$/, 'Activat. Sou $1 àrbitres amb aquesta opció.'],
+  [/^(\d+) partidos leídos de iSquad$/, "$1 partits llegits d'iSquad"],
+  [/^No hay partidos (próximos|jugados) como (árbitro|jugador|entrenador)(.*)\.$/, (m,a,b,c) => `No hi ha partits ${a==='próximos'?'propers':'jugats'} com a ${({árbitro:'àrbitre'})[b]||b}${c.replace(' con estos filtros',' amb aquests filtres')}.`],
+  [/^Aún no hay cobros con fecha de (\d{4})\.(.*)$/, (m,y,r) => `Encara no hi ha cobraments amb data de ${y}.${r.replace(' (con estos filtros)',' (amb aquests filtres)')}`],
+  [/^Año (\d{4}) por fecha de pago de la FCVB\. Orientativo: para la declaración, el documento válido es el certificado de retenciones que emite la FCVB\. Importes netos de IRPF(, con los filtros puestos)?\.$/, (m,y,f) => `Any ${y} per data de pagament de la FCVB. Orientatiu: per a la declaració, el document vàlid és el certificat de retencions que emet la FCVB. Imports nets d'IRPF${f?', amb els filtres posats':''}.`],
+  [/^Importes netos de IRPF(, con los filtros puestos)?\.$/, (m,f) => `Imports nets d'IRPF${f?', amb els filtres posats':''}.`],
+  [/^(\S+) (\d{4}): (.+) · (\d+) partidos?$/, (m,a,y,e,n) => `${a} ${y}: ${e} · ${n} ${n==='1'?'partit':'partits'}`],
+  [/^Conectada a iSquad como (.+)\.$/, 'Connectada a iSquad com a $1.'],
+  [/^Sin guardar: datos de (.+) leídos de iSquad solo para esta pestaña\.$/, "Sense desar: dades de $1 llegides d'iSquad només per a aquesta pestanya."],
+  [/^Leído de iSquad: (.+)\. Sin guardar: no se actualiza solo\.$/, "Llegit d'iSquad: $1. Sense desar: no s'actualitza sol."],
+  [/^Última actualización desde iSquad: (.+)\. Se actualiza sola dos veces al día\.$/, "Última actualització des d'iSquad: $1. S'actualitza sola dues vegades al dia."],
+  [/^Importes netos: IRPF del (.+) % sobre la tarifa, (.+) retenidos en la temporada\.$/, 'Imports nets: IRPF del $1 % sobre la tarifa, $2 retinguts a la temporada.'],
+  [/^Cuando salga en iSquad, pide el pago antes del (.+)$/, "Quan surti a iSquad, demana el pagament abans del $1"],
+  [/^(.+) vuelve a salir en Mis partidos$/, '$1 torna a sortir a Els meus partits'],
+  [/^(.+) ya no sale en Mis partidos$/, '$1 ja no surt a Els meus partits'],
+  [/^Temporada (\d\d\/\d\d)$/, 'Temporada $1'],
+  [/^Con designaciones · (.+)$/, 'Amb designacions · $1'], [/^Sin designaciones · (.+)$/, 'Sense designacions · $1'], [/^Algunas · (.+)$/, 'Algunes · $1'],
+  [/^(\d+) designados$/, '$1 designats'],
+  [/^Del (.+) al (.+) · (\d+) partidos designados de (\d+) · leído (.+)$/, 'Del $1 al $2 · $3 partits designats de $4 · llegit $5'],
+  [/^(1ª|2ª|3ª|4ª|Superliga 2|Superliga|Preferente)? ?(Sénior|Júnior|Juvenil|Cadete|Infantil|Alevín|Amateur)? ?(Femenino|Masculino|Mixto)?$/, (m,d,a,g) => (d||a||g) ? [({'1ª':'1a','2ª':'2a','3ª':'3a','4ª':'4a','Superliga':'Superlliga','Superliga 2':'Superlliga 2','Preferente':'Preferent'})[d], ({'Sénior':'Sènior','Cadete':'Cadet','Alevín':'Aleví'})[a]||a, ({'Femenino':'Femení','Masculino':'Masculí','Mixto':'Mixt'})[g]].filter(Boolean).join(' ') : null],
+  [/^Desplazamiento y dieta según los recibos de la FCVB \(la app calculaba (.+); la FCVB reparte los gastos del día entre los partidos\)$/, "Desplaçament i dieta segons els rebuts de la FCVB (l'app calculava $1; la FCVB reparteix les despeses del dia entre els partits)"],
+  [/^· (.+)$/, (m,r) => I.exact[r] ? `· ${I.exact[r]}` : null],
+  [/^Total temporada (.+)$/, 'Total temporada $1'],
+]"""
+js = "// Traducción al catalán (la usa index.html: exact = texto entero; rules = textos con números o datos; frags =\n" \
+     "// palabras o expresiones dentro de un texto, por palabras completas). Las claves son los textos en castellano tal como\n" \
+     "// salen en pantalla: si se cambia un texto en index.html, hay que cambiar aquí su clave.\n" \
+     "(() => {\nconst I = window.I18N_CA = {};\n" \
+     f"I.exact = {json.dumps(EXACT, ensure_ascii=False, indent=0)};\n" \
+     f"I.rules = {RULES};\n" \
+     f"I.frags = {json.dumps(FRAGS, ensure_ascii=False)};\n" \
+     "})();\n"
+open(sys.argv[2],'w').write(js)
+print(len(EXACT),'exactas,',len(FRAGS),'fragmentos')
