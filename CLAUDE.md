@@ -200,7 +200,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 ## Cabecera por pestaña (21-oct-2026)
 
 - Cabecera de altura fija: bajo la fila del título, `#statLine` = UNA línea en todas las pestañas (en Cobros
-  "Pendiente · Cobrado" y abre/cierra `#scoreWrap` con animación de grid-rows, recordado en `liq-cifras`; en el resto,
+  "Pendiente · Cobrado" y abre/cierra `#scoreWrap` con animación de grid-rows, siempre empieza plegado; en el resto,
   "Actualizado: …"). Temporada y Excel van dentro de las cifras; Resumen tiene su propio selector de temporada.
 - `body[data-vista]` = pestaña activa. Cifras de cobro, IRPF, Excel y avisos de pedir el pago solo en Cobros; el selector
   de temporada en Cobros y Resumen. Si hay avisos y estás en otra pestaña, punto rojo en "Cobros" (`.views .dot`).

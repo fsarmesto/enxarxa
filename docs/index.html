@@ -302,9 +302,10 @@ body:not([data-vista="cobros"]) #alerts{display:none}
 .board .statline .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .board .statline .txt b{color:var(--board-ink);font-weight:700}
 .board .statline .txt b.p{color:var(--board-pend)}
-.board .statline .chev{display:none;transition:transform .25s}
+.board .statline .chev{display:none;flex:none;width:20px;height:20px;color:var(--yellow);transition:transform .25s}
+.board .statline .chev svg{display:block}
 body[data-vista="cobros"]:not(.dep) .board .statline{cursor:pointer}
-body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:inline}
+body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .board .statline[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .board .statline:disabled{opacity:1;color:var(--board-2)}
 .board .statline:focus-visible{outline:2px solid var(--yellow);outline-offset:3px}
@@ -491,7 +492,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       </div>
     </div>
     <!-- Una sola línea de estado, igual de alta en todas las pestañas: en Cobros abre y cierra las cifras. -->
-    <button type="button" class="statline" id="statLine" aria-expanded="false" aria-controls="scoreWrap"><span class="txt" id="statTxt"></span><span class="chev" aria-hidden="true">▾</span></button>
+    <button type="button" class="statline" id="statLine" aria-expanded="false" aria-controls="scoreWrap"><span class="txt" id="statTxt"></span><span class="chev" aria-hidden="true"><svg viewBox="0 0 20 20" width="20" height="20"><path d="M4 7l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="scorewrap" id="scoreWrap"><div class="inner">
       <div class="scoreacts arb-only"><div class="seasons hidden" id="seasons" role="group" aria-label="Temporada"></div><button id="btnExport">Exportar a Excel</button></div>
       <div class="score arb-only">
@@ -1023,8 +1024,8 @@ function renderAlerts(ms, res){
 }
 $('alerts').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-alert]'); if(d) d.open ? ALERT_OPEN.add(d.dataset.alert) : ALERT_OPEN.delete(d.dataset.alert); }, true);
 // Línea de estado de la cabecera (una sola línea en todas las pestañas, así la cabecera no cambia de altura): en Cobros
-// resume lo pendiente y lo cobrado y abre o cierra las cifras grandes (se recuerda); en el resto, la última actualización.
-let SCORE_OPEN = true; try{ SCORE_OPEN = localStorage.getItem('liq-cifras')!=='0'; }catch(e){}
+// resume lo pendiente y lo cobrado y abre o cierra las cifras grandes (al abrir la app, plegadas); en el resto, la última actualización.
+let SCORE_OPEN = false; // siempre empieza plegado
 let STAT_LAST = null;
 function renderStatLine(pend, paid){
   if(pend!=null) STAT_LAST={pend,paid};
@@ -1037,7 +1038,7 @@ function renderStatLine(pend, paid){
 }
 $('statLine').addEventListener('click', ()=>{
   if(VIEW!=='cobros' || DEP) return;
-  SCORE_OPEN = !SCORE_OPEN; try{ localStorage.setItem('liq-cifras', SCORE_OPEN?'1':'0'); }catch(e){}
+  SCORE_OPEN = !SCORE_OPEN;
   renderStatLine();
 });
 function render(){
