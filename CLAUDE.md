@@ -1,19 +1,16 @@
-# Vòlei FCVB (antes "Liquidación arbitral FCVB") — contexto para seguir el trabajo
+# LaXarxa (antes "Liquidación arbitral FCVB" y "Vòlei FCVB") — contexto para seguir el trabajo
 
-El 21-oct-2026 el repo pasó de `liquidacion-arbitral-fcvb` a `volei-fcvb` (ya no es solo para árbitros): web en
-https://fsarmesto.github.io/volei-fcvb/. La dirección vieja la sirve el repo `fsarmesto.github.io` (carpeta
-`liquidacion-arbitral-fcvb/` y `404.html`): redirige y mantiene los avisos viejos; `initPush` pasa la suscripción del
-service worker viejo al nuevo y lo da de baja. El paquete Android sigue siendo `io.github.fsarmesto.liquidacion` (no
-cambiar: sería otra app). Los UID del iCal siguen con `@liquidacion-arbitral-fcvb` (no cambiar: duplicaría eventos).
-
-Web app no oficial para árbitros de la Federació Catalana de Voleibol: lee sus designaciones de iSquad y calcula
-tarifa, dieta, desplazamiento e IRPF de cada partido. Este fichero resume decisiones y trampas aprendidas para
-poder seguir desde otra máquina. **El repo es público: aquí no van claves, contraseñas ni datos de árbitros.**
+El 21-oct-2026 la app dejó de ser solo para árbitros y pasó a llamarse LaXarxa (la red de vóley y la red de gente):
+repo `fsarmesto/laxarxa`, web https://fsarmesto.github.io/laxarxa/. Las direcciones viejas (`/liquidacion-arbitral-fcvb/`,
+`/volei-fcvb/`) las sirve el repo `fsarmesto.github.io`: redirigen y mantienen los avisos viejos (`sw.js` puente);
+`initPush` pasa la suscripción del service worker viejo al nuevo y lo da de baja. El paquete Android sigue siendo
+`io.github.fsarmesto.liquidacion` (no cambiar: sería otra app). Los UID del iCal siguen con `@liquidacion-arbitral-fcvb`
+(no cambiar: duplicaría eventos). La carpeta local sigue siendo `~/liquidacion-arbitral-fcvb`.
 
 ## Piezas
 
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
-  URL: https://fsarmesto.github.io/volei-fcvb/
+  URL: https://fsarmesto.github.io/laxarxa/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `ranking` (solo admins), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
