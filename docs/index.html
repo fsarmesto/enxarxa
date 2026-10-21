@@ -183,11 +183,20 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .err{color:var(--neg);font-size:14px;font-weight:500;min-height:20px;margin-top:10px}
 .banner{border-left:4px solid var(--pend);background:var(--pend-bg);color:var(--ink);padding:12px 14px;margin:0 0 20px;font-size:14px}
 /* Avisos de cobro */
-.alerts{display:grid;gap:10px;margin:0 0 22px}
-.alert{display:flex;gap:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-left:6px solid var(--pend);background:var(--pend-bg);padding:12px 14px;font-size:14.5px}
-.alert strong{font-weight:700}
+.alerts{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:0 0 18px}
+.alerts:empty{display:none}
+/* Aviso plegable: una línea; al tocarla, el detalle */
+.alert{min-width:0;border-left:4px solid var(--pend);background:var(--pend-bg);font-size:14px}
 .alert.info{border-left-color:var(--yellow);background:var(--surface-2)}
-.alert a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
+.alert>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;min-height:38px}
+.alert>summary::-webkit-details-marker{display:none}
+.alert>summary .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert>summary .chev{transition:transform .15s;color:var(--ink-3);font-size:12px}
+.alert[open]>summary .chev{transform:rotate(180deg)}
+.alert .body{padding:0 12px 10px;font-size:13.5px;color:var(--ink-2)}
+.alert .body ul{margin:6px 0 10px;padding-left:18px}
+.alert .body li{margin:2px 0}
+.alert a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:5px 12px;color:var(--ink);text-decoration:none;white-space:nowrap}
 .score .br{font-size:12.5px;color:var(--board-2);margin-top:4px;line-height:1.35}
 .score .br b{color:var(--board-ink);font-weight:600}
 .lost{color:var(--board-pend)}
@@ -738,20 +747,28 @@ function payTag(m){
   return (m.fcvb_pago&&!paidByFcvb(m)&&st!=='solicitar' ? `<div class="muted small">${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</div>` : '') + extra;
 }
 // Avisos arriba (de todas las temporadas): pagos por pedir con su plazo y partidos de hoy/ayer aún sin recibo.
+// Plegados por defecto; se recuerda cuál se ha abierto mientras la página está abierta (render() repinta a menudo).
+const ALERT_OPEN = new Set();
+const fmtTiny = ds => new Date(ds+'T12:00:00').toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'}).replace(/[.,]/g,'');
 function renderAlerts(ms, res){
   const t=today(), out=[];
+  const item = m => `<li>${esc(fmtTiny(m.date))} ${esc(m.time)} · ${esc(capName(m.comp))} · ${eur(res.get(m.id).total)}</li>`;
+  const box = (k, cls, line, body, btn) => `<details class="alert ${cls}" data-alert="${k}"${ALERT_OPEN.has(k)?' open':''}><summary><span>⚠</span><span class="t">${line}</span><span class="chev">▼</span></summary><div class="body">${body}<a class="go" href="${ISQUAD_RECIBOS}" target="_blank" rel="noopener">${btn}</a></div></details>`;
   const ask=ms.filter(m=>payState(m)==='solicitar' && limitOf(m)>=t);
   if(ask.length){
     const lim=ask.map(limitOf).sort()[0], amount=ask.reduce((s,m)=>s+res.get(m.id).total,0);
-    out.push(`<div class="alert"><div><strong>Pide el pago de ${ask.length} partido${ask.length===1?'':'s'} (${eur(amount)}) antes del ${esc(fmtShort(lim))}.</strong><br><span class="small">La FCVB solo deja pedirlo hasta el día siguiente al partido. Después ya no se cobra.</span></div><a class="go" href="${ISQUAD_RECIBOS}" target="_blank" rel="noopener">Pedirlo en iSquad</a></div>`);
+    out.push(box('ask','', `Pide el pago antes del ${esc(fmtTiny(lim))} · ${ask.length} partido${ask.length===1?'':'s'} · ${eur(amount)}`,
+      `La FCVB solo deja pedirlo hasta el día siguiente al partido; después ya no se cobra.<ul>${ask.map(item).join('')}</ul>`, 'Pedirlo en iSquad'));
   }
   const soon=ms.filter(m=>payState(m)==='sinrecibo' && limitOf(m)>=t);
   if(soon.length && !ask.length){
     const lim=soon.map(limitOf).sort()[0];
-    out.push(`<div class="alert info"><div><strong>Recuerda pedir el pago de ${soon.length===1?'tu partido':'tus '+soon.length+' partidos'} de ${soon.some(m=>m.date===t)?'hoy':'ayer'} antes del ${esc(fmtShort(lim))}.</strong><br><span class="small">En cuanto el acta esté cerrada sale en Hojas de gastos de iSquad.</span></div><a class="go" href="${ISQUAD_RECIBOS}" target="_blank" rel="noopener">Abrir iSquad</a></div>`);
+    out.push(box('soon','info', `Pide el pago antes del ${esc(fmtTiny(lim))} · ${soon.length} partido${soon.length===1?'':'s'} de ${soon.some(m=>m.date===t)?'hoy':'ayer'}`,
+      `En cuanto el acta esté cerrada, el partido sale en Hojas de gastos de iSquad: pide allí el pago.<ul>${soon.map(item).join('')}</ul>`, 'Abrir iSquad'));
   }
   $('alerts').innerHTML=out.join('');
 }
+$('alerts').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-alert]'); if(d) d.open ? ALERT_OPEN.add(d.dataset.alert) : ALERT_OPEN.delete(d.dataset.alert); }, true);
 function render(){
   pickSeason(); renderSeasons();
   const {ms:allMs,res} = compute();
