@@ -1707,19 +1707,21 @@ async function loadDesig(refresh){
 }
 function renderDesig(){
   const r=DESIG; if(!r) return;
-  const AGE=[['SEN','Sénior'],['JUN','Júnior'],['JUV','Juvenil'],['CAD','Cadete'],['INF','Infantil'],['ALE','Alevín'],['AMA','Amateur'],['OTRA','Otras']];
+  // Alevín, Amateur/Máster y lo que no tiene categoría no interesan: solo las categorías de la liga.
+  const AGE=[['SEN','Sénior'],['JUN','Júnior'],['JUV','Juvenil'],['CAD','Cadete'],['INF','Infantil']];
   const DIV={SL:'Superliga',SL2:'Superliga 2','1':'1ª','2':'2ª','3':'3ª','4':'4ª',PREF:'Preferente',MA:'',OTROS:''};
   const DORD=['SL','SL2','1','2','3','4','PREF','MA','OTROS'], GEN={F:'Femenino',M:'Masculino',X:'Mixto'};
-  const rows=r.categorias.map(c=>{ const p=compParts(c.cat); const age=/AMATEUR/.test(norm(c.cat))?'AMA':p.age; const div=/AMATEUR PRIMERA/.test(norm(c.cat))?'1':/AMATEUR SEGUNDA/.test(norm(c.cat))?'2':p.div; return {...c, age, div, gen:p.gen}; });
+  const rows=r.categorias.map(c=>{ const p=compParts(c.cat); const age=/AMATEUR|MASTER|VETERA/.test(norm(c.cat))?'AMA':p.age; return {...c, age, div:p.div, gen:p.gen}; })
+    .filter(c=>AGE.some(([a])=>a===c.age));
+  const nDesig=rows.reduce((t,c)=>t+c.desig,0), nTotal=rows.reduce((t,c)=>t+c.total,0);
   const chip=c=> c.desig===0 ? `<span class="st sin">Sin designaciones · 0/${c.total}</span>`
     : c.desig/c.total>=0.5 ? `<span class="st win">Con designaciones · ${c.desig}/${c.total}</span>` : `<span class="st part">Algunas · ${c.desig}/${c.total}</span>`;
-  let html=`<div class="dg-head"><span>Del ${esc(fmtTiny(r.desde))} al ${esc(fmtTiny(r.hasta))} · ${r.designados} partidos designados de ${r.partidos} · leído ${esc(ago(r.actualizado))}</span><button class="ghost" id="dgRefresh">Actualizar</button></div>`;
+  let html=`<div class="dg-head"><span>Del ${esc(fmtTiny(r.desde))} al ${esc(fmtTiny(r.hasta))} · ${nDesig} partidos designados de ${nTotal} · leído ${esc(ago(r.actualizado))}</span><button class="ghost" id="dgRefresh">Actualizar</button></div>`;
   for(const [a,al] of AGE){
     const list=rows.filter(x=>x.age===a).sort((x,y)=>DORD.indexOf(x.div)-DORD.indexOf(y.div) || (x.gen||'').localeCompare(y.gen||''));
     if(!list.length) continue;
-    html+=`<div class="dg-grp">${al}</div>`+list.map(c=>`<div class="dg-row"><span>${esc([DIV[c.div],al==='Alevín'||al==='Amateur'&&!DIV[c.div]?'':al,GEN[c.gen]||''].filter(Boolean).join(' ')||capName(c.cat))}</span>${chip(c)}</div>`).join('');
+    html+=`<div class="dg-grp">${al}</div>`+list.map(c=>`<div class="dg-row"><span>${esc([DIV[c.div],al,GEN[c.gen]||''].filter(Boolean).join(' '))}</span>${chip(c)}</div>`).join('');
   }
-  if(r.otras?.length) html+=`<div class="dg-grp">Sin categoría reconocida</div>`+r.otras.map(o=>`<div class="dg-row"><span>${esc(capName(o.comp))}</span><span class="st win">${o.n} designados</span></div>`).join('');
   $('desigBody').innerHTML=html;
   $('dgRefresh').onclick=()=>loadDesig(true);
 }
