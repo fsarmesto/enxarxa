@@ -246,9 +246,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 ## Avisos al momento (función vigilar, 21-oct-2026)
 
 - Cada 10 minutos, de 7:00 a 24:00 de Madrid, y solo para quien tiene notificaciones (`push_subs`):
-  1. sync rápido de cada árbitro (función sync, modo `quick`: solo designaciones de la temporada en curso, sin recibos
-     ni km, sin tocar `last_sync`) y `designChanges` (en `_shared/sync.ts`) compara con lo guardado: nueva, cambio de
-     fecha/hora/pabellón, anulada. El sync completo del cron (`mode: "sync"`) también avisa. El primer alta no.
+  1. ficha pública de cada árbitro (sin login; ver "Coste" abajo) y, solo si ha cambiado, su sync rápido (función sync,
+     modo `quick`: solo designaciones de la temporada en curso, sin recibos ni km, sin tocar `last_sync`);
+     `designChanges` (en `_shared/sync.ts`) compara con lo guardado: nueva, cambio de fecha/hora/pabellón, suspendida,
+     quitada. El sync completo del cron (`mode: "sync"`) también avisa. El primer alta no.
   2. calendario (API pública) de los equipos donde juega o entrena (activos en "Mis partidos") contra la foto anterior
      `pub_cache snap:<id_equipo>`: ya hay horario, cambio de horario o fecha, suspendido/aplazado (`teamChanges`).
      La primera pasada de un equipo solo guarda la foto.
