@@ -238,3 +238,44 @@ export function matchOfficials(db: Db, idPartido: string, jugado: boolean): Prom
     return out;
   });
 }
+
+// Páginas de árbitros de la web pública: llegan en windows-1252 y solo responden bien como petición AJAX.
+export async function getLatin(url: string) {
+  const r = await fetch(url, { headers: { "User-Agent": UA, "X-Requested-With": "XMLHttpRequest" }, signal: AbortSignal.timeout(15_000) });
+  if (!r.ok) { await r.body?.cancel(); throw new Error(`iSquad ${r.status}`); }
+  return new TextDecoder("windows-1252").decode(await r.arrayBuffer());
+}
+
+// Árbitros de la FCVB en la web pública (listado_arbitros.php, 1,6 MB): id de su ficha, nombre y foto de afiliado. 7 días.
+export type ArbitroPub = { id: string; name: string; foto: string };
+export function arbitrosPublicos(db: Db): Promise<ArbitroPub[]> {
+  return cached(db, "arbitros", 7 * 24 * H, async () => {
+    const s = await getLatin(`${PUB}/listado_arbitros.php?id_territorial=${TERRITORIAL}&id_superficie=1&seleccion=0`);
+    return s.split("arb-federacion-card").slice(1).map((c) => ({
+      id: c.match(/partidosArbitro\((\d+)\)/)?.[1] || "",
+      name: fixMojibake(c.match(/arb-federacion-data">\s*<div>\s*<div>\s*([^<]+?)\s*<\/div>/)?.[1] || ""),
+      foto: c.match(/imagen_([^"'./]+)\./)?.[1] || "",
+    })).filter((a) => a.id);
+  });
+}
+
+// Ficha pública de un usuario: por su foto de afiliado (la misma que en su área de iSquad) o, si no, por el nombre
+// (las mismas palabras, en cualquier orden; solo si hay un único candidato). Comprobado 21-oct: 16 de 16 árbitros.
+export async function idArbitro(db: Db, nombre: string | null, foto: string | null): Promise<string | null> {
+  const list = await arbitrosPublicos(db);
+  const f = (foto || "").match(/imagen_([^./]+)\./)?.[1];
+  const byFoto = f && list.find((a) => a.foto === f);
+  if (byFoto) return byFoto.id;
+  const mine = words(nombre || "");
+  const cands = list.filter((a) => { const w = words(a.name); return w.length >= 2 && w.every((x) => mine.includes(x)); });
+  return cands.length === 1 ? cands[0].id : null;
+}
+
+// Huella de la ficha pública "próximos partidos que arbitrará" (~2 KB, sin login): partido, fecha, hora, pabellón y
+// equipo arbitral. Si no cambia, en el área privada no hay nada nuevo que leer.
+export async function huellaFicha(id: string): Promise<string> {
+  const s = await getLatin(`${PUB}/partidos_arbitro.php?id_arbitro=${id}&id_superficie=1`);
+  const rows = (s.match(/<tr[\s\S]*?<\/tr>/g) || []).map((tr) => text(tr)).join("\n");
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rows));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}

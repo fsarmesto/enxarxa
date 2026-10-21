@@ -3,18 +3,12 @@
 // cada árbitro (partidos_arbitro.php, ~0,5 KB; la de toda la federación da error 500), cruzada con el listado de
 // partidos de la federación para saber la categoría. Resultado en caché 1 h ({refresh:true} para forzarlo).
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
-import { cached, feed, fixMojibake, norm, PUB, TERRITORIAL } from "../_shared/publico.ts";
+import { arbitrosPublicos, cached, feed, fixMojibake, getLatin, norm, PUB } from "../_shared/publico.ts";
 import { madridNow, sendToUser } from "../_shared/push.ts";
 
-const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
 const MESES: Record<string, string> = { enero: "01", febrero: "02", marzo: "03", abril: "04", mayo: "05", junio: "06", julio: "07", agosto: "08", septiembre: "09", setiembre: "09", octubre: "10", noviembre: "11", diciembre: "12" };
 const txt = (s: string) => fixMojibake(s.replace(/<br\s*\/?>/gi, " · ").replace(/<[^>]+>/g, " ")).replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
 
-async function getLatin(url: string) {
-  const r = await fetch(url, { headers: { "User-Agent": UA, "X-Requested-With": "XMLHttpRequest" }, signal: AbortSignal.timeout(15_000) });
-  if (!r.ok) { await r.body?.cancel(); throw new Error(`iSquad ${r.status}`); }
-  return new TextDecoder("windows-1252").decode(await r.arrayBuffer());
-}
 // "domingo 25 de octubre a las 16:00" → "2026-10-25 16:00" (año: el de la fecha más cercana hacia delante).
 function parseFecha(s: string) {
   const m = norm(s).match(/(\d{1,2}) DE ([A-Z]+) A LAS (\d{1,2}):(\d{2})/); if (!m) return "";
@@ -102,7 +96,7 @@ async function salud(db: Db) {
   const { data: subs } = await db.from("push_subs").select("user_id, last_sent");
   const { count: equipos } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true });
   const { count: revisados } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true }).not("checked_at", "is", null);
-  const { data: caches } = await db.from("pub_cache").select("key, fetched_at").in("key", ["feed", "token", "clubs", "arbitros-ids", "desig-global"]);
+  const { data: caches } = await db.from("pub_cache").select("key, fetched_at").in("key", ["feed", "token", "clubs", "arbitros", "desig-global"]);
   const { data: snaps } = await db.from("pub_cache").select("fetched_at").like("key", "snap:%").order("fetched_at", { ascending: false }).limit(1);
   // Sin nombres ni emails: cada cuenta, con un id corto (los 6 primeros caracteres de su user_id).
   const usuarios = (ps || []).map((p: { user_id: string; tipo: string; last_sync: string | null; last_error: string | null; created_at: string }) => ({
@@ -138,10 +132,7 @@ function calcular(db: Db): Promise<Resultado> {
   const started = Date.now();
   return cached(db, "desig-global", 3600_000, async () => {
     // Árbitros de la FCVB (ids de la lista pública), 7 días.
-    const ids: string[] = await cached(db, "arbitros-ids", 7 * 24 * 3600_000, async () => {
-      const s = await getLatin(`${PUB}/listado_arbitros.php?id_territorial=${TERRITORIAL}&id_superficie=1&seleccion=0`);
-      return [...new Set([...s.matchAll(/partidosArbitro\((\d+)\)/g)].map((m) => m[1]))];
-    });
+    const ids = [...new Set((await arbitrosPublicos(db)).map((a) => a.id))];
     // Designaciones de cada árbitro, de 10 en 10.
     const desig = new Map<string, { d: string; teams: string; comp: string }>();
     let ok = 0, fail = 0;

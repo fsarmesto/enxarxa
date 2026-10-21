@@ -272,7 +272,16 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   estado de cada partido por pedir y en la tarjeta de la agenda: "🍽 Te corresponde dieta: … · ponla al pedir el pago".
 - Un partido aún no jugado puede tener ya su recibo vacío en iSquad: `payState` lo trata como futuro hasta su día.
 - Envío en `_shared/push.ts` (también lo usa `notify`). La notificación abre la app en `?vista=agenda`.
-- Coste: 1 login a iSquad por suscrito cada 10 minutos (17 horas al día) y 1 consulta ligera por equipo vigilado.
+- Coste (tarea 7, 22-oct-2026): antes 1 login a iSquad por suscrito en cada pasada (hasta 102 al día por persona; con 5
+  suscritos y 16 árbitros, ~540 logins al día). Ahora vigilar lee primero la ficha pública de cada suscrito
+  (`partidos_arbitro.php?id_arbitro=`, ~2 KB, sin login: partidos, fecha, hora, pabellón y equipo arbitral; huella SHA-256
+  en `pub_cache ficha:<user>`) y solo lanza su sync rápido si la huella cambia o tiene un partido con `missing_since`.
+  El id de la ficha (`profiles.id_arbitro`, migración 023) sale del listado público (`arbitrosPublicos`, caché 7 días)
+  por la foto de afiliado o, si no, por las mismas palabras del nombre (único candidato); comprobado: 16 de 16.
+  Sesión de iSquad reutilizada: `isquad_credentials.session` (cookies cifradas con CREDS_KEY) durante 6 h desde su login;
+  si iSquad ya no la acepta, login nuevo. Logins por día en `pub_cache logins:AAAA-MM-DD` (función `contar_login`).
+  Prueba 22-oct: 1ª pasada 5 fichas y 5 syncs; 2ª pasada 5 fichas y 0 syncs; sync con sesión guardada sin login.
+  Esperado: los logins del sync completo del cron (2 por árbitro y día) más uno cuando cambia una ficha.
 
 ## App instalable y recordatorio del domingo (21-oct-2026)
 

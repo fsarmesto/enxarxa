@@ -159,15 +159,28 @@ const STAFF_MAX_PER_RUN = 120;
 
 export async function fetchDesignaciones(
   login: string, password: string,
-  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number; onName?: (name: string, foto: string) => void; quick?: boolean } = {},
+  opts: { needStaff?: (m: ScrapedMatch) => boolean; deadline?: number; onName?: (name: string, foto: string) => void; quick?: boolean;
+    session?: string; onSession?: (cookies: string, fresh: boolean) => void } = {},
 ): Promise<WithStaff[]> {
   const jar: Jar = new Map();
-  await loginIsquad(jar, login, password);
-
   // Sin la cookie TemporadaSelect iSquad marca la temporada en curso en el desplegable pero devuelve la tabla vacía:
-  // la primera carga solo sirve para validar el login y saber qué temporadas hay.
-  const html = await designaciones(jar);
-  if (!parseDesignaciones(html)) throw new IsquadAuthError("login");
+  // la primera carga solo sirve para validar la sesión y saber qué temporadas hay.
+  // Sesión guardada de la entrada anterior: si iSquad aún la acepta, no se hace login (menos carga sobre iSquad).
+  let html = "";
+  if (opts.session) {
+    for (const kv of opts.session.split("; ")) { const i = kv.indexOf("="); if (i > 0) jar.set(kv.slice(0, i), kv.slice(i + 1)); }
+    jar.delete("TemporadaSelect");
+    try { html = await designaciones(jar); if (!parseDesignaciones(html)) html = ""; }
+    catch (e) { if (!(e instanceof IsquadAuthError)) throw e; }
+  }
+  const fresh = !html;
+  if (fresh) {
+    jar.clear();
+    await loginIsquad(jar, login, password);
+    html = await designaciones(jar);
+    if (!parseDesignaciones(html)) throw new IsquadAuthError("login");
+  }
+  opts.onSession?.(cookie(new Map([...jar].filter(([k]) => k !== "TemporadaSelect"))), fresh);
   const { current, previous } = seasons(html);
   const out: ScrapedMatch[] = [];
   // También la temporada anterior: al empezar una nueva, los partidos pendientes de cobro siguen allí.

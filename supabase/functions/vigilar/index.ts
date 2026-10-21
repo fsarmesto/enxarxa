@@ -1,11 +1,13 @@
 // Vigilancia (cron cada 10 minutos, de 7:00 a 24:00 de Madrid) para avisar por notificación, solo a quien las tiene:
-// 1) designaciones nuevas, cambiadas o anuladas: sync rápido de cada árbitro suscrito (función sync, modo quick);
+// 1) designaciones nuevas, cambiadas o quitadas: primero la ficha pública de cada árbitro suscrito (sin login, ~2 KB);
+//    solo si ha cambiado (o no se le encuentra ficha) se lanza su sync rápido (función sync, modo quick), que entra en
+//    iSquad con la sesión guardada o con login. Antes era un login por árbitro en cada pasada (hasta 102 al día).
 // 3) el día que arbitra, 2 h después del último partido: "pide el pago antes de mañana" y la dieta que le corresponde
 //    (que no se olvide de ponerla en la hoja de gastos). Una vez por día (pub_cache "aviso-cobro:").
 // 2) partidos de los equipos donde juega o entrena (y que tiene en "Mis partidos"): horario confirmado, cambio de
 //    fecha u hora y suspendidos, comparando el calendario de la API pública con la foto anterior (pub_cache "snap:").
 import { admin, cors, json } from "../_shared/sync.ts";
-import { teamMatches, type PartidoEquipo } from "../_shared/publico.ts";
+import { huellaFicha, idArbitro, teamMatches, type PartidoEquipo } from "../_shared/publico.ts";
 import { cap, madridNow, type Msg, sendToUser, shortDate } from "../_shared/push.ts";
 import { dietasDelDia } from "../_shared/dieta.ts";
 
@@ -76,10 +78,28 @@ if (import.meta.main) Deno.serve(async (req) => {
   const arbitros = users.filter((u) => !(deps || []).some((d: { user_id: string }) => d.user_id === u));
   if (!users.length) return json({ users: 0 });
 
-  // 1) Designaciones: una ejecución de sync por árbitro (en una sola no caben la CPU ni la memoria de varios).
+  // 1) Designaciones: ficha pública de cada árbitro; si cambia, una ejecución de sync para él (en una sola no caben
+  //    la CPU ni la memoria de varios).
   const self = `${Deno.env.get("SUPABASE_URL")}/functions/v1/sync`;
+  const { data: profs } = await db.from("profiles").select("user_id, nombre, foto, id_arbitro").in("user_id", arbitros);
+  // Con un partido que faltó en la última lectura (missing_since), hay que volver a mirar aunque la ficha no cambie.
+  const { data: pend } = await db.from("matches").select("user_id").in("user_id", arbitros).not("missing_since", "is", null);
+  const pendiente = new Set((pend || []).map((m: { user_id: string }) => m.user_id));
+  let fichas = 0, syncs = 0;
   const desig = Promise.all(arbitros.map(async (user_id) => {
     try {
+      const p = (profs || []).find((x: { user_id: string }) => x.user_id === user_id);
+      let id: string | null = p?.id_arbitro || null;
+      if (!id && p) { id = await idArbitro(db, p.nombre, p.foto).catch(() => null); if (id) await db.from("profiles").update({ id_arbitro: id }).eq("user_id", user_id); }
+      if (id) {
+        const h = await huellaFicha(id); fichas++;
+        const key = `ficha:${user_id}`;
+        const { data: old } = await db.from("pub_cache").select("data").eq("key", key).maybeSingle();
+        if ((old?.data as { h?: string })?.h === h && !pendiente.has(user_id)) return 0;   // nada nuevo: sin entrar en iSquad
+        // Se guarda antes del sync: si el sync falla, no se reintenta cada 10 minutos (el sync completo del cron sí lo hará).
+        await db.from("pub_cache").upsert({ key, data: { h }, fetched_at: new Date().toISOString() });
+      }
+      syncs++;
       const r = await fetch(self, { method: "POST", body: JSON.stringify({ user_id, mode: "quick" }), signal: AbortSignal.timeout(90_000),
         headers: { "Content-Type": "application/json", "x-cron-secret": secret } });
       const j = await r.json(); return j?.avisos || 0;
@@ -112,5 +132,5 @@ if (import.meta.main) Deno.serve(async (req) => {
   await Promise.all([worker(), worker(), worker()]);
   const desigMsgs = (await desig).reduce((a, b) => a + b, 0);
   const cobro = await avisoCobro(db, arbitros).catch(() => 0);
-  return json({ users: users.length, equipos: teams.size, avisos: { designaciones: desigMsgs, equipos: teamMsgs, cobro }, ms: Date.now() - started });
+  return json({ users: users.length, fichas, syncs, equipos: teams.size, avisos: { designaciones: desigMsgs, equipos: teamMsgs, cobro }, ms: Date.now() - started });
 });

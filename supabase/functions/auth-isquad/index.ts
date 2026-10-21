@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
   const { error: pe } = await db.from("profiles").upsert(
     { user_id: userId, login_key: key, isquad_login: login, origin, last_error: null, ...(existing ? {} : consentNew()) }, { onConflict: "user_id" });
   if (pe) return json({ error: "No se ha podido guardar el perfil" }, 500);
-  await db.from("isquad_credentials").upsert({ user_id: userId, secret: await encrypt(password), updated_at: new Date().toISOString() });
+  await db.from("isquad_credentials").upsert({ user_id: userId, secret: await encrypt(password), session: null, session_at: null, updated_at: new Date().toISOString() });
   // Los partidos se guardan ya; el equipo arbitral de cada designación y los km se leen después, sin hacer esperar.
   try { await storeMatches(db, userId, matches); background(syncUser(db, userId, { km: "wait", deadline: started + 130_000 })); }
   catch (_) { /* la sincronización programada lo reintentará */ }

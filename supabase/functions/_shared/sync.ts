@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
-import { decrypt } from "./crypto.ts";
+import { decrypt, encrypt } from "./crypto.ts";
 import { fetchDesignaciones, IsquadAuthError, ScrapedMatch, venueLabel, WithStaff } from "./isquad.ts";
 import { cap, Msg, sendToUser, shortDate } from "./push.ts";
 
@@ -408,8 +408,13 @@ export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[];
   return { msgs, missing, gone, renamed };
 }
 
+// Una sesión de iSquad se intenta reutilizar durante 6 h desde su login; después, login nuevo.
+const SESSION_TTL = 6 * 3600_000;
+// Logins a iSquad por día (pub_cache "logins:AAAA-MM-DD", función SQL atómica), para medir la carga que le damos.
+const contarLogin = (db: SupabaseClient) => db.rpc("contar_login").then(() => {}, () => {});
+
 export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: "wait" | "background" | "none"; deadline: number; quick?: boolean; notify?: boolean }) {
-  const { data: cred } = await db.from("isquad_credentials").select("secret").eq("user_id", userId).maybeSingle();
+  const { data: cred } = await db.from("isquad_credentials").select("secret, session, session_at").eq("user_id", userId).maybeSingle();
   const { data: prof } = await db.from("profiles").select("isquad_login").eq("user_id", userId).maybeSingle();
   if (!cred || !prof) return { ok: false, error: "sin_credenciales" };
   try {
@@ -438,12 +443,18 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     const { data: prev } = opts.notify
       ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked, missing_since, estado").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
       : { data: null };
+    // Sesión de iSquad de la última entrada (hasta SESSION_TTL): si iSquad aún la acepta, no hace falta login.
+    const session = cred.session && cred.session_at && Date.now() - Date.parse(cred.session_at) < SESSION_TTL
+      ? await decrypt(cred.session).catch(() => "") : "";
+    let newSession = "", fresh = false;
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
-      quick: opts.quick,
+      quick: opts.quick, session, onSession: (c, f) => { newSession = c; fresh = f; },
       needStaff: (m: ScrapedMatch) => !checked.has(m.id) || m.date >= recent || (!withCrew.has(m.id) && m.date >= seasonStart),
       deadline: opts.deadline,
       onName: (n, f) => { nombre = n; foto = f; },
     });
+    if (newSession) await db.from("isquad_credentials").update({ session: await encrypt(newSession), ...(fresh ? { session_at: new Date().toISOString() } : {}) }).eq("user_id", userId);
+    if (fresh) await contarLogin(db);
     if (nombre) await db.from("profiles").update({ nombre, ...(foto ? { foto } : {}) }).eq("user_id", userId);
     await storeMatches(db, userId, matches, { quick: opts.quick });
     const avisos = prev ? await notifyChanges(db, userId, prev as Prev[], matches).catch(() => 0) : 0;
@@ -452,6 +463,7 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     return { ok: true, count: matches.length, avisos };
   } catch (e) {
     const code = e instanceof IsquadAuthError ? "credenciales" : "conexion";
+    if (code === "credenciales") await db.from("isquad_credentials").update({ session: null, session_at: null }).eq("user_id", userId);
     await db.from("profiles").update({ last_error: code }).eq("user_id", userId);
     return { ok: false, error: code };
   }
