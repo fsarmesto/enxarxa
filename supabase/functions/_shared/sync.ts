@@ -336,13 +336,14 @@ export const background = (p: Promise<unknown>) => { const rt = (globalThis as a
 // km: "wait" = calcular los km antes de volver; "background" = después de responder; "none" = no calcularlos aquí.
 // deadline: hora límite de la petición (cuenta desde que llegó, no desde que empieza el cálculo de km).
 // Cambios en las designaciones próximas entre lo guardado y lo que trae iSquad: nuevas, cambiadas (fecha, hora o
-// pabellón) y quitadas. Se avisa por notificación al árbitro.
-// Quitada: la primera lectura en la que falta solo apunta missing_since (iSquad a veces no devuelve un partido una vez);
-// si en la siguiente sigue faltando, se avisa una vez y se borra. Solo partidos de hoy en adelante: los jugados que
+// pabellón), suspendidas y quitadas. Se avisa por notificación al árbitro.
+// Partido suspendido o anulado: iSquad lo deja en las designaciones con ese estado; se queda (la FCVB lo paga) y se avisa.
+// Quitada (ya no estás designado): desaparece de la lista. La primera lectura en la que falta solo apunta missing_since
+// (iSquad a veces no devuelve un partido una vez); si en la siguiente sigue faltando, se avisa una vez y se borra. Solo partidos de hoy en adelante: los jugados que
 // ya no salen se quedan (la web los marca "ya no aparece en iSquad"; puede ser una temporada que ya no se lee).
 // Mismo partido con otro código: iSquad pone o quita "@fecha T hora" cuando varios partidos comparten código. Se
 // reconoce por el código base, los equipos y la competición (el mismo día puede haber cadete y juvenil con el mismo código): sin aviso de nueva ni de anulada, y lo puesto a mano pasa a la fila nueva.
-export type Prev = { id: string; date: string; time: string; venue: string; comp: string; teams: string; role: string; staff_checked: string | null;
+export type Prev = { id: string; date: string; time: string; venue: string; comp: string; teams: string; role: string; staff_checked: string | null; estado?: string;
   missing_since?: string | null };
 type Change = Msg & { key: string };
 const MANUAL = ["paid", "km_override", "dieta_override", "tolls", "holiday", "no_dieta"] as const;
@@ -392,13 +393,17 @@ export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[];
       const what = p.date !== m.date ? `antes ${shortDate(p.date)} ${p.time}` : p.time !== m.time ? `antes a las ${p.time}` : `antes en ${cap(p.venue)}`;
       msgs.push({ key: `cambio:${id}:${m.date}|${m.time}|${m.venue}`, title: `Cambio en tu designación · ${line(m)}`, body: `${vs(m.teams)} · ${cap(m.venue)} (${what})`, tag: `desig-${id}`, url: "./?vista=agenda" });
     }
+    if (p && m.estado !== p.estado && /SUSPEND|APLAZ|ANULA/.test(m.estado || "")) {
+      const est = (m.estado || "").toLowerCase();
+      msgs.push({ key: `estado:${id}:${m.estado}`, title: `Partido ${est} · ${line(m)}`, body: `${vs(m.teams)}: iSquad lo marca como ${est}. Sigue en tu lista.`, tag: `desig-${id}`, url: "./?vista=agenda" });
+    }
   }
   // Quitadas: solo si iSquad ha devuelto la temporada (si viniera vacía por un fallo, no se avisa de nada).
   if (now.length) for (const p of vanished) {
     if (used.has(p.id)) continue;
     if (!p.missing_since) { missing.push(p.id); continue; }
     gone.push(p.id);
-    msgs.push({ key: `anulada:${p.id}:${p.missing_since}`, title: `Designación anulada · ${line(p)}`, body: `${vs(p.teams)} ya no aparece en tus designaciones de iSquad`, tag: `desig-${p.id}`, url: "./?vista=agenda" });
+    msgs.push({ key: `quitada:${p.id}:${p.missing_since}`, title: `Ya no estás designado · ${line(p)}`, body: `${vs(p.teams)}: ya no sale en tus designaciones de iSquad. Lo he quitado de tus partidos.`, tag: `desig-${p.id}`, url: "./?vista=agenda" });
   }
   return { msgs, missing, gone, renamed };
 }
@@ -431,7 +436,7 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     // Designaciones próximas guardadas, para avisar de lo nuevo o cambiado.
     const today = new Date().toISOString().slice(0, 10);
     const { data: prev } = opts.notify
-      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked, missing_since").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
+      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked, missing_since, estado").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
       : { data: null };
     const matches = await fetchDesignaciones(prof.isquad_login, await decrypt(cred.secret), {
       quick: opts.quick,

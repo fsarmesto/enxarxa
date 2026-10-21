@@ -254,16 +254,19 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   3. el día que arbitra, 2 h después del último partido, "Pide el pago de hoy antes de mañana" con la dieta que le
      corresponde (`_shared/dieta.ts`, mismas reglas que la web: franja, día, festivos, sin dieta en alevín/amateur y
      finales/concentraciones). Una vez al día (`pub_cache aviso-cobro:<user>:<fecha>`); no si ya está solicitado.
+- Partido suspendido o anulado ≠ designación quitada (lo decidió Ferran el 21-oct). Suspendido/anulado: iSquad lo deja
+  en las designaciones con `estado` SUSPENDIDO (la FCVB lo paga igual): se queda, la web lo etiqueta y se avisa
+  "Partido suspendido". Quitada (ya no estás designado): desaparece de la lista y se quita del perfil.
 - Designaciones quitadas (issue #1, 21-oct-2026): antes el partido quitado se quedaba en `matches` y vigilar avisaba de
   "Designación anulada" en cada pasada. Ahora la primera lectura en la que falta solo pone `missing_since` (migración 021;
-  iSquad a veces no devuelve un partido una vez); si en la siguiente sigue faltando, un aviso y se BORRA la fila (antes de
-  enviar). Solo partidos de hoy en adelante: los jugados que ya no salen se quedan (puede ser una temporada que ya no se lee).
+  iSquad a veces no devuelve un partido una vez); si en la siguiente sigue faltando, un aviso "Ya no estás designado" y se
+  BORRA la fila (antes de enviar). Solo partidos de hoy en adelante: los jugados que ya no salen se quedan (puede ser una temporada que ya no se lee).
 - Código cambiado: iSquad pone o quita `@fecha T hora` al código cuando varios partidos lo comparten (el 21-oct
   `3JFGH041` pasó a `3JFGH041@2026-10-25T12:00` porque ese día había cadete y juvenil con el mismo código). Eso dejaba
   el partido duplicado y daba un falso "anulada". `designChanges` lo reconoce (mismo código base, equipos y competición):
   sin avisos, borra la fila vieja y pasa a la nueva lo puesto a mano (cobrado, km, dieta, peajes, festivo).
 - Tope contra bucles: `push_log` (user_id, key): cada aviso de cambio de designación sale una sola vez (claves
-  `nueva:id`, `cambio:id:fecha|hora|pabellón`, `anulada:id:missing_since`).
+  `nueva:id`, `cambio:id:fecha|hora|pabellón`, `estado:id:ESTADO`, `quitada:id:missing_since`).
 - En la web, la dieta que corresponde (`dietaOf`, de `compute()` vía `LAST_RES`) sale en el aviso de cobro, junto al
   estado de cada partido por pedir y en la tarjeta de la agenda: "🍽 Te corresponde dieta: … · ponla al pedir el pago".
 - Un partido aún no jugado puede tener ya su recibo vacío en iSquad: `payState` lo trata como futuro hasta su día.
