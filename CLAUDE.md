@@ -189,7 +189,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - **Al cambiar o añadir un texto en index.html, hay que añadir su traducción** en `i18n-ca.js` (las claves son el
   texto castellano exacto). Para encontrar lo que falta: recorrer la app en Chrome sin ventana con la app en catalán,
   recoger los textos visibles y buscar palabras castellanas (así se hizo el 21-oct).
-- Sin traducir: el Excel exportado y las notificaciones push (se generan en el servidor en castellano).
+- El Excel se genera en el navegador en el idioma de la app (cabeceras, textos, nombre de la hoja y del fichero pasan
+  por `tr()`). Sin traducir: las notificaciones push (se generan en el servidor en castellano).
 
 ## Edad mínima y política aceptada (21-oct-2026)
 
@@ -243,6 +244,18 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   más de 13 h, aviso a los admins (como mucho uno cada 6 h por motivo, `pub_cache salud-aviso:`).
 - Panel "Salud de la app" (admin): `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
   dispositivos, índice de plantillas y edad de las cachés.
+
+## Móvil: pestañas abajo, cabecera compacta y Cómo llegar (22-oct-2026, issues #2, #3 y #4)
+
+- Por debajo de 720 px las pestañas (`#views`, role="tab" con `aria-selected`) son una barra fija abajo con icono y
+  texto; la activa, con una raya roja arriba. `#appView` tiene margen abajo para que no tape nada.
+- Cabecera compacta: `#miniBar`, barra fija aparte (nombre, Actualizar y Salir) que entra por arriba cuando la fila del
+  título de la cabecera grande sale de la pantalla (evento scroll); la grande no cambia de tamaño, así nada salta.
+  En Chrome sin ventana, `scrollTo` no lanza el evento scroll: para capturas, lanzarlo a mano.
+- Cómo llegar: selector Coche / Transporte / Andando en Mis partidos (Próximos), recordado en `liq-ruta`;
+  `mapLink` pone travelmode (Google), directionsmode (app de Google Maps) y dirflg d/r/w (Apple Maps).
+- Accesibilidad (#10): `--ink-3` en claro #707070 (4,95:1), foco visible en enlaces, zonas táctiles de 44 px en
+  pantallas táctiles, las opciones de Cómo llegar bajan de línea con el texto al 200 %.
 
 ## Cabecera por pestaña (21-oct-2026)
 

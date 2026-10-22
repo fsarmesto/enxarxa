@@ -1,7 +1,7 @@
 /* Páginas legales (privacidad.html, aviso-legal.html): mismos colores y tipografía que la app (docs/index.html). */
 @import url("vendor/fonts/fonts.css");
 :root{
-  --yellow:#FFD100; --bg:#FFFFFF; --ink:#000000; --ink-2:#4A4A4A; --ink-3:#7A7A7A; --line:#DCDCDC; --link:#000000;
+  --yellow:#FFD100; --bg:#FFFFFF; --ink:#000000; --ink-2:#4A4A4A; --ink-3:#707070; --line:#DCDCDC; --link:#000000;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif; color-scheme:light;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){

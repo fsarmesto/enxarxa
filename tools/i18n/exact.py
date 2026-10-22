@@ -280,6 +280,13 @@ EXACT = {
 "Antes de seguir": "Abans de continuar",
 "La app es solo para mayores de 14 años. Confírmalo para seguir usándola.": "L'app és només per a majors de 14 anys. Confirma-ho per continuar fent-la servir.",
 "Continuar": "Continua",
+# Excel en catalán (#5) y pestañas, cabecera y "Cómo llegar" (#2, #3, #4), 22-oct-2026
+"Código": "Codi", "Población": "Població", "Rol": "Rol", "Equipo arbitral": "Equip arbitral", "Km ida": "Km anada",
+"Desplazamiento (o gastos FCVB)": "Desplaçament (o despeses FCVB)", "Bruto": "Brut", "Estado iSquad": "Estat iSquad",
+"Importes": "Imports", "Pendiente de cobro (neto)": "Pendent de cobrament (net)", "Ya cobrado (neto)": "Ja cobrat (net)",
+"previsión app": "previsió app", "finalizado": "finalitzat", "suspendido": "suspès", "Plazo terminado": "Termini acabat",
+"Sin importe": "Sense import", "Cómo llegar:": "Com arribar-hi:", "Coche": "Cotxe", "Transporte": "Transport",
+"Andando": "A peu", "Pestañas": "Pestanyes",
 # Política de privacidad y aviso legal (22-oct-2026)
 "Política de privacidad": "Política de privacitat", "Aviso legal": "Avís legal",
 "Lo entiendo y acepto la": "Ho entenc i accepto la", "He leído y acepto la": "He llegit i accepto la",
