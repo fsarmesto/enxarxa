@@ -218,7 +218,7 @@ EXACT = {
 "Se borrará tu contraseña de iSquad guardada y todos tus partidos y ajustes. No se puede deshacer.": "S'esborrarà la contrasenya d'iSquad desada i tots els teus partits i la configuració. No es pot desfer.",
 "La app se muestra en": "L'app es mostra en",
 "Designaciones publicadas (FCVB)": "Designacions publicades (FCVB)",
-"Solo lo ves tú. Qué categorías tienen ya partidos designados el próximo fin de semana, en toda la federación (de las fichas públicas de los árbitros en iSquad).": "Només el veus tu. Quines categories ja tenen partits designats el proper cap de setmana, a tota la federació (de les fitxes públiques dels àrbitres a iSquad).",
+"Solo lo ves tú. Qué categorías tienen ya partidos designados esta semana (de lunes a domingo), en toda la federación (de las fichas públicas de los árbitros en iSquad).": "Només el veus tu. Quines categories ja tenen partits designats aquesta setmana (de dilluns a diumenge), a tota la federació (de les fitxes públiques dels àrbitres a iSquad).",
 "Ábrelo para cargarlo (tarda unos segundos).": "Obre'l per carregar-lo (triga uns segons).",
 "Cargando…": "Carregant…", "Leyendo las fichas de los árbitros en iSquad…": "Llegint les fitxes dels àrbitres a iSquad…",
 "Actualizar": "Actualitza", "Sin categoría reconocida": "Sense categoria reconeguda",
