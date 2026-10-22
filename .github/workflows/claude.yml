@@ -1,0 +1,50 @@
+# Claude Code desde GitHub: escribir @claude en un issue o en un PR y Claude hace el trabajo en una rama y abre un PR.
+# Basado en examples/claude.yml de anthropics/claude-code-action (v1, comprobado el 22-oct-2026 con la v1.0.257).
+# El repo es público: solo responde si quien escribe @claude es el dueño del repo (author_association OWNER), solo
+# lee los comentarios de fsarmesto y el único secreto es el token de la suscripción de Claude. Nada de Supabase.
+# Lo que puede tocar y cómo trabaja está en CLAUDE.md ("Trabajo desde GitHub").
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && github.event.comment.author_association == 'OWNER' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && github.event.comment.author_association == 'OWNER' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && github.event.review.author_association == 'OWNER' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && github.event.issue.author_association == 'OWNER' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Un solo trabajo a la vez por issue o PR.
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write        # crear la rama y sus commits (main está protegida: no puede escribir en ella)
+      pull-requests: write   # abrir y actualizar el PR
+      issues: write          # comentar en el issue
+      id-token: write        # lo exige la action para obtener el token de la app de Claude (no da acceso a nada más)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Solo los comentarios de Ferran llegan a Claude (menos riesgo de instrucciones escondidas en comentarios ajenos).
+          include_comments_by_actor: "fsarmesto"
+          claude_args: |
+            --allowedTools "Bash(gh pr create:*),Bash(gh pr view:*),Bash(python3:*),Bash(google-chrome:*),Bash(mkdir:*),Bash(cp:*),Bash(ls:*)"
+            --append-system-prompt "Sigue la sección 'Trabajo desde GitHub (@claude)' de CLAUDE.md. Responde en castellano. Cuando el trabajo esté hecho, abre tú el PR contra main con gh pr create (título claro, descripción con lo que cambia, las capturas y 'Fixes #N'). Nunca escribas en main."
