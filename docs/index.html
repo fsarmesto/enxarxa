@@ -1835,7 +1835,17 @@ const POLICY_VERSION = '2026-10-22.2';
 const LEGAL_LINKS = '<a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a>';
 const UNDER14 = 'Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.';
 let CONSENT_OPEN = false;
-const needsConsent = () => !GUEST && P && P.policy_version!==POLICY_VERSION;
+// La aceptación se guarda en la cuenta (aceptar_politica) y también en este navegador: si la cuenta no la tiene pero
+// este navegador sí, se vuelve a guardar en la cuenta sin preguntar.
+const POL_KEY = () => 'liq-politica-'+USER.id;
+function polLocal(){ try{ return localStorage.getItem(POL_KEY())===POLICY_VERSION; }catch(e){ return false; } }
+function polSave(){ try{ localStorage.setItem(POL_KEY(), POLICY_VERSION); }catch(e){} }
+function needsConsent(){
+  if(GUEST || !P) return false;
+  if(P.policy_version===POLICY_VERSION){ polSave(); return false; }
+  if(!polLocal()) return true;
+  P.policy_version=POLICY_VERSION; sb.rpc('aceptar_politica',{v:POLICY_VERSION}).then(()=>{}, ()=>{}); return false;
+}
 function openConsent(){
   CONSENT_OPEN = true;
   $('guideSheet').innerHTML = `<div class="step-ico">🔒</div><h2 id="guideTitle">Antes de seguir</h2>
@@ -1857,7 +1867,7 @@ function openConsent(){
     const {error} = await sb.rpc('aceptar_politica',{v:POLICY_VERSION});
     $('cOk').disabled=false;
     if(error){ $('cErr').textContent=tr('No se ha podido guardar'); return; }
-    P.policy_version=POLICY_VERSION; CONSENT_OPEN=false; $('guide').classList.add('hidden'); maybeGuide();
+    P.policy_version=POLICY_VERSION; polSave(); CONSENT_OPEN=false; $('guide').classList.add('hidden'); maybeGuide();
   };
 }
 function maybeGuide(){ if(needsConsent()) return openConsent(); let seen=false; try{ seen=!!localStorage.getItem(GUIDE_KEY); }catch(e){} if(!seen && !GUEST) openGuide(); }
