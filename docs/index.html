@@ -265,6 +265,7 @@ details>summary:active{background:var(--surface-2)}
 .chip svg{display:block;flex:none}
 .fback{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55)}
 .fback.hidden,.fpanel.hidden{display:none}
+body.noscroll{overflow:hidden}
 .fpanel{position:fixed;z-index:61;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;background:var(--bg);color:var(--ink);border-radius:12px 12px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px rgba(0,0,0,.3)}
 .fpanel .fhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .fpanel .fhead h2{margin:0}
@@ -1011,6 +1012,13 @@ $('periodMenu').addEventListener('click', e=>{
   else { RS_MODE='temporada'; SEASON=b.dataset.per.slice(1); try{ localStorage.setItem(SEASON_KEY, SEASON); }catch(err){} }
   closePeriod(true); render();
 });
+// Flechas, Inicio y Fin para moverse por la lista de periodos.
+$('periodMenu').addEventListener('keydown', e=>{
+  const items=[...$('periodMenu').querySelectorAll('button')], i=items.indexOf(document.activeElement);
+  const to = e.key==='ArrowDown' ? (i+1)%items.length : e.key==='ArrowUp' ? (i-1+items.length)%items.length
+    : e.key==='Home' ? 0 : e.key==='End' ? items.length-1 : -1;
+  if(to<0) return; e.preventDefault(); items[to].focus();
+});
 document.addEventListener('click', e=>{ if(!e.target.closest('#pWrap')) closePeriod(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePeriod(true); closeFilters(true); } });
 
@@ -1100,13 +1108,24 @@ function openFilters(){
   DRAFT={...FILT}; DRAFT_ROLE = VIEW==='agenda' && AG_INFO ? AG_INFO.role : null;
   fillPanel();
   $('fpanel').classList.remove('hidden'); $('fback').classList.remove('hidden'); $('filtBtn').setAttribute('aria-expanded','true');
+  // En móvil es una hoja modal: la página de detrás no se mueve y el foco no sale de la hoja.
+  if(FSHEET.matches){ $('fpanel').setAttribute('aria-modal','true'); document.body.classList.add('noscroll'); }
   $('fpanel').querySelector('select')?.focus();
 }
 function closeFilters(focus){
   if($('fpanel').classList.contains('hidden')) return;
   $('fpanel').classList.add('hidden'); $('fback').classList.add('hidden'); $('filtBtn').setAttribute('aria-expanded','false');
+  $('fpanel').removeAttribute('aria-modal'); document.body.classList.remove('noscroll');
   if(focus) $('filtBtn').focus();
 }
+const FSHEET = matchMedia('(max-width:759px)');
+$('fpanel').addEventListener('keydown', e=>{
+  if(e.key!=='Tab' || !FSHEET.matches) return;
+  const f=[...$('fpanel').querySelectorAll('select,button')]; if(!f.length) return;
+  const first=f[0], last=f[f.length-1];
+  if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+});
 function saveFilters(){ try{ localStorage.setItem(FILTER_KEY, JSON.stringify(FILT)); }catch(e){} }
 function setAgRole(r){ AGROLE=r; try{ localStorage.setItem('liq-agenda-rol',AGROLE); }catch(err){} }
 function applyFilters(f, role){
