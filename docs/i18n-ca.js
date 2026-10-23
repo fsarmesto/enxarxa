@@ -453,7 +453,14 @@ I.exact = {
 "He actualizado las condiciones de uso y la política de privacidad. Para seguir usando la app, confirma tu edad y acéptalas.": "He actualitzat les condicions d'ús i la política de privacitat. Per continuar fent servir l'app, confirma la teva edat i accepta-les.",
 "Importes orientativos: manda el recibo de la FCVB.": "Imports orientatius: mana el rebut de la FCVB.",
 "Para seguir, acepta la política de privacidad.": "Per continuar, accepta la política de privacitat.",
-"He actualizado la política de privacidad. Para seguir usando la app, confirma tu edad y acéptala.": "He actualitzat la política de privacitat. Per continuar fent servir l'app, confirma la teva edat i accepta-la."
+"He actualizado la política de privacidad. Para seguir usando la app, confirma tu edad y acéptala.": "He actualitzat la política de privacitat. Per continuar fent servir l'app, confirma la teva edat i accepta-la.",
+"Último": "Últim",
+"Próximo": "Proper",
+"casa": "casa",
+"fuera": "fora",
+"Mostrar en Mis partidos": "Mostra a Els meus partits",
+"Más opciones": "Més opcions",
+"Cómo funciona": "Com funciona"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
@@ -473,6 +480,8 @@ I.rules = [
   [/^Actualizado: (.+)$/, 'Actualitzat: $1'],
   [/^Sin guardar · leído de iSquad: (.+)$/, "Sense desar · llegit d'iSquad: $1"],
   [/^Te he encontrado en (\d+) plantillas? de la FCVB por tu foto de afiliado de iSquad\.(.*)$/, (m,n,r) => `T'he trobat en ${n} ${n==='1'?'plantilla':'plantilles'} de la FCVB per la teva foto d'afiliat d'iSquad.${r.replace(/Revisando plantillas: (\d+) de (\d+)\./,'Revisant plantilles: $1 de $2.')}`],
+  [/^Te he encontrado en (\d+) plantillas? por tu foto de iSquad(.*)$/, (m,n,r) => `T'he trobat a ${n} ${n==='1'?'plantilla':'plantilles'} per la teva foto d'iSquad${r.replace(/\. Revisando plantillas: (\d+) de (\d+)\./,'. Revisant plantilles: $1 de $2.')}`],
+  [/^Revisando plantillas: (\d+) de (\d+)\.$/, 'Revisant plantilles: $1 de $2.'],
   [/^Sales en la plantilla: (.+)$/, (m,r) => `Surts a la plantilla: ${({jugador:'jugador',entrenador:'entrenador',invitado:'convidat'})[r]||r}`],
   [/^Te he encontrado en (\d+) equipos?$/, (m,n) => `T'he trobat en ${n} ${n==='1'?'equip':'equips'}`],
   [/^No sales en ninguna plantilla de este club \((\d+) equipos?\)$/, "No surts a cap plantilla d'aquest club ($1 equips)"],

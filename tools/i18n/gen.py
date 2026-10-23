@@ -50,6 +50,8 @@ RULES = r"""[
   [/^Actualizado: (.+)$/, 'Actualitzat: $1'],
   [/^Sin guardar · leído de iSquad: (.+)$/, "Sense desar · llegit d'iSquad: $1"],
   [/^Te he encontrado en (\d+) plantillas? de la FCVB por tu foto de afiliado de iSquad\.(.*)$/, (m,n,r) => `T'he trobat en ${n} ${n==='1'?'plantilla':'plantilles'} de la FCVB per la teva foto d'afiliat d'iSquad.${r.replace(/Revisando plantillas: (\d+) de (\d+)\./,'Revisant plantilles: $1 de $2.')}`],
+  [/^Te he encontrado en (\d+) plantillas? por tu foto de iSquad(.*)$/, (m,n,r) => `T'he trobat a ${n} ${n==='1'?'plantilla':'plantilles'} per la teva foto d'iSquad${r.replace(/\. Revisando plantillas: (\d+) de (\d+)\./,'. Revisant plantilles: $1 de $2.')}`],
+  [/^Revisando plantillas: (\d+) de (\d+)\.$/, 'Revisant plantilles: $1 de $2.'],
   [/^Sales en la plantilla: (.+)$/, (m,r) => `Surts a la plantilla: ${({jugador:'jugador',entrenador:'entrenador',invitado:'convidat'})[r]||r}`],
   [/^Te he encontrado en (\d+) equipos?$/, (m,n) => `T'he trobat en ${n} ${n==='1'?'equip':'equips'}`],
   [/^No sales en ninguna plantilla de este club \((\d+) equipos?\)$/, "No surts a cap plantilla d'aquest club ($1 equips)"],
