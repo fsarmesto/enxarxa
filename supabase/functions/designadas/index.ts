@@ -1,4 +1,4 @@
-// Panel de administración: qué categorías tienen ya partidos designados el próximo fin de semana (toda la FCVB).
+// Panel de administración: qué categorías tienen ya partidos designados esta semana, de lunes a domingo (toda la FCVB).
 // Solo para los usuarios del secret ADMIN_LOGINS. Fuente pública: la ficha de "próximos partidos que arbitrará" de
 // cada árbitro (partidos_arbitro.php, ~0,5 KB; la de toda la federación da error 500), cruzada con el listado de
 // partidos de la federación para saber la categoría. Resultado en caché 1 h ({refresh:true} para forzarlo).
@@ -49,7 +49,7 @@ const nombreCat = (cat: string) => { const c = norm(cat), d = c.match(/^(PRIMERA
   return [div, age, gen].filter(Boolean).join(" ") || cat; };
 
 // Cron (cada hora de 8 a 22): recalcula y avisa a los admins de las categorías que han empezado a tener designaciones
-// este fin de semana, y de si la app tiene problemas (salud).
+// esta semana, y de si la app tiene problemas (salud).
 async function cron(db: Db) {
   const now = madridNow();
   if (now.hour < 8 || now.hour > 22) return { skipped: "noche" };
@@ -154,10 +154,18 @@ function calcular(db: Db): Promise<Resultado> {
       }
     };
     await Promise.all(Array.from({ length: 10 }, worker));
-    // Partidos de la federación de hoy al domingo que viene, por categoría (la del listado, con género).
-    const now = new Date(), today = now.toISOString().slice(0, 10);
-    const until = new Date(now.getTime() + ((7 - now.getUTCDay()) % 7) * 864e5).toISOString().slice(0, 10);
-    const list = (await feed(db)).filter((p) => p.d.slice(0, 10) >= today && p.d.slice(0, 10) <= until);
+    // Semana de lunes a domingo (hora de Madrid): hasta el domingo se sigue viendo la misma.
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
+    const day = (n: number) => new Date(Date.parse(today + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+    const back = (new Date(today + "T12:00:00Z").getUTCDay() + 6) % 7, desde = day(-back), until = day(6 - back);
+    // La ficha solo enseña los próximos partidos: las designaciones de días ya jugados se guardan de lecturas anteriores.
+    const semKey = `desig-semana:${desde}`;
+    const { data: prevSem } = await db.from("pub_cache").select("data").eq("key", semKey).maybeSingle();
+    for (const [k, x] of Object.entries((prevSem?.data || {}) as Record<string, { d: string; teams: string; comp: string }>)) if (!desig.has(k)) desig.set(k, x);
+    for (const k of [...desig.keys()]) { const d = desig.get(k)!.d.slice(0, 10); if (d < desde || d > until) desig.delete(k); }
+    if (ok) await db.from("pub_cache").upsert({ key: semKey, data: Object.fromEntries(desig), fetched_at: new Date().toISOString() });
+    // Partidos de la federación de la semana, por categoría (la del listado, con género).
+    const list = (await feed(db)).filter((p) => p.d.slice(0, 10) >= desde && p.d.slice(0, 10) <= until);
     const cats = new Map<string, { cat: string; total: number; desig: number }>();
     const matched = new Set<string>();
     for (const p of list) {
@@ -172,12 +180,12 @@ function calcular(db: Db): Promise<Resultado> {
     // ("1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO); si tampoco, a "otras".
     const otras = new Map<string, number>();
     for (const [k, x] of desig) {
-      if (matched.has(k) || x.d.slice(0, 10) < today || x.d.slice(0, 10) > until) continue;
+      if (matched.has(k)) continue;
       const cat = compToCat(x.comp), c = cat && cats.get(cat);
       if (c && c.desig < c.total) c.desig++; else otras.set(x.comp, (otras.get(x.comp) || 0) + 1);
     }
     return {
-      actualizado: new Date().toISOString(), desde: today, hasta: until, arbitros: ids.length, leidos: ok, errores: fail,
+      actualizado: new Date().toISOString(), desde, hasta: until, arbitros: ids.length, leidos: ok, errores: fail,
       designados: desig.size, partidos: list.length,
       categorias: [...cats.values()], otras: [...otras].map(([comp, n]) => ({ comp, n })),
     };

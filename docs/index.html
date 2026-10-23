@@ -77,20 +77,26 @@ input[type=checkbox]{accent-color:var(--red);width:16px;height:16px}
     linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,.5)) bottom/100% 3px no-repeat,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Cpath d='M0 .5H22M.5 0V22' stroke='%23fff' stroke-opacity='.22' stroke-width='1.2' fill='none'/%3E%3C/svg%3E") 0 6px/22px 22px repeat}
 .board .top button{background:var(--board)}
 .board .top .brand h1,.board .top .brand .sub{text-shadow:0 0 6px #000,0 0 3px #000}
-.board .top{display:flex;justify-content:space-between;align-items:center;gap:12px 20px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:16px}
+.board .top{display:flex;justify-content:space-between;align-items:center;gap:12px 20px}
+.brand{display:flex;align-items:center;gap:16px;min-width:0}
 .brand .logo{height:52px;width:auto;display:block;border-radius:8px}
-.brand .sub{display:flex;align-items:center;gap:12px;margin:5px 0 0;font-size:12.5px;color:var(--board-2)}
-.board .gh{display:inline-flex;align-items:center;gap:5px;color:var(--board-ink);text-decoration:none;font-weight:500}
-.board .gh:hover{color:var(--yellow)}
-.board .gh:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
-.board .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.brand>div{min-width:0}
+.brand .sub{display:flex;flex-direction:column;gap:1px;margin:5px 0 0;font-size:12.5px;line-height:1.3;color:var(--board-2)}
+.auth .brand .sub{flex-direction:row;align-items:center;gap:12px}
+.board a.gh:hover{color:var(--yellow)}
+.brand .sub .upd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+a.gh{display:inline-flex;align-items:center;gap:5px;color:inherit;font-weight:600}
+.board .actions{display:flex;gap:8px;align-items:center;flex:none}
 .board button{border-color:var(--board-ink);color:var(--board-ink)}
 .board button.ghost{border-color:transparent}
 .board button:focus-visible{outline-color:var(--yellow)}
-.seasons{display:inline-flex;border:2px solid var(--yellow);border-radius:3px;overflow:hidden}
-.seasons button{border:0;border-radius:0;padding:5px 12px;color:var(--yellow);font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.02em}
-.seasons button[aria-pressed="true"]{background:var(--yellow);color:var(--black)}
+/* Actualizar: botón de icono (la flecha gira mientras trabaja) */
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border-radius:50%}
+.iconbtn svg{display:block}
+.iconbtn.spin svg,.minibar button.spin svg{animation:giro 1s linear infinite}
+@keyframes giro{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.iconbtn.spin svg,.minibar button.spin svg{animation:none}}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .score{display:grid;grid-template-columns:repeat(4,1fr);margin-top:22px;border-top:1px solid #333}
 .score>div{padding:14px 16px 0 0}
 .score>div+div{padding-left:16px;border-left:1px solid #333}
@@ -220,8 +226,12 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .alert>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;min-height:38px}
 .alert>summary::-webkit-details-marker{display:none}
 .alert>summary .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.alert>summary .chev{transition:transform .15s;color:var(--ink-3);font-size:12px}
-.alert[open]>summary .chev{transform:rotate(180deg)}
+/* Flecha de desplegar (alertas, tarjetas de Mis partidos, calendarios): botón de 44 px con el chevron grueso */
+summary .chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;border-radius:8px;background:var(--surface-2);color:var(--ink);transition:transform .15s}
+summary .chev svg{display:block}
+details[open]>summary .chev{transform:rotate(180deg)}
+details>summary:active{background:var(--surface-2)}
+@media (prefers-reduced-motion:reduce){summary .chev{transition:none}}
 .alert .body{padding:0 12px 10px;font-size:13.5px;color:var(--ink-2)}
 .alert .body ul{margin:6px 0 10px;padding-left:18px}
 .alert .body li{margin:2px 0}
@@ -231,13 +241,48 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .lost{color:var(--board-pend)}
 .tag.bad{background:var(--pend);color:#fff}
 /* Filtros */
-.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 10px}
-.filters label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
-.filters select{width:100%;padding:9px 10px;font-size:14.5px;font-weight:600;text-transform:none;letter-spacing:0;border:2px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink)}
-.filters select.on{border-color:var(--ink);background:var(--yellow);color:#000}
+/* Controles recogidos: una fila con [periodo o Próximos/Jugados] + Filtros; los filtros, en una hoja (móvil) o panel (escritorio) */
+.ctrl{position:relative;margin:0 0 14px}
+.ctrl.hidden{display:none}
+.ctrlrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ctrlslot:empty{display:none}
+.ctrlbtns{display:flex;align-items:center;gap:8px}
+.ctrlslot:not(:empty)+.ctrlbtns{margin-left:auto}
+.ctrlbtn{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:4px 12px;border-width:2px;font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.02em;color:var(--ink);background:var(--bg)}
+.ctrlbtn svg{display:block;flex:none}
+.ctrlbtn.on{background:var(--yellow);border-color:var(--yellow);color:#000}
+.ctrlbtn .cnt{display:inline-block;min-width:20px;padding:0 5px;border-radius:10px;background:#000;color:var(--yellow);font-size:14px;line-height:20px;text-align:center}
+.pwrap{position:relative}
+.pmenu{position:absolute;z-index:30;top:calc(100% + 6px);left:0;min-width:220px;display:grid;background:var(--bg);border:2px solid var(--ink);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);overflow:hidden}
+.pmenu.hidden{display:none}
+.pmenu button{border:0;border-radius:0;text-align:left;min-height:44px;padding:8px 14px;font-family:var(--display);font-size:18px;font-weight:600;color:var(--ink);background:transparent;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pmenu button+button{border-top:1px solid var(--line)}
+.pmenu button[aria-checked="true"]{background:var(--yellow);color:#000}
+.pmenu button[aria-checked="true"]::after{content:"✓"}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chips:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:2px 6px 2px 10px;border:1px solid var(--ink-3);border-radius:16px;font-size:13px;font-weight:600;color:var(--ink);background:var(--surface-2)}
+.chip svg{display:block;flex:none}
+.fback{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55)}
+.fback.hidden,.fpanel.hidden{display:none}
+body.noscroll{overflow:hidden}
+.fpanel{position:fixed;z-index:61;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;background:var(--bg);color:var(--ink);border-radius:12px 12px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px rgba(0,0,0,.3)}
+.fpanel .fhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.fpanel .fhead h2{margin:0}
+.fpanel .fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fpanel label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.fpanel select{width:100%;min-height:44px;padding:9px 10px;font-size:14.5px;font-weight:600;text-transform:none;letter-spacing:0;border:2px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink)}
+.fpanel select.on{border-color:var(--ink);background:var(--yellow);color:#000}
+.fpanel .facts{display:flex;gap:10px;margin-top:16px}
+.fpanel .facts .primary{flex:1;min-height:44px}
+.fpanel .facts button{min-height:44px}
+@media (min-width:760px){
+  .fpanel{position:absolute;top:calc(100% + 6px);left:0;right:auto;bottom:auto;width:min(480px,100%);max-height:none;border:2px solid var(--ink);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .fback{background:transparent}
+}
+@media (max-width:360px){ .fpanel .fgrid{grid-template-columns:1fr} }
 .fsum{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;font-size:14px;margin:0 0 24px;padding:10px 12px;background:var(--surface-2)}
 .fsum strong{font-family:var(--display);font-size:19px}
-@media (max-width:760px){ .filters{grid-template-columns:repeat(2,minmax(0,1fr))} }
 /* Paneles de admin */
 .dg-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13.5px;color:var(--ink-2)}
 .dg-grp{font-family:var(--display);font-size:19px;font-weight:600;margin:16px 0 4px;border-bottom:2px solid var(--rule);padding-bottom:2px}
@@ -259,7 +304,6 @@ body.dep .arb-only{display:none!important}
 .views button{border:0;border-radius:0;padding:10px 22px;font-family:var(--display);font-size:19px;font-weight:600;background:transparent;color:var(--ink)}
 @media (max-width:560px){ .views{width:100%} .views button{flex:1 1 auto;padding:9px 6px;font-size:15px;white-space:nowrap} }
 /* Resumen */
-.rs-mode{margin:0 0 16px}
 .rs-hero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin:0 0 20px}
 .rs-hero>div{background:var(--bg);padding:12px 12px 10px}
 .rs-hero .l{font-size:12px;color:var(--ink-3);font-weight:600}
@@ -285,7 +329,7 @@ body.dep .arb-only{display:none!important}
 .rs-row .e{font-weight:700;min-width:84px;text-align:right}
 .rs-note{font-size:12.5px;color:var(--ink-3);margin-top:14px}
 @media print{ body *{visibility:hidden} #resumen,#resumen *{visibility:visible} #resumen{position:absolute;left:0;top:0;width:100%} .no-print{display:none!important} }
-.views button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.views button[aria-selected="true"]{background:var(--yellow);color:#000}
 body:not([data-vista="cobros"]) #alerts{display:none}
 .board .statline{display:flex;align-items:center;gap:8px;width:100%;margin:16px 0 0;padding:0;border:0;background:none;color:var(--board-2);
   font:500 13px/20px var(--body,inherit);text-align:left;cursor:default;min-height:20px}
@@ -294,6 +338,7 @@ body:not([data-vista="cobros"]) #alerts{display:none}
 .board .statline .txt b.p{color:var(--board-pend)}
 .board .statline .chev{display:none;flex:none;width:20px;height:20px;color:var(--yellow);transition:transform .25s}
 .board .statline .chev svg{display:block}
+body:not([data-vista="cobros"]) .board .statline,body.dep .board .statline{display:none}   /* la fecha de "Actualizado" va bajo el título */
 body[data-vista="cobros"]:not(.dep) .board .statline{cursor:pointer}
 body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .board .statline[aria-expanded="true"] .chev{transform:rotate(180deg)}
@@ -313,7 +358,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
   .views button{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;padding:6px 2px;font-size:13px;line-height:1.1;white-space:nowrap;color:var(--ink-2)}
   .views button span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
   .views .ico{display:block;width:22px;height:22px}
-  .views button[aria-selected="true"]{background:transparent;color:var(--ink);box-shadow:inset 0 3px 0 var(--red)}
+  .views button[aria-selected="true"]{background:transparent;color:var(--ink);box-shadow:inset 0 3px 0 var(--yellow)}
   .views button.dot::after{position:absolute;top:8px;left:calc(50% + 9px);margin:0}
   #appView{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
   body:has(#appView:not(.hidden)) .toast{bottom:calc(78px + env(safe-area-inset-bottom,0px))}
@@ -328,24 +373,16 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
   .minibar button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 10px;border-color:transparent;color:var(--board-ink);background:transparent}
 }
 @media (prefers-reduced-motion:reduce){ .minibar{transition:none} }
-/* Cómo llegar: coche, transporte público o andando (#4) */
-.travelsel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 16px;font-size:13.5px;color:var(--ink-2)}
-.travelsel .segb{flex-wrap:wrap;max-width:100%}   /* con el texto muy grande, las opciones bajan de línea */
 /* Zonas táctiles de al menos 44 px en pantallas táctiles (#10) */
 @media (pointer:coarse){
-  .subviews button,.agrole button,.segb button,.seasons button,a.map,button.ghost,button.pay{min-height:44px}
+  .segb button,a.map,button.ghost,button.pay{min-height:44px}
   a.map{display:inline-flex;align-items:center}
   input[type=checkbox]{width:20px;height:20px}
 }
-.subviews{display:flex;gap:8px;margin:0 0 16px}
-.subviews button{border-width:2px;padding:5px 14px;font-size:14px}
-.subviews button[aria-pressed="true"]{background:var(--yellow);border-color:var(--yellow);color:#000}
-.agrole{display:inline-flex;flex-wrap:wrap;gap:0;margin:-6px 0 16px;border:1px solid var(--ink-3);border-radius:3px;overflow:hidden}
-.agrole button{border:0;border-radius:0;padding:5px 12px;font-size:13px;font-weight:600;background:transparent;color:var(--ink-2)}
-.agrole button+button{border-left:1px solid var(--line)}
-.agrole button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.agrole button:disabled{opacity:.4}
-@media (max-width:560px){ .agrole{display:flex;flex-wrap:nowrap;width:100%} .agrole button{flex:1;padding:6px 4px;font-size:12px;white-space:nowrap} }
+.ctrlslot .segb{max-width:100%}
+.ctrlslot .segb button{white-space:nowrap;padding:3px 9px;font-size:15px}
+.pmenu button:focus-visible{outline-offset:-3px}
+@media (max-width:420px){ .ctrlbtn{padding:4px 10px;font-size:16px} .ctrlbtns{gap:6px} .ctrlrow{gap:6px} }
 /* Agenda */
 .ag-day{margin:0 0 22px}
 .ag-day h3{font-family:var(--display);font-size:21px;font-weight:600;margin:0 0 8px;padding-bottom:4px;border-bottom:3px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
@@ -385,7 +422,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 /* Tarjeta de la agenda: plegada lo esencial; al tocar, lo secundario */
 .agc{border-bottom:1px solid var(--line)}
 .agc:last-child{border-bottom:0}
-.agc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:56px minmax(0,1fr) 14px;gap:4px 12px;padding:12px 0;align-items:start}
+.agc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:56px minmax(0,1fr) 44px;gap:4px 12px;padding:12px 0;align-items:start}
 .agc>summary::-webkit-details-marker{display:none}
 .agc .tm{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.05}
 .agc .tm small{display:block;font-family:"Barlow",system-ui,sans-serif;font-size:11px;font-weight:600;color:var(--ink-3)}
@@ -396,8 +433,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .agc.done .tt{color:var(--ink-2)}
 .agc .sub{font-size:12.5px;color:var(--ink-3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .agc .clash{margin:5px 0 0;font-size:12.5px}
-.agc .chev{color:var(--ink-3);font-size:11px;margin-top:7px;transition:transform .15s}
-.agc[open] .chev{transform:rotate(180deg)}
+.agc .chev{margin-top:-2px}
 .agc .more{padding:0 0 14px 68px;display:grid;gap:10px}
 .agc .more .full{font-size:12.5px;color:var(--ink-3)}
 .agc .more .crew{margin:0}
@@ -411,13 +447,11 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .agc .car{font-size:12.5px;color:#1E7B34;font-weight:600;margin-top:4px}
 :root[data-theme="dark"] .agc .car{color:#5BD07A}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .agc .car{color:#5BD07A} }
-@media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 12px;gap:4px 10px} .agc .tm{font-size:22px} }
+@media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 44px;gap:4px 8px} .agc .tm{font-size:22px} }
 .res{font-family:var(--display);font-size:22px;font-weight:700;margin-left:8px;vertical-align:middle}
 details.cal{margin-top:6px}
-details.cal>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);list-style:none}
+details.cal>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
 details.cal>summary::-webkit-details-marker{display:none}
-details.cal>summary::before{content:"▸ "}
-details.cal[open]>summary::before{content:"▾ "}
 .calrow{display:grid;grid-template-columns:92px 1fr auto;gap:2px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
 .calrow:last-child{border-bottom:0}
 .calrow .dd{color:var(--ink-3);font-size:12.5px}
@@ -603,23 +637,22 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 </main>
 
 <!-- ============ App ============ -->
-<div class="minibar" id="miniBar" inert><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" id="mbOut">Salir</button></div>
+<div class="minibar" id="miniBar" inert><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
 <main id="appView" class="hidden">
   <div class="board">
     <div class="top">
       <div class="brand">
         <img class="logo" src="icon.svg" width="52" height="52" alt="">
-        <div><h1>Vòlei EnXarxa</h1><p class="sub"><span>App no oficial</span><a class="gh" href="https://github.com/fsarmesto" target="_blank" rel="noopener" title="GitHub de fsarmesto"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>fsarmesto</a></p></div>
+        <div><h1>Vòlei EnXarxa</h1><p class="sub"><span>App no oficial</span><span class="upd" id="updTxt"></span></p></div>
       </div>
       <div class="actions">
-        <button id="btnSync" class="arb-only">Actualizar ahora</button>
-        <button class="ghost" id="btnLogout">Salir</button>
+        <button id="btnSync" class="iconbtn arb-only" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </div>
     <!-- Una sola línea de estado, igual de alta en todas las pestañas: en Cobros abre y cierra las cifras. -->
     <button type="button" class="statline" id="statLine" aria-expanded="false" aria-controls="scoreWrap"><span class="txt" id="statTxt"></span><span class="chev" aria-hidden="true"><svg viewBox="0 0 20 20" width="20" height="20"><path d="M4 7l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="scorewrap" id="scoreWrap"><div class="inner">
-      <div class="scoreacts arb-only"><div class="seasons hidden" id="seasons" role="group" aria-label="Temporada"></div><button id="btnExport">Exportar a Excel</button></div>
+      <div class="scoreacts arb-only"><button id="btnExport">Exportar a Excel</button></div>
       <div class="score arb-only">
         <div class="pending"><div class="l">Pendiente de cobro</div><div class="v" id="sPending">0,00 €</div><div class="br" id="sPendBr"></div></div>
         <div><div class="l">Ya cobrado</div><div class="v" id="sPaid">0,00 €</div></div>
@@ -641,7 +674,18 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   <div class="alerts" id="alerts"></div>
   <div class="pushcard hidden" id="pushCard"></div>
 
-  <div class="filters arb-only" id="filters"></div>
+  <div class="ctrl" id="ctrl">
+    <div class="ctrlrow">
+      <div class="ctrlslot" id="ctrlSlot"></div>
+      <div class="ctrlbtns">
+        <div class="pwrap arb-only hidden" id="pWrap"><button type="button" class="ctrlbtn" id="periodBtn" aria-haspopup="true" aria-expanded="false" aria-controls="periodMenu"></button><div class="pmenu hidden" id="periodMenu" role="menu" aria-label="Periodo"></div></div>
+        <button type="button" class="ctrlbtn" id="filtBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fpanel"></button>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="fback hidden" id="fback"></div>
+    <div class="fpanel hidden" id="fpanel" role="dialog" aria-label="Filtros"></div>
+  </div>
   <div class="fsum hidden" id="fsum"></div>
   <div id="ledger"></div>
   <div id="agenda" class="hidden"></div>
@@ -664,7 +708,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 
   <details class="panel hidden" id="desigPanel">
     <summary>Designaciones publicadas (FCVB)</summary>
-    <p class="small muted">Solo lo ves tú. Qué categorías tienen ya partidos designados el próximo fin de semana, en toda la federación (de las fichas públicas de los árbitros en iSquad).</p>
+    <p class="small muted">Solo lo ves tú. Qué categorías tienen ya partidos designados esta semana (de lunes a domingo), en toda la federación (de las fichas públicas de los árbitros en iSquad).</p>
     <div id="desigBody"><p class="small muted">Ábrelo para cargarlo (tarda unos segundos).</p></div>
   </details>
 
@@ -723,8 +767,9 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
         <div class="seg" data-noi18n><span class="segb lang-seg" role="group"><button type="button" data-lang="es">Castellano</button><button type="button" data-lang="ca">Català</button></span></div>
         <h2 style="margin-top:16px">Tu cuenta</h2>
         <p class="small muted" id="accountInfo"></p>
-        <div class="row" style="margin-bottom:12px"><button id="btnGuide">Ver la guía</button><button id="btnShare">Compartir la app</button></div>
+        <div class="row" style="margin-bottom:12px"><button id="btnGuide">Ver la guía</button><button id="btnShare">Compartir la app</button><button id="btnLogout">Salir</button></div>
         <button class="danger" id="btnDelete">Borrar mi cuenta y mis datos</button>
+        <p class="small muted" style="margin-top:14px">Hecha por <a class="gh" href="https://github.com/fsarmesto" target="_blank" rel="noopener" title="GitHub de fsarmesto"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>fsarmesto</a></p>
         <p class="small muted legal-links" style="margin-top:14px"><a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
       </div>
     </div>
@@ -1027,17 +1072,56 @@ function pickSeason(){
   const today = seasonOf(new Date().toISOString().slice(0,10));
   SEASON = all.includes(today) ? today : (all.at(-1) || today);
 }
-function renderSeasons(){
-  const all = seasonsAvailable(), box = $('seasons');
-  box.classList.toggle('hidden', all.length < 2);
-  box.innerHTML = all.map(s=>`<button type="button" data-season="${s}" aria-pressed="${s===SEASON}">${seasonLabel(s)}</button>`).join('');
+// Un solo selector de periodo (Cobros y Resumen): un botón con el periodo actual que abre la lista de temporadas y,
+// en Resumen, el año natural para la renta.
+const CHEV_SVG = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M4 7l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// Flecha de las filas desplegables: botón de 44 px con chevron grueso que gira al abrir. El texto oculto lo lee el lector de pantalla
+// y aria-expanded sigue al <details> (lo actualiza el evento toggle de más abajo).
+const chevHtml = open => `<span class="chev" aria-hidden="true">${CHEV_SVG}</span><span class="sr">${open?'Ocultar el detalle':'Mostrar el detalle'}</span>`;
+document.addEventListener('toggle', e=>{
+  const d=e.target, s=d.tagName==='DETAILS' && d.querySelector(':scope>summary');
+  if(!s || !s.querySelector('.chev')) return;
+  s.setAttribute('aria-expanded', String(d.open));
+  const sr=s.querySelector('.sr'); if(sr) sr.textContent = tr(d.open?'Ocultar el detalle':'Mostrar el detalle');
+}, true);
+function periodOptions(){
+  const o = seasonsAvailable().reverse().map(s=>({k:'s'+s, t:`Temporada ${seasonLabel(s)}`}));
+  if(VIEW==='resumen') o.push({k:'anio', t:`Año ${new Date().getFullYear()} · renta`});
+  return o;
 }
-// Selector de temporada: en las cifras de Cobros y en Resumen (los dos con data-season).
-document.addEventListener('click', e=>{
-  const b=e.target.closest('button[data-season]'); if(!b) return;
-  SEASON=b.dataset.season; try{ localStorage.setItem(SEASON_KEY, SEASON); }catch(err){}
-  render();
+function renderPeriod(){
+  const opts = periodOptions(), show = (VIEW==='cobros' || VIEW==='resumen') && !DEP && opts.length>=2;
+  $('pWrap').classList.toggle('hidden', !show);
+  if(!show){ closePeriod(); return; }
+  const cur = (VIEW==='resumen' && RS_MODE==='anio' ? opts.find(o=>o.k==='anio') : opts.find(o=>o.k==='s'+SEASON)) || opts[0];
+  $('periodBtn').innerHTML = `<span>${esc(cur.t)}</span>${CHEV_SVG}`;
+  $('periodMenu').innerHTML = opts.map(o=>`<button type="button" role="menuitemradio" aria-checked="${o.k===cur.k}" data-per="${o.k}">${esc(o.t)}</button>`).join('');
+}
+function closePeriod(focus){
+  if($('periodMenu').classList.contains('hidden')) return;
+  $('periodMenu').classList.add('hidden'); $('periodBtn').setAttribute('aria-expanded','false'); if(focus) $('periodBtn').focus();
+}
+$('periodBtn').addEventListener('click', ()=>{
+  const open = $('periodMenu').classList.contains('hidden');
+  if(!open){ closePeriod(); return; }
+  closeFilters(); $('periodMenu').classList.remove('hidden'); $('periodBtn').setAttribute('aria-expanded','true');
+  ($('periodMenu').querySelector('[aria-checked="true"]')||$('periodMenu').querySelector('button'))?.focus();
 });
+$('periodMenu').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-per]'); if(!b) return;
+  if(b.dataset.per==='anio') RS_MODE='anio';
+  else { RS_MODE='temporada'; SEASON=b.dataset.per.slice(1); try{ localStorage.setItem(SEASON_KEY, SEASON); }catch(err){} }
+  closePeriod(true); render();
+});
+// Flechas, Inicio y Fin para moverse por la lista de periodos.
+$('periodMenu').addEventListener('keydown', e=>{
+  const items=[...$('periodMenu').querySelectorAll('button')], i=items.indexOf(document.activeElement);
+  const to = e.key==='ArrowDown' ? (i+1)%items.length : e.key==='ArrowUp' ? (i-1+items.length)%items.length
+    : e.key==='Home' ? 0 : e.key==='End' ? items.length-1 : -1;
+  if(to<0) return; e.preventDefault(); items[to].focus();
+});
+document.addEventListener('click', e=>{ if(!e.target.closest('#pWrap')) closePeriod(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePeriod(true); closeFilters(true); } });
 
 /* ---------- Render ---------- */
 const eur = v => v.toLocaleString(LOC(),{style:'currency',currency:'EUR'});
@@ -1075,31 +1159,103 @@ try{ Object.assign(FILT, JSON.parse(localStorage.getItem(FILTER_KEY)||'{}')); }c
 // Un filtro guardado con una opción que ya no existe se descarta (si no, la lista saldría vacía sin motivo visible).
 for(const [k,opts] of [['role',ROLES],['div',DIVS],['age',AGES],['gen',GENS]]) if(FILT[k] && !opts.some(([v])=>v===FILT[k])) FILT[k]='';
 const FGET={role:roleOf, div:m=>compParts(m.comp).div, age:m=>compParts(m.comp).age, gen:m=>compParts(m.comp).gen};
-const passes=(m,skip)=>Object.entries(FILT).every(([k,v])=>!v || k===skip || FGET[k](m)===v);
+const passesF=(m,f,skip)=>Object.entries(f).every(([k,v])=>!v || k===skip || FGET[k](m)===v);
+const passes=(m,skip)=>passesF(m,FILT,skip);
 const filtering=()=>Object.values(FILT).some(Boolean);
+const FGROUPS=[['role','Designación',ROLES,'Todas'],['div','División',DIVS,'Todas'],['age','Categoría',AGES,'Todas'],['gen','Género',GENS,'Todos']];
+const AGROLES=[['todo','Todo'],['arbitro','Árbitro'],['jugador','Jugador'],['entrenador','Entrenador']];
+const ICON_FILT='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const ICON_X='<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+// Los filtros van recogidos: un botón "Filtros · n" que abre una hoja (móvil) o un panel (escritorio), y debajo una etiqueta
+// por cada filtro activo que se quita con la ×. "Ver partidos como" (Mis partidos) es uno más: lo que sabe renderAgenda va en AG_INFO.
+let FARGS=null, AG_INFO=null, DRAFT=null, DRAFT_ROLE=null;
+function activeChips(){
+  const out=[];
+  if(!DEP) for(const [k,,opts] of FGROUPS) if(FILT[k]) out.push({k, t:(opts.find(([v])=>v===FILT[k])||[0,FILT[k]])[1]});
+  if(VIEW==='agenda' && AG_INFO && AG_INFO.role!=='todo') out.push({k:'agrole', t:AGROLES.find(([r])=>r===AG_INFO.role)[1]});
+  return out;
+}
 function renderFilters(ms,res){
-  const groups=[['role','Designación',ROLES,'Todas'],['div','División',DIVS,'Todas'],['age','Categoría',AGES,'Todas'],['gen','Género',GENS,'Todos']];
-  $('filters').innerHTML = groups.map(([k,label,opts,all])=>{
-    // Cada desplegable cuenta los partidos que cumplen los otros filtros: así se ve qué combinaciones existen.
-    const pool=ms.filter(m=>passes(m,k)), cnt=new Map(); for(const m of pool){ const v=FGET[k](m); cnt.set(v,(cnt.get(v)||0)+1); }
-    const o=opts.filter(([v])=>cnt.get(v)||FILT[k]===v).map(([v,t])=>`<option value="${v}"${FILT[k]===v?' selected':''}>${esc(t)} (${cnt.get(v)||0})</option>`).join('');
-    return `<label>${label}<select data-filter="${k}" class="${FILT[k]?'on':''}"><option value="">${all} (${pool.length})</option>${o}</select></label>`;
-  }).join('');
+  if(ms) FARGS=[ms,res]; else if(FARGS) [ms,res]=FARGS; else return;
+  const chips=activeChips(), n=chips.length, btn=$('filtBtn');
+  btn.classList.toggle('hidden', DEP && !(VIEW==='agenda' && AG_INFO && AG_INFO.roles.length>=2));
+  btn.classList.toggle('on', n>0);
+  btn.innerHTML = `${ICON_FILT}<span>Filtros</span>${n?`<span class="cnt">${n}</span>`:''}`;
+  $('chips').innerHTML = chips.map(c=>`<button type="button" class="chip" data-chip="${c.k}"><span class="sr">Quitar filtro:</span><span>${esc(c.t)}</span>${ICON_X}</button>`).join('');
+  if(!$('fpanel').classList.contains('hidden')) fillPanel();
   const box=$('fsum');
-  if(!filtering()){ box.classList.add('hidden'); return; }
+  if(!filtering() || DEP){ box.classList.add('hidden'); return; }
   const sel=ms.filter(m=>passes(m)), tot=sel.reduce((t,m)=>t+res.get(m.id).total,0);
   const by=k=>sel.filter(m=>roleOf(m)===k).length, parts=[['r1','R1'],['r2','R2'],['an','anotador'],['jl','juez de línea']].map(([k,t])=>by(k)?`${by(k)} como ${t}`:'').filter(Boolean);
-  box.innerHTML=`<div><strong>${sel.length} partido${sel.length===1?'':'s'} · ${eur(tot)}</strong>${parts.length&&!FILT.role?` <span class="muted">· ${parts.join(', ')}</span>`:''}</div><button class="ghost" id="btnClearF">Quitar filtros</button>`;
+  box.innerHTML=`<div><strong>${sel.length} partido${sel.length===1?'':'s'} · ${eur(tot)}</strong>${parts.length&&!FILT.role?` <span class="muted">· ${parts.join(', ')}</span>`:''}</div>`;
   box.classList.remove('hidden');
-  $('btnClearF').onclick=()=>{ FILT={role:'',div:'',age:'',gen:''}; saveFilters(); render(); };
 }
+function fillPanel(){
+  const ms=FARGS?FARGS[0]:[];
+  let h='<div class="fhead"><h2>Filtros</h2><button type="button" class="ghost" data-fclose>Cerrar</button></div><div class="fgrid">';
+  if(!DEP) for(const [k,label,opts,all] of FGROUPS){
+    // Cada desplegable cuenta los partidos que cumplen los otros filtros: así se ve qué combinaciones existen.
+    const pool=ms.filter(m=>passesF(m,DRAFT,k)), cnt=new Map(); for(const m of pool){ const v=FGET[k](m); cnt.set(v,(cnt.get(v)||0)+1); }
+    const o=opts.filter(([v])=>cnt.get(v)||DRAFT[k]===v).map(([v,t])=>`<option value="${v}"${DRAFT[k]===v?' selected':''}>${esc(t)} (${cnt.get(v)||0})</option>`).join('');
+    h+=`<label>${label}<select data-draft="${k}" class="${DRAFT[k]?'on':''}"><option value="">${all} (${pool.length})</option>${o}</select></label>`;
+  }
+  if(DRAFT_ROLE && AG_INFO && AG_INFO.roles.length>=2)
+    h+=`<label>Ver partidos como<select data-draft="agrole" class="${DRAFT_ROLE!=='todo'?'on':''}">${AGROLES.filter(([r])=>r==='todo'||AG_INFO.roles.includes(r)).map(([r,t])=>`<option value="${r}"${DRAFT_ROLE===r?' selected':''}>${t} (${AG_INFO.cnt[r]})</option>`).join('')}</select></label>`;
+  h+='</div><div class="facts"><button type="button" class="primary" data-fapply>Aplicar</button><button type="button" data-fclear>Limpiar</button></div>';
+  $('fpanel').innerHTML=h;
+}
+function openFilters(){
+  closePeriod();
+  DRAFT={...FILT}; DRAFT_ROLE = VIEW==='agenda' && AG_INFO ? AG_INFO.role : null;
+  fillPanel();
+  $('fpanel').classList.remove('hidden'); $('fback').classList.remove('hidden'); $('filtBtn').setAttribute('aria-expanded','true');
+  // En móvil es una hoja modal: la página de detrás no se mueve y el foco no sale de la hoja.
+  if(FSHEET.matches){ $('fpanel').setAttribute('aria-modal','true'); document.body.classList.add('noscroll'); }
+  $('fpanel').querySelector('select')?.focus();
+}
+function closeFilters(focus){
+  if($('fpanel').classList.contains('hidden')) return;
+  $('fpanel').classList.add('hidden'); $('fback').classList.add('hidden'); $('filtBtn').setAttribute('aria-expanded','false');
+  $('fpanel').removeAttribute('aria-modal'); document.body.classList.remove('noscroll');
+  if(focus) $('filtBtn').focus();
+}
+const FSHEET = matchMedia('(max-width:759px)');
+$('fpanel').addEventListener('keydown', e=>{
+  if(e.key!=='Tab' || !FSHEET.matches) return;
+  const f=[...$('fpanel').querySelectorAll('select,button')]; if(!f.length) return;
+  const first=f[0], last=f[f.length-1];
+  if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+});
 function saveFilters(){ try{ localStorage.setItem(FILTER_KEY, JSON.stringify(FILT)); }catch(e){} }
-$('filters').addEventListener('change', e=>{ const k=e.target.dataset.filter; if(!k) return; FILT[k]=e.target.value; saveFilters(); render(); });
+function setAgRole(r){ AGROLE=r; try{ localStorage.setItem('liq-agenda-rol',AGROLE); }catch(err){} }
+function applyFilters(f, role){
+  FILT=f; saveFilters(); if(role) setAgRole(role);
+  closeFilters(true); render();
+}
+$('filtBtn').addEventListener('click', ()=>$('fpanel').classList.contains('hidden') ? openFilters() : closeFilters());
+$('fback').addEventListener('click', ()=>closeFilters());
+$('fpanel').addEventListener('change', e=>{
+  const k=e.target.dataset.draft; if(!k) return;
+  if(k==='agrole') DRAFT_ROLE=e.target.value; else DRAFT[k]=e.target.value;
+  fillPanel(); $('fpanel').querySelector(`[data-draft="${k}"]`)?.focus();
+});
+$('fpanel').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if('fclose' in b.dataset) closeFilters(true);
+  else if('fapply' in b.dataset) applyFilters({...DRAFT}, DRAFT_ROLE);
+  else if('fclear' in b.dataset) applyFilters({role:'',div:'',age:'',gen:''}, DRAFT_ROLE ? 'todo' : null);
+});
+$('chips').addEventListener('click', e=>{
+  const b=e.target.closest('[data-chip]'); if(!b) return;
+  if(b.dataset.chip==='agrole') setAgRole('todo'); else { FILT[b.dataset.chip]=''; saveFilters(); }
+  render(); $('filtBtn').focus();
+});
 
 // Lo que hay que hacer con el cobro de este partido, debajo del botón.
 // Dieta que corresponde a un partido según las reglas (una por franja: va en uno de sus partidos), para recordar
 // que hay que ponerla en la hoja de gastos al pedir el pago.
-let LAST_RES = null;
+let LAST_RES = null, PREV_VIEW = null;
 const dietaOf = m => m.dieta_override!=null ? +m.dieta_override : (LAST_RES?.get(m.id)?.dietaAuto || 0);
 const dietHint = m => { const d=dietaOf(m); return d>0 ? `<div class="small diet">🍽 Te corresponde dieta: <b>${eur(d)}</b> · ponla al pedir el pago</div>` : ''; };
 function payTag(m){
@@ -1118,7 +1274,7 @@ function renderAlerts(ms, res){
   const t=today(), out=[];
   const item = m => `<li>${esc(fmtTiny(m.date))} ${esc(m.time)} · ${esc(capName(m.comp))} · ${eur(res.get(m.id).total)}${dietaOf(m)>0?` · 🍽 dieta ${eur(dietaOf(m))}`:''}</li>`;
   const dietTotal = list => { const d=list.reduce((t,m)=>t+dietaOf(m),0); return d>0 ? `<div class="diet">🍽 Te corresponde dieta: <b>${eur(d)}</b> en total: ponla en la hoja de gastos al pedir el pago.</div>` : ''; };
-  const box = (k, cls, line, body, btn) => `<details class="alert ${cls}" data-alert="${k}"${ALERT_OPEN.has(k)?' open':''}><summary><span>⚠</span><span class="t">${line}</span><span class="chev">▼</span></summary><div class="body">${body}<a class="go" href="${ISQUAD_RECIBOS}" target="_blank" rel="noopener">${btn}</a></div></details>`;
+  const box = (k, cls, line, body, btn) => `<details class="alert ${cls}" data-alert="${k}"${ALERT_OPEN.has(k)?' open':''}><summary aria-expanded="${ALERT_OPEN.has(k)}"><span>⚠</span><span class="t">${line}</span>${chevHtml(ALERT_OPEN.has(k))}</summary><div class="body">${body}<a class="go" href="${ISQUAD_RECIBOS}" target="_blank" rel="noopener">${btn}</a></div></details>`;
   const ask=ms.filter(m=>payState(m)==='solicitar' && limitOf(m)>=t);
   if(ask.length){
     const lim=ask.map(limitOf).sort()[0], amount=ask.reduce((s,m)=>s+res.get(m.id).total,0);
@@ -1141,9 +1297,10 @@ let STAT_LAST = null;
 function renderStatLine(pend, paid){
   if(pend!=null) STAT_LAST={pend,paid};
   const cobros = VIEW==='cobros' && !DEP, open = cobros && SCORE_OPEN, line=$('statLine');
-  $('statTxt').innerHTML = cobros && STAT_LAST ? `Pendiente <b class="p">${eur(STAT_LAST.pend)}</b> · Cobrado <b>${eur(STAT_LAST.paid)}</b>`
-    : DEP ? 'Tus equipos: horarios, árbitros y resultados'
-    : GUEST ? `Sin guardar · leído de iSquad: ${esc(ago(P.last_sync))}` : `Actualizado: ${esc(ago(P.last_sync))}`;
+  $('statTxt').innerHTML = cobros && STAT_LAST ? `Pendiente <b class="p">${eur(STAT_LAST.pend)}</b> · Cobrado <b>${eur(STAT_LAST.paid)}</b>` : '';
+  // La fecha de la última actualización, pequeña bajo el título (en todas las pestañas).
+  $('updTxt').textContent = DEP ? 'Tus equipos: horarios, árbitros y resultados'
+    : GUEST ? `Sin guardar · leído de iSquad: ${ago(P.last_sync)}` : `Actualizado: ${ago(P.last_sync)}`;
   line.disabled = !cobros; line.setAttribute('aria-expanded', String(open));
   $('scoreWrap').classList.toggle('open', open);
 }
@@ -1153,7 +1310,8 @@ $('statLine').addEventListener('click', ()=>{
   renderStatLine();
 });
 function render(){
-  pickSeason(); renderSeasons();
+  pickSeason();
+  if(VIEW!==PREV_VIEW){ closeFilters(); closePeriod(); PREV_VIEW=VIEW; }
   const {ms:allMs,res} = compute(); LAST_RES = res;
   const ms = allMs.filter(m=>seasonOf(m.date)===SEASON);
   $('sTotalL').textContent = `Total temporada ${seasonLabel(SEASON)}`;
@@ -1177,7 +1335,6 @@ function render(){
   else b.classList.add('hidden');
 
   const led = $('ledger');
-  renderFilters(ms,res);
   for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.view===VIEW));
   if(GUEST && VIEW==='equipos') VIEW='agenda';
   if(DEP && (VIEW==='cobros' || VIEW==='resumen')) VIEW='agenda';
@@ -1187,7 +1344,9 @@ function render(){
   renderStatLine(pend, paid);
   $('tabEquipos').classList.toggle('hidden', GUEST);
   led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
-  $('filters').classList.toggle('hidden', VIEW==='equipos'); if(VIEW==='equipos') $('fsum').classList.add('hidden');
+  $('ctrl').classList.toggle('hidden', VIEW==='equipos'); if(VIEW==='equipos') $('fsum').classList.add('hidden');
+  if(VIEW!=='agenda'){ $('ctrlSlot').innerHTML=''; AG_INFO=null; }
+  renderFilters(ms,res); renderPeriod();
   if(VIEW==='agenda'){ renderAgenda(allMs,res); renderSettings(); return; }
   if(VIEW==='equipos'){ renderEquipos(); renderSettings(); return; }
   if(VIEW==='resumen'){ renderResumen(allMs,res); renderSettings(); return; }
@@ -1373,10 +1532,11 @@ $('btnExport').addEventListener('click', async ()=>{
 
 $('btnSync').addEventListener('click', async ()=>{
   if(GUEST){ toast('Sin guardar no hay actualizaciones: sal y vuelve a entrar para leer iSquad de nuevo.'); return; }
-  const b=$('btnSync'); b.disabled=true; b.textContent='Actualizando…';
+  const bs=[$('btnSync'), $('mbSync')];
+  for(const b of bs){ b.disabled=true; b.classList.add('spin'); b.setAttribute('aria-busy','true'); }
   pepperLoader.show('Actualizando…');
   let r; try{ r = await callFn('sync'); } finally{ pepperLoader.hide(); }
-  b.disabled=false; b.textContent='Actualizar ahora';
+  for(const b of bs){ b.disabled=false; b.classList.remove('spin'); b.removeAttribute('aria-busy'); }
   if(r.ok && r.skipped) toast('Ya estaba al día');
   else if(r.ok) toast(`${r.count} partidos leídos de iSquad`);
   await loadAll(); render();
@@ -1585,7 +1745,7 @@ function renderEquipos(){
     const [k,txt]=rolKind(f.rol), n=nextOf(f), l=lastOf(f), cal=teamCal(f);
     const next = n ? `Próximo: ${esc(fmtTiny(n.d))} · ${vs(n)} ${stChip(n)}` : 'Sin partidos pendientes';
     const last = l ? `<div class="nx">Último: ${esc(fmtTiny(l.d))} · ${vs(l)} ${stChip(l)}</div>` : '';
-    const calHtml = cal.length ? `<details class="cal" data-cal="${esc(favKey(f))}"${CAL_OPEN.has(favKey(f))?' open':''}><summary>Calendario de la temporada (${cal.length})</summary>${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}${refLine(m)}</span>${stChip(m)}</div>`).join('')}</details>` : '';
+    const calHtml = cal.length ? `<details class="cal" data-cal="${esc(favKey(f))}"${CAL_OPEN.has(favKey(f))?' open':''}><summary aria-expanded="${CAL_OPEN.has(favKey(f))}"><span>Calendario de la temporada (${cal.length})</span>${chevHtml(CAL_OPEN.has(favKey(f)))}</summary>${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}${refLine(m)}</span>${stChip(m)}</div>`).join('')}</details>` : '';
     const on = f.activo!==false;
     return `<div class="eq-row${on?'':' off'}"><div style="flex:1;min-width:0"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}${on?'':' · <b>no sale en Mis partidos</b>'}</div>${last}<div class="nx">${next}</div>${calHtml}</div>
       <div class="acts"><div class="seg">En Mis partidos<span class="segb" role="group"><button type="button" data-act="${esc(favKey(f))}" data-v="1" aria-pressed="${on}">Mostrar</button><button type="button" data-act="${esc(favKey(f))}" data-v="0" aria-pressed="${!on}">Ocultar</button></span></div>${cal.some(m=>m.tor)?`<button data-clas="${esc(favKey(f))}">Clasificación</button>`:''}<button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div></div>`;
@@ -1694,14 +1854,13 @@ const crewLabel=(m,f)=> f==='r2' && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIG
 const niceAddr = a => capName(String(a||'').replace(/,\s*(ESPA[ÑñN]A|ESPANYA|SPAIN)\s*$/i,'').replace(/ñ/g,'Ñ')).replace(/\b(De|Del|Dels|Des|La|Les|El|Els|I|D'|L')\b/g, w=>w.toLowerCase()).replace(/(^|,\s*)(\S)/g,(x,p,c)=>p+c.toUpperCase());
 // Botón "Cómo llegar": Google Maps. En iPhone se abre la app de Google Maps (comgooglemaps://) y, si no está instalada
 // (la página sigue a la vista pasado un momento), Apple Maps. dir = ruta a una dirección; si no, búsqueda por nombre.
-// Modo (#4): coche, transporte público o andando, elegido en Mis partidos y recordado en el navegador (liq-ruta).
-const TRAVEL_KEY='liq-ruta';
-let TRAVEL = (()=>{ try{ const v=localStorage.getItem(TRAVEL_KEY); return ['driving','transit','walking'].includes(v)?v:'driving'; }catch(e){ return 'driving'; } })();
+// Sin fijar el modo de transporte: cada uno elige coche, transporte o a pie dentro de Maps.
+try{ localStorage.removeItem('liq-ruta'); }catch(e){}
 function mapLink(dest, dir){
-  const q = encodeURIComponent(dest), apf = {driving:'d', transit:'r', walking:'w'}[TRAVEL];
-  const web = dir ? `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=${TRAVEL}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
-  const app = dir ? `comgooglemaps://?daddr=${q}&directionsmode=${TRAVEL}` : `comgooglemaps://?q=${q}`;
-  const apple = dir ? `https://maps.apple.com/?daddr=${q}&dirflg=${apf}` : `https://maps.apple.com/?q=${q}`;
+  const q = encodeURIComponent(dest);
+  const web = dir ? `https://www.google.com/maps/dir/?api=1&destination=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
+  const app = dir ? `comgooglemaps://?daddr=${q}` : `comgooglemaps://?q=${q}`;
+  const apple = dir ? `https://maps.apple.com/?daddr=${q}` : `https://maps.apple.com/?q=${q}`;
   return `<a class="map" href="${web}" data-gm="${app}" data-am="${apple}" target="_blank" rel="noopener">Cómo llegar</a>`;
 }
 document.addEventListener('click', e=>{
@@ -1734,19 +1893,20 @@ function renderAgenda(allMs,res){
   const all = AGENDA==='proximos'
     ? [...up.map(m=>({m, k:m.date+m.time})), ...eqUp.map(x=>({x, k:x.m.d+(x.m.t||'99:99')}))].sort((a,b)=>a.k.localeCompare(b.k))
     : [...past.map(m=>({m, k:m.date+m.time})), ...eqPast.map(x=>({x, k:x.m.d+(x.m.t||'00:00')}))].sort((a,b)=>b.k.localeCompare(a.k));
-  // Selector Todo / Árbitro / Jugador / Entrenador (lo que solo sigo sale en Todo). Solo salen los tipos de los que
-  // hay partidos (próximos o jugados), y si solo hay uno, no sale el selector.
+  // "Ver partidos como" (Todo / Árbitro / Jugador / Entrenador) está en Filtros; solo salen los tipos de los que hay partidos
+  // (próximos o jugados) y, si solo hay uno, no hay nada que elegir. La elección guardada no se borra: mientras no aplique
+  // (p. ej. aún no han cargado los equipos) se ve Todo.
   const everything = [...up.map(m=>({m})), ...past.map(m=>({m})), ...eqUp.map(x=>({x})), ...eqPast.map(x=>({x}))];
   const roles = ['arbitro','jugador','entrenador'].filter(r=>everything.some(it=>itemRole(it)===r));
-  // La elección guardada no se borra: mientras no aplique (p. ej. aún no han cargado los equipos) se ve Todo.
   const role = roles.length>=2 && roles.includes(AGROLE) ? AGROLE : 'todo';
   const cnt = r => r==='todo' ? all.length : all.filter(it=>itemRole(it)===r).length;
   const list = role==='todo' ? all : all.filter(it=>itemRole(it)===role);
   const nUp = role==='todo' ? up.length+eqUp.length : [...up.map(m=>({m})),...eqUp.map(x=>({x}))].filter(it=>itemRole(it)===role).length;
   const nPast = role==='todo' ? past.length+eqPast.length : [...past.map(m=>({m})),...eqPast.map(x=>({x}))].filter(it=>itemRole(it)===role).length;
-  let html=`<div class="subviews"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${nUp})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${nPast})</button></div>`;
-  if(AGENDA==='proximos') html+=`<div class="travelsel"><span>Cómo llegar:</span><span class="segb" role="group" aria-label="Cómo llegar">${[['driving','Coche'],['transit','Transporte'],['walking','Andando']].map(([k,t])=>`<button type="button" data-tm="${k}" aria-pressed="${TRAVEL===k}">${t}</button>`).join('')}</span></div>`;
-  if(roles.length>=2) html+=`<div class="agrole" role="group" aria-label="Ver partidos como">${[['todo','Todo'],['arbitro','Árbitro'],['jugador','Jugador'],['entrenador','Entrenador']].filter(([r])=>r==='todo'||roles.includes(r)).map(([r,t])=>`<button type="button" data-agrole="${r}" aria-pressed="${role===r}">${t} (${cnt(r)})</button>`).join('')}</div>`;
+  AG_INFO = {roles, role, cnt:{todo:cnt('todo'), arbitro:cnt('arbitro'), jugador:cnt('jugador'), entrenador:cnt('entrenador')}};
+  renderFilters();
+  $('ctrlSlot').innerHTML = `<span class="segb" role="group" aria-label="Próximos o jugados"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${nUp})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${nPast})</button></span>`;
+  let html='';
   if(!list.length && role!=='todo'){
     html += `<div class="empty">No hay partidos ${AGENDA==='proximos'?'próximos':'jugados'} como ${({arbitro:'árbitro',jugador:'jugador',entrenador:'entrenador'})[role]}${filtering()?' con estos filtros':''}.</div>`;
     box.innerHTML=html; return;
@@ -1774,14 +1934,14 @@ function renderAgenda(allMs,res){
           !done ? `<div class="where"><div><strong>${esc(capName(p.pab||'Pabellón por confirmar'))}</strong><div class="addr">${esc(capName(p.pista||''))}</div></div>${p.pab?mapLink(p.pab+' Catalunya', false):''}</div>` : '',
           `<div class="full">${esc(capName(p.comp||f.cat))}${p.j?` · Jornada ${esc(p.j)}`:''}${p.g?` · ${esc(capName(p.g))}`:''} · ${esc(rolKind(f.rol)[1])} con ${esc(capName(f.team))}</div>`,
         ].filter(Boolean).join('');
-        html+=`<details class="agc eq${done?' done':''}" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary>
+        html+=`<details class="agc eq${done?' done':''}" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary aria-expanded="${AGC_OPEN.has(id)}">
           <div class="tm">${tm}</div>
           <div><div class="top">${stChip(p)}</div>
             <div class="tt">${vs(p)}${done&&p.rl!=null?`<span class="res">${p.rl}-${p.rv}</span>`:''}</div>
             ${refLine(p)}
             <div class="sub">${esc(shortComp(`${f.cat} ${p.comp||''}`))}${!done&&p.pab?` · ${esc(capName(p.pab))}`:''}</div>
             ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}</div>
-          <span class="chev">▼</span></summary><div class="more">${more}</div></details>`;
+          ${chevHtml(AGC_OPEN.has(id))}</summary><div class="more">${more}</div></details>`;
         continue;
       }
       const m=it.m, id=`arb|${m.id}`, r=res.get(m.id), km=kmFor(m);
@@ -1797,26 +1957,20 @@ function renderAgenda(allMs,res){
       const more = `${crew}
         <div class="where"><div><strong>${esc(venue)}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?mapLink(m.addr||m.venue, true):''}</div>
         <div class="full">${esc(capName(m.comp))}${est}${km?` · ${km} km`:''}${r?` · ${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}</div>`;
-      html+=`<details class="agc arb" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary>
+      html+=`<details class="agc arb" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary aria-expanded="${AGC_OPEN.has(id)}">
         <div class="tm">${esc(m.time)}</div>
         <div><div class="top"><span class="kind arb">Arbitras${myRole?`<small>${esc(myRole)}</small>`:''}</span>${others.length?`<span class="small muted">con ${others.map(c=>esc(capName(c.n).split(' ')[0])).join(', ')}</span>`:''}</div>
           <div class="tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div>
           <div class="sub">${esc(shortComp(m.comp))} · ${esc(venue)}</div>
           ${clashArb}${carLine(m)}${['solicitar','sinrecibo'].includes(payState(m)) && limitOf(m)>=today() ? dietHint(m) : ''}</div>
-        <span class="chev">▼</span></summary><div class="more">${more}</div></details>`;
+        ${chevHtml(AGC_OPEN.has(id))}</summary><div class="more">${more}</div></details>`;
     }
     html+='</section>';
   }
   box.innerHTML=html;
 }
 $('agenda').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-agc]'); if(d) d.open ? AGC_OPEN.add(d.dataset.agc) : AGC_OPEN.delete(d.dataset.agc); }, true);
-$('agenda').addEventListener('click', e=>{
-  const r=e.target.closest('button[data-agrole]'); if(r){ AGROLE=r.dataset.agrole; try{ localStorage.setItem('liq-agenda-rol',AGROLE); }catch(err){} render(); return; }
-  const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
-$('agenda').addEventListener('click', e=>{
-  const b=e.target.closest('button[data-tm]'); if(!b) return;
-  TRAVEL=b.dataset.tm; try{ localStorage.setItem(TRAVEL_KEY, TRAVEL); }catch(err){} render();
-});
+$('ctrlSlot').addEventListener('click', e=>{ const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
 $('views').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();
@@ -1864,12 +2018,11 @@ function renderResumen(allMs,res){
   // Km aproximados: una ida y vuelta por pabellón y franja.
   const trips=new Map(); for(const m of ms){ const k=m.date+franjaOf(m)+'|'+m.venue_key; trips.set(k, Math.max(trips.get(k)||0, kmFor(m))); }
   const km=[...trips.values()].reduce((a,b)=>a+b*2,0);
-  const modeBtns = `<div class="segb rs-mode no-print" role="group"><button type="button" data-rs="temporada" aria-pressed="${RS_MODE==='temporada'}">Temporada ${seasonLabel(SEASON)}</button><button type="button" data-rs="anio" aria-pressed="${RS_MODE==='anio'}">Año ${year} · renta</button></div>` + (RS_MODE==='temporada' && seasonsAvailable().length>1 ? ` <div class="segb rs-mode no-print" role="group" aria-label="Temporada">${seasonsAvailable().map(x=>`<button type="button" data-season="${x}" aria-pressed="${x===SEASON}">${seasonLabel(x)}</button>`).join('')}</div>` : '');
-  if(!ms.length){ box.innerHTML = modeBtns + `<div class="empty">${RS_MODE==='anio'?`Aún no hay cobros con fecha de ${year}.`:'No hay partidos en esta temporada.'}${filtering()?' (con estos filtros)':''}</div>`; return; }
+  if(!ms.length){ box.innerHTML = `<div class="empty">${RS_MODE==='anio'?`Aún no hay cobros con fecha de ${year}.`:'No hay partidos en esta temporada.'}${filtering()?' (con estos filtros)':''}</div>`; return; }
   const hero = RS_MODE==='temporada'
     ? [['Neto de la temporada',eur(neto),`${eur(cobrado)} ya cobrado`],['Partidos',ms.length,`${jornadas} jornadas`],['Tarifas',eur(tarifas),`IRPF retenido ${eur(irpf)}`],['Dietas y desplazamiento',eur(gastos),`≈ ${Math.round(km).toLocaleString(LOC())} km`]]
     : [['Rendimientos (tarifas)',eur(tarifas),'lo que tributa'],['IRPF retenido',eur(irpf),'lo retiene la FCVB'],['Dietas y desplazamiento',eur(gastos),'exentos'],['Neto cobrado',eur(neto),`${ms.length} partidos`]];
-  let html = modeBtns + `<div class="rs-hero">${hero.map(([l,v,s])=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>`;
+  let html = `<div class="rs-hero">${hero.map(([l,v,s])=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>`;
   // Neto por mes (temporada: de agosto a julio; año: de enero a diciembre). Gris = previsión aún no cobrada.
   const months = RS_MODE==='temporada' ? [7,8,9,10,11,0,1,2,3,4,5,6].map(mo=>({mo, y: mo>=7 ? +SEASON : +SEASON+1})) : [...Array(12)].map((_,mo)=>({mo, y:+year}));
   const byM = months.map(({mo,y})=>{ const list=ms.filter(m=>{ const d=RS_MODE==='anio'?(paidDate(m)||m.date):m.date; return +d.slice(0,4)===y && +d.slice(5,7)-1===mo; });
@@ -1890,7 +2043,6 @@ function renderResumen(allMs,res){
   box.innerHTML=html;
   $('rsPrint').onclick=()=>window.print();
 }
-$('resumen').addEventListener('click', e=>{ const b=e.target.closest('button[data-rs]'); if(!b) return; RS_MODE=b.dataset.rs; render(); });
 
 /* ---------- Guía de bienvenida (la primera vez) y compartir la app ---------- */
 const APP_URL = 'https://fsarmesto.github.io/enxarxa/';
@@ -1939,7 +2091,17 @@ const POLICY_VERSION = '2026-10-22.2';
 const LEGAL_LINKS = '<a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a>';
 const UNDER14 = 'Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.';
 let CONSENT_OPEN = false;
-const needsConsent = () => !GUEST && P && P.policy_version!==POLICY_VERSION;
+// La aceptación se guarda en la cuenta (aceptar_politica) y también en este navegador: si la cuenta no la tiene pero
+// este navegador sí, se vuelve a guardar en la cuenta sin preguntar.
+const POL_KEY = () => 'liq-politica-'+USER.id;
+function polLocal(){ try{ return localStorage.getItem(POL_KEY())===POLICY_VERSION; }catch(e){ return false; } }
+function polSave(){ try{ localStorage.setItem(POL_KEY(), POLICY_VERSION); }catch(e){} }
+function needsConsent(){
+  if(GUEST || !P) return false;
+  if(P.policy_version===POLICY_VERSION){ polSave(); return false; }
+  if(!polLocal()) return true;
+  P.policy_version=POLICY_VERSION; sb.rpc('aceptar_politica',{v:POLICY_VERSION}).then(()=>{}, ()=>{}); return false;
+}
 function openConsent(){
   CONSENT_OPEN = true;
   $('guideSheet').innerHTML = `<div class="step-ico">🔒</div><h2 id="guideTitle">Antes de seguir</h2>
@@ -1961,7 +2123,7 @@ function openConsent(){
     const {error} = await sb.rpc('aceptar_politica',{v:POLICY_VERSION});
     $('cOk').disabled=false;
     if(error){ $('cErr').textContent=tr('No se ha podido guardar'); return; }
-    P.policy_version=POLICY_VERSION; CONSENT_OPEN=false; $('guide').classList.add('hidden'); maybeGuide();
+    P.policy_version=POLICY_VERSION; polSave(); CONSENT_OPEN=false; $('guide').classList.add('hidden'); maybeGuide();
   };
 }
 function maybeGuide(){ if(needsConsent()) return openConsent(); let seen=false; try{ seen=!!localStorage.getItem(GUIDE_KEY); }catch(e){} if(!seen && !GUEST) openGuide(); }
@@ -2066,7 +2228,6 @@ $('saludPanel').addEventListener('toggle', e=>{ if(e.target.open) loadSalud(); }
   };
   addEventListener('scroll', check, {passive:true});   // una medida por evento: barata y sin depender de requestAnimationFrame
   $('mbSync').addEventListener('click', ()=>$('btnSync').click());
-  $('mbOut').addEventListener('click', logout);
 }
 function show(v){
   const a=document.getElementById('apkLogin'); if(a) a.classList.toggle('hidden', !offerApk()); for(const x of ['auth','app','loading']) $(x+'View').classList.toggle('hidden', x!==v); }
