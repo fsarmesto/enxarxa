@@ -129,7 +129,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   de lo pendiente en la cabecera. Pie de la tabla de iSquad: importe no solicitado / solicitado / pagado.
 - Filtros (`renderFilters`): designación (rol leído de iSquad), división, categoría de edad y género sacados del
   texto de la competición (`compParts`); cada desplegable cuenta los partidos que cumplen los demás filtros.
-  Se recuerdan en el navegador (localStorage `liq-filtros`).
+  Se recuerdan en el navegador (localStorage `liq-filtros`). Van recogidos (issue #15): botón "Filtros · n" que abre
+  una hoja modal desde abajo en móvil (bloquea el scroll y el foco) o un panel en escritorio, con Aplicar y Limpiar;
+  los activos salen como etiquetas con ×. En Mis partidos, "Ver partidos como" (Todo / Árbitro / Jugador) es un filtro más.
 - Entrar sin guardar: `auth-isquad` con `save:false` lee iSquad (con equipo arbitral de todos los partidos) y
   devuelve los partidos sin crear cuenta ni guardar nada. En la web `GUEST`: todas las escrituras pasan por
   `store()`, que en ese modo no hace nada; recargar = salir.
@@ -275,20 +277,24 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 ## Móvil: pestañas abajo, cabecera compacta y Cómo llegar (22-oct-2026, issues #2, #3 y #4)
 
 - Por debajo de 720 px las pestañas (`#views`, role="tab" con `aria-selected`) son una barra fija abajo con icono y
-  texto; la activa, con una raya roja arriba. `#appView` tiene margen abajo para que no tape nada.
-- Cabecera compacta: `#miniBar`, barra fija aparte (nombre, Actualizar y Salir) que entra por arriba cuando la fila del
+  texto; la activa, con una raya amarilla arriba (el acento de la app). `#appView` tiene margen abajo para que no tape nada.
+- Cabecera compacta: `#miniBar`, barra fija aparte (nombre y Actualizar) que entra por arriba cuando la fila del
   título de la cabecera grande sale de la pantalla (evento scroll); la grande no cambia de tamaño, así nada salta.
   En Chrome sin ventana, `scrollTo` no lanza el evento scroll: para capturas, lanzarlo a mano.
-- Cómo llegar: selector Coche / Transporte / Andando en Mis partidos (Próximos), recordado en `liq-ruta`;
-  `mapLink` pone travelmode (Google), directionsmode (app de Google Maps) y dirflg d/r/w (Apple Maps).
+- Cómo llegar: abre Google Maps (o Apple Maps de reserva) sin fijar el modo; cada uno elige coche, transporte o a pie
+  dentro de Maps. El selector de modo del issue #4 se quitó en el #15 (y se borra `liq-ruta`).
 - Accesibilidad (#10): `--ink-3` en claro #707070 (4,95:1), foco visible en enlaces, zonas táctiles de 44 px en
-  pantallas táctiles, las opciones de Cómo llegar bajan de línea con el texto al 200 %.
+  pantallas táctiles.
+- Flecha de desplegar (alertas, tarjetas de Mis partidos, calendarios de Equipos): `chevHtml`, botón de 44 px con
+  chevron SVG que gira, `aria-expanded` en el summary y texto oculto "Mostrar/Ocultar el detalle".
 
 ## Cabecera por pestaña (21-oct-2026)
 
-- Cabecera de altura fija: bajo la fila del título, `#statLine` = UNA línea en todas las pestañas (en Cobros
-  "Pendiente · Cobrado" y abre/cierra `#scoreWrap` con animación de grid-rows, siempre empieza plegado; en el resto,
-  "Actualizado: …"). Temporada y Excel van dentro de las cifras; Resumen tiene su propio selector de temporada.
+- Cabecera ligera (issue #15): título, "App no oficial" y "Actualizado: …" (`#updTxt`) debajo, y el botón de icono
+  Actualizar (gira mientras trabaja). "Salir" y el enlace a GitHub ("Hecha por fsarmesto") están en Ajustes.
+  `#statLine` solo en Cobros: "Pendiente · Cobrado", abre/cierra `#scoreWrap` (cifras y Excel), empieza plegado.
+- Bajo la cabecera, una fila de controles (`#ctrl`): en Cobros y Resumen un solo selector de periodo (`renderPeriod`:
+  temporadas y, en Resumen, "Año … · renta"); en Mis partidos [Próximos | Jugados] (`#ctrlSlot`); y el botón Filtros.
 - `body[data-vista]` = pestaña activa. Cifras de cobro, IRPF, Excel y avisos de pedir el pago solo en Cobros; el selector
   de temporada en Cobros y Resumen. Si hay avisos y estás en otra pestaña, punto rojo en "Cobros" (`.views .dot`).
 - Cabecera con red de vóley (CSS puro: `.board::after` = palos hasta la línea amarilla; `.board .top::before` = cintas
