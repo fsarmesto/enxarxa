@@ -277,7 +277,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 ## Móvil: pestañas abajo, cabecera compacta y Cómo llegar (22-oct-2026, issues #2, #3 y #4)
 
 - Por debajo de 720 px las pestañas (`#views`, role="tab" con `aria-selected`) son una barra fija abajo con icono y
-  texto; la activa, con una raya amarilla arriba (el acento de la app). `#appView` tiene margen abajo para que no tape nada.
+  texto; la activa, con una raya roja arriba (Ferran la prefiere roja). `#appView` tiene margen abajo para que no tape nada.
 - Cabecera compacta: `#miniBar`, barra fija aparte (nombre y Actualizar) que entra por arriba cuando la fila del
   título de la cabecera grande sale de la pantalla (evento scroll); la grande no cambia de tamaño, así nada salta.
   En Chrome sin ventana, `scrollTo` no lanza el evento scroll: para capturas, lanzarlo a mano.
