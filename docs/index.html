@@ -501,14 +501,14 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   background:var(--bg,#F2F4F7);color:var(--ink-2,#4E5A6B);opacity:0;visibility:hidden;transition:opacity .25s ease,visibility 0s linear .25s;
   padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 #pepper-loader.on{opacity:1;visibility:visible;transition:opacity .25s ease}
-#pepper-loader svg{width:min(280px,72vw);height:auto;display:block}
+#pepper-loader svg{width:min(280px,72vw);max-height:60vh;height:auto;display:block}
 #pepper-loader p{margin:0;font-family:inherit;font-weight:500;font-size:14px;line-height:1.4;letter-spacing:.01em}
 @media (prefers-reduced-motion:reduce){#pepper-loader{transition:none}}
 </style>
 </head>
 <body>
 <div id="pepper-loader" role="status" aria-live="polite">
-  <svg viewBox="40 90 340 100" aria-hidden="true">
+  <svg viewBox="40 -14 340 204" aria-hidden="true">  <!-- la colocación sube la pelota hasta y≈-9 -->
     <line x1="40" y1="182" x2="380" y2="182" stroke="currentColor" stroke-opacity=".25" stroke-width="1"/>
     <g stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
       <circle cx="100" cy="112" r="9" fill="currentColor" stroke="none"/>
