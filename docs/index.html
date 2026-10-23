@@ -452,13 +452,12 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 details.cal{margin-top:6px}
 details.cal>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
 details.cal>summary::-webkit-details-marker{display:none}
-.calrow{display:grid;grid-template-columns:92px 1fr auto;gap:2px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.calrow{display:grid;grid-template-columns:92px minmax(0,1fr) auto;overflow-wrap:anywhere;gap:2px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
 .calrow:last-child{border-bottom:0}
 .calrow .dd{color:var(--ink-3);font-size:12.5px}
 .calrow b{font-weight:800}
 @media (max-width:560px){
-  .calrow{grid-template-columns:70px 1fr} .calrow .st{grid-column:2;justify-self:start}
-  #eqFavs .eq-row{flex-direction:column;align-items:stretch} #eqFavs .eq-row .acts{flex-direction:row;justify-content:space-between;align-items:center}
+  .calrow{grid-template-columns:70px minmax(0,1fr)} .calrow .st{grid-column:2;justify-self:start}
 }
 .teams b{font-weight:800}
 /* Equipos */
@@ -466,13 +465,34 @@ details.cal>summary::-webkit-details-marker{display:none}
 .eq-search input{flex:1;font-size:16px;padding:10px 12px;border:2px solid var(--ink);border-radius:3px}
 .eq-list{display:grid;gap:0;margin:0 0 26px}
 .eq-row{display:flex;justify-content:space-between;align-items:center;gap:8px 14px;flex-wrap:wrap;padding:11px 0;border-bottom:1px solid var(--line)}
-.eq-row .n{font-weight:700}
+.eq-row .n{font-weight:700;overflow-wrap:anywhere}
+.eq-row>div{min-width:0}
 .eq-row .s{font-size:13px;color:var(--ink-3)}
 .eq-row .nx{font-size:13.5px;color:var(--ink-2);margin-top:3px}
 .eq-row button{white-space:nowrap}
 .eq-row button.on{background:var(--yellow);border-color:var(--yellow);color:#000}
 .eq-row.off .n,.eq-row.off .nx,.eq-row.off details.cal{opacity:.5}
 .eq-row .acts{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+/* Tarjeta de equipo (#18): nombre grande, división · club pequeño, dos filas con el tamaño del texto normal y acciones que bajan de línea */
+.eq-row.eqc{display:block;min-width:0}
+.eqc .n{font-size:17px;line-height:1.25;overflow-wrap:anywhere}
+.eqc .s{overflow-wrap:anywhere}
+.eqc .nx{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;font-size:15px;color:var(--ink);margin-top:6px}
+.eqc .nx .lb{flex:none;width:58px;font-size:12px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.03em}
+.eqc .nx .dd{flex:none;color:var(--ink-2)}
+.eqc .nx .rv{min-width:0;overflow-wrap:anywhere}
+.eqc .nx .ha{color:var(--ink-3)}
+.eqc .nx .st{flex:none}
+.eqc .acts{display:flex;flex-direction:row;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:10px}
+.eqc .acts .seg{flex:1 0 100%;flex-wrap:wrap;white-space:normal}
+.eqc .eqb{flex:1 1 0;min-width:110px;white-space:nowrap;padding:6px 10px;font-size:15px}
+.eqc .eqb.more{flex:none;min-width:44px;padding:6px 0;font-size:20px;line-height:1}
+.eqc .moremenu{margin-top:8px}
+.eqc .calbox{margin-top:8px;border-top:1px solid var(--line)}
+.eq-row.off .calbox{opacity:.5}
+.eq-hi{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.infobtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-8px -10px -8px 0;padding:0;border:0;border-radius:50%;background:transparent;color:var(--ink-2)}
+.infobtn[aria-expanded="true"]{color:var(--ink);background:var(--surface-2)}
 .clas-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .clas-tabs button{font-size:13px;padding:4px 10px}
 .clas-tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
@@ -590,26 +610,14 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   <div id="agenda" class="hidden"></div>
   <div id="resumen" class="hidden"></div>
   <div id="equipos" class="hidden">
-    <div class="eq-h">Mis equipos</div>
-    <p class="small" id="eqAuto" style="margin:0 0 4px;font-weight:600"></p>
-    <p class="small muted" style="margin:0 0 6px">Los equipos en los que juegas o entrenas (la app los encuentra sola en las plantillas públicas), y los que quieras seguir. Sus próximos partidos salen también en "Mis partidos", y te aviso si te designan cuando juegas o entrenas.</p>
+    <div class="eq-h eq-hi"><span>Mis equipos</span><button type="button" class="infobtn" id="eqInfoBtn" aria-expanded="false" aria-controls="eqInfo" aria-label="Cómo funciona"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v5.5M12 7.6v.1" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
+    <p class="small" id="eqAuto" style="margin:0 0 6px;font-weight:600"></p>
+    <p class="small muted hidden" id="eqInfo" style="margin:0 0 8px">Los equipos en los que juegas o entrenas (la app los encuentra sola en las plantillas públicas), y los que quieras seguir. Sus próximos partidos salen también en "Mis partidos", y te aviso si te designan cuando juegas o entrenas.</p>
     <div class="eq-list" id="eqFavs"></div>
     <div class="eq-h">Buscar equipos</div>
     <div class="eq-search"><input type="search" id="eqQ" placeholder="Equipo o club (p. ej. Sagrat Cor, Begues…)" autocomplete="off"></div>
     <div id="eqRes"></div>
   </div>
-
-  <details class="panel hidden" id="saludPanel">
-    <summary>Salud de la app</summary>
-    <p class="small muted">Solo lo ves tú. Si muchos árbitros fallan a la vez o la actualización automática se para, te llega un aviso.</p>
-    <div id="saludBody"><p class="small muted">Ábrelo para cargarlo.</p></div>
-  </details>
-
-  <details class="panel hidden" id="desigPanel">
-    <summary>Designaciones publicadas (FCVB)</summary>
-    <p class="small muted">Solo lo ves tú. Qué categorías tienen ya partidos designados esta semana (de lunes a domingo), en toda la federación (de las fichas públicas de los árbitros en iSquad).</p>
-    <div id="desigBody"><p class="small muted">Ábrelo para cargarlo (tarda unos segundos).</p></div>
-  </details>
 
   <details class="panel arb-only">
     <summary>Añadir un partido a mano</summary>
@@ -672,6 +680,17 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
         <p class="small muted legal-links" style="margin-top:14px"><a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
       </div>
     </div>
+    <details class="panel hidden" id="saludPanel">
+    <summary>Salud de la app</summary>
+    <p class="small muted">Solo lo ves tú. Si muchos árbitros fallan a la vez o la actualización automática se para, te llega un aviso.</p>
+    <div id="saludBody"><p class="small muted">Ábrelo para cargarlo.</p></div>
+    </details>
+
+    <details class="panel hidden" id="desigPanel">
+    <summary>Designaciones publicadas (FCVB)</summary>
+    <p class="small muted">Solo lo ves tú. Qué categorías tienen ya partidos designados esta semana (de lunes a domingo), en toda la federación (de las fichas públicas de los árbitros en iSquad).</p>
+    <div id="desigBody"><p class="small muted">Ábrelo para cargarlo (tarda unos segundos).</p></div>
+    </details>
   </details>
 </main>
 
@@ -1638,17 +1657,17 @@ const vs = m => `${m.mineLocal?`<b>${esc(capName(m.l))}</b>`:esc(capName(m.l))} 
 function renderEquipos(){
   const favs=[...EQ.favs].sort((a,b)=>(a.activo===false?1:0)-(b.activo===false?1:0) || (a.rol?0:1)-(b.rol?0:1) || a.team.localeCompare(b.team));
   $('eqFavs').innerHTML = favs.length ? favs.map(f=>{
-    const [k,txt]=rolKind(f.rol), n=nextOf(f), l=lastOf(f), cal=teamCal(f);
-    const next = n ? `Próximo: ${esc(fmtTiny(n.d))} · ${vs(n)} ${stChip(n)}` : 'Sin partidos pendientes';
-    const last = l ? `<div class="nx">Último: ${esc(fmtTiny(l.d))} · ${vs(l)} ${stChip(l)}</div>` : '';
-    const calHtml = cal.length ? `<details class="cal" data-cal="${esc(favKey(f))}"${CAL_OPEN.has(favKey(f))?' open':''}><summary aria-expanded="${CAL_OPEN.has(favKey(f))}"><span>Calendario de la temporada (${cal.length})</span>${chevHtml(CAL_OPEN.has(favKey(f)))}</summary>${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}${refLine(m)}</span>${stChip(m)}</div>`).join('')}</details>` : '';
-    const on = f.activo!==false;
-    return `<div class="eq-row${on?'':' off'}"><div style="flex:1;min-width:0"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}${f.auto?' · encontrado en su plantilla':''}${on?'':' · <b>no sale en Mis partidos</b>'}</div>${last}<div class="nx">${next}</div>${calHtml}</div>
-      <div class="acts"><div class="seg">En Mis partidos<span class="segb" role="group"><button type="button" data-act="${esc(favKey(f))}" data-v="1" aria-pressed="${on}">Mostrar</button><button type="button" data-act="${esc(favKey(f))}" data-v="0" aria-pressed="${!on}">Ocultar</button></span></div>${cal.some(m=>m.tor)?`<button data-clas="${esc(favKey(f))}">Clasificación</button>`:''}<button class="ghost" data-unfav="${esc(favKey(f))}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div></div>`;
+    const [k,txt]=rolKind(f.rol), n=nextOf(f), l=lastOf(f), cal=teamCal(f), key=esc(favKey(f)), on=f.activo!==false, open=CAL_OPEN.has(favKey(f));
+    // Una fila por partido: etiqueta, fecha, rival (el nombre del propio equipo no se repite) y estado.
+    const row = (lb,m) => `<div class="nx"><span class="lb">${lb}</span><span class="dd">${esc(fmtTiny(m.d))}</span><span class="rv"><b>${esc(capName(m.mineLocal?m.v:m.l))}</b> <span class="ha">· ${m.mineLocal?'casa':'fuera'}</span></span>${stChip(m)}</div>`;
+    const calHtml = cal.length ? `<div class="calbox${open?'':' hidden'}" id="cal-${key}">${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}${refLine(m)}</span>${stChip(m)}</div>`).join('')}</div>` : '';
+    return `<div class="eq-row eqc${on?'':' off'}"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}</div>${l?row('Último',l):''}${n?row('Próximo',n):'<div class="nx"><span class="lb">Próximo</span><span>Sin partidos pendientes</span></div>'}
+      <div class="acts"><div class="seg">Mostrar en Mis partidos<span class="segb" role="group"><button type="button" data-act="${key}" data-v="1" aria-pressed="${on}">Sí</button><button type="button" data-act="${key}" data-v="0" aria-pressed="${!on}">No</button></span></div>${cal.some(m=>m.tor)?`<button class="eqb" data-clas="${key}">Clasificación</button>`:''}${cal.length?`<button class="eqb" data-calt="${key}" aria-expanded="${open}" aria-controls="cal-${key}">Calendario (${cal.length})</button>`:''}<button class="eqb more" data-more="${key}" aria-expanded="false" aria-label="Más opciones">⋯</button></div>
+      <div class="moremenu hidden" id="more-${key}"><button class="ghost" data-unfav="${key}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div>${calHtml}</div>`;
   }).join('') : '<p class="muted small">No te he encontrado en ninguna plantilla de la FCVB de esta temporada. Si juegas o entrenas, busca tu equipo abajo y síguelo; también puedes seguir cualquier otro equipo.</p>';
   const ix=EQ.indice, auto=EQ.favs.filter(f=>f.auto).length;
-  $('eqAuto').innerHTML = auto ? `Te he encontrado en ${auto} plantilla${auto===1?'':'s'} de la FCVB por tu foto de afiliado de iSquad.` : '';
-  if(ix && ix.total && ix.revisados<ix.total) $('eqAuto').innerHTML += ` Revisando plantillas: ${ix.revisados} de ${ix.total}.`;
+  $('eqAuto').innerHTML = auto ? `Te he encontrado en ${auto} plantilla${auto===1?'':'s'} por tu foto de iSquad` : '';
+  if(ix && ix.total && ix.revisados<ix.total) $('eqAuto').innerHTML += `${auto?'. ':''}Revisando plantillas: ${ix.revisados} de ${ix.total}.`;
   if(!EQ_RES){ $('eqRes').innerHTML=''; return; }
   if(EQ_RES.loading){ $('eqRes').innerHTML='<p class="muted small">Buscando…</p>'; return; }
   const clubs=(EQ_RES.clubs||[]).map(c=>`<div class="eq-row"><div><div class="n">${esc(capName(c.name))}</div><div class="s">Club</div></div><button data-findme="${esc(c.id)}"${EQ_BUSY?' disabled':''}>${EQ_BUSY===c.id?'Buscándote en sus plantillas…':'Búscame en este club'}</button></div>`).join('');
@@ -1693,7 +1712,7 @@ $('eqFavs').addEventListener('click', async e=>{
   if(!r.ok){ f.activo=!f.activo; render(); toast(r.error||'No se ha podido guardar'); }
   else toast(f.activo ? `${capName(f.team)} vuelve a salir en Mis partidos` : `${capName(f.team)} ya no sale en Mis partidos`);
 });
-$('eqFavs').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-cal]'); if(d) d.open ? CAL_OPEN.add(d.dataset.cal) : CAL_OPEN.delete(d.dataset.cal); }, true);
+$('eqInfoBtn').addEventListener('click', ()=>{ const o=$('eqInfo').classList.toggle('hidden'); $('eqInfoBtn').setAttribute('aria-expanded', String(!o)); });
 let eqTimer=null;
 $('eqQ').addEventListener('input', e=>{
   clearTimeout(eqTimer); const q=e.target.value.trim();
@@ -1711,6 +1730,8 @@ $('equipos').addEventListener('click', async e=>{
     toast(r.fav.rol ? `Sales en la plantilla: ${rolKind(r.fav.rol)[1].toLowerCase()}` : 'Siguiendo el equipo');
     await loadEquipos(); renderEquipos(); return;
   }
+  if(b.dataset.calt){ const k=b.dataset.calt, o=!CAL_OPEN.has(k); o?CAL_OPEN.add(k):CAL_OPEN.delete(k); b.setAttribute('aria-expanded',String(o)); document.getElementById('cal-'+k).classList.toggle('hidden',!o); return; }
+  if(b.dataset.more){ const m=document.getElementById('more-'+b.dataset.more), o=m.classList.toggle('hidden'); b.setAttribute('aria-expanded',String(!o)); return; }
   if(b.dataset.clas){ const f=EQ.favs.find(x=>favKey(x)===b.dataset.clas); if(f) openClas(f); return; }
   if(b.dataset.unfav){
     const f=EQ.favs.find(x=>favKey(x)===b.dataset.unfav); if(!f) return;
