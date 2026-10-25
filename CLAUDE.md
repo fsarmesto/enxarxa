@@ -152,6 +152,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Función `equipos` (con sesión): buscar, seguir/dejar, buscarme (repasa las plantillas de un club) y mis (favoritos +
   próximos partidos). Caché compartida `pub_cache` (feed 3 h, clubs y equipos de club 7 días). Tabla `fav_teams`
   (migración 013): de la plantilla solo se guarda el rol del propio árbitro, nunca nombres de otros (hay menores).
+- Pestaña Equipos (#18): título con botón (i) que despliega la explicación; tarjeta `.eqc` por equipo: etiqueta + nombre,
+  división · club, filas "Último"/"Próximo" (fecha, rival, casa/fuera, estado), acciones con flex-wrap ([Sí | No] en Mis
+  partidos, Clasificación, Calendario (n) que despliega `.calbox`, y "⋯" con No soy yo / Dejar de seguir).
 - Categoría del partido = categoría + género sacado de la competición ("CUARTA DIVISION SENIOR FEMENINO"); la de un
   equipo encontrado en la ficha del club no lleva género: se compara por prefijo (`sameCat`).
 - Encontrar al árbitro sin que haga nada: la cabecera de su área de iSquad lleva su foto de afiliado
@@ -266,12 +269,12 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `listado_arbitros.php` (~454; `partidos_arbitro_territorial.php` da 500), de 10 en 10 (~8 s). Cada designación
   ("LOCAL - VISITANTE", fecha en texto) se cruza con el listado de partidos por fecha y local o visitante; si no,
   por la competición (`compToCat`: "1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO). Caché `desig-global` 1 h.
-- En la web, panel "Designaciones publicadas (FCVB)", se carga al abrirlo.
+- En la web, panel "Designaciones publicadas (FCVB)" (dentro de Ajustes, solo admin), se carga al abrirlo.
 - Cron `designadas-hora` (`5 * * * *`, la función solo trabaja de 8 a 22 h de Madrid): recalcula, compara con la foto
   `desig-snap:<domingo>` y avisa a los admins de las categorías que pasan de 0 a tener designaciones (sin Alevín ni
   Amateur/Máster). Además `revisarSalud`: si la mitad o más de los árbitros tiene `last_error` o el último sync tiene
   más de 13 h, aviso a los admins (como mucho uno cada 6 h por motivo, `pub_cache salud-aviso:`).
-- Panel "Salud de la app" (admin): `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
+- Panel "Salud de la app" (dentro de Ajustes, solo admin): `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
   dispositivos, índice de plantillas y edad de las cachés.
 
 ## Móvil: pestañas abajo, cabecera compacta y Cómo llegar (22-oct-2026, issues #2, #3 y #4)

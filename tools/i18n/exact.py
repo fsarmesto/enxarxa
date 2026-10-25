@@ -299,4 +299,7 @@ EXACT = {
 "Importes orientativos: manda el recibo de la FCVB.": "Imports orientatius: mana el rebut de la FCVB.",
 "Para seguir, acepta la política de privacidad.": "Per continuar, accepta la política de privacitat.",
 "He actualizado la política de privacidad. Para seguir usando la app, confirma tu edad y acéptala.": "He actualitzat la política de privacitat. Per continuar fent servir l'app, confirma la teva edat i accepta-la.",
+# Equipos: tarjeta rehecha (#18)
+"Último": "Últim", "Próximo": "Proper", "casa": "casa", "fuera": "fora",
+"Mostrar en Mis partidos": "Mostra a Els meus partits", "Más opciones": "Més opcions", "Cómo funciona": "Com funciona",
 }
