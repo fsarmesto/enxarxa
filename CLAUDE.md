@@ -199,6 +199,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Pestaña "Resumen" (`renderResumen`): temporada (neto por mes, por categoría, por designación, compañeros más
   frecuentes, pabellones) o año natural para la renta (solo lo cobrado, por la fecha de "PAGADO - dd/mm/aaaa").
   Respeta los filtros. PDF con window.print() y estilos @media print (solo #resumen).
+  Estrella amarilla (`STAR_SVG`, `topIdx`, issue #20) en el máximo de cada gráfico y lista (todos los empatados; nada si
+  hay menos de 2 valores distintos de 0); bajo las barras, "Mejor mes: …", que también va en el aria-label.
 - Compartir coche (`profiles.coche`, migración 017, función `coche`): opcional; para cada designación de los próximos
   30 días, otros árbitros con la opción activada que ese día van al mismo pabellón o a la misma población (nombre
   como sale en sus designaciones, hora, pabellón, población de salida). Línea 🚗 en la tarjeta del arbitraje.

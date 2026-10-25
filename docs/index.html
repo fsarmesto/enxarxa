@@ -360,11 +360,17 @@ body.dep .arb-only{display:none!important}
 .rs-hero .s{font-size:11.5px;color:var(--ink-3)}
 @media (max-width:700px){ .rs-hero{grid-template-columns:repeat(2,minmax(0,1fr))} }
 .rs-h{font-family:var(--display);font-size:21px;font-weight:600;margin:22px 0 8px;border-bottom:3px solid var(--rule);padding-bottom:4px}
-.bars{display:flex;align-items:flex-end;gap:2px;height:150px;border-bottom:1px solid var(--ink-3);padding-top:18px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:150px;border-bottom:1px solid var(--ink-3);padding-top:22px}
 .bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative;cursor:default}
 .bars .b i{display:block;width:100%;max-width:34px;background:var(--ink);border-radius:4px 4px 0 0;min-height:2px}
 .bars .b.fut i{background:var(--ink-3)}
-.bars .b em{position:absolute;top:-16px;font-style:normal;font-size:11px;font-weight:700;color:var(--ink);white-space:nowrap}
+.bars .b em{position:absolute;top:-20px;display:inline-flex;align-items:center;gap:2px;font-style:normal;font-size:11px;font-weight:700;color:var(--ink);white-space:nowrap}
+.bars .b em.l{left:0}
+.bars .b em.r{right:0}
+.star{display:inline-block;vertical-align:-2px;flex:none}
+.rs-best{display:flex;align-items:center;gap:6px;margin:8px 0 0;font-size:13px;font-weight:600;color:var(--ink-2)}
+.rs-row .n .star{margin-right:5px}
+.rs-row.top .c{color:var(--ink);font-weight:600}
 .bars .b:hover i,.bars .b:focus i{outline:2px solid var(--yellow);outline-offset:1px}
 .bars .b .tip{display:none;position:absolute;bottom:calc(100% + 4px);background:var(--ink);color:var(--bg);font-size:12px;padding:4px 8px;border-radius:3px;white-space:nowrap;z-index:2}
 .bars .b:hover .tip,.bars .b:focus .tip{display:block}
@@ -2119,6 +2125,10 @@ let RS_MODE='temporada';
 const MESES=new Proxy([], { get:(_,i)=> typeof i==='string' && /^\d+$/.test(i) ? new Date(2026,+i,1).toLocaleDateString(LOC(),{month:'short'}).replace(/[.]/g,'').replace(/^de /,'') : undefined });
 // Fecha de cobro: la de "PAGADO - dd/mm/aaaa" de iSquad; si no, la del partido.
 const paidDate = m => { const x=(m.fcvb_pago||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return x ? `${x[3]}-${x[2]}-${x[1]}` : ''; };
+// Estrella en el valor más destacado de cada gráfico (#20): todos los empatados en el máximo, y solo si hay al menos
+// 2 valores distintos de 0.
+const STAR_SVG = '<svg class="star" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+const topIdx = vals => { const mx=Math.max(0,...vals); return vals.filter(v=>v>0).length<2 ? new Set() : new Set(vals.flatMap((v,i)=>v===mx?[i]:[])); };
 function renderResumen(allMs,res){
   const box=$('resumen'), year=String(new Date().getFullYear());
   const base = allMs.filter(m=>passes(m) && !isTerritorial(m));
@@ -2141,17 +2151,20 @@ function renderResumen(allMs,res){
   const months = RS_MODE==='temporada' ? [7,8,9,10,11,0,1,2,3,4,5,6].map(mo=>({mo, y: mo>=7 ? +SEASON : +SEASON+1})) : [...Array(12)].map((_,mo)=>({mo, y:+year}));
   const byM = months.map(({mo,y})=>{ const list=ms.filter(m=>{ const d=RS_MODE==='anio'?(paidDate(m)||m.date):m.date; return +d.slice(0,4)===y && +d.slice(5,7)-1===mo; });
     return { mo, y, total:list.reduce((t,m)=>t+res.get(m.id).total,0), n:list.length, fut: list.length>0 && list.every(m=>!isPaid(m)) }; });
-  const max=Math.max(...byM.map(x=>x.total),1), best=byM.reduce((a,b)=>b.total>a.total?b:a);
-  html += `<div class="rs-h">Neto por mes</div><div class="bars" role="img" aria-label="Neto por mes">${byM.map(x=>`<div class="b${x.fut?' fut':''}" tabindex="0">${x.total?`<i style="height:${Math.max(2,x.total/max*100)}%"></i>`:''}${x===best&&x.total?`<em>${eur(x.total)}</em>`:''}<span class="tip">${MESES[x.mo]} ${x.y}: ${eur(x.total)} · ${x.n} partido${x.n===1?'':'s'}</span></div>`).join('')}</div>
-    <div class="bars-x">${byM.map(x=>`<span>${MESES[x.mo]}</span>`).join('')}</div>${byM.some(x=>x.fut)?'<p class="rs-note">En gris, meses solo con partidos aún no cobrados (previsión).</p>':''}`;
+  const max=Math.max(...byM.map(x=>x.total),1), top=topIdx(byM.map(x=>x.total)), last=byM.length-1;
+  const mesL = x => new Date(x.y,x.mo,1).toLocaleDateString(LOC(),{month:'long',year:'numeric'});
+  const tb=[...top].map(i=>byM[i]), bestTxt = tb.length ? `${tb.length>1?'Mejores meses':'Mejor mes'}: ${tb.map(mesL).join(', ')}, ${eur(tb[0].total)}` : '';
+  html += `<div class="rs-h">Neto por mes</div><div class="bars" role="img" aria-label="${esc('Neto por mes'+(bestTxt?'. '+bestTxt:''))}">${byM.map((x,i)=>`<div class="b${x.fut?' fut':''}" tabindex="0">${x.total?`<i style="height:${Math.max(2,x.total/max*100)}%"></i>`:''}${top.has(i)?`<em class="${i===0?'l':i===last?'r':''}">${STAR_SVG}${eur(x.total)}</em>`:''}<span class="tip">${MESES[x.mo]} ${x.y}: ${eur(x.total)} · ${x.n} partido${x.n===1?'':'s'}</span></div>`).join('')}</div>
+    <div class="bars-x">${byM.map(x=>`<span>${MESES[x.mo]}</span>`).join('')}</div>${bestTxt?`<p class="rs-best">${STAR_SVG}<span>${bestTxt}</span></p>`:''}${byM.some(x=>x.fut)?'<p class="rs-note">En gris, meses solo con partidos aún no cobrados (previsión).</p>':''}`;
   // Listas
   const group = (keyOf) => { const g=new Map(); for(const m of ms){ for(const k of [].concat(keyOf(m)).filter(Boolean)){ const x=g.get(k)||g.set(k,{n:0,e:0}).get(k); x.n++; x.e+=res.get(m.id).total; } } return [...g].sort((a,b)=>b[1].n-a[1].n || b[1].e-a[1].e); };
-  const rows = (list, money=true, max=8) => list.slice(0,max).map(([k,x])=>`<div class="rs-row"><span class="n">${esc(k)}</span><span class="c">${x.n} partido${x.n===1?'':'s'}</span><span class="e">${money?eur(x.e):''}</span></div>`).join('');
+  const rows = (list, money=true, lbl='Más partidos', max=8) => { const top=topIdx(list.slice(0,max).map(([,x])=>x.n));
+    return list.slice(0,max).map(([k,x],i)=>`<div class="rs-row${top.has(i)?' top':''}"><span class="n">${top.has(i)?`<span title="${lbl}">${STAR_SVG}<span class="sr">${lbl}: </span></span>`:''}${esc(k)}</span><span class="c">${x.n} partido${x.n===1?'':'s'}</span><span class="e">${money?eur(x.e):''}</span></div>`).join(''); };
   const cats = group(m=>shortComp(m.comp)), roles = group(m=>m.staff_checked||String(m.id).startsWith('MAN-') ? crewLabel(m,m.role) : 'Rol sin leer');
   const mates = group(m=>(Array.isArray(m.crew)?m.crew:[]).filter(c=>!c.me).map(c=>capName(c.n)));
   const venues = group(m=>VENUES[m.venue_key]?.label || capName(m.venue||''));
   html += `<div class="rs-list"><div><div class="rs-h">Por categoría</div>${rows(cats)}</div><div><div class="rs-h">Por designación</div>${rows(roles)}</div>
-    <div><div class="rs-h">Con quién has arbitrado más</div>${rows(mates,false) || '<p class="small muted">Los equipos arbitrales se guardan desde la temporada 26/27.</p>'}</div><div><div class="rs-h">Pabellones donde más has ido</div>${rows(venues)}</div></div>`;
+    <div><div class="rs-h">Con quién has arbitrado más</div>${rows(mates,false,'Con quien más') || '<p class="small muted">Los equipos arbitrales se guardan desde la temporada 26/27.</p>'}</div><div><div class="rs-h">Pabellones donde más has ido</div>${rows(venues,true,'Donde más has ido')}</div></div>`;
   html += `<p class="rs-note">${RS_MODE==='anio'?`Año ${year} por fecha de pago de la FCVB. Orientativo: para la declaración, el documento válido es el certificado de retenciones que emite la FCVB. `:''}Importes netos de IRPF${filtering()?', con los filtros puestos':''}.</p><p class="rs-note">Importes orientativos: manda el recibo de la FCVB.</p>
     <div class="row no-print" style="margin-top:12px"><button id="rsPrint">Guardar como PDF / imprimir</button></div>`;
   box.innerHTML=html;
