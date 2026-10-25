@@ -9,6 +9,8 @@ I.exact = {
 "App no oficial": "App no oficial",
 "Exportar a Excel": "Exporta a Excel",
 "Actualizar ahora": "Actualitza ara",
+"Actualizando…": "Actualitzant…",
+"Leyendo iSquad…": "Llegint iSquad…",
 "Salir": "Surt",
 "Pendiente de cobro": "Pendent de cobrament",
 "Ya cobrado": "Ja cobrat",
