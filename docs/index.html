@@ -202,6 +202,11 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:28px}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .form-grid label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--ink-2)}
+/* Aviso de versión nueva: encima del menú de abajo en el móvil */
+.newver{position:fixed;z-index:50;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:max-content;max-width:calc(100% - 32px);display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;border-radius:6px;background:var(--ink);color:var(--bg);font-size:14px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.newver.hidden{display:none}
+.newver button{flex:none;min-height:44px;padding:4px 14px;border:0;background:var(--yellow);color:#000;font-weight:700}
+@media (max-width:720px){ .newver{bottom:calc(76px + env(safe-area-inset-bottom,0px))} }
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--yellow);color:var(--black);font-weight:600;padding:10px 18px;border-radius:3px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 @media (max-width:720px){
@@ -391,8 +396,8 @@ body:not([data-vista="cobros"]) #alerts{display:none}
 .board .statline .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .board .statline .txt b{color:var(--board-ink);font-weight:700}
 .board .statline .txt b.p{color:var(--board-pend)}
-.board .statline .chev{display:none;flex:none;width:20px;height:20px;color:var(--yellow);transition:transform .25s}
-.board .statline .chev svg{display:block}
+.board .statline .chev{display:none;flex:none;width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,.14);color:var(--board-ink);transition:transform .25s}
+.board .statline .chev svg{display:block;margin:12px}
 body:not([data-vista="cobros"]) .board .statline,body.dep .board .statline{display:none}   /* la fecha de "Actualizado" va bajo el título */
 body[data-vista="cobros"]:not(.dep) .board .statline{cursor:pointer}
 body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
@@ -852,6 +857,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 
 <main id="loadingView"><p class="muted" style="text-align:center;margin-top:20vh">Cargando tus partidos…</p></main>
 <div class="toast" id="toast"></div>
+<div class="newver hidden" id="newVer" role="status"><span>Hay una versión nueva de la app.</span><button type="button" id="newVerBtn">Actualizar</button></div>
 <div class="ovl hidden" id="guide" role="dialog" aria-modal="true" aria-labelledby="guideTitle"><div class="sheet" id="guideSheet"></div></div>
 
 <script src="vendor/supabase-2.45.4.js"></script>
@@ -2346,6 +2352,20 @@ async function loadSalud(){
 $('saludPanel').addEventListener('toggle', e=>{ if(e.target.open) loadSalud(); });
 
 // Cabecera compacta (#3): visible cuando la fila del título de la cabecera grande sale de la pantalla.
+// Aviso de versión nueva: compara los estilos y scripts de la página abierta con los de la publicada. cache:'reload'
+// también renueva la caché del navegador, así que "Actualizar" ya carga la nueva. Como mucho una vez cada 10 min.
+{ const sig = d => [...d.querySelectorAll('style,script:not([src])')].map(e=>e.textContent).join('\n');
+  let last=0;
+  const check = async () => {
+    if(document.hidden || Date.now()-last < 10*60e3 || !$('newVer').classList.contains('hidden')) return; last=Date.now();
+    try{ const r=await fetch(location.pathname, {cache:'reload'}); if(!r.ok) return;
+      const d=new DOMParser().parseFromString(await r.text(),'text/html');
+      if(d.querySelector('script:not([src])') && sig(d)!==sig(document)) $('newVer').classList.remove('hidden');
+    }catch(e){}
+  };
+  setTimeout(check, 5000); document.addEventListener('visibilitychange', check);
+  $('newVerBtn').onclick=()=>location.reload();
+}
 { const top=document.querySelector('#appView .board .top'), mb=$('miniBar');
   const check=()=>{
     const on = !$('appView').classList.contains('hidden') && top.getBoundingClientRect().bottom < 0;

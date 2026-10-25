@@ -310,4 +310,6 @@ EXACT = {
 # Gráficos: estrella en el valor destacado (#20)
 "Más partidos": "Més partits", "Más partidos:": "Més partits:", "Con quien más": "Amb qui més", "Con quien más:": "Amb qui més:",
 "Donde más has ido": "On més has anat", "Donde más has ido:": "On més has anat:",
+# Aviso de versión nueva
+"Hay una versión nueva de la app.": "Hi ha una versió nova de l'app.",
 }

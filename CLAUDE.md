@@ -302,7 +302,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 - Cabecera ligera (issue #15): título, "App no oficial" y "Actualizado: …" (`#updTxt`) debajo, y el botón de icono
   Actualizar (gira mientras trabaja). "Salir" y el enlace a GitHub ("Hecha por fsarmesto") están en Ajustes.
-  `#statLine` solo en Cobros: "Pendiente · Cobrado", abre/cierra `#scoreWrap` (cifras y Excel), empieza plegado.
+  `#statLine` solo en Cobros: "Pendiente · Cobrado", abre/cierra `#scoreWrap` (cifras y Excel), empieza plegado; su flecha
+  es un botón de 44 px como las demás.
+- Aviso de versión nueva (`#newVer`): a los 5 s y al volver a la pestaña (máx. 1 vez cada 10 min) pide la página con
+  cache:'reload' y compara estilos y scripts en línea; si cambian, "Hay una versión nueva · Actualizar" (recarga).
 - Bajo la cabecera, una fila de controles (`#ctrl`): en Cobros y Resumen un solo selector de periodo (`renderPeriod`:
   temporadas y, en Resumen, "Año … · renta"); en Mis partidos [Próximos | Jugados] (`#ctrlSlot`); y el botón Filtros.
 - `body[data-vista]` = pestaña activa. Cifras de cobro, IRPF, Excel y avisos de pedir el pago solo en Cobros; el selector
