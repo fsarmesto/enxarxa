@@ -473,7 +473,13 @@ I.exact = {
 "Estado del cobro": "Estat del cobrament",
 "dieta y desplazamiento, FCVB": "dieta i desplaçament, FCVB",
 "festivo": "festiu",
-"Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.": "Els km són del pavelló: canvien tots els seus partits. Es desa en sortir de cada camp."
+"Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.": "Els km són del pavelló: canvien tots els seus partits. Es desa en sortir de cada camp.",
+"Más partidos": "Més partits",
+"Más partidos:": "Més partits:",
+"Con quien más": "Amb qui més",
+"Con quien más:": "Amb qui més:",
+"Donde más has ido": "On més has anat",
+"Donde más has ido:": "On més has anat:"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
@@ -491,6 +497,7 @@ I.rules = [
   [/^con (.+)$/, 'amb $1'],
   [/^Semana (.+)$/, 'Setmana $1'],
   [/^Actualizado: (.+)$/, 'Actualitzat: $1'],
+  [/^(Neto por mes. )?Mejor(es)? mes(es)?: (.+)$/, (m,a,b,c,r) => `${a?'Net per mes. ':''}${b?'Millors mesos':'Millor mes'}: ${r}`],
   [/^Sin guardar · leído de iSquad: (.+)$/, "Sense desar · llegit d'iSquad: $1"],
   [/^Te he encontrado en (\d+) plantillas? de la FCVB por tu foto de afiliado de iSquad\.(.*)$/, (m,n,r) => `T'he trobat en ${n} ${n==='1'?'plantilla':'plantilles'} de la FCVB per la teva foto d'afiliat d'iSquad.${r.replace(/Revisando plantillas: (\d+) de (\d+)\./,'Revisant plantilles: $1 de $2.')}`],
   [/^Te he encontrado en (\d+) plantillas? por tu foto de iSquad(.*)$/, (m,n,r) => `T'he trobat a ${n} ${n==='1'?'plantilla':'plantilles'} per la teva foto d'iSquad${r.replace(/\. Revisando plantillas: (\d+) de (\d+)\./,'. Revisant plantilles: $1 de $2.')}`],

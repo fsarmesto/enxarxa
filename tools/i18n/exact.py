@@ -307,4 +307,7 @@ EXACT = {
 "cobrado": "cobrat", "Editar": "Edita", "Km (solo ida)": "Km (només anada)", "a mano": "a mà", "Estado del cobro": "Estat del cobrament",
 "dieta y desplazamiento, FCVB": "dieta i desplaçament, FCVB", "festivo": "festiu",
 "Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.": "Els km són del pavelló: canvien tots els seus partits. Es desa en sortir de cada camp.",
+# Gráficos: estrella en el valor destacado (#20)
+"Más partidos": "Més partits", "Más partidos:": "Més partits:", "Con quien más": "Amb qui més", "Con quien más:": "Amb qui més:",
+"Donde más has ido": "On més has anat", "Donde más has ido:": "On més has anat:",
 }
