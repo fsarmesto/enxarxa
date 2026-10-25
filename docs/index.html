@@ -115,7 +115,21 @@ details.panel[open]>summary{margin-bottom:14px}
 
 /* Partidos por semana */
 .week{margin-bottom:34px}
-.week-head{display:flex;justify-content:space-between;align-items:flex-end;gap:8px 12px;flex-wrap:wrap;padding:0 0 6px;border-bottom:3px solid var(--rule)}
+/* Semanas (#17): esta semana en su bloque, títulos de sección y anteriores plegadas; el título se queda arriba al bajar */
+.week.cur{border:3px solid var(--yellow);border-radius:6px;padding:10px 12px 2px;background:var(--surface)}
+.wk-lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin-bottom:2px}
+.wk-sec{font-family:var(--display);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:44px 0 12px}
+.week.wk{margin-bottom:12px}
+.week.wk[open]{margin-bottom:34px}
+.week.wk>summary{list-style:none;cursor:pointer}
+.week.wk>summary::-webkit-details-marker{display:none}
+.wk-acts{margin:8px 0 4px}
+.week-head{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;padding:6px 0;border-bottom:3px solid var(--rule);position:sticky;top:0;z-index:5;background:var(--bg)}
+.week.cur .week-head{background:var(--surface)}
+.wk-t{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+.wk-n{font-size:13px;color:var(--ink-3)}
+.week-head .tag{margin-left:0}
+.tag.pend{background:var(--surface-2);color:var(--ink)}
 .week-head .t{font-family:var(--display);font-weight:600;font-size:22px;line-height:1.1}
 .week-head .sum{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.1}
 .week-head .actions{display:flex;gap:10px;align-items:center}
@@ -124,6 +138,39 @@ details.panel[open]>summary{margin-bottom:14px}
 .day-head span:first-child::first-letter{text-transform:uppercase}
 .wrap{overflow-x:auto}
 table.m{width:100%;border-collapse:collapse;min-width:940px}
+/* Tarjeta de partido del móvil */
+.mc{border-bottom:1px solid var(--line)}
+.mc:last-child{border-bottom:0}
+.mc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto 44px;gap:4px 10px;padding:12px 0;align-items:start}
+.mc>summary::-webkit-details-marker{display:none}
+.mc-1{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;font-size:14px;font-weight:600}
+.mc-1 .tm{font-family:var(--display);font-size:20px;font-weight:700;line-height:1.1}
+.mc-1 .tag{margin-left:0}
+.mc-tt{font-size:15px;line-height:1.3;margin-top:3px;overflow-wrap:anywhere}
+.mc-vn{font-size:12.5px;color:var(--ink-3);margin-top:2px;overflow-wrap:anywhere}
+.mc-r{display:flex;flex-direction:column;align-items:flex-end;gap:5px;padding-top:2px}
+.mc-r b{font-family:var(--display);font-size:22px;font-weight:700;line-height:1;white-space:nowrap}
+.mc-r .tag{margin-left:0}
+.mc.paid .mc-tt,.mc.paid .mc-1 span{color:var(--ink-2)}
+.mc-more{padding:0 0 14px}
+.mc-role{font-size:13.5px;color:var(--ink-2);margin-bottom:8px}
+.mc-dl{margin:0;display:grid}
+.mc-dl .r{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;border-bottom:1px solid var(--line)}
+.mc-dl dt{font-size:14px;color:var(--ink-2);min-width:0}
+.mc-dl dt small{display:block;font-size:12px;color:var(--ink-3)}
+.mc-dl dd{margin:0;font-size:15px;font-weight:600;white-space:nowrap}
+.mc-dl .r.tot{border-bottom:0;border-top:2px solid var(--ink);margin-top:2px}
+.mc-dl .r.tot dt,.mc-dl .r.tot dd{font-weight:800;color:var(--ink);font-size:16px}
+.mc-acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 8px}
+.mc-acts .segb button{min-height:44px;padding:3px 14px}
+.mc-ed{display:inline-flex;align-items:center;gap:6px}
+.mc-ed[aria-expanded="true"]{background:var(--surface-2)}
+.mc-edit{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 10px;padding:10px;border:1px solid var(--line);border-radius:6px}
+.mc-edit label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.mc-edit input{width:100%;font-size:16px;padding:8px 10px}
+.mc-edit p{grid-column:1/-1;margin:0}
+.mc-edit button.reset{margin:4px 0 0;text-align:left}
+
 table.m th{font-weight:500;color:var(--ink-3);font-size:12px;text-align:left;padding:8px 8px 6px;border-bottom:1px solid var(--line)}
 table.m td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 table.m tr:last-child td{border-bottom:0}
@@ -168,6 +215,8 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
   .score .v{font-size:34px}
   .grid2{grid-template-columns:1fr}
   /* Cada partido, apilado: hora y partido, designación, importes y botón */
+  .week-head{top:calc(59px + env(safe-area-inset-top,0px))}   /* debajo de la cabecera compacta */
+  .week.cur{padding:8px 10px 2px}
   table.m{min-width:0;display:block;width:100%}
   table.m thead{display:none}
   table.m tbody,table.m td{display:block}
@@ -902,12 +951,12 @@ function tr(text){
   if(out==null){ out=k; for(const [re,b] of FRAG_RE) out=out.replace(re,(_,p)=>p+b); }
   return out===k ? text : text.replace(k,out);
 }
-const TR_ATTRS=['placeholder','title','aria-label'];
+const TR_ATTRS=['placeholder','title','aria-label','data-l'];
 function translateNode(n){
   if(LANG!=='ca' || !n) return;
   if(n.nodeType===3){ const p=n.parentElement; if(!p || p.closest('script,style,[data-noi18n]')) return; const v=tr(n.nodeValue); if(v!==n.nodeValue) n.nodeValue=v; return; }
   if(n.nodeType!==1 || n.closest('script,style,[data-noi18n]')) return;
-  for(const el of [n, ...n.querySelectorAll('[placeholder],[title],[aria-label]')]) for(const a of TR_ATTRS){ const v=el.getAttribute&&el.getAttribute(a); if(v){ const t=tr(v); if(t!==v) el.setAttribute(a,t); } }
+  for(const el of [n, ...n.querySelectorAll('[placeholder],[title],[aria-label],[data-l]')]) for(const a of TR_ATTRS){ const v=el.getAttribute&&el.getAttribute(a); if(v){ const t=tr(v); if(t!==v) el.setAttribute(a,t); } }
   const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT); let t; while((t=w.nextNode())) translateNode(t);
 }
 if(LANG==='ca'){
@@ -1328,6 +1377,35 @@ $('statLine').addEventListener('click', ()=>{
   SCORE_OPEN = !SCORE_OPEN;
   renderStatLine();
 });
+// Cobros en el móvil (#17): tarjeta plegada con hora, competición, equipos, pabellón, neto y estado; al abrirla, el desglose
+// en dos columnas, km/peajes/dieta tras "Editar" y el estado como selector [Pendiente | Cobrado].
+const MOBILE_Q = matchMedia('(max-width:720px)');
+MOBILE_Q.addEventListener('change', ()=>{ if(VIEW==='cobros' && P) render(); });
+const MC_OPEN=new Set(), MC_EDIT=new Set(), WK_OPEN=new Map();
+const PEN_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+function cardHtml(m,r,km,gone,manual){
+  const id=esc(m.id), open=MC_OPEN.has(m.id), edit=MC_EDIT.has(m.id), paid=isPaid(m);
+  const warn = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && !/^(FINALIZADO|PENDIENTE)$/.test(m.estado) ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
+  const lbl=VENUES[m.venue_key]?.label, city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
+  const venue=(lbl||capName(m.venue))+(city&&!(lbl||'').includes('(')?' · '+capName(city[1]):'');
+  const row=(l,v,note,cls='')=>`<div class="r${cls}"><dt>${l}${note?`<small>${note}</small>`:''}</dt><dd>${v}</dd></div>`;
+  const kmNote = km ? `${km} km${r.kmSrc==='fcvb'?' · km FCVB':r.kmSrc==='min'?' · mínimo FCVB':r.kmSrc==='aprox'?' · km aprox.':''}${r.travelShared&&r.travel?' · mismo pabellón':''}` : '';
+  const rows = row('Tarifa', eur(r.tariff), r.fcvb?'FCVB':'')
+    + (r.fcvb ? row('Gastos', eur(r.travel), 'dieta y desplazamiento, FCVB')
+      : row('Dieta', eur(r.dieta||0), m.dieta_override!=null?'a mano':(r.dietaShared&&r.dieta?'jornada':'')) + row('Desplazamiento', r.travel?eur(r.travel):(km?'—':'<span class="tag warn">km?</span>'), kmNote))
+    + row('Peajes', eur(+m.tolls||0)) + (+P.irpf ? row('IRPF', r.irpf?'−'+eur(r.irpf):'—') : '')
+    + row(+P.irpf?'Neto':'Total', eur(r.total), '', ' tot');
+  const editor = edit ? `<div class="mc-edit"><label>Km (solo ida)<input type="number" step="1" data-f="km" data-id="${id}" value="${km||''}" placeholder="?"></label><label>Peajes<input type="number" step="0.05" data-f="tolls" data-id="${id}" value="${+m.tolls||''}" placeholder="0"></label>${r.fcvb?'':`<label>Dieta<input type="number" step="0.5" min="0" data-f="dieta" data-id="${id}" value="${r.dieta||''}" placeholder="0">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${id}">automática (${eur(r.dietaAuto)})</button>`:''}</label>`}<p class="small muted">Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.</p></div>` : '';
+  const pay = paidByFcvb(m) ? `<span class="pay is-paid" title="Según iSquad">✓ ${esc((m.fcvb_pago||'PAGADO').charAt(0)+(m.fcvb_pago||'PAGADO').slice(1).toLowerCase())}</span>`
+    : `<span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!m.paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${!!m.paid}">Cobrado</button></span>`;
+  return `<details class="mc${paid?' paid':''}" data-mc="${id}"${open?' open':''}><summary aria-expanded="${open}">
+    <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}</div></div>
+    <div class="mc-r"><b>${eur(r.total)}</b>${paid?'<span class="tag ok">cobrado</span>':'<span class="tag pend">pendiente</span>'}</div>${chevHtml(open)}</summary>
+    <div class="mc-more"><div class="mc-role">${[m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad', m.staff_checked&&m.team!=='t1'&&m.role!=='jl'&&TEAM_OPTS[m.team], esc(CATS[catOf(m)].label), (isHoliday(m.date)||m.holiday)&&'festivo'].filter(Boolean).map(x=>`<span>${x}</span>`).join(' · ')}</div>
+    <dl class="mc-dl">${rows}</dl>
+    <div class="mc-acts">${pay}<button type="button" class="ghost small mc-ed" data-edit="${id}" aria-expanded="${edit}">${PEN_SVG}<span>Editar</span></button></div>${editor}
+    ${payTag(m)}${manual||gone?`<button class="ghost small danger" data-del="${id}">quitar</button>`:''}</div></details>`;
+}
 function render(){
   pickSeason();
   if(VIEW!==PREV_VIEW){ closeFilters(); closePeriod(); PREV_VIEW=VIEW; }
@@ -1373,22 +1451,15 @@ function render(){
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
   const weeks = new Map(); for(const m of shown){ const w=weekStart(m.date); (weeks.get(w)||weeks.set(w,[]).get(w)).push(m); }
-  const syncT = P.last_sync ? new Date(P.last_sync).getTime() : 0;
-  let html='';
-  for(const [w,list] of [...weeks].sort((a,b)=>b[0].localeCompare(a[0]))){
-    const wt=list.reduce((s,m)=>s+res.get(m.id).total,0); const allPaid=list.every(isPaid);
-    html+=`<div class="week"><div class="week-head"><div><span class="t">Semana ${weekRange(w)}</span><span class="muted small"> · ${list.length} partido${list.length===1?'':'s'}</span>${allPaid?'<span class="tag ok">cobrada</span>':''}</div>
-      <div class="actions"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button><span class="sum">${eur(wt)}</span></div></div>`;
-    const days=new Map(); for(const m of list){ (days.get(m.date)||days.set(m.date,[]).get(m.date)).push(m); }
-    for(const [ds,dl] of [...days].sort((a,b)=>b[0].localeCompare(a[0]))){
-      const dt=dl.reduce((s,m)=>s+res.get(m.id).total,0);
-      html+=`<div class="day"><div class="day-head"><span>${fmtDay(ds)}</span><span>${eur(dt)}</span></div><div class="wrap"><table class="m"><thead><tr>
-        <th>Hora</th><th>Partido</th><th>Designación</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th></th></tr></thead><tbody>`;
-      for(const m of dl.sort((a,b)=>a.time.localeCompare(b.time))){
-        const r=res.get(m.id), km=kmFor(m), manual=m.id.startsWith('MAN-');
-        const gone = !manual && syncT && new Date(m.last_seen).getTime() < syncT-120000;
-        const tag = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && m.estado!=='FINALIZADO' ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
-        const city = (m.addr||'').match(/\d{5}\s+([^,]+)/);
+  const syncT = P.last_sync ? new Date(P.last_sync).getTime() : 0, mobile=MOBILE_Q.matches;
+  // Una fila de tabla (escritorio) o una tarjeta plegable (móvil) por partido.
+  const matchHtml = m => {
+    const r=res.get(m.id), km=kmFor(m), manual=m.id.startsWith('MAN-');
+    const gone = !manual && syncT && new Date(m.last_seen).getTime() < syncT-120000;
+    if(mobile) return cardHtml(m,r,km,gone,manual);
+    const tag = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && m.estado!=='FINALIZADO' ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
+    const city = (m.addr||'').match(/\d{5}\s+([^,]+)/);
+    let html='';
         html+=`<tr class="${isPaid(m)?'paid':''}">
           <td class="time">${esc(m.time)}</td>
           <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div><div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}</div></td>
@@ -1400,11 +1471,29 @@ function render(){
           ${+P.irpf?`<td class="n" data-l="IRPF">${r.irpf?'−'+eur(r.irpf):'<span class="muted">—</span>'}</td>`:''}
           <td class="n total" data-l="${+P.irpf?'Neto':'Total'}">${eur(r.total)}</td>
           <td class="ctrl paycell">${paidByFcvb(m)?`<span class="pay is-paid" title="Según iSquad">✓ ${esc((m.fcvb_pago||'PAGADO').charAt(0)+(m.fcvb_pago||'PAGADO').slice(1).toLowerCase())}</span>`:`<button class="pay${m.paid?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${m.paid?'true':'false'}">${m.paid?'✓ Cobrado':'Marcar cobrado'}</button>`}${payTag(m)}${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
-      }
-      html+='</tbody></table></div></div>';
+    return html;
+  };
+  const weekHtml = (w, list, kind) => {
+    const wt=list.reduce((s,m)=>s+res.get(m.id).total,0), allPaid=list.every(isPaid);
+    const head=`<div class="wk-t"><span class="t">Semana ${weekRange(w)}</span><span class="wk-n">${list.length} partido${list.length===1?'':'s'}</span>${allPaid?'<span class="tag ok">cobrada</span>':(kind==='prev'?'<span class="tag pend">pendiente</span>':'')}</div><span class="sum">${eur(wt)}</span>`;
+    let body=`<div class="wk-acts"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button></div>`;
+    const days=new Map(); for(const m of list){ (days.get(m.date)||days.set(m.date,[]).get(m.date)).push(m); }
+    for(const [ds,dl] of [...days].sort((a,b)=>b[0].localeCompare(a[0]))){
+      const dt=dl.reduce((s,m)=>s+res.get(m.id).total,0), rows=dl.sort((a,b)=>a.time.localeCompare(b.time)).map(matchHtml).join('');
+      body+=`<div class="day"><div class="day-head"><span>${fmtDay(ds)}</span><span>${eur(dt)}</span></div>`+(mobile ? `<div class="mcs">${rows}</div>` : `<div class="wrap"><table class="m"><thead><tr>
+        <th>Hora</th><th>Partido</th><th>Designación</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`)+'</div>';
     }
-    html+='</div>';
-  }
+    // Las semanas anteriores van plegadas en una fila; se abren solas si queda algún pago por pedir.
+    if(kind==='prev'){ const open = WK_OPEN.has(w) ? WK_OPEN.get(w) : list.some(m=>payState(m)==='solicitar');
+      return `<details class="week wk" data-wk="${w}"${open?' open':''}><summary class="week-head" aria-expanded="${open}">${head}${chevHtml(open)}</summary>${body}</details>`; }
+    return `<div class="week${kind==='cur'?' cur':''}">${kind==='cur'?'<div class="wk-lbl">Esta semana</div>':''}<div class="week-head">${head}</div>${body}</div>`;
+  };
+  // Orden: esta semana, las próximas (de la más cercana a la más lejana) y las anteriores (de la más reciente atrás).
+  const cur=weekStart(today()), ws=[...weeks].sort((a,b)=>a[0].localeCompare(b[0]));
+  const next=ws.filter(([w])=>w>cur), prev=ws.filter(([w])=>w<cur).reverse();
+  let html = weeks.has(cur) ? weekHtml(cur, weeks.get(cur), 'cur') : '';
+  if(next.length) html+='<h2 class="wk-sec">Próximas semanas</h2>'+next.map(([w,l])=>weekHtml(w,l,'next')).join('');
+  if(prev.length) html+='<h2 class="wk-sec">Semanas anteriores</h2>'+prev.map(([w,l])=>weekHtml(w,l,'prev')).join('');
   led.innerHTML=html;
   renderSettings();
 }
@@ -1444,10 +1533,14 @@ $('ledger').addEventListener('change', e=>{
   if(el.type==='checkbox') return patchMatch(id,{[f]:el.checked});
   patchMatch(id,{[f]:el.value});
 });
+$('ledger').addEventListener('toggle', e=>{ const d=e.target;
+  if(d.dataset.mc) d.open ? MC_OPEN.add(d.dataset.mc) : MC_OPEN.delete(d.dataset.mc);
+  else if(d.dataset.wk) WK_OPEN.set(d.dataset.wk, d.open); }, true);
 $('ledger').addEventListener('click', async e=>{
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.dietaAuto){ patchMatch(b.dataset.dietaAuto,{dieta_override:null}); return; }
-  if(b.dataset.pay){ const m=MATCHES.find(x=>x.id===b.dataset.pay); if(m) patchMatch(m.id,{paid:!m.paid}); return; }
+  if(b.dataset.pay){ const m=MATCHES.find(x=>x.id===b.dataset.pay), v=b.dataset.v ? b.dataset.v==='1' : !m?.paid; if(m && !!m.paid!==v) patchMatch(m.id,{paid:v}); return; }
+  if(b.dataset.edit){ const k=b.dataset.edit; MC_EDIT.has(k)?MC_EDIT.delete(k):MC_EDIT.add(k); render(); return; }
   if(b.dataset.del && confirm(tr('¿Quitar este partido de la lista?'))){
     MATCHES = MATCHES.filter(m=>m.id!==b.dataset.del); render();
     await store().from('matches').delete().eq('user_id',USER.id).eq('id',b.dataset.del);

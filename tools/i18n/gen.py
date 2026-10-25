@@ -27,7 +27,7 @@ FRAGS = [
  ("Juegas con","Jugues amb"), ("Entrenas con","Entrenes amb"), ("Sigues con","Segueixes"), ("Invitado con","Convidat amb"),
  ("juegas con","jugues amb"), ("entrenas con","entrenes amb"), ("sigues con","segueixes"), ("invitado con","convidat amb"),
  ("(sin confirmar)","(sense confirmar)"), ("(sin horario)","(sense horari)"),
- ("ya cobrado","ja cobrat"), ("Próximo:","Proper:"), ("Último:","Últim:"),
+ ("ya cobrado","ja cobrat"), ("mismo pabellón","mateix pavelló"), ("mínimo FCVB","mínim FCVB"), ("automática","automàtica"), ("Próximo:","Proper:"), ("Último:","Últim:"),
  ("de hoy","d'avui"), ("de ayer","d'ahir"), ("sale de","surt de"), ("a las","a les"),
  ("partidos","partits"), ("partido","partit"), ("jornadas","jornades"), ("cobrado","cobrat"),
  ("Cobro","Cobrament"), ("pendiente","pendent"), ("festivo","festiu"), ("y","i"),

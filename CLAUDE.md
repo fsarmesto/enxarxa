@@ -127,6 +127,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   (editar | procesando | factura) y `fcvb_campo` (tarifa cobrada en el pabellón). Migración 010.
   En la web `payState()`: pagado, solicitado, solicitar, perdido, nada, sinrecibo, futuro; avisos arriba y desglose
   de lo pendiente en la cabecera. Pie de la tabla de iSquad: importe no solicitado / solicitado / pagado.
+- Semanas (issue #17): "Esta semana" en un bloque con borde amarillo, luego "Próximas semanas" y "Semanas anteriores"
+  (plegadas en una fila, `WK_OPEN`; se abren solas si hay un pago por pedir). El título de semana es sticky (en el
+  móvil, bajo la cabecera compacta: 59 px). En el móvil (`MOBILE_Q`, ≤720 px) cada partido es una tarjeta `details.mc`
+  (`cardHtml`: hora + `shortComp`, equipos, pabellón, neto y estado; al abrir, desglose en dos columnas, [Pendiente |
+  Cobrado] y "Editar" que abre km/peajes/dieta, `MC_EDIT`); en escritorio sigue la tabla. `data-l` también se traduce.
 - Filtros (`renderFilters`): designación (rol leído de iSquad), división, categoría de edad y género sacados del
   texto de la competición (`compParts`); cada desplegable cuenta los partidos que cumplen los demás filtros.
   Se recuerdan en el navegador (localStorage `liq-filtros`). Van recogidos (issue #15): botón "Filtros · n" que abre
