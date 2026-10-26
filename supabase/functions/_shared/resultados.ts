@@ -82,6 +82,7 @@ export async function checkResultados(db: Db, userId: string, deadline: number):
     if (Date.now() > deadline - 15_000) break;
     n++;
     const patch: Record<string, unknown> = { pub_checked: new Date().toISOString() };
+    let failed = false;
     try {
       if (needRes(m)) {
         let sets: [number, number] | null | undefined;   // undefined = no encontrado en la API
@@ -96,14 +97,16 @@ export async function checkResultados(db: Db, userId: string, deadline: number):
         if (sets === undefined) sets = await actaCompleta(m.id_partido);
         if (sets) { patch.res_l = sets[0]; patch.res_v = sets[1]; patch.res_at = patch.pub_checked; res++; }
       }
-    } catch (e) { errores++; fallo ||= (e as Error).message; }
+    } catch (e) { errores++; failed = true; fallo ||= (e as Error).message; }
     try {
       if (!m.acta_url) {
         const url = await actaEscaneada(m.id_partido);
         if (url) { patch.acta_url = url; patch.acta_at = subidaDe(url) ?? patch.pub_checked; actas++; }
       }
-    } catch (e) { errores++; fallo ||= (e as Error).message; }
-    await db.from("matches").update(patch).eq("user_id", userId).eq("id", m.id);
+    } catch (e) { errores++; failed = true; fallo ||= (e as Error).message; }
+    // Si algo ha fallado (iSquad a veces da 500), sin pub_checked: se vuelve a mirar en la siguiente pasada, no a la semana.
+    if (failed) delete patch.pub_checked;
+    if (Object.keys(patch).length) await db.from("matches").update(patch).eq("user_id", userId).eq("id", m.id);
   }
   return `${n} de ${todo.length} mirados: ${res} resultados, ${actas} actas${errores ? `, ${errores} errores (${fallo})` : ""}`;
 }
