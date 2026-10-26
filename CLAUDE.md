@@ -56,7 +56,7 @@ rama `claude/...` con PR. Reglas para esos trabajos:
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…026). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…027). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
@@ -342,6 +342,27 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   ahora `tor` (id_torneo) y `fase` (caché `tm2:`). En la web, botón "Clasificación" en cada equipo de Equipos: hoja con
   la tabla (tu equipo en amarillo, pestañas si hay varias fases) y al tocar un equipo, sus partidos del grupo.
 - Ojo: 32 partidos tienen el pabellón con U+FFFD ("PAVELL�") desde el sync de designaciones: viene roto de iSquad.
+
+## Resultado publicado y acta subida (issue #31, 26-oct-2026)
+
+- Investigado en el issue #31 (comentarios). "Resultado subido" = marcador en la API pública (`busquedaGlobal`): es lo
+  mismo que el acta "rellena" de `voleibol_acta_completa.php` (ese PDF se genera siempre, ~106 KB y ~3 s; sale con los
+  sets cuando el resultado está metido en iSquad y con ceros si no: comprobado en 81 partidos). "Acta subida" = la foto
+  del acta de papel: `resultadosvoleibol.isquad.es/json/competicion/acta_escaneada.php?id_partido=` (sin login, 80
+  bytes: URL del PDF o null). Pueden ir por separado (acta sin resultado y al revés).
+- `arbitros_listado_actas.php` (área privada) no sirve: lista todos los jugados, sin estado del acta.
+- Ids: la tabla de designaciones lleva el `id_partido` público (DOCUMENTOS: `voleibol_acta_completa.php?id_partido=`)
+  y el id_equipo de local y visitante (`verAlineacionEquipo(id_partido, id_equipo, ...)`). `parseDesignaciones` los
+  guarda en `matches.id_partido/eq_l/eq_v` (migración 027). La API no busca por id: el resultado sale de
+  `teamMatches(eq_l, nombre)` y, si no, del visitante (24 de 24 partidos de Ferran).
+- `checkResultados` (`_shared/resultados.ts`, en cada sync completo, no en el rápido): partidos con id de los últimos 30
+  días empezados hace más de 1 h, sin selecciones ni suspendidos, como mucho 15 por pasada; guarda `res_l/res_v/res_at`
+  y `acta_url/acta_at` (hora del nombre del fichero) y no los vuelve a pedir. En la web, `pubTags(m)`: "Resultado 3-1"
+  o "Resultado pendiente de subir" y "Acta subida" o "Acta sin subir" (los avisos, desde inicio + 2 h 30 min), en
+  Mis partidos y Cobros; "Ver el acta" en el detalle.
+- La página que da el token de la API (`competicion.php`) llegaba el 26-oct con error 500 y entera: `apiToken` ya no
+  mira el código de estado, solo si trae el token.
+- Pendiente del #31: aviso del domingo a las 21:00, sección de Avisos y punto en la pestaña, resultados de tus equipos.
 
 ## Avisos al momento (función vigilar, 21-oct-2026)
 

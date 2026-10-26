@@ -482,7 +482,12 @@ I.exact = {
 "Donde más has ido:": "On més has anat:",
 "Hay una versión nueva de la app.": "Hi ha una versió nova de l'app.",
 "Pagado en iSquad, sin recibir": "Pagat a iSquad, sense rebre",
-"Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.": "Aquest rebut ja està demanat a iSquad: les seves despeses són les de la FCVB i els km no les canvien."
+"Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.": "Aquest rebut ja està demanat a iSquad: les seves despeses són les de la FCVB i els km no les canvien.",
+"Resultado": "Resultat",
+"Resultado pendiente de subir": "Resultat pendent de pujar",
+"Acta subida": "Acta pujada",
+"Acta sin subir": "Acta sense pujar",
+"Ver el acta": "Veure l'acta"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

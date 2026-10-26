@@ -12,6 +12,9 @@ export type ScrapedMatch = {
   id: string; comp: string; phase: string; teams: string; estado: string;
   date: string; time: string; venue: string; addr: string; venue_key: string;
   desig_id: string | null;
+  // Partido y equipos en la web pública de resultados (id_partido, id_equipo local y visitante): con ellos se sabe si el
+  // resultado está publicado y si el acta está subida (_shared/resultados.ts).
+  id_partido?: string | null; eq_l?: string | null; eq_v?: string | null;
   // Liquidación de la FCVB (página de recibos); solo si se ha podido leer.
   fcvb_tarifa?: number | null; fcvb_gastos?: number | null; fcvb_pago?: string | null;
   // Plazo para pedir el pago ("Fin cambios", el día siguiente al partido), qué deja hacer iSquad
@@ -313,12 +316,17 @@ export function parseDesignaciones(html: string): ScrapedMatch[] | null {
     const mo = fd ? MONTHS[fd[2].toLowerCase()] : 0;
     if (!fd || !h || !mo) continue;
     const venue = tx(c[9].querySelector(".text-bold")), addr = tx(c[9].querySelector("span"));
+    // DOCUMENTOS lleva el acta (voleibol_acta_completa.php?id_partido=) y PARTIDO, verAlineacionEquipo(id_partido, id_equipo, ...)
+    // de cada equipo, local primero.
+    const eqs = [...(c[3].innerHTML || "").matchAll(/verAlineacionEquipo\(\s*(\d+)\s*,\s*(\d+)/g)];
+    const idPartido = (c[5]?.innerHTML || "").match(/acta_completa\.php\?id_partido=(\d+)/)?.[1] ?? eqs[0]?.[1] ?? null;
     out.push({
       id: tx(c[0]), comp: tx(c[2].querySelector(".text-bold")), phase: tx(c[2].querySelector("span")),
       teams: [...c[3].querySelectorAll(".text-bold")].map(tx).join(" vs "), estado: tx(c[7]).toUpperCase(),
       date: `${fd[3]}-${String(mo).padStart(2, "0")}-${fd[1].padStart(2, "0")}`,
       time: `${h[1].padStart(2, "0")}:${h[2]}`, venue, addr, venue_key: venueKey(venue, addr),
       desig_id: (c[4].innerHTML || "").match(/ver_designacion\((\d+)\)/)?.[1] ?? null,
+      id_partido: idPartido, eq_l: eqs[0]?.[2] ?? null, eq_v: eqs[1]?.[2] ?? null,
     });
   }
   return out;
