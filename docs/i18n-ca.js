@@ -481,7 +481,8 @@ I.exact = {
 "Donde más has ido": "On més has anat",
 "Donde más has ido:": "On més has anat:",
 "Hay una versión nueva de la app.": "Hi ha una versió nova de l'app.",
-"Pagado en iSquad, sin recibir": "Pagat a iSquad, sense rebre"
+"Pagado en iSquad, sin recibir": "Pagat a iSquad, sense rebre",
+"Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.": "Aquest rebut ja està demanat a iSquad: les seves despeses són les de la FCVB i els km no les canvien."
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

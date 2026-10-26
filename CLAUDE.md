@@ -129,6 +129,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   de lo pendiente en la cabecera. Pie de la tabla de iSquad: importe no solicitado / solicitado / pagado.
   "PAGADO" en iSquad se puede desmarcar (Pendiente) si el dinero aún no ha llegado: `matches.not_received`
   (migración 026, campo manual de `sync.ts`), estado `porllegar`, suma en pendiente. `payPatch(m,v)` decide qué se guarda.
+  Km a mano (`kmInfo` src manual) en un recibo aún sin pedir ni pagar (`fcvbFixed`): mandan los km de la app para dieta y
+  desplazamiento (`r.fcvbTarifa`: solo la tarifa es de la FCVB). iSquad pone gastos 0 hasta que se rellena la hoja.
 - Semanas (issue #17): "Esta semana" en un bloque con borde amarillo, luego "Próximas semanas" y "Semanas anteriores"
   (plegadas en una fila, `WK_OPEN`; se abren solas si hay un pago por pedir). El título de semana es sticky (en el
   móvil, bajo la cabecera compacta: 59 px). En el móvil (`MOBILE_Q`, ≤720 px) cada partido es una tarjeta `details.mc`

@@ -1112,6 +1112,8 @@ function kmInfo(m){
   return {km:route, src:v?.km_source==='poblacion'?'aprox':'ruta'};
 }
 const kmFor = m => kmInfo(m).km;
+// Recibo ya pedido o pagado: sus gastos ya no cambian.
+const fcvbFixed = m => /^(SOLICITADO|PAGADO)/.test(m.fcvb_pago||'') || ['procesando','factura'].includes(m.fcvb_accion);
 function compute(){
   const ms = MATCHES.filter(m=>!isHidden(m)).sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
   const res = new Map();
@@ -1132,10 +1134,12 @@ function compute(){
   }
   for(const m of ms){ const r=res.get(m.id); r.dietaAuto=r.dieta; if(m.dieta_override!=null){ r.dieta=+m.dieta_override; r.dietaShared=false; } }
   // Lo que la FCVB ya ha liquidado (recibos de iSquad) manda sobre el cálculo de la app, que queda como previsión.
-  // Sus gastos son desplazamiento + dieta juntos.
+  // Sus gastos son desplazamiento + dieta juntos. Excepción: km puestos a mano en un recibo que aún no se ha pedido
+  // (ni pagado): mandan los km, porque son los que el árbitro pondrá en la hoja de gastos; la tarifa sigue siendo la de la FCVB.
   for(const m of ms){
     if(m.fcvb_tarifa==null) continue;
     const r=res.get(m.id); r.est = {tariff:r.tariff, gastos:+(r.dieta+r.travel).toFixed(2)};
+    if(!fcvbFixed(m) && kmInfo(m).src==='manual'){ r.fcvbTarifa=true; r.tariff=+m.fcvb_tarifa; continue; }
     r.fcvb=true; r.tariff=+m.fcvb_tarifa; r.dieta=0; r.travel=+m.fcvb_gastos; r.dietaShared=r.travelShared=false;
   }
   // IRPF: retención sobre la tarifa (dieta, desplazamiento y peajes van exentos). total = lo que cobras.
@@ -1408,12 +1412,12 @@ function cardHtml(m,r,km,gone,manual){
   const venue=(lbl||capName(m.venue))+(city&&!(lbl||'').includes('(')?' · '+capName(city[1]):'');
   const row=(l,v,note,cls='')=>`<div class="r${cls}"><dt>${l}${note?`<small>${note}</small>`:''}</dt><dd>${v}</dd></div>`;
   const kmNote = km ? `${km} km${r.kmSrc==='fcvb'?' · km FCVB':r.kmSrc==='min'?' · mínimo FCVB':r.kmSrc==='aprox'?' · km aprox.':''}${r.travelShared&&r.travel?' · mismo pabellón':''}` : '';
-  const rows = row('Tarifa', eur(r.tariff), r.fcvb?'FCVB':'')
+  const rows = row('Tarifa', eur(r.tariff), r.fcvb||r.fcvbTarifa?'FCVB':'')
     + (r.fcvb ? row('Gastos', eur(r.travel), 'dieta y desplazamiento, FCVB')
       : row('Dieta', eur(r.dieta||0), m.dieta_override!=null?'a mano':(r.dietaShared&&r.dieta?'jornada':'')) + row('Desplazamiento', r.travel?eur(r.travel):(km?'—':'<span class="tag warn">km?</span>'), kmNote))
     + row('Peajes', eur(+m.tolls||0)) + (+P.irpf ? row('IRPF', r.irpf?'−'+eur(r.irpf):'—') : '')
     + row(+P.irpf?'Neto':'Total', eur(r.total), '', ' tot');
-  const editor = edit ? `<div class="mc-edit"><label>Km (solo ida)<input type="number" step="1" data-f="km" data-id="${id}" value="${km||''}" placeholder="?"></label><label>Peajes<input type="number" step="0.05" data-f="tolls" data-id="${id}" value="${+m.tolls||''}" placeholder="0"></label>${r.fcvb?'':`<label>Dieta<input type="number" step="0.5" min="0" data-f="dieta" data-id="${id}" value="${r.dieta||''}" placeholder="0">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${id}">automática (${eur(r.dietaAuto)})</button>`:''}</label>`}<p class="small muted">Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.</p></div>` : '';
+  const editor = edit ? `<div class="mc-edit"><label>Km (solo ida)<input type="number" step="1" data-f="km" data-id="${id}" value="${km||''}" placeholder="?"></label>${r.fcvb&&fcvbFixed(m)?'<p class="small muted">Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.</p>':''}<label>Peajes<input type="number" step="0.05" data-f="tolls" data-id="${id}" value="${+m.tolls||''}" placeholder="0"></label>${r.fcvb?'':`<label>Dieta<input type="number" step="0.5" min="0" data-f="dieta" data-id="${id}" value="${r.dieta||''}" placeholder="0">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${id}">automática (${eur(r.dietaAuto)})</button>`:''}</label>`}<p class="small muted">Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.</p></div>` : '';
   const pay = `<span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${paid}">Cobrado</button></span>`;
   return `<details class="mc${paid?' paid':''}" data-mc="${id}"${open?' open':''}><summary aria-expanded="${open}">
     <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}</div></div>
@@ -1482,7 +1486,7 @@ function render(){
           <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div><div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}</div></td>
           <td class="ctrl"><div class="desig"><strong>${m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad'}</strong>${m.staff_checked&&m.team!=='t1'&&m.role!=='jl'?' · '+TEAM_OPTS[m.team]:''}<br>${esc(CATS[catOf(m)].label)}${isHoliday(m.date)||m.holiday?' · festivo':''}</div>
             <label class="chk small">km <input type="number" step="1" data-f="km" data-id="${esc(m.id)}" value="${km||''}" placeholder="?" title="Km solo ida. Cambia el valor del pabellón para todos sus partidos."></label></td>
-          <td class="n" data-l="Tarifa">${eur(r.tariff)}${r.fcvb?`<span class="shared" title="Importes de la FCVB (recibos de iSquad)">FCVB</span>`:''}${r.fcvb&&Math.abs(r.est.tariff-r.tariff)>0.009?`<span class="shared" title="La app calculaba ${eur(r.est.tariff)}">app ${eur(r.est.tariff)}</span>`:''}</td>
+          <td class="n" data-l="Tarifa">${eur(r.tariff)}${r.fcvb||r.fcvbTarifa?`<span class="shared" title="Importes de la FCVB (recibos de iSquad)">FCVB</span>`:''}${r.fcvb&&Math.abs(r.est.tariff-r.tariff)>0.009?`<span class="shared" title="La app calculaba ${eur(r.est.tariff)}">app ${eur(r.est.tariff)}</span>`:''}</td>
           ${r.fcvb ? fcvbCells(r) : estCells(m,r,km)}
           <td class="n" data-l="Peajes"><input type="number" step="0.05" data-f="tolls" data-id="${esc(m.id)}" value="${+m.tolls||''}" placeholder="0"></td>
           ${+P.irpf?`<td class="n" data-l="IRPF">${r.irpf?'−'+eur(r.irpf):'<span class="muted">—</span>'}</td>`:''}

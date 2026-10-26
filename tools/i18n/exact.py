@@ -314,4 +314,6 @@ EXACT = {
 "Hay una versión nueva de la app.": "Hi ha una versió nova de l'app.",
 # Pagado en iSquad pero aún sin recibir
 "Pagado en iSquad, sin recibir": "Pagat a iSquad, sense rebre",
+# Km a mano en recibos aún sin pedir
+"Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.": "Aquest rebut ja està demanat a iSquad: les seves despeses són les de la FCVB i els km no les canvien.",
 }
