@@ -142,14 +142,17 @@ export const sameCat = (fav: string, full: string) => norm(full) === norm(fav) |
 
 
 // API del buscador público (la que usa el buscador de resultadosvoleibol): necesita el token que va en cada página
-// ("let token = ..."). Se guarda 12 h y se renueva si la API lo rechaza.
+// ("let token = ..."). Se guarda 12 h y se renueva si la API lo rechaza. La página puede llegar con error 500 y
+// entera (pasaba el 26-oct-2026): vale igual si trae el token.
 const API = "https://voleibol.isquad.es/json/api/call.php/resultados/busquedaGlobal";
 async function apiToken(db: Db, renew = false): Promise<string> {
   if (renew) await db.from("pub_cache").delete().eq("key", "token");
   return await cached(db, "token", 12 * H, async () => {
-    const s = await getText(`${PUB}/competicion.php?id_superficie=1&seleccion=0&id_territorial=${TERRITORIAL}`);
+    const r = await fetch(`${PUB}/competicion.php?id_superficie=1&seleccion=0&id_territorial=${TERRITORIAL}`,
+      { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(25_000) });
+    const s = await r.text();
     const t = s.match(/let token = "([0-9a-f]+)"/)?.[1];
-    if (!t) throw new Error("sin token");
+    if (!t) throw new Error(`sin token (iSquad ${r.status})`);
     return t;
   });
 }

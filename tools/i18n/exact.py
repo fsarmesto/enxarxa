@@ -316,4 +316,10 @@ EXACT = {
 "Pagado en iSquad, sin recibir": "Pagat a iSquad, sense rebre",
 # Km a mano en recibos aún sin pedir
 "Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.": "Aquest rebut ja està demanat a iSquad: les seves despeses són les de la FCVB i els km no les canvien.",
+# Resultado publicado y acta subida (#31)
+"Resultado": "Resultat",
+"Resultado pendiente de subir": "Resultat pendent de pujar",
+"Acta subida": "Acta pujada",
+"Acta sin subir": "Acta sense pujar",
+"Ver el acta": "Veure l'acta",
 }
