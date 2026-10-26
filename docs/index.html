@@ -191,6 +191,8 @@ table.m tr.paid td .total{color:var(--ink)}
 /* Resultado y acta de un partido arbitrado (#31) */
 .pubt{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px}
 .pubt .tag{margin-left:0}
+.pubt .small{align-self:center}
+.pubw{margin-top:4px;font-size:12px;font-weight:600;color:var(--pend)}
 .desig{font-size:13px;color:var(--ink-2);line-height:1.35}
 .desig strong{color:var(--ink);font-weight:600}
 button.reset{display:block;margin-left:auto;padding:2px 0;font-size:12px}
@@ -1449,15 +1451,30 @@ const MOBILE_Q = matchMedia('(max-width:720px)');
 MOBILE_Q.addEventListener('change', ()=>{ if(VIEW==='cobros' && P) render(); });
 const MC_OPEN=new Set(), MC_EDIT=new Set(), WK_OPEN=new Map();
 const PEN_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
-// Resultado publicado y acta subida (issue #31): los lee el sync de la web pública de resultados (_shared/resultados.ts).
-// Solo partidos con id de la web pública, ni selecciones ni suspendidos. Sin resultado o sin acta, el aviso sale a partir
-// de 30 min después del final estimado (inicio + 2 h).
-function pubTags(m){
-  if(!m.id_partido || /SELECCI/i.test(m.comp||'') || /SUSPEND|APLAZ|ANULA/.test(m.estado||'')) return '';
+// Estado de acta y de resultado de cada partido arbitrado (issue #31): siempre los 2. Los lee el sync de la web pública
+// de resultados (_shared/resultados.ts). Acta: Pendiente / Subida / Otro. Resultado: Pendiente / Subido (marcador) /
+// Irregular (al mejor de 5 solo valen 3-0, 3-1, 3-2, 2-3, 1-3 y 0-3). "Otro" en los 2 cuando no se puede saber:
+// selecciones, suspendidos o aplazados, partidos sin número en la web pública (añadidos a mano) y el modo sin guardar;
+// en competiciones estatales, solo el resultado.
+// Pendiente sale en color de aviso a partir de 30 min después del final estimado (inicio + 2 h); antes, neutro.
+const RES_OK = new Set(['3-0','3-1','3-2','2-3','1-3','0-3']);
+function pubState(m){
+  const why = GUEST ? 'sin guardar' : /SELECCI/i.test(m.comp||'') ? 'selección' : /SUSPEND|APLAZ|ANULA/.test(m.estado||'') ? m.estado.toLowerCase()
+    : !m.id_partido ? 'sin número de partido' : '';
+  if(why) return {otro:why, acta:{st:'Otro',cls:''}, res:{st:'Otro',cls:''}};
   const late = Date.now() >= new Date(`${m.date}T${m.time||'00:00'}:00`).getTime() + 150*6e4;
-  const res = m.res_l!=null ? `<span class="tag ok"><span>Resultado</span> ${m.res_l}-${m.res_v}</span>` : late ? '<span class="tag warn">Resultado pendiente de subir</span>' : '';
-  const acta = m.acta_url ? '<span class="tag ok">Acta subida</span>' : late ? '<span class="tag pend">Acta sin subir</span>' : '';
-  return res||acta ? `<div class="pubt">${res}${acta}</div>` : '';
+  const pend = {st:'Pendiente', cls:late?'warn':''};
+  // Competiciones estatales (Superliga, Nacional): su resultado no se publica en la web de la FCVB (ESTATAL en resultados.ts).
+  if(/SUPERLIGA|NACIONAL/i.test(m.comp||'') && m.res_l==null) return {otro:'competición estatal', acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend, res:{st:'Otro',cls:''}};
+  const sc = m.res_l!=null ? `${m.res_l}-${m.res_v}` : '';
+  return { acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend,
+    res: !sc ? pend : RES_OK.has(sc) ? {st:'Subido',cls:'ok',sc} : {st:'Irregular',cls:'warn',sc} };
+}
+function pubTags(m){
+  const s=pubState(m);
+  const tag=(lb,x)=>`<span class="tag ${x.cls}"><span>${lb}</span> <span>${x.st}</span>${x.sc?` ${x.sc}`:''}</span>`;
+  return `<div class="pubt">${tag('Resultado:',s.res)}${tag('Acta:',s.acta)}${s.otro?`<span class="small muted">${esc(s.otro)}</span>`:''}</div>`
+    + (s.res.st==='Irregular' ? `<div class="pubw">⚠ <span>Resultado irregular:</span> ${s.res.sc}. <span>Al mejor de 5 solo valen 3-0, 3-1, 3-2 y al revés: revisa el resultado en iSquad.</span></div>` : '');
 }
 const actaLink = m => m.acta_url && /^https:\/\/voleibol\.isquad\.es\//.test(m.acta_url.replace(/^http:/,'https:')) ? ` · <a href="${esc(m.acta_url.replace(/^http:/,'https:'))}" target="_blank" rel="noopener">Ver el acta</a>` : '';
 function cardHtml(m,r,km,gone,manual){
