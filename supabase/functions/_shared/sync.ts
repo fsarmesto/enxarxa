@@ -469,8 +469,12 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     if (nombre) await db.from("profiles").update({ nombre, ...(foto ? { foto } : {}) }).eq("user_id", userId);
     await storeMatches(db, userId, matches, { quick: opts.quick });
     const avisos = prev ? await notifyChanges(db, userId, prev as Prev[], matches).catch(() => 0) : 0;
-    // Resultado publicado y acta subida de los jugados (web pública, sin login). En el modo rápido no: no hay tiempo de sobra.
-    const resultados = opts.quick ? "" : await checkResultados(db, userId, opts.deadline).catch((e) => `error: ${(e as Error).message}`);
+    // Estado del resultado y del acta de los jugados (web pública, sin login). En el modo rápido no: no hay tiempo de sobra.
+    // Con el botón "Actualizar ahora" (km "background"), después de responder: cada acta completa tarda ~3 s.
+    const check = () => checkResultados(db, userId, opts.deadline).catch((e) => `error: ${(e as Error).message}`);
+    let resultados = "";
+    if (opts.km === "background") { background(check()); resultados = "en segundo plano"; }
+    else if (!opts.quick) resultados = await check();
     if (opts.km === "wait") await fillKm(db, userId, opts.deadline);
     else if (opts.km === "background") background(fillKm(db, userId, opts.deadline));
     return { ok: true, count: matches.length, avisos, ...(resultados ? { resultados } : {}) };

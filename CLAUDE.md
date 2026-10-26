@@ -353,13 +353,23 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - `arbitros_listado_actas.php` (área privada) no sirve: lista todos los jugados, sin estado del acta.
 - Ids: la tabla de designaciones lleva el `id_partido` público (DOCUMENTOS: `voleibol_acta_completa.php?id_partido=`)
   y el id_equipo de local y visitante (`verAlineacionEquipo(id_partido, id_equipo, ...)`). `parseDesignaciones` los
-  guarda en `matches.id_partido/eq_l/eq_v` (migración 027). La API no busca por id: el resultado sale de
-  `teamMatches(eq_l, nombre)` y, si no, del visitante (24 de 24 partidos de Ferran).
-- `checkResultados` (`_shared/resultados.ts`, en cada sync completo, no en el rápido): partidos con id de los últimos 30
-  días empezados hace más de 1 h, sin selecciones ni suspendidos, como mucho 15 por pasada; guarda `res_l/res_v/res_at`
-  y `acta_url/acta_at` (hora del nombre del fichero) y no los vuelve a pedir. En la web, `pubTags(m)`: "Resultado 3-1"
-  o "Resultado pendiente de subir" y "Acta subida" o "Acta sin subir" (los avisos, desde inicio + 2 h 30 min), en
-  Mis partidos y Cobros; "Ver el acta" en el detalle.
+  guarda en `matches.id_partido/eq_l/eq_v` (migración 027).
+- Resultado: la API no busca por id. Temporada en curso: `teamMatches(eq_l, nombre)` y, si no, del visitante (24 de 24
+  partidos de Ferran); si no sale, el PDF. Temporadas pasadas: la búsqueda los da a partir de la página 9-15 o no los da,
+  así que directamente el PDF (`actaCompleta`: el texto "RESULTADOS (L/V): 23/25; ..." va en un stream deflate;
+  DecompressionStream de Deno no acepta bytes de más: se corta con /Length). 111 de 116 de la temporada 25/26 de Ferran;
+  los 5 que faltan son de Superliga.
+- Competiciones estatales (`ESTATAL` = SUPERLIGA|NACIONAL): su resultado no sale en la web de la FCVB ni en el acta
+  completa: resultado "Otro"; el acta sí se mira.
+- `checkResultados` (`_shared/resultados.ts`, en cada sync completo, no en el rápido; con "Actualizar ahora", en segundo
+  plano): todos los partidos con id empezados hace más de 1 h, sin selecciones ni suspendidos; los de los últimos 30 días
+  en cada pasada y los anteriores que falten, una vez por semana (`pub_checked`); como mucho 20 por pasada (~55 s si van
+  por PDF). Guarda `res_l/res_v/res_at` y `acta_url/acta_at` (hora del nombre del fichero) y no los vuelve a pedir.
+- Web (`pubState`/`pubTags`), en todos los arbitrajes de Mis partidos y Cobros: "Resultado: Pendiente / Subido 3-1 /
+  Irregular" y "Acta: Pendiente / Subida / Otro". Irregular = marcador que no es 3-0, 3-1, 3-2, 2-3, 1-3 ni 0-3 (Ferran: al
+  mejor de 5), con un aviso debajo. "Otro" (con el motivo) en selecciones, suspendidos/aplazados, sin número de partido,
+  modo sin guardar y, solo el resultado, competiciones estatales. Pendiente en color de aviso desde inicio + 2 h 30 min.
+  "Ver el acta" en el detalle de Mis partidos. Ojo: alevín se juega a 3 sets y un 2-1 sale irregular.
 - La página que da el token de la API (`competicion.php`) llegaba el 26-oct con error 500 y entera: `apiToken` ya no
   mira el código de estado, solo si trae el token.
 - Pendiente del #31: aviso del domingo a las 21:00, sección de Avisos y punto en la pestaña, resultados de tus equipos.
