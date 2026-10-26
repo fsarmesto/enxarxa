@@ -346,7 +346,7 @@ export const background = (p: Promise<unknown>) => { const rt = (globalThis as a
 export type Prev = { id: string; date: string; time: string; venue: string; comp: string; teams: string; role: string; staff_checked: string | null; estado?: string;
   missing_since?: string | null };
 type Change = Msg & { key: string };
-const MANUAL = ["paid", "km_override", "dieta_override", "tolls", "holiday", "no_dieta"] as const;
+const MANUAL = ["paid", "not_received", "km_override", "dieta_override", "tolls", "holiday", "no_dieta"] as const;
 async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], now: WithStaff[]) {
   const { msgs, missing, gone, renamed } = designChanges(prev, now);
   // Las marcas y borrados se hacen antes de enviar: si el envío falla, el bucle no vuelve.

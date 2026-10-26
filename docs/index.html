@@ -1033,9 +1033,12 @@ const today = () => ymd(new Date());
 const addDays = (ds,n) => { const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()+n); return ymd(d); };
 const limitOf = m => m.fcvb_limite || addDays(m.date,1);
 const paidByFcvb = m => /^PAGADO/.test(m.fcvb_pago||'') || m.fcvb_accion==='factura';
+// "Pagado" en iSquad cuenta como cobrado, salvo que el árbitro lo desmarque porque el dinero aún no le ha llegado
+// (not_received): entonces queda 'porllegar', que suma como pendiente.
 function payState(m){
   const p = m.fcvb_pago||'';
-  if(m.paid || paidByFcvb(m)) return 'pagado';
+  if(m.paid || (paidByFcvb(m) && !m.not_received)) return 'pagado';
+  if(paidByFcvb(m)) return 'porllegar';
   if(/^SOLICITADO/.test(p) || m.fcvb_accion==='procesando') return 'solicitado';
   if(/PLAZO SOLICITUD PAGO TERMINADO/.test(p)) return 'perdido';
   // Un partido aún no jugado puede tener ya su recibo vacío en iSquad: hasta el día del partido no se pide nada.
@@ -1044,7 +1047,9 @@ function payState(m){
   return m.date < today() ? 'sinrecibo' : 'futuro';
 }
 const isPaid = m => payState(m)==='pagado';
-const PAY_LABEL = {pagado:'Sí', solicitado:'Solicitado', solicitar:'Por solicitar', perdido:'Plazo terminado', nada:'Sin importe', sinrecibo:'No', futuro:'No'};
+const payPatch = (m,v) => v ? {paid:!paidByFcvb(m), not_received:false} : {paid:false, not_received:paidByFcvb(m)};
+const fcvbPaidTxt = m => { const p=m.fcvb_pago||'PAGADO'; return '✓ '+p.charAt(0)+p.slice(1).toLowerCase(); };
+const PAY_LABEL = {pagado:'Sí', porllegar:'Pagado en iSquad, sin recibir', solicitado:'Solicitado', solicitar:'Por solicitar', perdido:'Plazo terminado', nada:'Sin importe', sinrecibo:'No', futuro:'No'};
 const fmtShort = ds => new Date(ds+'T12:00:00').toLocaleDateString(LOC(),{weekday:'long',day:'numeric',month:'long'});
 // Población según iSquad (lo que va detrás del código postal). La FCVB paga los km de población a población,
 // no hasta el pabellón: todos los pabellones de Barcelona se pagan igual, y uno que iSquad pone mal de
@@ -1343,7 +1348,8 @@ function payTag(m){
   if(st==='solicitar') return lim>=today() ? `<div><span class="tag bad">Pide el pago antes del ${esc(fmtShort(lim))}</span></div>${dietHint(m)}` : `<div class="muted small">Pendiente de solicitar en iSquad</div>`;
   if(st==='perdido') return `<div><span class="tag bad">Plazo terminado: no se pidió el pago</span></div>`;
   if(st==='sinrecibo' && lim>=today()) return `<div class="muted small">Cuando salga en iSquad, pide el pago antes del ${esc(fmtShort(lim))}</div>${dietHint(m)}`;
-  const extra = m.fcvb_campo ? '<div class="muted small">Tarifa cobrada en el pabellón</div>' : '';
+  const extra = (paidByFcvb(m) ? `<div class="muted small"><span>Según iSquad</span>: <span>${esc(fcvbPaidTxt(m))}</span></div>` : '')
+    + (m.fcvb_campo ? '<div class="muted small">Tarifa cobrada en el pabellón</div>' : '');
   return (m.fcvb_pago&&!paidByFcvb(m)&&st!=='solicitar' ? `<div class="muted small">${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</div>` : '') + extra;
 }
 // Avisos arriba (de todas las temporadas): pagos por pedir con su plazo y partidos de hoy/ayer aún sin recibo.
@@ -1408,8 +1414,7 @@ function cardHtml(m,r,km,gone,manual){
     + row('Peajes', eur(+m.tolls||0)) + (+P.irpf ? row('IRPF', r.irpf?'−'+eur(r.irpf):'—') : '')
     + row(+P.irpf?'Neto':'Total', eur(r.total), '', ' tot');
   const editor = edit ? `<div class="mc-edit"><label>Km (solo ida)<input type="number" step="1" data-f="km" data-id="${id}" value="${km||''}" placeholder="?"></label><label>Peajes<input type="number" step="0.05" data-f="tolls" data-id="${id}" value="${+m.tolls||''}" placeholder="0"></label>${r.fcvb?'':`<label>Dieta<input type="number" step="0.5" min="0" data-f="dieta" data-id="${id}" value="${r.dieta||''}" placeholder="0">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${id}">automática (${eur(r.dietaAuto)})</button>`:''}</label>`}<p class="small muted">Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.</p></div>` : '';
-  const pay = paidByFcvb(m) ? `<span class="pay is-paid" title="Según iSquad">✓ ${esc((m.fcvb_pago||'PAGADO').charAt(0)+(m.fcvb_pago||'PAGADO').slice(1).toLowerCase())}</span>`
-    : `<span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!m.paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${!!m.paid}">Cobrado</button></span>`;
+  const pay = `<span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${paid}">Cobrado</button></span>`;
   return `<details class="mc${paid?' paid':''}" data-mc="${id}"${open?' open':''}><summary aria-expanded="${open}">
     <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}</div></div>
     <div class="mc-r"><b>${eur(r.total)}</b>${paid?'<span class="tag ok">cobrado</span>':'<span class="tag pend">pendiente</span>'}</div>${chevHtml(open)}</summary>
@@ -1424,12 +1429,12 @@ function render(){
   const {ms:allMs,res} = compute(); LAST_RES = res;
   const ms = allMs.filter(m=>seasonOf(m.date)===SEASON);
   $('sTotalL').textContent = `Total temporada ${seasonLabel(SEASON)}`;
-  let ret=0; const sum={pagado:0,solicitado:0,solicitar:0,prev:0,perdido:0};
+  let ret=0; const sum={pagado:0,porllegar:0,solicitado:0,solicitar:0,prev:0,perdido:0};
   for(const m of ms){ const r=res.get(m.id), st=payState(m); ret+=r.irpf;
-    if(st==='pagado'||st==='solicitado'||st==='solicitar'||st==='perdido') sum[st]+=r.total; else if(st!=='nada') sum.prev+=r.total; }
-  const pend=sum.solicitado+sum.solicitar+sum.prev, paid=sum.pagado;
+    if(st==='pagado'||st==='porllegar'||st==='solicitado'||st==='solicitar'||st==='perdido') sum[st]+=r.total; else if(st!=='nada') sum.prev+=r.total; }
+  const pend=sum.porllegar+sum.solicitado+sum.solicitar+sum.prev, paid=sum.pagado;
   $('sPending').textContent=eur(pend); $('sPaid').textContent=eur(paid); $('sTotal').textContent=eur(pend+paid);
-  $('sPendBr').innerHTML = [sum.solicitado&&`Solicitado <b>${eur(sum.solicitado)}</b>`, sum.solicitar&&`<span class="lost">Por solicitar <b>${eur(sum.solicitar)}</b></span>`,
+  $('sPendBr').innerHTML = [sum.porllegar&&`Pagado en iSquad, sin recibir <b>${eur(sum.porllegar)}</b>`, sum.solicitado&&`Solicitado <b>${eur(sum.solicitado)}</b>`, sum.solicitar&&`<span class="lost">Por solicitar <b>${eur(sum.solicitar)}</b></span>`,
     sum.prev&&`Previsión <b>${eur(sum.prev)}</b>`, sum.perdido&&`<span class="lost">No solicitado a tiempo <b>${eur(sum.perdido)}</b></span>`].filter(Boolean).join(' · ');
   renderAlerts(allMs, res);
   $('irpfInfo').textContent = +P.irpf ? `Importes netos: IRPF del ${String(+P.irpf).replace('.',',')} % sobre la tarifa, ${eur(ret)} retenidos en la temporada.` : '';
@@ -1482,7 +1487,7 @@ function render(){
           <td class="n" data-l="Peajes"><input type="number" step="0.05" data-f="tolls" data-id="${esc(m.id)}" value="${+m.tolls||''}" placeholder="0"></td>
           ${+P.irpf?`<td class="n" data-l="IRPF">${r.irpf?'−'+eur(r.irpf):'<span class="muted">—</span>'}</td>`:''}
           <td class="n total" data-l="${+P.irpf?'Neto':'Total'}">${eur(r.total)}</td>
-          <td class="ctrl paycell">${paidByFcvb(m)?`<span class="pay is-paid" title="Según iSquad">✓ ${esc((m.fcvb_pago||'PAGADO').charAt(0)+(m.fcvb_pago||'PAGADO').slice(1).toLowerCase())}</span>`:`<button class="pay${m.paid?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${m.paid?'true':'false'}">${m.paid?'✓ Cobrado':'Marcar cobrado'}</button>`}${payTag(m)}${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
+          <td class="ctrl paycell"><button class="pay${isPaid(m)?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${isPaid(m)}">${isPaid(m)?'✓ Cobrado':'Marcar cobrado'}</button>${payTag(m)}${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
     return html;
   };
   const weekHtml = (w, list, kind) => {
@@ -1551,7 +1556,7 @@ $('ledger').addEventListener('toggle', e=>{ const d=e.target;
 $('ledger').addEventListener('click', async e=>{
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.dietaAuto){ patchMatch(b.dataset.dietaAuto,{dieta_override:null}); return; }
-  if(b.dataset.pay){ const m=MATCHES.find(x=>x.id===b.dataset.pay), v=b.dataset.v ? b.dataset.v==='1' : !m?.paid; if(m && !!m.paid!==v) patchMatch(m.id,{paid:v}); return; }
+  if(b.dataset.pay){ const m=MATCHES.find(x=>x.id===b.dataset.pay); if(!m) return; const v=b.dataset.v ? b.dataset.v==='1' : !isPaid(m); if(isPaid(m)!==v) patchMatch(m.id,payPatch(m,v)); return; }
   if(b.dataset.edit){ const k=b.dataset.edit; MC_EDIT.has(k)?MC_EDIT.delete(k):MC_EDIT.add(k); render(); return; }
   if(b.dataset.del && confirm(tr('¿Quitar este partido de la lista?'))){
     MATCHES = MATCHES.filter(m=>m.id!==b.dataset.del); render();
@@ -1559,9 +1564,11 @@ $('ledger').addEventListener('click', async e=>{
   }
   if(b.dataset.week){
     const v=b.dataset.paid==='1'; const ids=MATCHES.filter(m=>weekStart(m.date)===b.dataset.week).map(m=>m.id);
-    MATCHES.forEach(m=>{ if(ids.includes(m.id)) m.paid=v; }); render();
-    const {error}=await store().from('matches').update({paid:v}).eq('user_id',USER.id).in('id',ids);
-    if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
+    const fc=MATCHES.filter(m=>ids.includes(m.id) && paidByFcvb(m)).map(m=>m.id), rest=ids.filter(id=>!fc.includes(id));
+    MATCHES.forEach(m=>{ if(ids.includes(m.id)) Object.assign(m, payPatch(m,v)); }); render();
+    const up=(list,patch)=>list.length ? store().from('matches').update(patch).eq('user_id',USER.id).in('id',list) : {};
+    const res=await Promise.all([up(rest,{paid:v, not_received:false}), up(fc,{paid:false, not_received:!v})]);
+    if(res.some(x=>x.error)) toast('No se ha guardado el cambio. Revisa la conexión.');
   }
 });
 $('venueTable').addEventListener('change', e=>{ const k=e.target.dataset.venue; if(k!=null) setVenueKm(k, e.target.value===''?null:+e.target.value); });
@@ -1627,7 +1634,7 @@ function buildWorkbook(){
   const n = rows.length, last = n+1;
   const MONEY = [10,11,13,14,15,16,17], totals = MONEY.map(sum);
   const net = st => +ms.filter(m=>st.includes(payState(m))).reduce((t,m)=>t+res.get(m.id).total,0).toFixed(2);
-  const pend = net(['solicitado','solicitar','sinrecibo','futuro']), paidNet = net(['pagado']);
+  const pend = net(['porllegar','solicitado','solicitar','sinrecibo','futuro']), paidNet = net(['pagado']);
   const pad = Array(17).fill('');
   rows.push([], [tr('Total'),'','','','','','','','','', totals[0], totals[1], null, totals[2], totals[3], totals[4], totals[5], totals[6]],
     [tr('Pendiente de cobro (neto)'), ...pad.slice(1), pend], [tr('Ya cobrado (neto)'), ...pad.slice(1), paidNet],
@@ -1687,7 +1694,7 @@ async function enterGuest(){
   $('aPass').value='';
   GUEST=true; USER={id:'guest'};
   P={isquad_login:login, nombre:r.nombre, origin:'', rate:'0.26', min_travel:'4', irpf:'2', last_sync:new Date().toISOString(), last_error:null};
-  MATCHES=(r.matches||[]).map(m=>({cat:null, team:'t1', role:'r1', tolls:0, holiday:false, no_dieta:null, paid:false, km_override:null, dieta_override:null, ...m}));
+  MATCHES=(r.matches||[]).map(m=>({cat:null, team:'t1', role:'r1', tolls:0, holiday:false, no_dieta:null, paid:false, not_received:false, km_override:null, dieta_override:null, ...m}));
   VENUES={}; for(const m of MATCHES) VENUES[m.venue_key] ||= {venue_key:m.venue_key, label:null, km:null, km_source:null};
   learnFcvbKm(); show('app'); render(); renderPush();
 }

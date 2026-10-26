@@ -47,7 +47,7 @@ rama `claude/...` con PR. Reglas para esos trabajos:
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…022). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…026). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
@@ -127,6 +127,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   (editar | procesando | factura) y `fcvb_campo` (tarifa cobrada en el pabellón). Migración 010.
   En la web `payState()`: pagado, solicitado, solicitar, perdido, nada, sinrecibo, futuro; avisos arriba y desglose
   de lo pendiente en la cabecera. Pie de la tabla de iSquad: importe no solicitado / solicitado / pagado.
+  "PAGADO" en iSquad se puede desmarcar (Pendiente) si el dinero aún no ha llegado: `matches.not_received`
+  (migración 026, campo manual de `sync.ts`), estado `porllegar`, suma en pendiente. `payPatch(m,v)` decide qué se guarda.
 - Semanas (issue #17): "Esta semana" en un bloque con borde amarillo, luego "Próximas semanas" y "Semanas anteriores"
   (plegadas en una fila, `WK_OPEN`; se abren solas si hay un pago por pedir). El título de semana es sticky (en el
   móvil, bajo la cabecera compacta: 59 px). En el móvil (`MOBILE_Q`, ≤720 px) cada partido es una tarjeta `details.mc`

@@ -312,4 +312,6 @@ EXACT = {
 "Donde más has ido": "On més has anat", "Donde más has ido:": "On més has anat:",
 # Aviso de versión nueva
 "Hay una versión nueva de la app.": "Hi ha una versió nova de l'app.",
+# Pagado en iSquad pero aún sin recibir
+"Pagado en iSquad, sin recibir": "Pagat a iSquad, sense rebre",
 }
