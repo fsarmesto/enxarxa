@@ -1114,6 +1114,8 @@ function kmInfo(m){
 const kmFor = m => kmInfo(m).km;
 // Recibo ya pedido o pagado: sus gastos ya no cambian.
 const fcvbFixed = m => /^(SOLICITADO|PAGADO)/.test(m.fcvb_pago||'') || ['procesando','factura'].includes(m.fcvb_accion);
+// Dieta y desplazamiento los calcula la app: sin recibo, o con km a mano y el recibo aún sin pedir ni pagar.
+const appGastos = m => !!m && (m.fcvb_tarifa==null || (!fcvbFixed(m) && kmInfo(m).src==='manual'));
 function compute(){
   const ms = MATCHES.filter(m=>!isHidden(m)).sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
   const res = new Map();
@@ -1121,13 +1123,14 @@ function compute(){
   const group = (fn) => { const g = new Map(); for(const m of ms){ const k=fn(m); (g.get(k)||g.set(k,[]).get(k)).push(m); } return g; };
   for(const [,list] of group(m=>m.date+franjaOf(m))){
     let best=null, bestV=0;
-    for(const m of list){ if(noDietaOf(m) || isTerritorial(m)) continue; const v = dietaFor(m.date,toMins(m.time),m.holiday||isHoliday(m.date)); if(v>bestV){bestV=v;best=m;} }
+    for(const m of list){ if(noDietaOf(m) || isTerritorial(m)) continue; const v = dietaFor(m.date,toMins(m.time),m.holiday||isHoliday(m.date)); if(v>bestV || (v===bestV && v>0 && !appGastos(best) && appGastos(m))){bestV=v;best=m;} }
     if(best){ const r=res.get(best.id); r.dieta=bestV; r.dietaShared = list.length>1; }
   }
-  // Una ida y vuelta por pabellón y franja: mañana y tarde se pagan aparte, como la dieta.
+  // Una ida y vuelta por pabellón y franja: mañana y tarde se pagan aparte, como la dieta. Va en un partido cuyos
+  // gastos calcula la app: si fuera en uno con gastos de la FCVB, se perdería al poner los de la FCVB.
   for(const [,list] of group(m=>m.date+franjaOf(m)+'|'+m.venue_key)){
     const own = list.filter(m=>!isTerritorial(m)); if(!own.length) continue;
-    const info = own.map(kmInfo), km = Math.max(...info.map(i=>i.km)), r = res.get(own[0].id);
+    const info = own.map(kmInfo), km = Math.max(...info.map(i=>i.km)), r = res.get((own.find(appGastos)||own[0]).id);
     r.travel = info.some(i=>i.src==='min') && !info.some(i=>i.src==='manual') ? +P.min_travel
       : km>0 ? Math.max(km*2*(+P.rate), +P.min_travel) : 0;
     r.travelShared = list.length>1; r.kmSrc = info.find(i=>i.km===km)?.src;
@@ -1139,7 +1142,7 @@ function compute(){
   for(const m of ms){
     if(m.fcvb_tarifa==null) continue;
     const r=res.get(m.id); r.est = {tariff:r.tariff, gastos:+(r.dieta+r.travel).toFixed(2)};
-    if(!fcvbFixed(m) && kmInfo(m).src==='manual'){ r.fcvbTarifa=true; r.tariff=+m.fcvb_tarifa; continue; }
+    if(appGastos(m)){ r.fcvbTarifa=true; r.tariff=+m.fcvb_tarifa; continue; }
     r.fcvb=true; r.tariff=+m.fcvb_tarifa; r.dieta=0; r.travel=+m.fcvb_gastos; r.dietaShared=r.travelShared=false;
   }
   // IRPF: retención sobre la tarifa (dieta, desplazamiento y peajes van exentos). total = lo que cobras.
