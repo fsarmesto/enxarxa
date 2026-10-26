@@ -480,7 +480,8 @@ I.exact = {
 "Con quien más:": "Amb qui més:",
 "Donde más has ido": "On més has anat",
 "Donde más has ido:": "On més has anat:",
-"Hay una versión nueva de la app.": "Hi ha una versió nova de l'app."
+"Hay una versión nueva de la app.": "Hi ha una versió nova de l'app.",
+"Pagado en iSquad, sin recibir": "Pagat a iSquad, sense rebre"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
