@@ -448,6 +448,9 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .ag-day h3{font-family:var(--display);font-size:21px;font-weight:600;margin:0 0 8px;padding-bottom:4px;border-bottom:3px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .ag-day h3 .when{font-family:"Barlow",system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-3)}
 .ag-day h3 .when.soon{color:var(--pend)}
+/* Dentro de una semana (#27), el día va con una línea fina, como en Cobros: la gruesa es la de la semana */
+.week .ag-day{margin:12px 0 18px}
+.week .ag-day h3{font-size:18px;border-bottom:1px solid var(--line)}
 .ag{display:grid;grid-template-columns:70px 1fr;gap:4px 14px;padding:14px 0;border-bottom:1px solid var(--line)}
 .ag:last-child{border-bottom:0}
 .ag .t{font-family:var(--display);font-weight:700;font-size:26px;line-height:1}
@@ -514,6 +517,11 @@ details.cal>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--in
 details.cal>summary::-webkit-details-marker{display:none}
 .calrow{display:grid;grid-template-columns:92px minmax(0,1fr) auto;overflow-wrap:anywhere;gap:2px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
 .calrow:last-child{border-bottom:0}
+/* Semanas en listas cortas (#27): sin plegar ni fijar; esta semana con el borde amarillo */
+.wkc-sec{font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:14px 0 2px}
+.wkc-h{font-size:12px;font-weight:700;color:var(--ink-2);padding:6px 0 0}
+.wkc.cur{border:3px solid var(--yellow);border-radius:6px;padding:2px 10px;margin:8px 0 4px;background:var(--surface)}
+.wkc.cur .wkc-h{text-transform:uppercase;letter-spacing:.05em}
 .calrow .dd{color:var(--ink-3);font-size:12.5px}
 .calrow b{font-weight:800}
 @media (max-width:560px){
@@ -1219,6 +1227,36 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePeriod(true
 const eur = v => v.toLocaleString(LOC(),{style:'currency',currency:'EUR'});
 const fmtDay = ds => new Date(ds+'T12:00:00').toLocaleDateString(LOC(),{weekday:'long',day:'numeric',month:'long'}).replace(',','');
 function weekStart(ds){ const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.toISOString().slice(0,10); }
+// Listas de partidos por semanas (#27, regla en CLAUDE.md): esta semana destacada, luego "Próximas semanas" (de la más
+// cercana a la más lejana) y "Semanas anteriores" (de la más reciente atrás). Sin bloque si esta semana no tiene partidos.
+function weekGroups(items, dateOf){
+  const weeks=new Map(); for(const it of items){ const w=weekStart(dateOf(it)); (weeks.get(w)||weeks.set(w,[]).get(w)).push(it); }
+  const cur=weekStart(today()), ws=[...weeks].sort((a,b)=>a[0].localeCompare(b[0]));
+  return { cur: weeks.has(cur) ? [cur, weeks.get(cur)] : null, next: ws.filter(([w])=>w>cur), prev: ws.filter(([w])=>w<cur).reverse() };
+}
+// Lista grande (Cobros, Mis partidos): título de semana fijo al bajar y las anteriores plegadas en una fila (WK_OPEN
+// recuerda las abiertas: clave scope+lunes). o = {scope, head(w,list,kind), body(w,list,kind), openPrev(w,list,i)}.
+function weeksHtml(items, dateOf, o){
+  const g=weekGroups(items, dateOf), scope=o.scope||'';
+  const block=(w,list,kind,i)=>{ const head=o.head(w,list,kind), body=o.body(w,list,kind), k=scope+w;
+    if(kind==='prev'){ const open = WK_OPEN.has(k) ? WK_OPEN.get(k) : !!o.openPrev?.(w,list,i);
+      return `<details class="week wk" data-wk="${esc(k)}"${open?' open':''}><summary class="week-head" aria-expanded="${open}">${head}${chevHtml(open)}</summary>${body}</details>`; }
+    return `<div class="week${kind==='cur'?' cur':''}">${kind==='cur'?'<div class="wk-lbl">Esta semana</div>':''}<div class="week-head">${head}</div>${body}</div>`; };
+  let html = g.cur ? block(g.cur[0], g.cur[1], 'cur') : '';
+  if(g.next.length) html+='<h2 class="wk-sec">Próximas semanas</h2>'+g.next.map(([w,l],i)=>block(w,l,'next',i)).join('');
+  if(g.prev.length) html+='<h2 class="wk-sec">Semanas anteriores</h2>'+g.prev.map(([w,l],i)=>block(w,l,'prev',i)).join('');
+  return html;
+}
+const wkHead = (w, n, extra='') => `<div class="wk-t"><span class="t">Semana ${weekRange(w)}</span><span class="wk-n">${n} partido${n===1?'':'s'}</span>${extra}</div>`;
+// Lista corta dentro de una tarjeta (calendario de un equipo, partidos desde Clasificación): casi siempre 1 partido por
+// semana, así que las semanas no se pliegan ni se fijan; mismo orden y esta semana destacada.
+function weeksCompact(items, dateOf, row){
+  const g=weekGroups(items, dateOf), rows=l=>[...l].sort((a,b)=>dateOf(a).localeCompare(dateOf(b))).map(row).join('');
+  const wk=([w,l])=>`<div class="wkc"><div class="wkc-h">Semana ${weekRange(w)}</div>${rows(l)}</div>`;
+  return (g.cur ? `<div class="wkc cur"><div class="wkc-h"><span>Esta semana</span> · ${weekRange(g.cur[0])}</div>${rows(g.cur[1])}</div>` : '')
+    + (g.next.length ? '<div class="wkc-sec">Próximas semanas</div>'+g.next.map(wk).join('') : '')
+    + (g.prev.length ? '<div class="wkc-sec">Semanas anteriores</div>'+g.prev.map(wk).join('') : '');
+}
 function weekRange(ws){ const mon=new Date(ws+'T12:00:00'); const sun=new Date(mon); sun.setDate(mon.getDate()+6); const f=x=>x.toLocaleDateString(LOC(),{day:'numeric',month:'short'}); return `${f(mon)} – ${f(sun)}`; }
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sel = (f,id,opts,cur) => `<select data-f="${f}" data-id="${esc(id)}">`+Object.entries(opts).map(([k,v])=>`<option value="${k}"${k===cur?' selected':''}>${esc(v)}</option>`).join('')+'</select>';
@@ -1474,7 +1512,6 @@ function render(){
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
-  const weeks = new Map(); for(const m of shown){ const w=weekStart(m.date); (weeks.get(w)||weeks.set(w,[]).get(w)).push(m); }
   const syncT = P.last_sync ? new Date(P.last_sync).getTime() : 0, mobile=MOBILE_Q.matches;
   // Una fila de tabla (escritorio) o una tarjeta plegable (móvil) por partido.
   const matchHtml = m => {
@@ -1497,9 +1534,9 @@ function render(){
           <td class="ctrl paycell"><button class="pay${isPaid(m)?' is-paid':''}" data-pay="${esc(m.id)}" aria-pressed="${isPaid(m)}">${isPaid(m)?'✓ Cobrado':'Marcar cobrado'}</button>${payTag(m)}${manual||gone?`<br><button class="ghost small danger" data-del="${esc(m.id)}">quitar</button>`:''}</td></tr>`;
     return html;
   };
-  const weekHtml = (w, list, kind) => {
-    const wt=list.reduce((s,m)=>s+res.get(m.id).total,0), allPaid=list.every(isPaid);
-    const head=`<div class="wk-t"><span class="t">Semana ${weekRange(w)}</span><span class="wk-n">${list.length} partido${list.length===1?'':'s'}</span>${allPaid?'<span class="tag ok">cobrada</span>':(kind==='prev'?'<span class="tag pend">pendiente</span>':'')}</div><span class="sum">${eur(wt)}</span>`;
+  const head = (w, list, kind) => { const allPaid=list.every(isPaid);
+    return wkHead(w, list.length, allPaid?'<span class="tag ok">cobrada</span>':(kind==='prev'?'<span class="tag pend">pendiente</span>':''))+`<span class="sum">${eur(list.reduce((s,m)=>s+res.get(m.id).total,0))}</span>`; };
+  const body = (w, list) => { const allPaid=list.every(isPaid);
     let body=`<div class="wk-acts"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button></div>`;
     const days=new Map(); for(const m of list){ (days.get(m.date)||days.set(m.date,[]).get(m.date)).push(m); }
     for(const [ds,dl] of [...days].sort((a,b)=>b[0].localeCompare(a[0]))){
@@ -1507,18 +1544,10 @@ function render(){
       body+=`<div class="day"><div class="day-head"><span>${fmtDay(ds)}</span><span>${eur(dt)}</span></div>`+(mobile ? `<div class="mcs">${rows}</div>` : `<div class="wrap"><table class="m"><thead><tr>
         <th>Hora</th><th>Partido</th><th>Designación</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`)+'</div>';
     }
-    // Las semanas anteriores van plegadas en una fila; se abren solas si queda algún pago por pedir.
-    if(kind==='prev'){ const open = WK_OPEN.has(w) ? WK_OPEN.get(w) : list.some(m=>payState(m)==='solicitar');
-      return `<details class="week wk" data-wk="${w}"${open?' open':''}><summary class="week-head" aria-expanded="${open}">${head}${chevHtml(open)}</summary>${body}</details>`; }
-    return `<div class="week${kind==='cur'?' cur':''}">${kind==='cur'?'<div class="wk-lbl">Esta semana</div>':''}<div class="week-head">${head}</div>${body}</div>`;
+    return body;
   };
-  // Orden: esta semana, las próximas (de la más cercana a la más lejana) y las anteriores (de la más reciente atrás).
-  const cur=weekStart(today()), ws=[...weeks].sort((a,b)=>a[0].localeCompare(b[0]));
-  const next=ws.filter(([w])=>w>cur), prev=ws.filter(([w])=>w<cur).reverse();
-  let html = weeks.has(cur) ? weekHtml(cur, weeks.get(cur), 'cur') : '';
-  if(next.length) html+='<h2 class="wk-sec">Próximas semanas</h2>'+next.map(([w,l])=>weekHtml(w,l,'next')).join('');
-  if(prev.length) html+='<h2 class="wk-sec">Semanas anteriores</h2>'+prev.map(([w,l])=>weekHtml(w,l,'prev')).join('');
-  led.innerHTML=html;
+  // Las semanas anteriores se abren solas si queda algún pago por pedir.
+  led.innerHTML = weeksHtml(shown, m=>m.date, {head, body, openPrev:(w,list)=>list.some(m=>payState(m)==='solicitar')});
   renderSettings();
 }
 function renderSettings(){
@@ -1883,7 +1912,7 @@ function renderEquipos(){
     const [k,txt]=rolKind(f.rol), n=nextOf(f), l=lastOf(f), cal=teamCal(f), key=esc(favKey(f)), on=f.activo!==false, open=CAL_OPEN.has(favKey(f));
     // Una fila por partido: etiqueta, fecha, rival (el nombre del propio equipo no se repite) y estado.
     const row = (lb,m) => `<div class="nx"><span class="lb">${lb}</span><span class="dd">${esc(fmtTiny(m.d))}</span><span class="rv"><b>${esc(capName(m.mineLocal?m.v:m.l))}</b> <span class="ha">· ${m.mineLocal?'casa':'fuera'}</span></span>${stChip(m)}</div>`;
-    const calHtml = cal.length ? `<div class="calbox${open?'':' hidden'}" id="cal-${key}">${cal.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}${refLine(m)}</span>${stChip(m)}</div>`).join('')}</div>` : '';
+    const calHtml = cal.length ? `<div class="calbox${open?'':' hidden'}" id="cal-${key}">${weeksCompact(cal, m=>m.d, m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}${refLine(m)}</span>${stChip(m)}</div>`)}</div>` : '';
     return `<div class="eq-row eqc${on?'':' off'}"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}</div>${l?row('Último',l):''}${n?row('Próximo',n):'<div class="nx"><span class="lb">Próximo</span><span>Sin partidos pendientes</span></div>'}
       <div class="acts"><div class="seg">Mostrar en Mis partidos<span class="segb" role="group"><button type="button" data-act="${key}" data-v="1" aria-pressed="${on}">Sí</button><button type="button" data-act="${key}" data-v="0" aria-pressed="${!on}">No</button></span></div>${cal.some(m=>m.tor)?`<button class="eqb" data-clas="${key}">Clasificación</button>`:''}${cal.length?`<button class="eqb" data-calt="${key}" aria-expanded="${open}" aria-controls="cal-${key}">Calendario (${cal.length})</button>`:''}<button class="eqb more" data-more="${key}" aria-expanded="false" aria-label="Más opciones">⋯</button></div>
       <div class="moremenu hidden" id="more-${key}"><button class="ghost" data-unfav="${key}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div>${calHtml}</div>`;
@@ -1922,7 +1951,7 @@ async function openClas(f, torneo){
     h.innerHTML=`<td colspan="${cs}" class="small muted">Cargando partidos…</td>`; tr.after(h);
     const id=tr.dataset.id, rr=await callFn('equipos',{action:'historial', torneo, id_equipo:id, team:tr.dataset.n});
     const ms=(rr.partidos||[]).map(m=>({...m, mineLocal:m.idl===id}));
-    h.innerHTML=`<td colspan="${cs}">${!rr.ok?esc(rr.error||'No se han podido cargar'):ms.length?ms.map(m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${esc(capName(m.l))} – ${esc(capName(m.v))}${(m.idl===f.id_equipo||m.idv===f.id_equipo)&&id!==f.id_equipo?' <b>(contra tu equipo)</b>':''}</span>${stChip(m)}</div>`).join(''):'<span class="small muted">Sin partidos en este grupo.</span>'}</td>`;
+    h.innerHTML=`<td colspan="${cs}">${!rr.ok?esc(rr.error||'No se han podido cargar'):ms.length?weeksCompact(ms, m=>m.d, m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${esc(capName(m.l))} – ${esc(capName(m.v))}${(m.idl===f.id_equipo||m.idv===f.id_equipo)&&id!==f.id_equipo?' <b>(contra tu equipo)</b>':''}</span>${stChip(m)}</div>`):'<span class="small muted">Sin partidos en este grupo.</span>'}</td>`;
   });
 }
 const CAL_OPEN=new Set();
@@ -2070,7 +2099,10 @@ function renderAgenda(allMs,res){
       : `<div class="empty">No hay partidos jugados en esta temporada${filtering()?' con estos filtros':''}.</div>`;
     box.innerHTML=html; return;
   }
-  const days=new Map(); for(const it of list){ const d=it.k.slice(0,10); (days.get(d)||days.set(d,[]).get(d)).push(it); }
+  // Por semanas (componente común); dentro, un título por día en el orden de la lista (Próximos hacia delante, Jugados hacia atrás).
+  // En Jugados, si esta semana no tiene partidos, la más reciente sale abierta.
+  const weekBody = (w, wl) => { let html='';
+  const days=new Map(); for(const it of wl){ const d=it.k.slice(0,10); (days.get(d)||days.set(d,[]).get(d)).push(it); }
   for(const [ds,dl] of days){
     const w=whenLabel(ds), soon = ds>=t && (w==='Hoy'||w==='Mañana');
     html+=`<section class="ag-day"><h3><span>${esc(fmtShort(ds).replace(/^./,c=>c.toUpperCase()))}</span><span class="when${soon?' soon':''}">${w}</span></h3>`;
@@ -2116,9 +2148,13 @@ function renderAgenda(allMs,res){
     }
     html+='</section>';
   }
-  box.innerHTML=html;
+  return html; };
+  const hasCur = list.some(it=>weekStart(it.k.slice(0,10))===weekStart(t));
+  box.innerHTML = html + weeksHtml(list, it=>it.k.slice(0,10), {scope:'ag-'+AGENDA+'-', head:(w,wl)=>wkHead(w,wl.length), body:weekBody, openPrev:(w,wl,i)=>!hasCur && i===0});
 }
-$('agenda').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-agc]'); if(d) d.open ? AGC_OPEN.add(d.dataset.agc) : AGC_OPEN.delete(d.dataset.agc); }, true);
+$('agenda').addEventListener('toggle', e=>{ const d=e.target;
+  if(d.dataset?.agc) d.open ? AGC_OPEN.add(d.dataset.agc) : AGC_OPEN.delete(d.dataset.agc);
+  else if(d.dataset?.wk) WK_OPEN.set(d.dataset.wk, d.open); }, true);
 $('ctrlSlot').addEventListener('click', e=>{ const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
 $('views').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;

@@ -39,6 +39,15 @@ rama `claude/...` con PR. Reglas para esos trabajos:
   `.github/capturas/<número del issue>/`, subirlos en la rama y enlazarlos en la descripción del PR.
 - El PR lo abre Claude contra `main` (`gh pr create`) con "Fixes #N". Ferran lo revisa y lo fusiona.
 
+## Reglas de interfaz
+
+- Toda lista con varios partidos se agrupa por semanas con el componente común (semana actual destacada, secciones de
+  próximas y anteriores, título fijo al hacer scroll). No crear listas de partidos sin agrupar. (Issue #27.)
+  - `weeksHtml(items, dateOf, {scope, head, body, openPrev})` para listas grandes (Cobros, Mis partidos): anteriores
+    plegadas, `WK_OPEN` con clave scope+lunes; `wkHead(w, n, extra)` da el título. `weekGroups` hace la agrupación.
+  - `weeksCompact(items, dateOf, row)` para listas dentro de una tarjeta (calendario de un equipo, partidos desde
+    Clasificación): casi siempre 1 partido por semana, así que no se pliega ni se fija; mismo orden y borde amarillo.
+
 ## Piezas
 
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
