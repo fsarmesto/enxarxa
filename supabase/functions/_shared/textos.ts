@@ -5,7 +5,7 @@ export const LANG_DEFECTO: Lang = "ca";
 export const lang = (v: unknown): Lang => (v === "es" || v === "ca" ? v : LANG_DEFECTO);
 
 export type Aviso = { title: string; body: string };
-export const cap = (s: string) => (s || "").toLowerCase().replace(/(^|[\s'-])\S/g, (c) => c.toUpperCase());
+export const cap = (s: string) => (s || "").toLowerCase().replace(/(^|[\s'.-])\S/g, (c) => c.toUpperCase());
 const LOC = { es: "es-ES", ca: "ca-ES" };
 // "2026-10-24" → "sáb 24 oct" / "ds. 24 d’oct."
 const fecha = (l: Lang, ds: string) => {
@@ -73,6 +73,24 @@ export function textos(l: Lang) {
           : `Et correspon dieta: ${eur(l, total)} (${lista(l, franjas.map((x) => (x === "mañana" ? "matí" : "tarda")))}). Posa-la al full de despeses d'iSquad juntament amb el desplaçament.`
         : es ? `Pide la tarifa y el desplazamiento de ${n === 1 ? "tu partido" : `tus ${n} partidos`} de hoy en la hoja de gastos de iSquad.`
           : `Demana la tarifa i el desplaçament ${n === 1 ? "del teu partit" : `dels teus ${n} partits`} d'avui al full de despeses d'iSquad.`,
+    }),
+    // Resultado de un partido de tus equipos (vigilar). gana: true/false desde tu equipo (null si no se sabe).
+    eqResultado: (l_: string, rl: number, rv: number, v_: string, gana: boolean | null, d: string): Aviso => ({
+      title: `${l_} ${rl}-${rv} ${v_}${gana == null ? "" : ` · ${gana ? (es ? "Ganado" : "Guanyat") : (es ? "Perdido" : "Perdut")}`}`,
+      body: f(d),
+    }),
+    // Domingo a las 21:00 (notify, issue #31): resultados de la semana que siguen sin subir. Los sube el 1r árbitro;
+    // al resto del equipo arbitral, que se lo recuerde. La FCVB lo revisa a partir del lunes.
+    resultado1: (r1: boolean, m: Partido): Aviso => r1
+      ? { title: es ? "Aún no has subido el resultado" : "Encara no has pujat el resultat",
+        body: `${vs(m.teams)} (${f(m.date)}). ${es ? "Súbelo a iSquad antes de que la FCVB lo revise el lunes." : "Puja'l a iSquad abans que la FCVB ho revisi dilluns."}` }
+      : { title: es ? "El resultado aún no está subido" : "El resultat encara no està pujat",
+        body: `${vs(m.teams)} (${f(m.date)}). ${es ? "Recuérdale al 1r árbitro que lo suba a iSquad." : "Recorda-li al 1r àrbitre que el pugi a iSquad."}` },
+    resultadoN: (r1: boolean, ms: Partido[]): Aviso => ({
+      title: es ? `${ms.length} partidos sin resultado` : `${ms.length} partits sense resultat`,
+      body: `${ms.map((m) => `${vs(m.teams)} (${f(m.date)})`).join(" · ")}. ${r1
+        ? (es ? "Súbelos a iSquad antes de que la FCVB los revise el lunes." : "Puja'ls a iSquad abans que la FCVB els revisi dilluns.")
+        : (es ? "Recuérdale al 1r árbitro que los suba a iSquad." : "Recorda-li al 1r àrbitre que els pugi a iSquad.")}`,
     }),
     // Recordatorio del domingo (notify, 20:00): solo cobros; el resultado sin subir tiene su propio aviso (#31).
     domingo: (): Aviso => ({

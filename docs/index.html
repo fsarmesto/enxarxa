@@ -93,6 +93,21 @@ a.gh{display:inline-flex;align-items:center;gap:5px;color:inherit;font-weight:60
 /* Actualizar: botón de icono (la flecha gira mientras trabaja) */
 .iconbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border-radius:50%}
 .iconbtn svg{display:block}
+/* Avisos (issue #31): contador en la campana y lista */
+#btnAvisos,#mbAvisos{position:relative}
+.bdg{position:absolute;top:0;right:-2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font:700 11px/18px var(--body,inherit);text-align:center}
+.bdg.hidden{display:none}
+.av-sec{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:16px 0 4px}
+.avl{list-style:none;margin:0;padding:0}
+.avl li+li{border-top:1px solid var(--line)}
+.avi{display:flex;gap:12px;align-items:flex-start;width:100%;min-height:44px;padding:10px 4px;border:0;background:transparent;color:var(--ink);text-align:left;font:inherit;cursor:pointer}
+.avi .ic{flex:none;width:26px;font-size:18px;line-height:22px;text-align:center}
+.avi .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.avi .tx b{font-size:15px}
+.avi .tx span{font-size:13px;color:var(--ink-2)}
+.avi .tx .h{color:var(--ink)}
+.avi.act .tx b{color:var(--pend)}
+.avi.new .tx b::after{content:"";display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:var(--red);vertical-align:middle}
 .iconbtn.spin svg,.minibar button.spin svg{animation:giro 1s linear infinite}
 @keyframes giro{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.iconbtn.spin svg,.minibar button.spin svg{animation:none}}
@@ -735,7 +750,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 </main>
 
 <!-- ============ App ============ -->
-<div class="minibar" id="miniBar" inert><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+<div class="minibar" id="miniBar" inert><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong><button type="button" id="mbAvisos" aria-label="Avisos"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="mbBdg"></span></button><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
 <main id="appView" class="hidden">
   <div class="board">
     <div class="top">
@@ -744,6 +759,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
         <div><h1>Vòlei EnXarxa</h1><p class="sub"><span>App no oficial</span><span class="upd" id="updTxt"></span></p></div>
       </div>
       <div class="actions">
+        <button id="btnAvisos" class="iconbtn" aria-label="Avisos"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="avBdg"></span></button>
         <button id="btnSync" class="iconbtn arb-only" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </div>
@@ -1597,6 +1613,7 @@ function render(){
   // Lo de dinero (cifras, IRPF, Excel, avisos de pedir el pago) solo en Cobros; la temporada, en Cobros y Resumen.
   document.body.dataset.vista=VIEW;
   $('views').querySelector('[data-view="cobros"]').classList.toggle('dot', VIEW!=='cobros' && !!$('alerts').innerHTML);
+  renderAvisosBadge();
   renderStatLine(pend, paid);
   $('tabEquipos').classList.toggle('hidden', GUEST);
   led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
@@ -2112,6 +2129,7 @@ try{ AGROLE=localStorage.getItem('liq-agenda-rol')||'todo'; }catch(e){}
 const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : it.x.f.rol ? 'jugador' : 'sigo');
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
 // Al abrir desde una notificación (?vista=agenda), directamente en esa pestaña.
+let OPEN_AVISOS = new URLSearchParams(location.search).has('avisos');   // desde una notificación: abrir los Avisos
 { const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos','resumen'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); } }
 const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
 // "PRIMERA DIVISION SENIOR FEMENINO" → "1ª Sén. Fem" (para la línea corta de la tarjeta).
@@ -2273,6 +2291,79 @@ $('views').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();
 });
+
+/* ---------- Avisos (issue #31) ---------- */
+// Lo que pide hacer algo (resultado por subir, pago por pedir) y, de los últimos días, los avisos que se mandan por
+// notificación (push_log con su texto, en el idioma del usuario: salen aunque no tenga las notificaciones activadas) y
+// los resultados de sus equipos. Los informativos se marcan como vistos al abrir la lista (en este navegador); los de
+// acción se van solos cuando se resuelven. Contador en la campana y punto en "Mis partidos" si hay resultados por subir.
+let AV_LOG = [];
+const AV_SEEN_KEY = 'liq-avisos-vistos';
+function avSeen(){ try{ return new Set(JSON.parse(localStorage.getItem(AV_SEEN_KEY)||'[]')); }catch(e){ return new Set(); } }
+function avSave(s){ try{ localStorage.setItem(AV_SEEN_KEY, JSON.stringify([...s].slice(-300))); }catch(e){} }
+async function loadAvisos(){
+  if(GUEST || isOffline()) return;
+  const {data} = await sb.from('push_log').select('key,msg,sent_at').not('msg','is',null)
+    .gte('sent_at', new Date(Date.now()-14*864e5).toISOString()).order('sent_at',{ascending:false}).limit(60);
+  AV_LOG = data || []; renderAvisosBadge();
+}
+const resLate = m => { const s=pubState(m).res; return s.st==='Pendiente' && s.cls==='warn'; };
+function avisos(){
+  const t=today(), out=[];
+  if(!DEP && !GUEST){
+    const d14=addDays(t,-14);
+    for(const m of MATCHES.filter(m=>m.date>=d14 && m.date<=t && resLate(m)).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time))){
+      const r1 = !!m.staff_checked && m.role==='r1';
+      out.push({id:'res:'+m.id, act:true, ic:'⚠', t:r1?'Aún no has subido el resultado':'El resultado aún no está subido',
+        s:`${capName(m.teams).replace(/ Vs /,' vs ')} · ${fmtTiny(m.date)}`, h:r1?'Súbelo a iSquad antes de que la FCVB lo revise el lunes.':'Recuérdale al 1r árbitro que lo suba a iSquad.', go:{match:m.id}});
+    }
+    const ask=MATCHES.filter(m=>payState(m)==='solicitar' && limitOf(m)>=t);
+    if(ask.length) out.push({id:'pay', act:true, ic:'€', t:`Pide el pago antes del ${fmtTiny(ask.map(limitOf).sort()[0])}`, s:`${ask.length} partido${ask.length===1?'':'s'}`, go:{view:'cobros'}});
+  }
+  // Los de resultado sin subir, cobro y resultados de equipos ya salen arriba o abajo calculados aquí.
+  for(const x of AV_LOG){
+    if(/^(eqr-|resultado-|cobro-|prueba)/.test(x.msg?.tag||'')) continue;
+    const mid=x.key.split(':')[1];
+    out.push({id:'log:'+x.key, log:true, ic:'🔔', t:x.msg.title||'', s:x.msg.body||'',
+      go: MATCHES.some(m=>m.id===mid) ? {match:mid} : {view:((x.msg.url||'').match(/vista=(\w+)/)||[])[1]||'agenda'}});
+  }
+  const d7=addDays(t,-7);
+  for(const {m} of teamItems()) if(isDone(m) && m.rl!=null && m.rv!=null && m.d>=d7 && m.d<=t){
+    const mine=m.mineLocal?[m.rl,m.rv]:[m.rv,m.rl];
+    out.push({id:`eqr:${m.d}|${norm(m.l)}|${norm(m.v)}`, ic:'🏐', t:`${capName(m.l)} ${m.rl}-${m.rv} ${capName(m.v)}`, res:mine[0]>mine[1]?'Ganado':'Perdido', s:fmtTiny(m.d), go:{view:'equipos'}});
+  }
+  return out;
+}
+function renderAvisosBadge(){
+  if(!USER) return;
+  const list=avisos(), seen=avSeen(), n=list.filter(x=>x.act || !seen.has(x.id)).length;
+  for(const id of ['avBdg','mbBdg']){ const b=$(id); b.textContent = n>9 ? '9+' : String(n); b.classList.toggle('hidden', !n); }
+  $('views').querySelector('[data-view="agenda"]').classList.toggle('dot', VIEW!=='agenda' && list.some(x=>x.id.startsWith('res:')));
+}
+function openAvisos(){
+  const list=avisos(), seen=avSeen(), acts=list.filter(x=>x.act), rest=list.filter(x=>!x.act);
+  const item=x=>`<li><button type="button" class="avi${x.act?' act':''}${!x.act&&!seen.has(x.id)?' new':''}" data-av="${esc(x.id)}"><span class="ic" aria-hidden="true">${x.ic}</span><span class="tx"${x.log?' data-noi18n':''}><b>${esc(x.t)}</b><span>${x.res?`<span>${x.res}</span> · `:''}${esc(x.s)}</span>${x.h?`<span class="h">${esc(x.h)}</span>`:''}</span></button></li>`;
+  $('guideSheet').innerHTML = '<h2 id="guideTitle">Avisos</h2>'
+    + (list.length ? '' : '<p class="muted">No tienes avisos.</p>')
+    + (acts.length ? `<div class="av-sec">Pendiente de hacer</div><ul class="avl">${acts.map(item).join('')}</ul>` : '')
+    + (rest.length ? `<div class="av-sec">Últimos días</div><ul class="avl">${rest.map(item).join('')}</ul>` : '')
+    + `<div class="nav"><span class="small muted">${PUSH_SUB?'También te llegan por notificación.':'Actívalas en Ajustes para que te lleguen también por notificación.'}</span><button class="primary" id="gClose">Cerrar</button></div>`;
+  $('guide').classList.remove('hidden'); $('gClose').onclick=()=>$('guide').classList.add('hidden'); $('gClose').focus();
+  for(const x of rest) seen.add(x.id); avSave(seen); renderAvisosBadge();
+  $('guideSheet').querySelectorAll('[data-av]').forEach(b=>b.onclick=()=>{ const x=list.find(y=>y.id===b.dataset.av); $('guide').classList.add('hidden'); if(x) avGo(x.go); });
+}
+// Lleva al partido (Mis partidos, con la tarjeta abierta) o a la pestaña del aviso.
+function avGo(go){
+  const m = go.match && MATCHES.find(x=>x.id===go.match);
+  if(m){
+    VIEW='agenda'; AGENDA = m.date>=today() ? 'proximos' : 'jugados'; if(AGENDA==='jugados') SEASON=seasonOf(m.date);
+    AGC_OPEN.add('arb|'+m.id); WK_OPEN.set('ag-'+AGENDA+'-'+weekStart(m.date), true); render();
+    requestAnimationFrame(()=>document.querySelector(`[data-agc="${CSS.escape('arb|'+m.id)}"]`)?.scrollIntoView({block:'center'}));
+    return;
+  }
+  if(go.view){ VIEW=go.view; render(); scrollTo(0,0); }
+}
+for(const id of ['btnAvisos','mbAvisos']) $(id).addEventListener('click', openAvisos);
 
 /* ---------- Compartir coche ---------- */
 let COCHE = { activo:false, sug:{}, n:0 };
@@ -2579,7 +2670,8 @@ function started(user){
   sb.rpc('marcar_actividad').then(()=>{}, ()=>{});   // las cuentas sin abrir la app en 6 meses se borran
   // Idioma de la interfaz en el perfil: los avisos push salen en ese idioma (issue #36). Cambiar de idioma recarga y pasa por aquí.
   if(P && P.lang!==LANG){ P.lang=LANG; sb.from('profiles').update({lang:LANG}).eq('user_id',USER.id).then(()=>{}, ()=>{}); }
-  show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); if(needsConsent()) openConsent(); else setTimeout(maybeGuide, 600);
+  show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); loadAvisos();
+  if(needsConsent()) openConsent(); else if(OPEN_AVISOS){ OPEN_AVISOS=false; setTimeout(openAvisos, 800); } else setTimeout(maybeGuide, 600);
 }
 function retryLoad(load, user){
   (load || fetchAll()).then(d=>{ applyAll(d); started(user); toast('Conexión recuperada'); },

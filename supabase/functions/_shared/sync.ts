@@ -396,7 +396,7 @@ async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], n
     { onConflict: "user_id,key", ignoreDuplicates: true }).select("key");
   const ok = new Set((fresh || []).map((r) => r.key));
   const send = msgs.filter((m) => ok.has(m.key));
-  for (const m of send.slice(0, 5)) await sendToUser(db, userId, (t) => ({ ...m.aviso(t), tag: m.tag, url: m.url }));
+  for (const m of send.slice(0, 5)) await sendToUser(db, userId, (t) => ({ ...m.aviso(t), tag: m.tag, url: m.url }), m.key);
   return send.length;
 }
 export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[]; missing: string[]; gone: string[]; renamed: { from: string; to: string }[] } {

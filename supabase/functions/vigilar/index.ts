@@ -11,14 +11,23 @@ import { huellaFicha, idArbitro, teamMatches, type PartidoEquipo } from "../_sha
 import { cap, madridNow, type MsgFn, sendToUser } from "../_shared/push.ts";
 import { dietasDelDia } from "../_shared/dieta.ts";
 
-type Snap = Pick<PartidoEquipo, "id" | "d" | "t" | "conf" | "est">;
+type Snap = Pick<PartidoEquipo, "id" | "d" | "t" | "conf" | "est"> & { rl?: number | null; rv?: number | null };
 
-export function teamChanges(prev: Snap[], now: PartidoEquipo[]): MsgFn[] {
+// horarios = avisos de horario y suspendidos (equipos donde juega o entrena); los resultados, también de los que sigue.
+// idEquipo: para saber si ha ganado o perdido.
+export function teamChanges(prev: Snap[], now: PartidoEquipo[], idEquipo = "", horarios = true): MsgFn[] {
   const today = new Date().toISOString().slice(0, 10), before = new Map(prev.map((m) => [m.id, m])), out: MsgFn[] = [];
   const hora = (m: Snap) => (m.t && m.conf ? m.t : "");
+  const hace7 = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
   for (const m of now) {
     const p = before.get(m.id);
-    if (!p || m.d < today) continue;
+    if (!p) continue;
+    // Resultado nuevo (issue #31): solo si la foto anterior ya guardaba resultados (las de antes no: avisaría de todos).
+    if ("rl" in p && p.rl == null && m.rl != null && m.rv != null && m.d >= hace7) {
+      const gana = m.idl === idEquipo ? m.rl > m.rv : m.idv === idEquipo ? m.rv > m.rl : null, rl = m.rl, rv = m.rv;
+      out.push((t) => ({ ...t.eqResultado(cap(m.l), rl, rv, cap(m.v), gana, m.d), tag: `eqr-${m.id}`, url: "./?vista=equipos&avisos=1" }));
+    }
+    if (!horarios || m.d < today) continue;
     const vs = `${cap(m.l)} – ${cap(m.v)}`, base = { tag: `eq-${m.id}`, url: "./?vista=agenda" };
     if (/SUSPEN|APLAZ/i.test(m.est) && m.est !== p.est) out.push((t) => ({ ...base, ...t.eqEstado(vs, m.d, m.est) }));
     else if (!hora(p) && hora(m)) out.push((t) => ({ ...base, ...t.eqHorario(vs, m.d, m.t) }));
@@ -98,12 +107,13 @@ if (import.meta.main) Deno.serve(async (req) => {
     } catch { return 0; }
   }));
 
-  // 2) Equipos donde juegan o entrenan los suscritos (activos en "Mis partidos").
-  const { data: favs } = await db.from("fav_teams").select("user_id, id_equipo, team, rol, activo").in("user_id", users).eq("activo", true).eq("oculto", false).not("rol", "is", null).not("id_equipo", "is", null);
-  const teams = new Map<string, { team: string; users: Set<string> }>();
+  // 2) Equipos de los suscritos (activos en "Mis partidos"): de los que juegan o entrenan, horarios y resultados; de los
+  //    que solo siguen, solo resultados (issue #31).
+  const { data: favs } = await db.from("fav_teams").select("user_id, id_equipo, team, rol, activo").in("user_id", users).eq("activo", true).eq("oculto", false).not("id_equipo", "is", null);
+  const teams = new Map<string, { team: string; users: Set<string>; juegan: Set<string> }>();
   for (const f of favs || []) {
-    const t = teams.get(f.id_equipo) || teams.set(f.id_equipo, { team: f.team, users: new Set() }).get(f.id_equipo)!;
-    t.users.add(f.user_id);
+    const t = teams.get(f.id_equipo) || teams.set(f.id_equipo, { team: f.team, users: new Set(), juegan: new Set() }).get(f.id_equipo)!;
+    t.users.add(f.user_id); if (f.rol) t.juegan.add(f.user_id);
   }
   let teamMsgs = 0;
   const queue = [...teams];
@@ -111,13 +121,14 @@ if (import.meta.main) Deno.serve(async (req) => {
     while (queue.length && Date.now() - started < 100_000) {
       const [id, t] = queue.shift()!;
       try {
-        await db.from("pub_cache").delete().eq("key", `tm:${id}`); // calendario recién leído (y la app lo ve al momento)
+        // Calendario recién leído (y la app lo ve al momento) si alguien juega o entrena en él; si solo lo siguen, la caché.
+        if (t.juegan.size) await db.from("pub_cache").delete().eq("key", `tm2:${id}`);
         const cal = await teamMatches(db, id, t.team);
         const { data: snap } = await db.from("pub_cache").select("data").eq("key", `snap:${id}`).maybeSingle();
-        if (snap) for (const msg of teamChanges(snap.data as Snap[], cal).slice(0, 5)) {
-          teamMsgs++; for (const u of t.users) await sendToUser(db, u, msg);
+        if (snap) for (const u of t.users) for (const msg of teamChanges(snap.data as Snap[], cal, id, t.juegan.has(u)).slice(0, 5)) {
+          teamMsgs++; await sendToUser(db, u, msg);
         }
-        await db.from("pub_cache").upsert({ key: `snap:${id}`, data: cal.map(({ id, d, t, conf, est }) => ({ id, d, t, conf, est })), fetched_at: new Date().toISOString() });
+        await db.from("pub_cache").upsert({ key: `snap:${id}`, data: cal.map(({ id, d, t, conf, est, rl, rv }) => ({ id, d, t, conf, est, rl, rv })), fetched_at: new Date().toISOString() });
       } catch { /* la próxima pasada */ }
     }
   };

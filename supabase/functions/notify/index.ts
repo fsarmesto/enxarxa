@@ -1,21 +1,29 @@
 // Notificaciones (Web Push).
 // - Cron (x-cron-secret): recordatorio del domingo a las 20:00 de Madrid a los árbitros suscritos, en su idioma. El cron se lanza a
 //   las 18 y a las 19 UTC (horario de verano e invierno) y aquí solo se envía si en Madrid son las 20.
-//   Con {force:true} se envía ya (para probar).
+//   Con {force:true} se envía ya (para probar). Con {tipo:"resultados"}: aviso de resultados sin subir de la semana, el
+//   domingo a las 21:00 (cron a las 19 y 20 UTC; ver avisoResultados).
 // - Con la sesión del árbitro: {action:"subscribe", sub}, {action:"unsubscribe", endpoint}, {action:"test"}.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
 import { langOf, madridNow, send, Sub } from "../_shared/push.ts";
 import { lang, textos } from "../_shared/textos.ts";
+import { avisoResultados } from "../_shared/resultados.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const db = admin();
-  let body: { action?: string; sub?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } }; endpoint?: string; force?: boolean } = {};
+  let body: { action?: string; tipo?: string; sub?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } }; endpoint?: string; force?: boolean } = {};
+  const deadline = Date.now() + 110_000;
   try { body = await req.json(); } catch { /* sin cuerpo */ }
 
   const secret = Deno.env.get("CRON_SECRET");
   if (secret && req.headers.get("x-cron-secret") === secret) {
     const now = madridNow();
+    // Resultados sin subir de la semana (issue #31): cron aparte, el domingo a las 21:00 de Madrid.
+    if (body.tipo === "resultados") {
+      if (!body.force && !(now.weekday === "Sun" && now.hour === 21)) return json({ skipped: true, madrid: now });
+      return json({ resultados: await avisoResultados(db, deadline), madrid: now });
+    }
     if (!body.force && !(now.weekday === "Sun" && now.hour === 20)) return json({ skipped: true, madrid: now });
     // Solo árbitros: el recordatorio es de revisar cobros. Cada uno en su idioma (profiles.lang).
     const { data: ps } = await db.from("profiles").select("user_id, tipo, lang");

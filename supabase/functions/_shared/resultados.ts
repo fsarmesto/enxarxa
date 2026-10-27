@@ -10,6 +10,7 @@
 //   web, resultado "Otro". El acta sí se mira.
 // Los ids salen de la tabla de designaciones (parseDesignaciones). Una vez encontrado, no se vuelve a pedir.
 import { PUB, seasonCode, teamMatches, UA, type Db } from "./publico.ts";
+import { sendToUser } from "./push.ts";
 
 // Todos los partidos arbitrados tienen que acabar con los 2 estados: se miran los empezados hace más de 1 h, los de los
 // últimos DAYS días en cada pasada y los anteriores que aún falten, como mucho una vez cada OLD_EVERY (los que ya no se
@@ -109,4 +110,37 @@ export async function checkResultados(db: Db, userId: string, deadline: number):
     if (Object.keys(patch).length) await db.from("matches").update(patch).eq("user_id", userId).eq("id", m.id);
   }
   return `${n} de ${todo.length} mirados: ${res} resultados, ${actas} actas${errores ? `, ${errores} errores (${fallo})` : ""}`;
+}
+
+// Aviso del domingo a las 21:00 (issue #31): a cada árbitro, los partidos de la semana (de lunes a domingo) que siguen
+// sin resultado publicado, en un solo aviso. Antes se repasan sus partidos (checkResultados) por si se acaban de subir.
+// Una vez por usuario y semana (push_log "resultado:<lunes>"); queda también en la sección de Avisos de la web. Mismo
+// criterio que "Pendiente" en color de aviso en la web: con número de partido, sin selecciones, suspendidos ni
+// competiciones estatales, y empezados hace más de 2 h 30 min.
+type Pend = { user_id: string; id: string; date: string; time: string; teams: string; venue: string; comp: string; estado: string | null; role: string; staff_checked: string | null };
+export async function avisoResultados(db: Db, deadline: number) {
+  const now = madridNow(), today = now.slice(0, 10), noon = Date.parse(`${today}T12:00:00Z`);
+  const mon = new Date(noon - ((new Date(noon).getUTCDay() + 6) % 7) * 864e5).toISOString().slice(0, 10), key = `resultado:${mon}`;
+  const pendientes = async (userId?: string) => {
+    let q = db.from("matches").select("user_id, id, date, time, teams, venue, comp, estado, role, staff_checked")
+      .not("id_partido", "is", null).is("res_l", null).gte("date", mon).lte("date", today);
+    if (userId) q = q.eq("user_id", userId);
+    const { data } = await q;
+    return ((data || []) as Pend[]).filter((m) => !/SELECCI/i.test(m.comp) && !ESTATAL.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "")
+      && now >= plusMin(m.date, m.time || "00:00", 150)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  };
+  const users = [...new Set((await pendientes()).map((m) => m.user_id))];
+  let revisados = 0, enviados = 0;
+  for (const u of users) {
+    const { data: done } = await db.from("push_log").select("key").eq("user_id", u).eq("key", key).maybeSingle();
+    if (done) continue;
+    if (Date.now() < deadline - 30_000) { await checkResultados(db, u, deadline - 20_000).catch(() => ""); revisados++; }
+    const list = await pendientes(u);
+    if (!list.length) continue;
+    const r1 = (m: Pend) => m.role === "r1" && !!m.staff_checked;
+    await sendToUser(db, u, (t) => ({ ...(list.length === 1 ? t.resultado1(r1(list[0]), list[0]) : t.resultadoN(list.some(r1), list)),
+      tag: `resultado-${mon}`, url: "./?vista=agenda&avisos=1" }), key);
+    enviados++;
+  }
+  return { semana: mon, usuarios: users.length, revisados, enviados };
 }
