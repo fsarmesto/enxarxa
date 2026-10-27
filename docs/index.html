@@ -364,7 +364,7 @@ body[data-vista="ajustes"] .views,body[data-vista="ajustes"] #pushCard{display:n
 .alert>summary::-webkit-details-marker{display:none}
 .alert>summary .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Flecha de desplegar (alertas, tarjetas de Mis partidos, calendarios): botón de 44 px con el chevron grueso */
-summary .chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;border-radius:8px;background:var(--surface-2);color:var(--ink);transition:transform .15s}
+summary .chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;border-radius:8px;background:var(--accent);color:var(--accent-ink);transition:transform .15s}
 summary .chev svg{display:block}
 details[open]>summary .chev{transform:rotate(180deg)}
 details>summary:active{background:var(--surface-2)}
@@ -479,7 +479,7 @@ body:not([data-vista="cobros"]) #alerts{display:none}
 .board .statline .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .board .statline .txt b{color:var(--board-ink);font-weight:700}
 .board .statline .txt b.p{color:var(--board-pend)}
-.board .statline .chev{display:none;flex:none;width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,.14);color:var(--board-ink);transition:transform .25s}
+.board .statline .chev{display:none;flex:none;width:44px;height:44px;border-radius:8px;background:var(--board-num);color:var(--board);transition:transform .25s}
 .board .statline .chev svg{display:block;margin:12px}
 body:not([data-vista="cobros"]) .board .statline,body.dep .board .statline{display:none}   /* la fecha de "Actualizado" va bajo el título */
 body[data-vista="cobros"]:not(.dep) .board .statline{cursor:pointer}
