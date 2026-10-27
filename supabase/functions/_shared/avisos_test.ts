@@ -96,3 +96,13 @@ Deno.test("resultados del domingo: R1, otro rol y varios; sin estatales, selecci
   assert(/2 partits sense resultat/.test(msg("u3")));
   assertEquals((await avisoResultados(db, Date.now() - 1)).enviados, 0);
 });
+
+Deno.test("aTurnos(): como mucho n a la vez y los resultados en orden", async () => {
+  const { aTurnos } = await import("./db.ts");
+  let ahora = 0, max = 0;
+  const r = await aTurnos(Array.from({ length: 16 }, (_, i) => i), 4, async (i: number) => {
+    ahora++; max = Math.max(max, ahora); await new Promise((ok) => setTimeout(ok, 5 + (i % 3) * 5)); ahora--; return i * 2;
+  });
+  assertEquals(max, 4);
+  assertEquals(r, Array.from({ length: 16 }, (_, i) => i * 2));
+});
