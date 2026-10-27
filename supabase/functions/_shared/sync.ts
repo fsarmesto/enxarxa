@@ -147,7 +147,10 @@ async function matrixKm(a: [number, number], dests: [number, number][], key: str
 }
 
 // Ubica un pabellón: primero la calle (con código postal y población); solo si la calle no existe, el centro de la población.
-export async function locate(db: SupabaseClient, address: string): Promise<{ at: [number, number]; source: string } | null | "error"> {
+// Palabras genéricas de nombres de pabellón: no sirven para reconocer uno concreto.
+const GEN = /^(PAVELLO|PAVELLON|PABELLON|POLIESPORTIU|POLIDEPORTIVO|MUNICIPAL|ESPORTIU|DEPORTIVO|ESPORTIVA|COMPLEX|COMPLEJO|PISTA|PISTES|CAMP|SALA|CENTRE|CENTRO|ZONA|INSTAL\w*|DE|DEL|DELS|LA|LES|LOS|EL|ELS|I|Y|L|D|SANT|SANTA|SAN|CE|CV|CLUB|ESCOLA|INSTITUT|COBERT|CUBIERTO)$/;
+// venue: el nombre del pabellón en iSquad. Si la calle no sale, se busca por el nombre antes de caer al centro de la población.
+export async function locate(db: SupabaseClient, address: string, venue = ""): Promise<{ at: [number, number]; source: string } | null | "error"> {
   const clean = address.replace(/\\(['"])/g, "$1").replace(/,\s*(ESPA[ÑN]A|SPAIN)\s*$/i, "").trim();
   if (!clean) return null;
   const parts = clean.split(",").map((s) => s.trim());
@@ -171,6 +174,22 @@ export async function locate(db: SupabaseClient, address: string): Promise<{ at:
   if (b === "error") return "error";   // no se baja a la población por un fallo pasajero
   if (b) return { at: b.at, source: b.exact ? "direccion" : "poblacion" };
   if (!town) return null;
+  // Por el nombre del pabellón (27-oct-2026): solo un recinto deportivo de la misma población cuyo nombre comparta una
+  // palabra propia con el de iSquad ("Els Saioners"), o uno con nombre genérico ("Pavelló poliesportiu municipal").
+  // Así Photon encuentra pabellones cuya calle no tiene (o que iSquad da como código de Google Maps).
+  const nombre = venue.split(/\s+-\s*|\s*-\s+/)[0].trim();
+  if (nombre.length > 3) {
+    const mias = new Set(norm(nombre).split(" "));
+    const esEse = (h: GeoHit) => {
+      const p = h.properties || {};
+      if (!/^(leisure=(sports_centre|sports_hall|stadium)|building=sports_hall|amenity=sports_hall)$/.test(`${p.osm_key}=${p.osm_value}`) || !sameTown(h)) return false;
+      const propias = norm(p.name || "").split(" ").filter((w: string) => w.length > 1 && !GEN.test(w));
+      return propias.length ? propias.some((w: string) => mias.has(w)) : !!p.name;
+    };
+    const v = await geocode(db, `${nombre}, ${cp ? cp[1] + " " : ""}${town}`, false, esEse);
+    if (v === "error") return "error";
+    if (v) return { at: v.at, source: "direccion" };
+  }
   // Población: primero la del código postal, que es más fiable que el nombre que trae iSquad.
   if (cp) {
     const z = await geocode(db, cp[1], false, (h: GeoHit) => h.properties?.name === cp[1] || h.properties?.postcode === cp[1]);
@@ -236,7 +255,7 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
       // Dirección del pabellón: un partido cualquiera de ese pabellón (eq, no in: las claves llevan comas y apóstrofos).
       const { data: m } = await db.from("matches").select("addr, venue").eq("user_id", userId).eq("venue_key", k).limit(1).maybeSingle();
       if (!m) continue;
-      const r = await locate(db, m.addr || m.venue);
+      const r = await locate(db, m.addr || m.venue, m.venue);
       if (r === "error") { errors++; continue; }
       errors = 0;
       if (r) located.push({ k, ...r }); else { missing++; await tried(k); }
@@ -271,18 +290,21 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
       }
     }
     // 4) Con el tiempo y el cupo que sobren, se recalculan con la ruta corta los km que aún no lo son
-    //    (los de antes del cambio y los de Matrix). Los puestos a mano no se tocan.
+    //    (los de antes del cambio y los de Matrix), y se vuelven a ubicar los aproximados al centro de la población (por si
+    //    ahora sale la calle o el pabellón por su nombre). Los puestos a mano no se tocan.
     if (!routesOut && !originChanged && routeErrors < 3 && Date.now() < deadline - 15_000) {
-      const { data: rows } = await db.from("venues").select("venue_key, km, km_source").eq("user_id", userId).not("km", "is", null)
-        .or("km_rule.is.null,km_rule.neq.corta");
+      const { data: rows } = await db.from("venues").select("venue_key, km, km_source, km_rule").eq("user_id", userId).not("km", "is", null)
+        .or("km_rule.is.null,km_rule.neq.corta,km_source.eq.poblacion");
       const old = (rows || []).filter((o) => o.km_source !== "manual").slice(0, 60);
       for (const [j, o] of old.entries()) {
         if (Date.now() > deadline - 15_000 || routeErrors >= 3) break;
         if (j % 5 === 4 && !await originStill()) { originChanged = true; break; }
         const { data: m } = await db.from("matches").select("addr, venue").eq("user_id", userId).eq("venue_key", o.venue_key).limit(1).maybeSingle();
         if (!m) continue;
-        const r = await locate(db, m.addr || m.venue);
+        const r = await locate(db, m.addr || m.venue, m.venue);
         if (r === "error") { routeErrors++; continue; }
+        // Ya con la ruta corta y aún aproximado: nada que cambiar.
+        if (r && r.source === "poblacion" && o.km_source === "poblacion" && o.km_rule === "corta") continue;
         const d = r ? await driveKm(db, a, r.at, key) : null;
         if (d === "quota") { routesOut = true; break; }
         if (d === "error") { routeErrors++; continue; }
@@ -304,7 +326,7 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
       for (const o of rows || []) {
         if (Date.now() > deadline - 8_000) break;
         const { data: m } = await db.from("matches").select("addr, venue").eq("user_id", userId).eq("venue_key", o.venue_key).limit(1).maybeSingle();
-        const r = m ? await locate(db, m.addr || m.venue) : null;
+        const r = m ? await locate(db, m.addr || m.venue, m.venue) : null;
         if (r && r !== "error") got.push({ k: o.venue_key, at: r.at });
       }
       const res = got.length && Date.now() < deadline - 5_000 && await originStill() ? await matrixKm(a, got.map((v) => v.at), key, deadline) : [];

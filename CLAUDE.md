@@ -101,7 +101,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   **Superliga** el segundo "ARBITRO" es el **juez de línea**; en Superliga 2 hay 1r, 2n y anotador.
   Los partidos ya jugados se leen una vez; los futuros y de los últimos 3 días, en cada pasada.
 - Selecciones territoriales (competición con "SELECCION"): tarifa 0; solo cuentan sus gastos pagados.
-- Algunas direcciones son un código de Google Maps sin calle ni CP ("VM47+RH SANTA COLOMA DE FARNERS"): se usa el centro de la población.
+- Algunas direcciones son un código de Google Maps sin calle ni CP ("VM47+RH SANTA COLOMA DE FARNERS"): se busca el pabellón
+  por su nombre (ver Km por carretera) y, si no, el centro de la población.
 
 ## Reglas de pago (en `docs/index.html`)
 
@@ -509,7 +510,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 ## Km por carretera
 
 - Direcciones y poblaciones: **Photon** (photon.komoot.io). **Nominatim no sirve: bloquea las IP de Supabase (403).**
-  Se acepta una calle solo si coincide código postal o municipio; si no, centro de la población (`km_source='poblacion'`, "km aprox.").
+  Se acepta una calle solo si coincide código postal o municipio. Si no, por el **nombre del pabellón** (27-oct-2026): un recinto
+  deportivo de la misma población cuyo nombre comparta una palabra propia con el de iSquad, o de nombre genérico. Si tampoco,
+  centro de la población (`km_source='poblacion'`, "km aprox."); el paso 4 de `fillKm` los vuelve a ubicar en cada pasada.
+  27-oct: 5 pabellones aproximados; con el nombre, Els Saioners pasa a exacto; los otros no salen en Photon.
   iSquad a veces pone mal la población ("08880 BARCELONA" es Cubelles): manda el código postal. Un resultado con
   otro código postal de distinta zona (3 primeros dígitos) se rechaza y se repite sin la población; de reserva, el
   centro del código postal antes que el de la población.
@@ -536,7 +540,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## Trampas de Supabase (plan gratuito)
 
-- Con varios árbitros en una sola ejecución da `WORKER_RESOURCE_LIMIT`: el cron reparte una ejecución por árbitro.
+- Con varios árbitros en una sola ejecución da `WORKER_RESOURCE_LIMIT`: el cron reparte una ejecución por árbitro, y como
+  mucho 4 a la vez (`aTurnos` en `_shared/db.ts`). El 27-oct-2026, con 16 árbitros lanzados de golpe, el reparto caía con 546
+  y 8 árbitros llevaban días sin actualizarse (sin `last_error`): mirar `net._http_response` del cron si `last_sync` se queda
+  atrás. Lo que no cabe en el tiempo va primero en la siguiente pasada (orden por `last_sync`); los km, primero quien tiene
+  pabellones sin km o sin duración.
 - Funciones ~150 s de reloj y pg_net corta a 120 s: todo usa una hora límite contada desde la petición.
 - PostgREST devuelve como mucho 1000 filas (sin avisar): las consultas de todos los usuarios usan `todas()` y, para
   `in(...)` con muchos ids, `porIds()` (de 100 en 100), en `_shared/db.ts`. Siempre con un orden estable (la clave primaria).
@@ -592,8 +600,6 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 
 ## Pendiente (técnico)
 
-- Recalcular con Photon los km antiguos marcados como aproximados (los calculados antes de pasar a Photon):
-  vaciar `km`/`km_tried_at` de esos pabellones (`km_source='poblacion'`, no los `manual`) y lanzar el cron.
 - Si algún día no basta el cupo de ORS Matrix: el servidor público de rutas Valhalla de FOSSGIS
   (gratis, sin clave, 1 consulta/s) como segunda reserva. No probado desde Supabase.
 - Al empezar la temporada 2027/28: actualizar `CATS` y `dietaFor` con el anexo nuevo.

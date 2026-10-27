@@ -10,7 +10,7 @@ import { admin, cors, json } from "../_shared/sync.ts";
 import { huellaFicha, idArbitro, teamMatches, type PartidoEquipo } from "../_shared/publico.ts";
 import { cap, madridNow, type MsgFn, sendToUser } from "../_shared/push.ts";
 import { dietasDelDia } from "../_shared/dieta.ts";
-import { porIds, todas } from "../_shared/db.ts";
+import { aTurnos, porIds, todas } from "../_shared/db.ts";
 
 type Snap = Pick<PartidoEquipo, "id" | "d" | "t" | "conf" | "est"> & { rl?: number | null; rv?: number | null };
 
@@ -89,7 +89,7 @@ if (import.meta.main) Deno.serve(async (req) => {
   const pend = await porIds<{ user_id: string }>(arbitros, (g) => db.from("matches").select("user_id, id").in("user_id", g).not("missing_since", "is", null).order("user_id").order("id"));
   const pendiente = new Set(pend.map((m) => m.user_id));
   let fichas = 0, syncs = 0;
-  const desig = Promise.all(arbitros.map(async (user_id) => {
+  const desig = aTurnos(arbitros, 4, async (user_id) => {
     try {
       const p = profs.find((x) => x.user_id === user_id);
       let id: string | null = p?.id_arbitro || null;
@@ -107,7 +107,7 @@ if (import.meta.main) Deno.serve(async (req) => {
         headers: { "Content-Type": "application/json", "x-cron-secret": secret } });
       const j = await r.json(); return j?.avisos || 0;
     } catch { return 0; }
-  }));
+  });
 
   // 2) Equipos de los suscritos (activos en "Mis partidos"): de los que juegan o entrenan, horarios y resultados; de los
   //    que solo siguen, solo resultados (issue #31).

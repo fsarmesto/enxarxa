@@ -17,6 +17,18 @@ export async function todas<T = Record<string, unknown>>(q: () => Query): Promis
   }
 }
 
+// Como Promise.all, pero como mucho n a la vez. En el cron, lanzar el trabajo de todos los árbitros de golpe agota los
+// recursos del trabajador (WORKER_RESOURCE_LIMIT, visto el 27-oct-2026 con 16 árbitros: los que no habían acabado se
+// cortaban y 8 llevaban días sin actualizarse).
+export async function aTurnos<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const k = i++; out[k] = await fn(items[k]); }
+  }));
+  return out;
+}
+
 // Para filtros in(...) con muchos ids (la dirección de la petición tiene un límite): de 100 en 100, y cada grupo con todas().
 export async function porIds<T = Record<string, unknown>>(ids: string[], q: (grupo: string[]) => Query): Promise<T[]> {
   const out: T[] = [];
