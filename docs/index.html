@@ -2203,12 +2203,12 @@ function renderAgenda(allMs,res){
     box.innerHTML=html; return;
   }
   if(!list.length && DEP){
-    html += `<div class="empty">${AGENDA==='proximos' ? 'No hay partidos próximos de tus equipos.' : 'Aún no hay partidos jugados de tus equipos esta temporada.'} ${EQ.favs.length ? '' : 'No te he encontrado en ninguna plantilla de la FCVB: ve a Equipos y busca tu equipo.'}</div>`;
+    html += `<div class="empty"><span>${AGENDA==='proximos' ? 'No hay partidos próximos de tus equipos.' : 'Aún no hay partidos jugados de tus equipos esta temporada.'}</span> ${EQ.favs.length ? '' : '<span>No te he encontrado en ninguna plantilla de la FCVB: ve a Equipos y busca tu equipo.</span>'}</div>`;
     box.innerHTML=html; return;
   }
   if(!list.length){
     html += AGENDA==='proximos'
-      ? `<div class="empty">No tienes partidos designados próximamente${filtering()?' con estos filtros':''}. En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.</div>`
+      ? `<div class="empty"><span>No tienes partidos designados próximamente${filtering()?' con estos filtros':''}.</span> <span>En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.</span></div>`
       : `<div class="empty">No hay partidos jugados en esta temporada${filtering()?' con estos filtros':''}.</div>`;
     box.innerHTML=html; return;
   }
