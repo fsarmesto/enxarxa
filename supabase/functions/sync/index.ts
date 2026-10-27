@@ -5,6 +5,7 @@
 // - Cron con {user_id, mode: "sync" | "km" | "quick"}: el trabajo de un árbitro (quick = vigilancia rápida).
 // - Con la sesión de un usuario: solo ese usuario (botón "Actualizar ahora").
 import { admin, cors, fillKm, json, syncUser, userFromRequest } from "../_shared/sync.ts";
+import { todas } from "../_shared/db.ts";
 
 Deno.serve(async (req) => {
   // Hora límite contada desde que llega la petición: las funciones tienen ~150 s y pg_net corta a los 120 s.
@@ -33,9 +34,9 @@ Deno.serve(async (req) => {
       }
     };
     // Los que fallaron la última vez van al final; los demás, del que lleva más tiempo sin actualizarse al que menos.
-    const { data: users } = await db.from("profiles").select("user_id").neq("tipo", "deportista")
-      .order("last_error", { ascending: true, nullsFirst: true }).order("last_sync", { ascending: true, nullsFirst: true });
-    const list = (users || []).map((u) => u.user_id);
+    const users = await todas<{ user_id: string }>(() => db.from("profiles").select("user_id").neq("tipo", "deportista")
+      .order("last_error", { ascending: true, nullsFirst: true }).order("last_sync", { ascending: true, nullsFirst: true }).order("user_id"));
+    const list = users.map((u) => u.user_id);
     const synced = await Promise.all(list.map((id) => call(id, "sync")));
     const km: string[] = [];
     for (const id of list) {

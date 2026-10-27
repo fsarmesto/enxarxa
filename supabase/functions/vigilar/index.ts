@@ -10,6 +10,7 @@ import { admin, cors, json } from "../_shared/sync.ts";
 import { huellaFicha, idArbitro, teamMatches, type PartidoEquipo } from "../_shared/publico.ts";
 import { cap, madridNow, type MsgFn, sendToUser } from "../_shared/push.ts";
 import { dietasDelDia } from "../_shared/dieta.ts";
+import { porIds, todas } from "../_shared/db.ts";
 
 type Snap = Pick<PartidoEquipo, "id" | "d" | "t" | "conf" | "est"> & { rl?: number | null; rv?: number | null };
 
@@ -42,8 +43,9 @@ async function avisoCobro(db: any, users: string[]) {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
     .formatToParts(new Date()).map((x) => [x.type, x.value]));
   const today = `${p.year}-${p.month}-${p.day}`, now = (+p.hour % 24) * 60 + +p.minute;
-  const { data: ms } = await db.from("matches").select("user_id, date, time, comp, phase, cat, holiday, no_dieta, dieta_override, fcvb_pago, fcvb_accion")
-    .in("user_id", users).eq("date", today);
+  // deno-lint-ignore no-explicit-any
+  const ms = await porIds<any>(users, (g) => db.from("matches")
+    .select("user_id, id, date, time, comp, phase, cat, holiday, no_dieta, dieta_override, fcvb_pago, fcvb_accion").in("user_id", g).eq("date", today).order("user_id").order("id"));
   const byUser = new Map<string, typeof ms>();
   for (const m of ms || []) if (!/SELECCI/i.test(m.comp || "")) (byUser.get(m.user_id) || byUser.set(m.user_id, []).get(m.user_id)!).push(m);
   let sent = 0;
@@ -72,24 +74,24 @@ if (import.meta.main) Deno.serve(async (req) => {
   if (!body.force && now.hour < 7) return json({ skipped: "noche", madrid: now });
   const db = admin(), started = Date.now();
 
-  const { data: subs } = await db.from("push_subs").select("user_id");
-  const users = [...new Set((subs || []).map((s: { user_id: string }) => s.user_id))];
+  const subs = await todas<{ user_id: string }>(() => db.from("push_subs").select("user_id").order("endpoint"));
+  const users = [...new Set(subs.map((s) => s.user_id))];
   // Designaciones y aviso de cobro solo para árbitros; los equipos, para todos.
-  const { data: deps } = await db.from("profiles").select("user_id").eq("tipo", "deportista").in("user_id", users);
-  const arbitros = users.filter((u) => !(deps || []).some((d: { user_id: string }) => d.user_id === u));
+  const deps = new Set((await porIds<{ user_id: string }>(users, (g) => db.from("profiles").select("user_id").eq("tipo", "deportista").in("user_id", g).order("user_id"))).map((d) => d.user_id));
+  const arbitros = users.filter((u) => !deps.has(u));
   if (!users.length) return json({ users: 0 });
 
   // 1) Designaciones: ficha pública de cada árbitro; si cambia, una ejecución de sync para él (en una sola no caben
   //    la CPU ni la memoria de varios).
   const self = `${Deno.env.get("SUPABASE_URL")}/functions/v1/sync`;
-  const { data: profs } = await db.from("profiles").select("user_id, nombre, foto, id_arbitro").in("user_id", arbitros);
+  const profs = await porIds<{ user_id: string; nombre: string; foto: string; id_arbitro: string | null }>(arbitros, (g) => db.from("profiles").select("user_id, nombre, foto, id_arbitro").in("user_id", g).order("user_id"));
   // Con un partido que faltó en la última lectura (missing_since), hay que volver a mirar aunque la ficha no cambie.
-  const { data: pend } = await db.from("matches").select("user_id").in("user_id", arbitros).not("missing_since", "is", null);
-  const pendiente = new Set((pend || []).map((m: { user_id: string }) => m.user_id));
+  const pend = await porIds<{ user_id: string }>(arbitros, (g) => db.from("matches").select("user_id, id").in("user_id", g).not("missing_since", "is", null).order("user_id").order("id"));
+  const pendiente = new Set(pend.map((m) => m.user_id));
   let fichas = 0, syncs = 0;
   const desig = Promise.all(arbitros.map(async (user_id) => {
     try {
-      const p = (profs || []).find((x: { user_id: string }) => x.user_id === user_id);
+      const p = profs.find((x) => x.user_id === user_id);
       let id: string | null = p?.id_arbitro || null;
       if (!id && p) { id = await idArbitro(db, p.nombre, p.foto).catch(() => null); if (id) await db.from("profiles").update({ id_arbitro: id }).eq("user_id", user_id); }
       if (id) {
@@ -109,7 +111,8 @@ if (import.meta.main) Deno.serve(async (req) => {
 
   // 2) Equipos de los suscritos (activos en "Mis partidos"): de los que juegan o entrenan, horarios y resultados; de los
   //    que solo siguen, solo resultados (issue #31).
-  const { data: favs } = await db.from("fav_teams").select("user_id, id_equipo, team, rol, activo").in("user_id", users).eq("activo", true).eq("oculto", false).not("id_equipo", "is", null);
+  const favs = await porIds<{ user_id: string; id_equipo: string; team: string; rol: string | null }>(users, (g) => db.from("fav_teams").select("user_id, id_equipo, team, rol, activo, club_id, cat")
+    .in("user_id", g).eq("activo", true).eq("oculto", false).not("id_equipo", "is", null).order("user_id").order("club_id").order("team").order("cat"));
   const teams = new Map<string, { team: string; users: Set<string>; juegan: Set<string> }>();
   for (const f of favs || []) {
     const t = teams.get(f.id_equipo) || teams.set(f.id_equipo, { team: f.team, users: new Set(), juegan: new Set() }).get(f.id_equipo)!;

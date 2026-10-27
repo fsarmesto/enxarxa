@@ -475,6 +475,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   si iSquad ya no la acepta, login nuevo. Logins por día en `pub_cache logins:AAAA-MM-DD` (función `contar_login`).
   Prueba 22-oct: 1ª pasada 5 fichas y 5 syncs; 2ª pasada 5 fichas y 0 syncs; sync con sesión guardada sin login.
   Esperado: los logins del sync completo del cron (2 por árbitro y día) más uno cuando cambia una ficha.
+  Ojo (27-oct-2026): sin designaciones próximas, la ficha responde "SIN PARTIDOS" con error 500; `getLatin(url, /SIN PARTIDOS/)`
+  lo acepta como ficha vacía (antes contaba como fallo y vigilar no leía ninguna: `fichas: 0`).
 
 ## App instalable y recordatorio del domingo (21-oct-2026)
 
@@ -536,7 +538,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 - Con varios árbitros en una sola ejecución da `WORKER_RESOURCE_LIMIT`: el cron reparte una ejecución por árbitro.
 - Funciones ~150 s de reloj y pg_net corta a 120 s: todo usa una hora límite contada desde la petición.
-- PostgREST devuelve como mucho 1000 filas: paginar con `.range()`.
+- PostgREST devuelve como mucho 1000 filas (sin avisar): las consultas de todos los usuarios usan `todas()` y, para
+  `in(...)` con muchos ids, `porIds()` (de 100 en 100), en `_shared/db.ts`. Siempre con un orden estable (la clave primaria).
+  Toda consulta nueva que lea de varios usuarios, con ellas.
 - En filtros `in(...)` la barra invertida se toma como escape: con claves de pabellón usar `eq` uno a uno.
 
 ## Probar sin tocar producción

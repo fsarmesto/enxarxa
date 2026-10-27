@@ -5,6 +5,7 @@
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
 import { arbitrosPublicos, cached, feed, fixMojibake, getLatin, norm, PUB } from "../_shared/publico.ts";
 import { madridNow, sendToUser } from "../_shared/push.ts";
+import { todas } from "../_shared/db.ts";
 
 const MESES: Record<string, string> = { enero: "01", febrero: "02", marzo: "03", abril: "04", mayo: "05", junio: "06", julio: "07", agosto: "08", septiembre: "09", setiembre: "09", octubre: "10", noviembre: "11", diciembre: "12" };
 const txt = (s: string) => fixMojibake(s.replace(/<br\s*\/?>/gi, " · ").replace(/<[^>]+>/g, " ")).replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
@@ -72,7 +73,7 @@ async function cron(db: Db) {
 // Salud: si muchos árbitros fallan a la vez (p. ej. iSquad cambia el login) o el sync automático no funciona, aviso a
 // los admins (como mucho uno cada 6 h por motivo).
 async function revisarSalud(db: Db, admins: string[]) {
-  const { data: ps } = await db.from("profiles").select("last_sync, last_error").neq("tipo", "deportista");
+  const ps = await todas<{ last_sync: string | null; last_error: string | null }>(() => db.from("profiles").select("last_sync, last_error").neq("tipo", "deportista").order("user_id"));
   const total = ps?.length || 0, conError = (ps || []).filter((p: { last_error: string | null }) => p.last_error).length;
   const ultimo = Math.max(0, ...(ps || []).map((p: { last_sync: string | null }) => p.last_sync ? Date.parse(p.last_sync) : 0));
   const problemas: ({ fallan: number; total: number } | { horas: number })[] = [];
@@ -90,8 +91,8 @@ async function revisarSalud(db: Db, admins: string[]) {
 
 // Panel de salud para el admin: usuarios y errores, avisos activados, índice de plantillas y edad de las cachés.
 async function salud(db: Db) {
-  const { data: ps } = await db.from("profiles").select("user_id, tipo, last_sync, last_error, created_at").order("created_at");
-  const { data: subs } = await db.from("push_subs").select("user_id, last_sent");
+  const ps = await todas<{ user_id: string; tipo: string; last_sync: string | null; last_error: string | null; created_at: string }>(() => db.from("profiles").select("user_id, tipo, last_sync, last_error, created_at").order("created_at").order("user_id"));
+  const subs = await todas<{ user_id: string; last_sent: string | null }>(() => db.from("push_subs").select("user_id, last_sent").order("endpoint"));
   const { count: equipos } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true });
   const { count: revisados } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true }).not("checked_at", "is", null);
   const { data: caches } = await db.from("pub_cache").select("key, fetched_at").in("key", ["feed", "token", "clubs", "arbitros", "desig-global"]);
