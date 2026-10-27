@@ -70,7 +70,7 @@ for (const W of [390, 1280]) for (const dark of [false, true]) {
   const sfx = `${W}-${dark ? 'oscuro' : 'claro'}`;
   await cdp('Page.navigate', { url: 'http://localhost:8126/index.html?vista=cobros' }); await sleep(3000);
   for (const v of ['cobros', 'agenda', 'equipos', 'resumen', 'ajustes']) {
-    await ev(`document.querySelector('[data-view="${v}"]').click()`); await sleep(600);
+    await ev(v === 'ajustes' ? `document.getElementById('btnAjustes').click()` : `document.querySelector('[data-view="${v}"]').click()`); await sleep(600);
     await ev(`document.querySelectorAll('details.agc,details.mc').forEach(d=>d.open=true)`); await sleep(150);
     await audit(`${v}-${sfx}`);
   }

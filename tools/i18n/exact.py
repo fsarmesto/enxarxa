@@ -344,6 +344,7 @@ EXACT = {
 "Secciones de Ajustes": "Seccions de Configuració",
 "Ayuda": "Ajuda",
 "Acciones": "Accions",
+"← Volver": "← Torna",
 "Preguntas frecuentes": "Preguntes freqüents",
 "Km por pabellón": "Km per pavelló",
 "¿Algo no cuadra o no funciona? Escríbeme a": "Alguna cosa no quadra o no funciona? Escriu-me a",
