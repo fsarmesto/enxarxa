@@ -503,6 +503,7 @@ I.exact = {
 "aplazado": "ajornat",
 "anulado": "anul·lat",
 "Ver el acta": "Veure l'acta",
+"Demasiados intentos. Prueba de nuevo dentro de un rato.": "Massa intents. Torna-ho a provar d'aquí a una estona.",
 "Secciones de Ajustes": "Seccions de Configuració",
 "Ayuda": "Ajuda",
 "Preguntas frecuentes": "Preguntes freqüents",

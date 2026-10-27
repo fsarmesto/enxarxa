@@ -5,6 +5,29 @@ import { fetchDesignaciones, IsquadAuthError, loginDeportista, ScrapedMatch } fr
 import { POLICY_VERSION } from "../_shared/politica.ts";
 import { admin, background, cors, json, storeMatches, syncUser } from "../_shared/sync.ts";
 
+// Tope de intentos (revisión de seguridad, 27-oct-2026): sin él, cualquiera podría usar esta función para probar
+// contraseñas de iSquad sin límite desde nuestros servidores. Cuenta los fallos por usuario (5 en 15 min) y por conexión
+// (20 en 1 h) en pub_cache, con una huella (no se guarda ni el usuario ni la IP). La ventana empieza en el primer fallo.
+// deno-lint-ignore no-explicit-any
+type Db = any;
+type Tope = { k: string; max: number; ms: number };
+const huella = async (s: string) =>
+  [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+async function leerTope(db: Db, t: Tope) {
+  const { data } = await db.from("pub_cache").select("data, fetched_at").eq("key", t.k).maybeSingle();
+  return data && Date.now() - Date.parse(data.fetched_at) < t.ms ? { n: +(data.data?.n || 0), desde: data.fetched_at as string } : null;
+}
+async function bloqueado(db: Db, topes: Tope[]) {
+  for (const t of topes) if (((await leerTope(db, t))?.n || 0) >= t.max) return true;
+  return false;
+}
+async function fallo(db: Db, topes: Tope[]) {
+  for (const t of topes) {
+    const v = await leerTope(db, t);
+    await db.from("pub_cache").upsert({ key: t.k, data: { n: (v?.n || 0) + 1 }, fetched_at: v?.desde || new Date().toISOString() });
+  }
+}
+
 // Cuenta nueva: hace falta el consentimiento y la casilla "Tengo 14 años o más" (por debajo, consentimiento de los padres).
 const consentNew = () => ({ consent_at: new Date().toISOString(), policy_version: POLICY_VERSION });
 
@@ -37,6 +60,10 @@ Deno.serve(async (req) => {
   const login = (body.login || "").trim(), password = body.password || "";
   if (!login || !password) return json({ error: "Escribe tu usuario y contraseña de iSquad" }, 400);
   const key = login.toLowerCase();
+  const db0 = admin(), ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "?";
+  const topes: Tope[] = [{ k: `intentos:${await huella("u:" + key)}`, max: 5, ms: 15 * 60_000 }, { k: `intentos:${await huella("ip:" + ip)}`, max: 20, ms: 3600_000 }];
+  if (await bloqueado(db0, topes)) return json({ error: "Demasiados intentos. Prueba de nuevo dentro de un rato." }, 429);
+  const malas = async () => { await fallo(db0, topes); return json({ error: "iSquad no acepta ese usuario y contraseña" }, 401); };
 
   const allow = (Deno.env.get("ALLOWED_LOGINS") || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   if (allow.length && !allow.includes(key)) return json({ error: "Esta cuenta no tiene acceso. Pide a quien gestiona la app que te añada." }, 403);
@@ -55,7 +82,7 @@ Deno.serve(async (req) => {
         matches: list.map(({ staff, ...m }) => ({ ...m, ...(staff ?? {}), staff_checked: staff ? now : null, last_seen: now })),
       });
     } catch (e) {
-      if (e instanceof IsquadAuthError) return json({ error: "iSquad no acepta ese usuario y contraseña" }, 401);
+      if (e instanceof IsquadAuthError) return await malas();
       return json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502);
     }
   }
@@ -68,11 +95,13 @@ Deno.serve(async (req) => {
     let dep;
     try { dep = await loginDeportista(login, password); }
     catch (e2) {
-      if (e2 instanceof IsquadAuthError) return json({ error: "iSquad no acepta ese usuario y contraseña" }, 401);
+      if (e2 instanceof IsquadAuthError) return await malas();
       return json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502);
     }
+    await db0.from("pub_cache").delete().eq("key", topes[0].k);
     return await entrarDeportista(key, login, dep, body);
   }
+  await db0.from("pub_cache").delete().eq("key", topes[0].k);
 
   const db = admin();
   const { data: existing } = await db.from("profiles").select("user_id, origin").eq("login_key", key).maybeSingle();
