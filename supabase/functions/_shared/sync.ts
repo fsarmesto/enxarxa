@@ -81,17 +81,20 @@ async function geocode(db: SupabaseClient, text: string, town: boolean, accept?:
 // Prefijo "c:" = ruta más corta entre alternativas; las claves sin prefijo son de la ruta más rápida (antes del cambio).
 const routeKey = (a: [number, number], b: [number, number]) =>
   `c:${a.map((x) => x.toFixed(4)).join(",")}>${b.map((x) => x.toFixed(4)).join(",")}`;
-async function cachedKm(db: SupabaseClient, a: [number, number], b: [number, number]): Promise<number | null> {
-  const { data: c } = await db.from("route_cache").select("km").eq("key", routeKey(a, b)).maybeSingle();
-  return c ? +c.km : null;
+// Km de ida y minutos de ida (issue #29; null en las rutas guardadas antes de tener duración).
+type Trip = { km: number; min: number | null };
+async function cachedKm(db: SupabaseClient, a: [number, number], b: [number, number]): Promise<Trip | null> {
+  const { data: c } = await db.from("route_cache").select("km, min").eq("key", routeKey(a, b)).maybeSingle();
+  return c ? { km: +c.km, min: c.min ?? null } : null;
 }
-const saveKm = (db: SupabaseClient, a: [number, number], b: [number, number], km: number) =>
-  db.from("route_cache").upsert({ key: routeKey(a, b), km });
+const saveKm = (db: SupabaseClient, a: [number, number], b: [number, number], t: Trip) =>
+  db.from("route_cache").upsert({ key: routeKey(a, b), ...t });
 
 // Vía principal: una ruta con hasta 3 alternativas (cupo de 200 al día) y se queda la de menos km. ORS solo da
 // alternativas hasta unos 100 km (error 2004): más lejos, la ruta normal. "quota" = sin cupo o ritmo (403/429): hay que parar.
+// Duración: la de la ruta más rápida de las que da (la que tomaría Maps), sin tráfico.
 const ALTERNATIVES = { target_count: 3, weight_factor: 1.6, share_factor: 0.6 };
-async function driveKm(db: SupabaseClient, a: [number, number], b: [number, number], key: string): Promise<number | null | Fail> {
+async function driveKm(db: SupabaseClient, a: [number, number], b: [number, number], key: string): Promise<Trip | null | Fail> {
   const c = await cachedKm(db, a, b);
   if (c != null) return c;
   try {
@@ -110,11 +113,12 @@ async function driveKm(db: SupabaseClient, a: [number, number], b: [number, numb
         console.warn(`km: ORS respondió 400: ${JSON.stringify(err?.error ?? err).slice(0, 120)}`); return "error";
       }
       if (!r.ok) { console.warn(`km: ORS respondió ${r.status}`); await r.body?.cancel(); return "error"; }
-      const ds = ((await r.json()).routes || []).map((x: GeoHit) => x?.summary?.distance).filter((x: unknown) => typeof x === "number");
-      if (!ds.length) return null;
-      const km = Math.round(Math.min(...ds) / 1000);
-      await saveKm(db, a, b, km);
-      return km;
+      const rs = ((await r.json()).routes || []).map((x: GeoHit) => x?.summary).filter((x: GeoHit) => typeof x?.distance === "number");
+      if (!rs.length) return null;
+      const durs = rs.map((x: GeoHit) => x.duration).filter((x: unknown) => typeof x === "number");
+      const t = { km: Math.round(Math.min(...rs.map((x: GeoHit) => x.distance)) / 1000), min: durs.length ? Math.max(1, Math.round(Math.min(...durs) / 60)) : null };
+      await saveKm(db, a, b, t);
+      return t;
     }
     return null;
   } catch (e) { console.warn(`km: ORS falló: ${(e as Error).message}`); return "error"; }
@@ -122,21 +126,22 @@ async function driveKm(db: SupabaseClient, a: [number, number], b: [number, numb
 
 // Reserva: ORS Matrix, una petición con hasta MATRIX_MAX destinos (cupo propio, aparte de las rutas). Solo da la
 // ruta más rápida: esos km se marcan 'rapida' y se recalculan con la corta cuando vuelva a haber cupo.
-// Devuelve los km de cada destino (null = sin ruta posible) o el fallo.
+// Devuelve los km y minutos de cada destino (null = sin ruta posible) o el fallo.
 const MATRIX_MAX = 49;
-async function matrixKm(a: [number, number], dests: [number, number][], key: string, deadline: number): Promise<(number | null)[] | Fail> {
+async function matrixKm(a: [number, number], dests: [number, number][], key: string, deadline: number): Promise<(Trip | null)[] | Fail> {
   await paceOrs();
   try {
     const r = await fetch("https://api.openrouteservice.org/v2/matrix/driving-car", {
       method: "POST", signal: AbortSignal.timeout(Math.max(3000, Math.min(20_000, deadline - Date.now()))),
       headers: { "Authorization": key, "Content-Type": "application/json" },
-      body: JSON.stringify({ locations: [a, ...dests], sources: [0], destinations: dests.map((_, i) => i + 1), metrics: ["distance"], units: "km" }),
+      body: JSON.stringify({ locations: [a, ...dests], sources: [0], destinations: dests.map((_, i) => i + 1), metrics: ["distance", "duration"], units: "km" }),
     });
     if (r.status === 403 || r.status === 429) { console.warn(`km: ORS Matrix sin cupo (${r.status})`); await r.body?.cancel(); return "quota"; }
     if (!r.ok) { lastServiceError = `ORS Matrix ${r.status}: ${(await r.text()).slice(0, 120)}`; console.warn(`km: ${lastServiceError}`); return "error"; }
-    const row = (await r.json())?.distances?.[0];
+    const j = await r.json(), row = j?.distances?.[0], dur = j?.durations?.[0];
     if (!Array.isArray(row) || row.length !== dests.length) return "error";
-    return row.map((x: unknown) => (typeof x === "number" ? Math.round(x) : null));
+    return row.map((x: unknown, i: number) => (typeof x === "number"
+      ? { km: Math.round(x), min: typeof dur?.[i] === "number" ? Math.max(1, Math.round(dur[i] / 60)) : null } : null));
   } catch (e) { console.warn(`km: ORS Matrix falló: ${(e as Error).message}`); return "error"; }
 }
 
@@ -216,8 +221,8 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
     let errors = 0, done = 0, missing = 0;
     const now = () => new Date().toISOString();
     const tried = (k: string) => db.from("venues").update({ km_tried_at: now() }).eq("user_id", userId).eq("venue_key", k).is("km", null);
-    const put = (k: string, km: number, source: string, rule = "corta") =>
-      db.from("venues").update({ km, km_source: source, km_rule: rule, km_tried_at: now() }).eq("user_id", userId).eq("venue_key", k).is("km", null);
+    const put = (k: string, t: Trip, source: string, rule = "corta") =>
+      db.from("venues").update({ km: t.km, min: t.min, km_source: source, km_rule: rule, km_tried_at: now() }).eq("user_id", userId).eq("venue_key", k).is("km", null);
     const originStill = async () =>
       (await db.from("profiles").select("origin").eq("user_id", userId).maybeSingle()).data?.origin === prof.origin;
 
@@ -253,14 +258,14 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
       for (let i = 0; !originChanged && i < need.length; i += MATRIX_MAX) {
         if (Date.now() > deadline - 5_000) break;
         const chunk = need.slice(i, i + MATRIX_MAX);
-        const res: (number | null)[] | Fail = quota ? "quota" : await matrixKm(a, chunk.map((v) => v.at), key, deadline);
+        const res: (Trip | null)[] | Fail = quota ? "quota" : await matrixKm(a, chunk.map((v) => v.at), key, deadline);
         if (res === "quota") quota = true;
         if (!Array.isArray(res)) continue;
         if (!await originStill()) { originChanged = true; break; }   // la población ha cambiado mientras se calculaba
         for (const [j, v] of chunk.entries()) {
-          const km = res[j];
-          if (km == null) { missing++; await tried(v.k); continue; }
-          await put(v.k, km, v.source, "rapida"); done++;
+          const t = res[j];
+          if (t == null) { missing++; await tried(v.k); continue; }
+          await put(v.k, t, v.source, "rapida"); done++;
         }
       }
     }
@@ -283,16 +288,38 @@ export async function fillKm(db: SupabaseClient, userId: string, deadline: numbe
         routeErrors = 0;
         if (d == null || !r) continue;
         // Solo si nadie lo ha cambiado mientras tanto (km a mano o vaciado).
-        await db.from("venues").update({ km: d, km_source: r.source, km_rule: "corta" }).eq("user_id", userId).eq("venue_key", o.venue_key)
+        await db.from("venues").update({ km: d.km, ...(d.min != null ? { min: d.min } : {}), km_source: r.source, km_rule: "corta" }).eq("user_id", userId).eq("venue_key", o.venue_key)
           .eq("km", o.km).or("km_source.is.null,km_source.neq.manual");
         refined++;
+      }
+    }
+    // 5) Duración de los pabellones que ya tienen km pero no minutos (los de antes del issue #29, los puestos a mano y
+    //    los de después de cambiar de población): una sola consulta a Matrix (cupo aparte) con los ya ubicados (caché).
+    //    Los km a mano no cambian: la duración es la calculada. También se guarda en route_cache para los demás.
+    let mins = 0;
+    if (!quota && !originChanged && Date.now() < deadline - 10_000) {
+      const { data: rows } = await db.from("venues").select("venue_key").eq("user_id", userId).not("km", "is", null).is("min", null).limit(MATRIX_MAX);
+      const got: { k: string; at: [number, number] }[] = [];
+      for (const o of rows || []) {
+        if (Date.now() > deadline - 8_000) break;
+        const { data: m } = await db.from("matches").select("addr, venue").eq("user_id", userId).eq("venue_key", o.venue_key).limit(1).maybeSingle();
+        const r = m ? await locate(db, m.addr || m.venue) : null;
+        if (r && r !== "error") got.push({ k: o.venue_key, at: r.at });
+      }
+      const res = got.length && Date.now() < deadline - 5_000 && await originStill() ? await matrixKm(a, got.map((v) => v.at), key, deadline) : [];
+      if (res === "quota") quota = true;
+      if (Array.isArray(res)) for (const [j, v] of got.entries()) {
+        const t = res[j]; if (t?.min == null) continue;
+        await db.from("venues").update({ min: t.min }).eq("user_id", userId).eq("venue_key", v.k).is("min", null);
+        await db.from("route_cache").update({ min: t.min }).eq("key", routeKey(a, v.at)).is("min", null);
+        mins++;
       }
     }
     // "quota" solo si no queda cupo ni en Matrix ni en rutas: así el cron no deja sin km al resto de árbitros sin motivo.
     if (quota && routesOut) return "quota";
     return `${todo?.length ?? 0} pendientes: ${done} calculados, ${missing} no encontrados` +
       `${errors ? `, ${errors} errores al ubicar` : ""}${routeErrors ? `, ${routeErrors} errores en rutas` : ""}` +
-      `${refined ? `, ${refined} recalculados con la ruta corta` : ""}` +
+      `${refined ? `, ${refined} recalculados con la ruta corta` : ""}${mins ? `, ${mins} con duración` : ""}` +
       `${quota ? ", Matrix sin cupo" : ""}${routesOut ? ", rutas sin cupo" : ""}${originChanged ? ", población cambiada" : ""}`;
   } finally { await dropLock(db, holder); }
 }
