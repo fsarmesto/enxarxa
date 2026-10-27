@@ -49,6 +49,7 @@ RULES = r"""[
   [/^Semana (.+)$/, 'Setmana $1'],
   [/^Actualizado: (.+)$/, 'Actualitzat: $1'],
   [/^Sin conexión · datos del (.+)$/, 'Sense connexió · dades del $1'],
+  [/^Un partido que empieza el (\S+)( festivo)? a las (\d{1,2}:\d{2}) (tiene dieta de (.+)|es una franja sin dieta)\.$/, (m,d,f,h,r,v) => `Un partit que comença ${({lunes:'dilluns',martes:'dimarts','miércoles':'dimecres',jueves:'dijous',viernes:'divendres','sábado':'dissabte',domingo:'diumenge'})[d]||d}${f?' festiu':''} a les ${h} ${v?`té dieta de ${v}`:'és una franja sense dieta'}.`],
   [/^Tiempo aproximado en coche desde (.+), sin tráfico(: .+)?$/, (m,o,r) => `Temps aproximat en cotxe des de ${o}, sense trànsit${r||''}`],
   [/^(Neto por mes. )?Mejor(es)? mes(es)?: (.+)$/, (m,a,b,c,r) => `${a?'Net per mes. ':''}${b?'Millors mesos':'Millor mes'}: ${r}`],
   [/^Sin guardar · leído de iSquad: (.+)$/, "Sense desar · llegit d'iSquad: $1"],

@@ -116,6 +116,22 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Desplazamiento: una ida y vuelta por **pabellón y franja** (mañana y tarde en el mismo pabellón = 2).
 - IRPF: porcentaje en `profiles.irpf` (2 % por defecto, lo que retiene la FCVB), solo sobre la tarifa (dieta, km y peajes exentos). Las cifras son netas.
 
+## Cómo calcular dietas (issue #37, 27-oct-2026)
+
+- Subsección de Cobros (`VIEW='calc'`, la pestaña Cobros sigue marcada), con enlace propio `?vista=com-calcular-dietes`.
+  Se llega con "¿Cómo se calculan? Calculadora de dietas y tarifas" arriba de Cobros y "¿Cómo se calcula?" en el desglose
+  de cada partido (rellena la calculadora con ese partido; por defecto, el próximo partido o el último).
+- Calculadora: día, festivo entre semana, hora de INICIO (resaltada, con el aviso), categoría, equipo arbitral, rol y km
+  de ida opcionales. Resultado: tarifa, dieta, desplazamiento con la cuenta y el mínimo, total antes de IRPF y neto, y la
+  frase del porqué ("Un partit que comença dissabte a les 16:00 és una franja sense dieta"). Debajo, barras de franjas por
+  tipo de día (el elegido resaltado, con marca en la hora), tarjetas de tarifas por categoría y la regla del desplazamiento.
+- **Todo sale de las mismas tablas y funciones** (`CATS`, `tariff`, `dietaFor`, `noDietaOf`, desplazamiento de `compute`):
+  `calcResult` monta un partido de mentira en la semana del 19-oct-2026 (sin festivos; el festivo va por la casilla). Las
+  barras evalúan `dietaFor` minuto a minuto. Al cambiar el anexo (`CATS`, `dietaFor`), la vista cambia sola.
+- Prueba: `CHROME=<ruta> node tools/prueba-calculadora-37.mjs`. Para 6 partidos con su fecha real (lunes 10:00,
+  viernes 18:00, sábado 15:00, domingo 19:00, festivo del 12-oct y Alevín), la calculadora rellenada con ese partido da lo
+  mismo que `compute()`. Pasarla si se toca el cálculo.
+
 ## Importes de la FCVB (mandan sobre el cálculo)
 
 - Login: iSquad alterna entre 2 pantallas. El 20-oct-2026 `loginarbitros.php` redirigía a `loginunico.php?area=arbitros`

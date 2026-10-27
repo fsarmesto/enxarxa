@@ -176,6 +176,44 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
 .mc-dl dd{margin:0;font-size:15px;font-weight:600;white-space:nowrap}
 .mc-dl .r.tot{border-bottom:0;border-top:2px solid var(--ink);margin-top:2px}
 .mc-dl .r.tot dt,.mc-dl .r.tot dd{font-weight:800;color:var(--ink);font-size:16px}
+/* Cómo calcular dietas (issue #37) */
+.calc{max-width:720px}
+.calc .back{padding-left:0;font-weight:700}
+.calc h2{font-family:var(--display);font-size:28px;margin:4px 0 2px}
+.calc h3{font-family:var(--display);font-size:21px;margin:26px 0 8px}
+.calc-warn{border-left:5px solid var(--yellow);background:var(--surface-2);padding:10px 12px;margin:12px 0 14px;font-size:15px}
+.calc-f{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.calc-f label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.calc-f select,.calc-f input{width:100%;min-height:44px;font-size:15px;color:var(--ink)}
+.calc-f input[type=number]{text-align:left}
+.calc-f .hi{color:var(--ink)}
+.calc-f .hi input{border:3px solid var(--yellow);font-weight:700;font-size:17px}
+.calc-f .chk{flex-direction:row;align-items:center;gap:10px;min-height:44px;font-size:14px;color:var(--ink)}
+.calc-f .chk input{width:22px;min-height:22px;height:22px}
+.calc-f .full{grid-column:1/-1}
+.calc-res{margin-top:14px;border:2px solid var(--ink);border-radius:6px;padding:6px 14px 10px}
+.calc-why{margin:10px 0 0;font-size:15px;font-weight:600}
+.drow{display:grid;grid-template-columns:96px 1fr;gap:4px 10px;align-items:center;margin:10px 0}
+.drow.dim{opacity:.4}
+.drow .dlab{font-size:13px;font-weight:700}
+.dbar{position:relative;display:flex;height:24px;border-radius:3px;overflow:visible;background:var(--surface-2)}
+.dbar i{display:block;height:100%}
+.dbar i:first-child{border-radius:3px 0 0 3px}.dbar i:last-child{border-radius:0 3px 3px 0}
+.d10{background:#FFF0A8}.d135{background:#FFD100}.d18{background:#B88A00}
+.d0{background:repeating-linear-gradient(45deg,var(--surface-2) 0 5px,var(--line) 5px 10px)}
+.dmark{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1px;background:var(--red);border-radius:2px}
+.drow .dtxt{grid-column:2;font-size:12px;color:var(--ink-2)}
+.daxis{display:grid;grid-template-columns:96px 1fr;gap:10px;font-size:11px;color:var(--ink-3)}
+.daxis div{display:flex;justify-content:space-between}
+.dleg{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0;font-size:13px}
+.dleg span{display:inline-flex;align-items:center;gap:6px}
+.dleg i{display:inline-block;width:18px;height:12px;border-radius:2px}
+.tcards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.tcard{border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.tcard b{display:block;font-size:13px;margin-bottom:6px}
+.tcard div{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
+.calc-cta{margin:0 0 12px}
+.calc-cta button{font-weight:700;padding-left:0}
 .mc-acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 8px}
 .mc-acts .segb button{min-height:44px;padding:3px 14px}
 .mc-ed{display:inline-flex;align-items:center;gap:6px}
@@ -804,6 +842,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   <div id="ledger"></div>
   <div id="agenda" class="hidden"></div>
   <div id="resumen" class="hidden"></div>
+  <div id="calc" class="hidden calc"></div>
   <div id="equipos" class="hidden">
     <div class="eq-h eq-hi"><span>Mis equipos</span><button type="button" class="infobtn" id="eqInfoBtn" aria-expanded="false" aria-controls="eqInfo" aria-label="Cómo funciona"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v5.5M12 7.6v.1" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
     <p class="small" id="eqAuto" style="margin:0 0 6px;font-weight:600"></p>
@@ -1579,6 +1618,7 @@ function cardHtml(m,r,km,gone,manual){
     <div class="mc-more"><div class="mc-role">${[m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad', m.staff_checked&&m.team!=='t1'&&m.role!=='jl'&&TEAM_OPTS[m.team], esc(CATS[catOf(m)].label), (isHoliday(m.date)||m.holiday)&&'festivo'].filter(Boolean).map(x=>`<span>${x}</span>`).join(' · ')}</div>
     <dl class="mc-dl">${rows}</dl>
     <div class="mc-acts">${pay}<button type="button" class="ghost small mc-ed" data-edit="${id}" aria-expanded="${edit}">${PEN_SVG}<span>Editar</span></button></div>${editor}
+    <button type="button" class="ghost small" data-calc="${id}">¿Cómo se calcula?</button>
     ${payTag(m)}${manual||gone?`<button class="ghost small danger" data-del="${id}">quitar</button>`:''}</div></details>`;
 }
 function render(){
@@ -1607,9 +1647,10 @@ function render(){
   else b.classList.add('hidden');
 
   const led = $('ledger');
-  for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.view===VIEW));
   if(GUEST && VIEW==='equipos') VIEW='agenda';
-  if(DEP && (VIEW==='cobros' || VIEW==='resumen')) VIEW='agenda';
+  if(DEP && (VIEW==='cobros' || VIEW==='resumen' || VIEW==='calc')) VIEW='agenda';
+  // "Cómo calcular dietas" es una subsección de Cobros: su pestaña sigue marcada.
+  for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.view===(VIEW==='calc'?'cobros':VIEW)));
   // Lo de dinero (cifras, IRPF, Excel, avisos de pedir el pago) solo en Cobros; la temporada, en Cobros y Resumen.
   document.body.dataset.vista=VIEW;
   $('views').querySelector('[data-view="cobros"]').classList.toggle('dot', VIEW!=='cobros' && !!$('alerts').innerHTML);
@@ -1617,12 +1658,14 @@ function render(){
   renderStatLine(pend, paid);
   $('tabEquipos').classList.toggle('hidden', GUEST);
   led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
-  $('ctrl').classList.toggle('hidden', VIEW==='equipos'); if(VIEW==='equipos') $('fsum').classList.add('hidden');
+  $('calc').classList.toggle('hidden', VIEW!=='calc'); if(VIEW!=='calc') $('calc').dataset.built='';
+  $('ctrl').classList.toggle('hidden', VIEW==='equipos' || VIEW==='calc'); if(VIEW==='equipos' || VIEW==='calc') $('fsum').classList.add('hidden');
   if(VIEW!=='agenda'){ $('ctrlSlot').innerHTML=''; AG_INFO=null; }
   renderFilters(ms,res); renderPeriod();
   if(VIEW==='agenda'){ renderAgenda(allMs,res); renderSettings(); return; }
   if(VIEW==='equipos'){ renderEquipos(); renderSettings(); return; }
   if(VIEW==='resumen'){ renderResumen(allMs,res); renderSettings(); return; }
+  if(VIEW==='calc'){ renderCalc(); renderSettings(); return; }
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
@@ -1661,7 +1704,8 @@ function render(){
     return body;
   };
   // Las semanas anteriores se abren solas si queda algún pago por pedir.
-  led.innerHTML = weeksHtml(shown, m=>m.date, {head, body, openPrev:(w,list)=>list.some(m=>payState(m)==='solicitar')});
+  led.innerHTML = '<div class="calc-cta"><button type="button" class="ghost" data-calc="">¿Cómo se calculan? Calculadora de dietas y tarifas</button></div>'
+    + weeksHtml(shown, m=>m.date, {head, body, openPrev:(w,list)=>list.some(m=>payState(m)==='solicitar')});
   renderSettings();
 }
 function renderSettings(){
@@ -1675,6 +1719,122 @@ function renderSettings(){
   $('venueTable').innerHTML = keys.map(k=>`<tr><td>${esc(VENUES[k].label||k)}<div class="muted small">${esc(k)}${VENUES[k].km_source==='poblacion'?' · km aproximados al centro de la población':''}</div></td><td><input type="number" step="1" data-venue="${esc(k)}" value="${VENUES[k].km??''}" placeholder="?"> km</td></tr>`).join('') || '<tr><td class="muted">Sin pabellones todavía.</td></tr>';
 }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* ---------- Cómo calcular dietas (issue #37) ---------- */
+// Calculadora y explicación del anexo hechas con las mismas tablas y funciones que el cálculo de los partidos (CATS,
+// tariff, dietaFor, noDietaOf y el desplazamiento de compute): cuando se cambie el anexo, cambia sola. calcResult da
+// lo mismo que compute() para un partido con esos datos (prueba: tools/prueba-calculadora-37.mjs).
+const CALC_DAYS = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
+const CALC_WEEK = '2026-10-19';   // un lunes de una semana sin festivos: de aquí sale el día de la semana
+const CALC_ROLES = {t1:['r1'], t2a:['r1','r2'], t2b:['r1','an'], t3:['r1','r2','an']};
+let CALC = null, CALC_TCAT = null;
+function calcFrom(m){
+  const wd = m ? (new Date(m.date+'T12:00:00').getDay()+6)%7 : 5;
+  return { wd, fest: !!m && wd<6 && !!(m.holiday||isHoliday(m.date)), hora: m?.time || '16:00', cat: m ? catOf(m) : 's3',
+    team: m?.team || 't3', role: m?.role || 'r1', km: m && kmFor(m) ? String(kmFor(m)) : '' };
+}
+// Por defecto, el próximo partido; si no hay, el último.
+function calcDefault(){
+  const own = MATCHES.filter(m=>!isTerritorial(m)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)), t=today();
+  return calcFrom(own.find(m=>m.date>=t) || own.at(-1));
+}
+function openCalc(id){
+  const m = id && MATCHES.find(x=>x.id===id);
+  CALC = m ? calcFrom(m) : calcDefault(); CALC_TCAT = null; $('calc').dataset.built='';
+  VIEW='calc'; render(); scrollTo(0,0);
+}
+// Partido de mentira con los datos de la calculadora: pasa por las mismas funciones que uno de verdad.
+const calcMatch = c => ({id:'CALC', date:addDays(CALC_WEEK, c.wd), time:c.hora, comp:'', phase:'', cat:c.cat, team:c.team, role:c.role,
+  holiday:c.fest, no_dieta:null, km_override: c.km==='' ? null : +c.km, tolls:0});
+function calcResult(c){
+  const m=calcMatch(c), tar=tariff(m), sinDieta=noDietaOf(m);
+  const dieta = sinDieta ? 0 : dietaFor(m.date, toMins(m.time), m.holiday||isHoliday(m.date));
+  const km = c.km==='' ? null : +c.km, rate=+P.rate, minT=+P.min_travel;
+  const travel = km>0 ? Math.max(km*2*rate, minT) : 0;
+  const irpf = Math.round(tar*((+P.irpf||0)/100)*100)/100, total = tar+dieta+travel;
+  return {tariff:tar, dieta, sinDieta, km, travel, minimo: km>0 && km*2*rate<minT, total, irpf, neto: total-irpf};
+}
+const hm = n => `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`;
+const dcls = v => v===18 ? 'd18' : v===13.5 ? 'd135' : v===10 ? 'd10' : 'd0';
+// Franjas de dieta de un día, minuto a minuto con dietaFor: [{a, b, v}] (de a a b, ambos incluidos).
+function dietaSegs(wd, fest){
+  const ds=addDays(CALC_WEEK, wd), out=[];
+  for(let n=0;n<1440;n++){ const v=dietaFor(ds,n,fest), l=out.at(-1); if(l && l.v===v) l.b=n; else out.push({a:n,b:n,v}); }
+  return out;
+}
+function renderCalc(){
+  const box=$('calc');
+  if(!CALC) CALC=calcDefault();
+  const c=CALC, cat=CATS[c.cat]||CATS.none, roles=[...CALC_ROLES[c.team], ...(cat.jl?['jl']:[])];
+  if(!roles.includes(c.role)) c.role=roles[0];
+  if(box.dataset.built!=='1'){
+    const opt=(o,cur)=>Object.entries(o).map(([k,v])=>`<option value="${k}"${k===cur?' selected':''}>${esc(v)}</option>`).join('');
+    box.innerHTML = `<button type="button" class="ghost back" data-calc-back>← Cobros</button>
+      <h2>Cómo calcular dietas</h2>
+      <p class="small muted"><span>Anexo FCVB 2026/27</span> · <span>Importes orientativos: manda el recibo de la FCVB.</span></p>
+      <div class="calc-warn">⏱ <strong>Cuenta la hora de INICIO del partido, no la de llegada ni la de final.</strong></div>
+      <div class="calc-f">
+        <label>Día del partido<select data-c="wd">${CALC_DAYS.map((d,i)=>`<option value="${i}"${i===c.wd?' selected':''}>${capName(d)}</option>`).join('')}</select></label>
+        <label class="chk"><input type="checkbox" data-c="fest"${c.fest?' checked':''}${c.wd===6?' disabled':''}> Festivo entre semana</label>
+        <label class="hi">Hora de INICIO<input type="time" data-c="hora" value="${esc(c.hora)}" step="60"></label>
+        <label>Km de ida (opcional)<input type="number" inputmode="numeric" min="0" step="1" data-c="km" value="${esc(c.km)}" placeholder="—"></label>
+        <label class="full">Categoría<select data-c="cat">${opt(Object.fromEntries(Object.entries(CAT_OPTS).filter(([k])=>k!=='none')), c.cat)}</select></label>
+        <label>Equipo arbitral<select data-c="team">${opt(TEAM_OPTS, c.team)}</select></label>
+        <label>Tu rol<select data-c="role">${opt(Object.fromEntries(roles.map(r=>[r,ROLE_OPTS[r]])), c.role)}</select></label>
+      </div>
+      <div class="calc-res" id="calcRes" aria-live="polite"></div>
+      <h3>Dietas según la hora de inicio</h3>
+      <div id="calcBars"></div>
+      <div class="dleg"><span><i class="d10"></i>10,00 €</span><span><i class="d135"></i>13,50 €</span><span><i class="d18"></i>18,00 €</span><span><i class="d0"></i>Sin dieta</span></div>
+      <p class="small muted">Una dieta por jornada; mañana (hasta las 14:59) y tarde (desde las 15:00) cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones.</p>
+      <h3>Tarifas por categoría</h3>
+      <label class="small muted" style="display:block">Categoría <select data-tcat>${opt(Object.fromEntries(Object.entries(CAT_OPTS).filter(([k])=>k!=='none')), CALC_TCAT||c.cat)}</select></label>
+      <div id="calcCards"></div>
+      <h3>Desplazamiento</h3>
+      <div id="calcTravel"></div>`;
+    box.dataset.built='1';
+  }
+  renderCalcOut();
+}
+function renderCalcOut(){
+  const c=CALC, r=calcResult(c), cat=CATS[c.cat]||CATS.none, rate=+P.rate, minT=+P.min_travel;
+  const row=(l,v,note,cls='')=>`<div class="r${cls}"><dt>${l}${note?`<small>${note}</small>`:''}</dt><dd>${v}</dd></div>`;
+  const kmTxt = r.km>0 ? `${r.km} km × 2 × ${eur(rate)}${r.minimo?` · <span>mínimo</span> ${eur(minT)}`:''}` : '';
+  const dia = `el ${CALC_DAYS[c.wd]}${c.fest&&c.wd<6?' festivo':''}`;
+  const why = r.sinDieta ? `<span>${esc(cat.label)}</span>: <span>categoría sin dieta.</span>`
+    : `Un partido que empieza ${dia} a las ${esc(c.hora)} ${r.dieta ? `tiene dieta de ${eur(r.dieta)}` : 'es una franja sin dieta'}.`;
+  $('calcRes').innerHTML = `<dl class="mc-dl">${row('Tarifa', r.tariff ? eur(r.tariff) : '—', r.tariff ? '' : 'Sin tarifa para este rol')}
+    ${row('Dieta', r.dieta ? eur(r.dieta) : 'Sin dieta')}
+    ${row('Desplazamiento', r.km>0 ? eur(r.travel) : '—', r.km>0 ? kmTxt : 'Añade los km si quieres incluir el desplazamiento')}
+    ${row('Total antes de IRPF', eur(r.total), '', ' tot')}
+    ${+P.irpf ? row(`<span>Neto</span> (IRPF ${+P.irpf} %)`, eur(r.neto)) : ''}</dl><p class="calc-why">${why}</p>`;
+  // Barras: la fila del día elegido resaltada, con una marca en la hora de inicio; las demás, atenuadas.
+  const rows=[['Lunes a jueves',0,false],['Viernes',4,false],['Sábado',5,false],['Domingo',6,false],['Festivo entre semana',c.fest&&c.wd<6?c.wd:0,true]];
+  const mine = c.fest && c.wd<6 ? 4 : c.wd<=3 ? 0 : c.wd===4 ? 1 : c.wd===5 ? 2 : 3, at=toMins(c.hora||'0:00');
+  $('calcBars').innerHTML = rows.map(([l,wd,fest],i)=>{
+    const segs=dietaSegs(wd,fest);
+    return `<div class="drow${i===mine?'':' dim'}"><div class="dlab">${l}</div><div class="dbar" aria-hidden="true">${segs.map(s=>`<i class="${dcls(s.v)}" style="width:${(s.b-s.a+1)/14.4}%"></i>`).join('')}${i===mine?`<b class="dmark" style="left:${at/14.4}%"></b>`:''}</div>
+      <div class="dtxt">${segs.map(s=>`<span>${hm(s.a)}–${hm(s.b)} ${s.v?eur(s.v):'<span>sin dieta</span>'}</span>`).join(' · ')}</div></div>`;
+  }).join('') + '<div class="daxis"><span></span><div><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div></div>'
+    + (c.fest&&c.wd<6 ? '<p class="small muted">Festivo entre semana: 18 € en las franjas de festivo; fuera de ellas, la dieta normal de ese día.</p>' : '');
+  // Tarifas de la categoría elegida, con tariff() para cada equipo arbitral y rol.
+  const tk=CALC_TCAT||c.cat, tc=CATS[tk]||CATS.none, val=(team,role)=>{ const v=tariff({cat:tk, team, role}); return v ? eur(v) : '—'; };
+  const card=(team,list)=>`<div class="tcard"><b>${TEAM_OPTS[team]}</b>${list.map(rl=>`<div><span>${ROLE_OPTS[rl]}</span><span>${val(team,rl)}</span></div>`).join('')}</div>`;
+  $('calcCards').innerHTML = `<div class="tcards">${card('t3',['r1','r2','an'])}${card('t2a',['r1','r2'])}${card('t2b',['r1','an'])}${card('t1',['r1'])}${tc.jl?`<div class="tcard"><b>Superliga</b><div><span>Juez de línea</span><span>${eur(tc.jl)}</span></div></div>`:''}</div>`
+    + (/^sl/.test(tk) ? '<p class="small muted">Superliga y Superliga 2: a los árbitros los liquida la RFEVB. Aquí sale lo que paga la FCVB.</p>' : '');
+  $('calcTravel').innerHTML = `<p><b>${eur(rate)}</b> <span>por km, de ida y vuelta, desde tu población de origen, con un mínimo de</span> <b>${eur(minT)}</b>.</p>
+    <p class="small muted">Una ida y vuelta por jornada y pabellón: mañana y tarde cuentan aparte. Los peajes van aparte.</p>
+    <p>${r.km>0 ? `${r.km} km × 2 × ${eur(rate)} = <b>${eur(r.km*2*rate)}</b>${r.minimo?` → <span>mínimo</span> <b>${eur(minT)}</b>`:''}` : '<span class="muted">Pon los km de ida arriba para ver la cuenta.</span>'}</p>`;
+}
+$('calc').addEventListener('click', e=>{ if(e.target.closest('[data-calc-back]')){ VIEW='cobros'; render(); scrollTo(0,0); } });
+$('calc').addEventListener('input', e=>{
+  const k=e.target.dataset.c; if(k==null && e.target.dataset.tcat==null) return;
+  if(e.target.dataset.tcat!=null){ CALC_TCAT=e.target.value; renderCalcOut(); return; }
+  CALC[k] = k==='fest' ? e.target.checked : k==='wd' ? +e.target.value : e.target.value;
+  // Cambiar el día, la categoría o el equipo arbitral cambia el formulario (festivo, roles posibles): se vuelve a pintar.
+  if(k==='wd' || k==='cat' || k==='team'){ if(k==='wd' && CALC.wd===6) CALC.fest=false; if(k==='cat') CALC_TCAT=null; $('calc').dataset.built=''; renderCalc(); return; }
+  renderCalcOut();
+});
 
 /* ---------- Escrituras ---------- */
 async function patchMatch(id, patch){
@@ -1707,6 +1867,7 @@ $('ledger').addEventListener('toggle', e=>{ const d=e.target;
   else if(d.dataset.wk) WK_OPEN.set(d.dataset.wk, d.open); }, true);
 $('ledger').addEventListener('click', async e=>{
   const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.calc!=null){ openCalc(b.dataset.calc); return; }
   if(b.dataset.dietaAuto){ patchMatch(b.dataset.dietaAuto,{dieta_override:null}); return; }
   if(b.dataset.pay){ const m=MATCHES.find(x=>x.id===b.dataset.pay); if(!m) return; const v=b.dataset.v ? b.dataset.v==='1' : !isPaid(m); if(isPaid(m)!==v) patchMatch(m.id,payPatch(m,v)); return; }
   if(b.dataset.edit){ const k=b.dataset.edit; MC_EDIT.has(k)?MC_EDIT.delete(k):MC_EDIT.add(k); render(); return; }
@@ -2130,7 +2291,8 @@ const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenad
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
 // Al abrir desde una notificación (?vista=agenda), directamente en esa pestaña.
 let OPEN_AVISOS = new URLSearchParams(location.search).has('avisos');   // desde una notificación: abrir los Avisos
-{ const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos','resumen'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); } }
+{ const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos','resumen'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); }
+  else if(v==='com-calcular-dietes' || v==='calc'){ VIEW='calc'; history.replaceState(null,'',location.pathname); } }
 const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
 // "PRIMERA DIVISION SENIOR FEMENINO" → "1ª Sén. Fem" (para la línea corta de la tarjeta).
 function shortComp(comp){
