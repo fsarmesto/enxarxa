@@ -83,6 +83,11 @@ input[type=checkbox]{accent-color:var(--red);width:16px;height:16px}
 .brand{display:flex;align-items:center;gap:16px;min-width:0}
 .brand .logo{height:52px;width:auto;display:block;border-radius:8px}
 .brand>div{min-width:0}
+/* Logo y nombre llevan al inicio: siguen pareciendo el logo, con un ligero efecto al pulsar */
+.home{display:block;color:inherit;text-decoration:none;border-radius:8px;-webkit-tap-highlight-color:transparent}
+[data-home]{cursor:pointer;transition:opacity .12s}
+[data-home]:active{opacity:.7}
+.home:focus-visible{outline:3px solid var(--yellow);outline-offset:3px}
 .brand .sub{display:flex;flex-direction:column;gap:1px;margin:5px 0 0;font-size:12.5px;line-height:1.3;color:var(--board-2)}
 .auth .brand .sub{flex-direction:row;align-items:center;gap:12px}
 .board a.gh:hover{color:var(--yellow)}
@@ -512,6 +517,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 @media (max-width:720px){
   .minibar{display:flex;position:fixed;top:0;left:0;right:0;z-index:45;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top,0px)) 16px 6px;background:var(--board);color:var(--board-ink);border-bottom:3px solid var(--yellow);transform:translateY(-110%);transition:transform .2s ease}
   .minibar.on{transform:none}
+  .minibar .home{display:flex;align-items:center;gap:10px;flex:0 1 auto;min-width:0;min-height:44px;margin-right:auto}
   .minibar strong{flex:1;font-family:var(--display);font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .minibar button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 10px;border-color:transparent;color:var(--board-ink);background:transparent}
 }
@@ -810,17 +816,17 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 </main>
 
 <!-- ============ App ============ -->
-<div class="minibar" id="miniBar" inert><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong><button type="button" id="mbAvisos" aria-label="Avisos"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="mbBdg"></span></button><button type="button" id="mbAjustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></g></svg></button><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+<div class="minibar" id="miniBar" inert><a class="home" href="./" data-home aria-label="Vòlei EnXarxa, inicio"><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong></a><button type="button" id="mbAvisos" aria-label="Avisos"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="mbBdg"></span></button><button type="button" id="mbAjustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M18.88 9.87L21.39 10L21.39 14L18.88 14.13L18.37 15.36L20.05 17.22L17.22 20.05L15.36 18.37L14.13 18.88L14 21.39L10 21.39L9.87 18.88L8.64 18.37L6.78 20.05L3.95 17.22L5.63 15.36L5.12 14.13L2.61 14L2.61 10L5.12 9.87L5.63 8.64L3.95 6.78L6.78 3.95L8.64 5.63L9.87 5.12L10 2.61L14 2.61L14.13 5.12L15.36 5.63L17.22 3.95L20.05 6.78L18.37 8.64Z"/><circle cx="12" cy="12" r="3.2"/></g></svg></button><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
 <main id="appView" class="hidden">
   <div class="board">
     <div class="top">
       <div class="brand">
-        <img class="logo" src="icon.svg" width="52" height="52" alt="">
-        <div><h1>Vòlei EnXarxa</h1><p class="sub"><span>App no oficial</span><span class="upd" id="updTxt"></span></p></div>
+        <a class="home" href="./" data-home aria-label="Vòlei EnXarxa, inicio"><img class="logo" src="icon.svg" width="52" height="52" alt=""></a>
+        <div><h1><span data-home>Vòlei EnXarxa</span></h1><p class="sub"><span>App no oficial</span><span class="upd" id="updTxt"></span></p></div>
       </div>
       <div class="actions">
         <button id="btnAvisos" class="iconbtn" aria-label="Avisos"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="avBdg"></span></button>
-        <button id="btnAjustes" class="iconbtn" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></g></svg></button>
+        <button id="btnAjustes" class="iconbtn" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M18.88 9.87L21.39 10L21.39 14L18.88 14.13L18.37 15.36L20.05 17.22L17.22 20.05L15.36 18.37L14.13 18.88L14 21.39L10 21.39L9.87 18.88L8.64 18.37L6.78 20.05L3.95 17.22L5.63 15.36L5.12 14.13L2.61 14L2.61 10L5.12 9.87L5.63 8.64L3.95 6.78L6.78 3.95L8.64 5.63L9.87 5.12L10 2.61L14 2.61L14.13 5.12L15.36 5.63L17.22 3.95L20.05 6.78L18.37 8.64Z"/><circle cx="12" cy="12" r="3.2"/></g></svg></button>
         <button id="btnSync" class="iconbtn arb-only" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </div>
@@ -1693,6 +1699,8 @@ function render(){
   if(GUEST && VIEW==='equipos') VIEW='agenda';
   if(DEP && (VIEW==='cobros' || VIEW==='resumen' || VIEW==='calc')) VIEW='agenda';
   if(!['cobros','agenda','equipos','resumen','calc','ajustes'].includes(VIEW)) VIEW='agenda';
+  // Cada cambio de vista es una entrada del historial, para que Atrás vuelva a la vista anterior (#52).
+  if(history.state?.vista!==VIEW) history[history.state?.vista ? 'pushState' : 'replaceState']({vista:VIEW}, '', location.pathname);
   // "Cómo calcular dietas" es una subsección de Cobros: su pestaña sigue marcada.
   for(const b of $('views').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.view===(VIEW==='calc'?'cobros':VIEW)));
   // Lo de dinero (cifras, IRPF, Excel, avisos de pedir el pago) solo en Cobros; la temporada, en Cobros y Resumen.
@@ -1878,6 +1886,24 @@ function renderCalcOut(){
 let AJ_FROM = null;
 function openAjustes(){ if(VIEW!=='ajustes') AJ_FROM=VIEW; VIEW='ajustes'; render(); scrollTo(0,0); $('ajustes').querySelector('.aj-t')?.focus(); }
 for(const id of ['btnAjustes','mbAjustes']) $(id).addEventListener('click', openAjustes);
+// Logo y nombre (#52): cierran hojas y paneles y van a la vista de inicio (con la que se abre la app); si ya estás, arriba.
+function closePanels(){ closeFilters(); closePeriod(); if(!CONSENT_OPEN) $('guide').classList.add('hidden'); }
+function goHome(){
+  closePanels();
+  let h=null; try{ h=localStorage.getItem(VIEW_KEY); }catch(e){}
+  h = h && h!=='ajustes' && h!=='calc' ? h : 'cobros';
+  if(DEP && (h==='cobros' || h==='resumen')) h='agenda';
+  if(VIEW!==h){ VIEW=h; render(); scrollTo(0,0); }
+  else scrollTo({top:0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+}
+for(const el of document.querySelectorAll('#appView [data-home], #miniBar [data-home]'))
+  el.addEventListener('click', e=>{ e.preventDefault(); goHome(); });
+addEventListener('popstate', e=>{
+  const v=e.state?.vista; if(!v || $('appView').classList.contains('hidden')) return;
+  closePanels(); if(v!==VIEW){ VIEW=v; render(); scrollTo(0,0); }
+  // Volver a una pestaña cuenta como elegirla: es la que sale al abrir la app y a la que lleva el logo.
+  if(['cobros','agenda','equipos','resumen'].includes(VIEW)) try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){}
+});
 $('ajustes').addEventListener('click', e=>{
   if(e.target.closest('[data-open-calc]')) openCalc('');
   if(e.target.closest('[data-aj-back]')){ VIEW = AJ_FROM && AJ_FROM!=='ajustes' ? AJ_FROM : (DEP?'agenda':'cobros'); render(); scrollTo(0,0); }
