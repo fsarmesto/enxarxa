@@ -56,7 +56,7 @@ rama `claude/...` con PR. Reglas para esos trabajos:
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…030). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…031). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
@@ -542,6 +542,20 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `in(...)` con muchos ids, `porIds()` (de 100 en 100), en `_shared/db.ts`. Siempre con un orden estable (la clave primaria).
   Toda consulta nueva que lea de varios usuarios, con ellas.
 - En filtros `in(...)` la barra invertida se toma como escape: con claves de pabellón usar `eq` uno a uno.
+
+## Seguridad (revisión del 27-oct-2026)
+
+- RLS en todas las tablas. Permisos de tabla mínimos (migración 031): `anon` nada; `authenticated` solo matches y venues
+  (CRUD de los suyos), leer su perfil y actualizar origin/rate/min_travel/irpf/lang, leer push_log y fav_teams. **Una tabla
+  nueva no da permisos a nadie** (default privileges): si la web la necesita, `grant` explícito y su política.
+- `auth-isquad` limita los fallos de login: 5 por usuario en 15 min y 20 por conexión en 1 h (pub_cache `intentos:<huella>`),
+  para que no se use para probar contraseñas de iSquad. Mensaje "Demasiados intentos…" (429).
+- Web con Content-Security-Policy (meta en index.html): scripts y datos propios y `vevsurxxvjivjizuuqad.supabase.co`; imágenes
+  también de fuera. Si se añade otro servidor al que llama la web, añadirlo a `connect-src`.
+- Comprobado: ningún secreto en el historial del repo; altas directas en Supabase desactivadas (`disable_signup`); contraseñas
+  con AES-GCM e IV aleatorio; la web escapa lo que viene de iSquad (`esc`). iCal: `;` escapado (antes no).
+- Pendiente (lo tiene que hacer Ferran en el panel de Supabase): Authentication → URL Configuration → Site URL estaba en
+  `http://localhost:3000`; poner `https://fsarmesto.github.io/enxarxa/`.
 
 ## Pruebas automáticas (27-oct-2026)
 

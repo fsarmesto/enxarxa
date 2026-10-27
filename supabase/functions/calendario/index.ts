@@ -5,7 +5,8 @@
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
 import { feed, norm, teamMatches } from "../_shared/publico.ts";
 
-const esc = (s: string) => (s || "").replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+// Texto de iCal (RFC 5545): barra, punto y coma y coma escapados; cualquier salto de línea, como \n.
+const esc = (s: string) => (s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n|\r|\n/g, "\\n");
 const cap = (s: string) => (s || "").toLowerCase().replace(/(^|[\s'-])\S/g, (c) => c.toUpperCase());
 // Líneas de más de 75 octetos se parten (RFC 5545).
 function fold(line: string) {
