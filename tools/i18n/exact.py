@@ -316,6 +316,12 @@ EXACT = {
 "Pagado en iSquad, sin recibir": "Pagat a iSquad, sense rebre",
 # Km a mano en recibos aún sin pedir
 "Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.": "Aquest rebut ja està demanat a iSquad: les seves despeses són les de la FCVB i els km no les canvien.",
+# Sin conexión (#30)
+"Sin conexión": "Sense connexió",
+"Sin conexión: este cambio necesita internet. Inténtalo cuando vuelva la cobertura.": "Sense connexió: aquest canvi necessita internet. Torna-ho a provar quan hi hagi cobertura.",
+"Sin conexión: no se puede actualizar ahora. Se verá lo último guardado.": "Sense connexió: ara no es pot actualitzar. Es veurà el darrer que hi havia desat.",
+"Sin conexión. Inténtalo cuando vuelva la cobertura.": "Sense connexió. Torna-ho a provar quan hi hagi cobertura.",
+"Conexión recuperada": "Connexió recuperada",
 # Resultado publicado y acta subida (#31)
 "Resultado:": "Resultat:",
 "Acta:": "Acta:",

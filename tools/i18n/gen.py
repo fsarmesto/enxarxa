@@ -48,6 +48,7 @@ RULES = r"""[
   [/^con (.+)$/, 'amb $1'],
   [/^Semana (.+)$/, 'Setmana $1'],
   [/^Actualizado: (.+)$/, 'Actualitzat: $1'],
+  [/^Sin conexión · datos del (.+)$/, 'Sense connexió · dades del $1'],
   [/^(Neto por mes. )?Mejor(es)? mes(es)?: (.+)$/, (m,a,b,c,r) => `${a?'Net per mes. ':''}${b?'Millors mesos':'Millor mes'}: ${r}`],
   [/^Sin guardar · leído de iSquad: (.+)$/, "Sense desar · llegit d'iSquad: $1"],
   [/^Te he encontrado en (\d+) plantillas? de la FCVB por tu foto de afiliado de iSquad\.(.*)$/, (m,n,r) => `T'he trobat en ${n} ${n==='1'?'plantilla':'plantilles'} de la FCVB per la teva foto d'afiliat d'iSquad.${r.replace(/Revisando plantillas: (\d+) de (\d+)\./,'Revisant plantilles: $1 de $2.')}`],
