@@ -188,6 +188,11 @@ table.m tr.paid td .total{color:var(--ink)}
 .tag{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:2px;background:var(--surface-2);color:var(--ink-2);margin-left:6px;vertical-align:middle}
 .tag.warn{background:var(--pend-bg);color:var(--pend)}
 .tag.ok{background:var(--paid-bg);color:var(--paid-ink)}
+/* Resultado y acta de un partido arbitrado (#31) */
+.pubt{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px}
+.pubt .tag{margin-left:0}
+.pubt .small{align-self:center}
+.pubw{margin-top:4px;font-size:12px;font-weight:600;color:var(--pend)}
 .desig{font-size:13px;color:var(--ink-2);line-height:1.35}
 .desig strong{color:var(--ink);font-weight:600}
 button.reset{display:block;margin-left:auto;padding:2px 0;font-size:12px}
@@ -1504,6 +1509,32 @@ const MOBILE_Q = matchMedia('(max-width:720px)');
 MOBILE_Q.addEventListener('change', ()=>{ if(VIEW==='cobros' && P) render(); });
 const MC_OPEN=new Set(), MC_EDIT=new Set(), WK_OPEN=new Map();
 const PEN_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+// Estado de acta y de resultado de cada partido arbitrado (issue #31): siempre los 2. Los lee el sync de la web pública
+// de resultados (_shared/resultados.ts). Acta: Pendiente / Subida / Otro. Resultado: Pendiente / Subido (marcador) /
+// Irregular (al mejor de 5 solo valen 3-0, 3-1, 3-2, 2-3, 1-3 y 0-3). "Otro" en los 2 cuando no se puede saber:
+// selecciones, suspendidos o aplazados, partidos sin número en la web pública (añadidos a mano) y el modo sin guardar;
+// en competiciones estatales, solo el resultado.
+// Pendiente sale en color de aviso a partir de 30 min después del final estimado (inicio + 2 h); antes, neutro.
+const RES_OK = new Set(['3-0','3-1','3-2','2-3','1-3','0-3']);
+function pubState(m){
+  const why = GUEST ? 'sin guardar' : /SELECCI/i.test(m.comp||'') ? 'selección' : /SUSPEND|APLAZ|ANULA/.test(m.estado||'') ? m.estado.toLowerCase()
+    : !m.id_partido ? 'sin número de partido' : '';
+  if(why) return {otro:why, acta:{st:'Otro',cls:''}, res:{st:'Otro',cls:''}};
+  const late = Date.now() >= new Date(`${m.date}T${m.time||'00:00'}:00`).getTime() + 150*6e4;
+  const pend = {st:'Pendiente', cls:late?'warn':''};
+  // Competiciones estatales (Superliga, Nacional): su resultado no se publica en la web de la FCVB (ESTATAL en resultados.ts).
+  if(/SUPERLIGA|NACIONAL/i.test(m.comp||'') && m.res_l==null) return {otro:'competición estatal', acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend, res:{st:'Otro',cls:''}};
+  const sc = m.res_l!=null ? `${m.res_l}-${m.res_v}` : '';
+  return { acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend,
+    res: !sc ? pend : RES_OK.has(sc) ? {st:'Subido',cls:'ok',sc} : {st:'Irregular',cls:'warn',sc} };
+}
+function pubTags(m){
+  const s=pubState(m);
+  const tag=(lb,x)=>`<span class="tag ${x.cls}"><span>${lb}</span> <span>${x.st}</span>${x.sc?` ${x.sc}`:''}</span>`;
+  return `<div class="pubt">${tag('Resultado:',s.res)}${tag('Acta:',s.acta)}${s.otro?`<span class="small muted">${esc(s.otro)}</span>`:''}</div>`
+    + (s.res.st==='Irregular' ? `<div class="pubw">⚠ <span>Resultado irregular:</span> ${s.res.sc}. <span>Al mejor de 5 solo valen 3-0, 3-1, 3-2 y al revés: revisa el resultado en iSquad.</span></div>` : '');
+}
+const actaLink = m => m.acta_url && /^https:\/\/voleibol\.isquad\.es\//.test(m.acta_url.replace(/^http:/,'https:')) ? ` · <a href="${esc(m.acta_url.replace(/^http:/,'https:'))}" target="_blank" rel="noopener">Ver el acta</a>` : '';
 function cardHtml(m,r,km,gone,manual){
   const id=esc(m.id), open=MC_OPEN.has(m.id), edit=MC_EDIT.has(m.id), paid=isPaid(m);
   const warn = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && !/^(FINALIZADO|PENDIENTE)$/.test(m.estado) ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
@@ -1519,7 +1550,7 @@ function cardHtml(m,r,km,gone,manual){
   const editor = edit ? `<div class="mc-edit"><label>Km (solo ida)<input type="number" step="1" data-f="km" data-id="${id}" value="${km||''}" placeholder="?"></label>${r.fcvb&&fcvbFixed(m)?'<p class="small muted">Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.</p>':''}<label>Peajes<input type="number" step="0.05" data-f="tolls" data-id="${id}" value="${+m.tolls||''}" placeholder="0"></label>${r.fcvb?'':`<label>Dieta<input type="number" step="0.5" min="0" data-f="dieta" data-id="${id}" value="${r.dieta||''}" placeholder="0">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${id}">automática (${eur(r.dietaAuto)})</button>`:''}</label>`}<p class="small muted">Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.</p></div>` : '';
   const pay = `<span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${paid}">Cobrado</button></span>`;
   return `<details class="mc${paid?' paid':''}" data-mc="${id}"${open?' open':''}><summary aria-expanded="${open}">
-    <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}</div></div>
+    <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}</div>${pubTags(m)}</div>
     <div class="mc-r"><b>${eur(r.total)}</b>${paid?'<span class="tag ok">cobrado</span>':'<span class="tag pend">pendiente</span>'}</div>${chevHtml(open)}</summary>
     <div class="mc-more"><div class="mc-role">${[m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad', m.staff_checked&&m.team!=='t1'&&m.role!=='jl'&&TEAM_OPTS[m.team], esc(CATS[catOf(m)].label), (isHoliday(m.date)||m.holiday)&&'festivo'].filter(Boolean).map(x=>`<span>${x}</span>`).join(' · ')}</div>
     <dl class="mc-dl">${rows}</dl>
@@ -1581,7 +1612,7 @@ function render(){
     let html='';
         html+=`<tr class="${isPaid(m)?'paid':''}">
           <td class="time">${esc(m.time)}</td>
-          <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div><div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}</div></td>
+          <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div>${pubTags(m)}<div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}</div></td>
           <td class="ctrl"><div class="desig"><strong>${m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad'}</strong>${m.staff_checked&&m.team!=='t1'&&m.role!=='jl'?' · '+TEAM_OPTS[m.team]:''}<br>${esc(CATS[catOf(m)].label)}${isHoliday(m.date)||m.holiday?' · festivo':''}</div>
             <label class="chk small">km <input type="number" step="1" data-f="km" data-id="${esc(m.id)}" value="${km||''}" placeholder="?" title="Km solo ida. Cambia el valor del pabellón para todos sus partidos."></label></td>
           <td class="n" data-l="Tarifa">${eur(r.tariff)}${r.fcvb||r.fcvbTarifa?`<span class="shared" title="Importes de la FCVB (recibos de iSquad)">FCVB</span>`:''}${r.fcvb&&Math.abs(r.est.tariff-r.tariff)>0.009?`<span class="shared" title="La app calculaba ${eur(r.est.tariff)}">app ${eur(r.est.tariff)}</span>`:''}</td>
@@ -2203,12 +2234,12 @@ function renderAgenda(allMs,res){
       const clashArb = (clashes.get(m.id)||[]).length ? `<div class="clash">⚠ Ese día ${(clashes.get(m.id)).map(x=>`${rolKind(x.f.rol)[1].toLowerCase()} con ${esc(capName(x.f.team))}${x.m.t?' a las '+x.m.t+(x.m.conf?'':' (sin confirmar)'):' (sin horario)'}`).join(' y ')}</div>` : '';
       const more = `${crew}
         <div class="where"><div><strong>${esc(venue)}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?mapLink(venueDest(m), true):''}</div>
-        <div class="full">${esc(capName(m.comp))}${est}${km?` · ${km} km`:''}${r?` · ${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}</div>`;
+        <div class="full">${esc(capName(m.comp))}${est}${km?` · ${km} km`:''}${r?` · ${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}${actaLink(m)}</div>`;
       html+=`<details class="agc arb" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary aria-expanded="${AGC_OPEN.has(id)}">
         <div class="tm">${esc(m.time)}</div>
         <div><div class="top"><span class="kind arb">Arbitras${myRole?`<small>${esc(myRole)}</small>`:''}</span>${others.length?`<span class="small muted">con ${others.map(c=>esc(capName(c.n).split(' ')[0])).join(', ')}</span>`:''}</div>
           <div class="tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div>
-          <div class="sub">${esc(shortComp(m.comp))} · ${esc(venue)}</div>
+          <div class="sub">${esc(shortComp(m.comp))} · ${esc(venue)}</div>${pubTags(m)}
           ${clashArb}${carLine(m)}${['solicitar','sinrecibo'].includes(payState(m)) && limitOf(m)>=today() ? dietHint(m) : ''}</div>
         ${chevHtml(AGC_OPEN.has(id))}</summary><div class="more">${more}</div></details>`;
     }

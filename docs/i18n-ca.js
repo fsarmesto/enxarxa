@@ -487,7 +487,22 @@ I.exact = {
 "Sin conexión: este cambio necesita internet. Inténtalo cuando vuelva la cobertura.": "Sense connexió: aquest canvi necessita internet. Torna-ho a provar quan hi hagi cobertura.",
 "Sin conexión: no se puede actualizar ahora. Se verá lo último guardado.": "Sense connexió: ara no es pot actualitzar. Es veurà el darrer que hi havia desat.",
 "Sin conexión. Inténtalo cuando vuelva la cobertura.": "Sense connexió. Torna-ho a provar quan hi hagi cobertura.",
-"Conexión recuperada": "Connexió recuperada"
+"Conexión recuperada": "Connexió recuperada",
+"Resultado:": "Resultat:",
+"Acta:": "Acta:",
+"Subido": "Pujat",
+"Subida": "Pujada",
+"Otro": "Altre",
+"Irregular": "Irregular",
+"Resultado irregular:": "Resultat irregular:",
+"Al mejor de 5 solo valen 3-0, 3-1, 3-2 y al revés: revisa el resultado en iSquad.": "Al millor de 5 només valen 3-0, 3-1, 3-2 i al revés: revisa el resultat a iSquad.",
+"sin guardar": "sense desar",
+"selección": "selecció",
+"sin número de partido": "sense número de partit",
+"competición estatal": "competició estatal",
+"aplazado": "ajornat",
+"anulado": "anul·lat",
+"Ver el acta": "Veure l'acta"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
