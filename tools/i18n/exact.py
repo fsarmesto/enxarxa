@@ -343,6 +343,7 @@ EXACT = {
 # Ajustes como pestaña propia y ayuda
 "Secciones de Ajustes": "Seccions de Configuració",
 "Ayuda": "Ajuda",
+"Acciones": "Accions",
 "Preguntas frecuentes": "Preguntes freqüents",
 "Km por pabellón": "Km per pavelló",
 "¿Algo no cuadra o no funciona? Escríbeme a": "Alguna cosa no quadra o no funciona? Escriu-me a",

@@ -332,7 +332,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   En Chrome sin ventana, `scrollTo` no lanza el evento scroll: para capturas, lanzarlo a mano.
 - Cómo llegar: abre Google Maps (o Apple Maps de reserva) sin fijar el modo; cada uno elige coche, transporte o a pie
   dentro de Maps. El selector de modo del issue #4 se quitó en el #15 (y se borra `liq-ruta`).
-- Accesibilidad (#10): `--ink-3` en claro #707070 (4,95:1), foco visible en enlaces, zonas táctiles de 44 px en
+- Accesibilidad (#10): `--ink-3` en claro #686868 (5,6:1 sobre blanco y 5:1 sobre el gris de las etiquetas; 27-oct-2026, antes #707070), foco visible en enlaces, zonas táctiles de 44 px en
   pantallas táctiles.
 - Flecha de desplegar (alertas, tarjetas de Mis partidos, calendarios de Equipos): `chevHtml`, botón de 44 px con
   chevron SVG que gira, `aria-expanded` en el summary y texto oculto "Mostrar/Ocultar el detalle".
@@ -565,6 +565,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   esté regenerado, y en Chrome sin ventana `tools/prueba-calculadora-37.mjs` y `.github/capturas/prueba-sin-conexion-30.mjs`
   (sale con código 1 si falla alguna comprobación). No fusionar un PR con las pruebas en rojo.
 - Al añadir un aviso nuevo, añadirlo también a `todos()` de `avisos_test.ts`.
+- Accesibilidad: `tools/prueba-accesibilidad.mjs` (axe-core 4.10.2, WCAG 2.0/2.1/2.2 AA y buenas prácticas) en todas las vistas,
+  a 390 y 1280 px, claro y oscuro; falla con cualquier incumplimiento serio (contraste, nombres, etiquetas). En local:
+  `npm i --no-save axe-core@4.10.2` y `CHROME=<ruta> node tools/prueba-accesibilidad.mjs`. 27-oct: 0 incumplimientos (también a
+  320 y 768 px con la demo).
 
 ## Probar sin tocar producción
 

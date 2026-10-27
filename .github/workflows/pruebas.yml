@@ -1,7 +1,7 @@
 # Pruebas automáticas en cada PR y en cada cambio de main. Solo lee el repo: sin secretos ni permisos de escritura.
 # - Funciones de Supabase: tipos (deno check) y pruebas de los avisos (textos en los 2 idiomas, paginación, domingo).
 # - Traducciones: docs/i18n-ca.js tiene que estar regenerado con tools/i18n.
-# - Web en Chrome sin ventana, con datos inventados: modo sin conexión y calculadora de dietas.
+# - Web en Chrome sin ventana, con datos inventados: modo sin conexión, calculadora de dietas y accesibilidad.
 name: Pruebas
 
 on:
@@ -55,3 +55,7 @@ jobs:
         run: node tools/prueba-calculadora-37.mjs
       - name: Modo sin conexión y cobertura débil
         run: node .github/capturas/prueba-sin-conexion-30.mjs
+      - name: Accesibilidad (axe-core, WCAG 2.2 AA) en móvil y escritorio, claro y oscuro
+        run: |
+          npm i --no-save --no-audit --no-fund axe-core@4.10.2
+          node tools/prueba-accesibilidad.mjs
