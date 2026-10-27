@@ -2577,6 +2577,8 @@ async function start0(){
 function started(user){
   USER = user; NET_DOWN = false; OFFLINE_START = false; renderOffline();
   sb.rpc('marcar_actividad').then(()=>{}, ()=>{});   // las cuentas sin abrir la app en 6 meses se borran
+  // Idioma de la interfaz en el perfil: los avisos push salen en ese idioma (issue #36). Cambiar de idioma recarga y pasa por aquí.
+  if(P && P.lang!==LANG){ P.lang=LANG; sb.from('profiles').update({lang:LANG}).eq('user_id',USER.id).then(()=>{}, ()=>{}); }
   show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); if(needsConsent()) openConsent(); else setTimeout(maybeGuide, 600);
 }
 function retryLoad(load, user){

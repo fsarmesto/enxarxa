@@ -56,7 +56,7 @@ rama `claude/...` con PR. Reglas para esos trabajos:
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…028). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…029). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
@@ -242,7 +242,14 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   texto castellano exacto). Para encontrar lo que falta: recorrer la app en Chrome sin ventana con la app en catalán,
   recoger los textos visibles y buscar palabras castellanas (así se hizo el 21-oct).
 - El Excel se genera en el navegador en el idioma de la app (cabeceras, textos, nombre de la hoja y del fichero pasan
-  por `tr()`). Sin traducir: las notificaciones push (se generan en el servidor en castellano).
+  por `tr()`).
+- **Avisos push en el idioma de cada usuario (issue #36, 27-oct-2026)**: `profiles.lang` ('es' | 'ca', migración 029; la
+  web lo guarda en `started()`, también tras cambiar de idioma, que recarga). Sin dato, catalán (`LANG_DEFECTO`).
+  **Regla: todo aviso nuevo va en el catálogo `_shared/textos.ts` con las 2 versiones**; se manda con
+  `sendToUser(db, user, (t) => ({ ...t.algo(...), tag, url }))`, que elige el idioma (`langOf`). Fechas con `t.fecha`
+  ("sáb 24 oct" / "ds. 24 d’oct."). El recordatorio del domingo (20:00) queda solo para cobros; el resultado sin subir
+  tiene su propio aviso (#31). Probado con una suscripción de prueba de un Chrome local (nunca los dispositivos de
+  Ferran): 28 de 28 avisos recibidos, uno de cada tipo en los 2 idiomas.
 
 ## Edad mínima y política aceptada (21-oct-2026)
 
@@ -436,7 +443,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   funcionan con la app añadida a la pantalla de inicio (iOS 16.4+) y abierta desde el icono.
 - Web Push: tabla `push_subs` (sin políticas: solo la función `notify` con service role). La web suscribe con
   `notify {action:"subscribe"}`, borra con `unsubscribe` y prueba con `test` (solo los dispositivos de ese árbitro).
-  El cron manda: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!". Las
+  El cron manda "¡No te olvides de revisar tus cobros de dietas y kilometraje de la semana!" (en el idioma de cada uno). Las
   suscripciones que devuelven 404/410 se borran solas. Forzar un envío a todos: `notify` con cron secret y `{"force":true}`.
 
 ## Km que paga la FCVB (aprendidos de los recibos)

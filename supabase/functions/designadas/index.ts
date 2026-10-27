@@ -64,9 +64,7 @@ async function cron(db: Db) {
     for (const c of r.categorias) if (relevante(c.cat) && c.desig > 0 && !(before.get(c.cat) || 0)) nuevas.push(`${nombreCat(c.cat)} (${c.desig}/${c.total})`);
   }
   await db.from("pub_cache").upsert({ key: snapKey, data: r.categorias.map(({ cat, desig }) => ({ cat, desig })), fetched_at: new Date().toISOString() });
-  if (nuevas.length) for (const a of admins) await sendToUser(db, a, {
-    title: nuevas.length === 1 ? `Han salido designaciones de ${nuevas[0]}` : `Han salido designaciones de ${nuevas.length} categorías`,
-    body: nuevas.join(" · "), tag: "designaciones", url: "./?vista=cobros" });
+  if (nuevas.length) for (const a of admins) await sendToUser(db, a, (t) => ({ ...t.designaciones(nuevas), tag: "designaciones", url: "./?vista=cobros" }));
   const salud = await revisarSalud(db, admins);
   return { nuevas, salud };
 }
@@ -77,14 +75,14 @@ async function revisarSalud(db: Db, admins: string[]) {
   const { data: ps } = await db.from("profiles").select("last_sync, last_error").neq("tipo", "deportista");
   const total = ps?.length || 0, conError = (ps || []).filter((p: { last_error: string | null }) => p.last_error).length;
   const ultimo = Math.max(0, ...(ps || []).map((p: { last_sync: string | null }) => p.last_sync ? Date.parse(p.last_sync) : 0));
-  const problemas: string[] = [];
-  if (total >= 3 && conError * 2 >= total) problemas.push(`${conError} de ${total} árbitros fallan al actualizar desde iSquad (¿ha cambiado el login?)`);
-  if (ultimo && Date.now() - ultimo > 13 * 3600_000) problemas.push(`La actualización automática no funciona desde hace ${Math.round((Date.now() - ultimo) / 3600_000)} h`);
+  const problemas: ({ fallan: number; total: number } | { horas: number })[] = [];
+  if (total >= 3 && conError * 2 >= total) problemas.push({ fallan: conError, total });
+  if (ultimo && Date.now() - ultimo > 13 * 3600_000) problemas.push({ horas: Math.round((Date.now() - ultimo) / 3600_000) });
   for (const p of problemas) {
-    const key = `salud-aviso:${p.replace(/\d+/g, "N").slice(0, 60)}`;
+    const key = `salud-aviso:${"fallan" in p ? "login" : "sync"}`;
     const { data: last } = await db.from("pub_cache").select("fetched_at").eq("key", key).maybeSingle();
     if (last && Date.now() - Date.parse(last.fetched_at) < 6 * 3600_000) continue;
-    for (const a of admins) await sendToUser(db, a, { title: "⚠ La app tiene un problema", body: p, tag: "salud", url: "./?vista=cobros" });
+    for (const a of admins) await sendToUser(db, a, (t) => ({ ...t.salud(p), tag: "salud", url: "./?vista=cobros" }));
     await db.from("pub_cache").upsert({ key, data: { p }, fetched_at: new Date().toISOString() });
   }
   return { total, conError, problemas };

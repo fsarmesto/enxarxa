@@ -1,16 +1,11 @@
 // Notificaciones (Web Push).
-// - Cron (x-cron-secret): recordatorio del domingo a las 20:00 de Madrid a todos los suscritos. El cron se lanza a
+// - Cron (x-cron-secret): recordatorio del domingo a las 20:00 de Madrid a los árbitros suscritos, en su idioma. El cron se lanza a
 //   las 18 y a las 19 UTC (horario de verano e invierno) y aquí solo se envía si en Madrid son las 20.
 //   Con {force:true} se envía ya (para probar).
 // - Con la sesión del árbitro: {action:"subscribe", sub}, {action:"unsubscribe", endpoint}, {action:"test"}.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
-import { madridNow, send, Sub } from "../_shared/push.ts";
-
-const REMINDER = {
-  title: "Vòlei EnXarxa",
-  body: "¡No te olvides de subir los resultados y revisar tus cobros de dietas/kilometraje!",
-  tag: "domingo",
-};
+import { langOf, madridNow, send, Sub } from "../_shared/push.ts";
+import { lang, textos } from "../_shared/textos.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -22,15 +17,18 @@ Deno.serve(async (req) => {
   if (secret && req.headers.get("x-cron-secret") === secret) {
     const now = madridNow();
     if (!body.force && !(now.weekday === "Sun" && now.hour === 20)) return json({ skipped: true, madrid: now });
-    // Solo árbitros: el recordatorio es de subir resultados y revisar cobros.
-    const { data: deps } = await db.from("profiles").select("user_id").eq("tipo", "deportista");
-    const skip = new Set((deps || []).map((d: { user_id: string }) => d.user_id));
-    const subs: Sub[] = [];
+    // Solo árbitros: el recordatorio es de revisar cobros. Cada uno en su idioma (profiles.lang).
+    const { data: ps } = await db.from("profiles").select("user_id, tipo, lang");
+    const info = new Map((ps || []).map((p: { user_id: string; tipo: string; lang: string | null }) => [p.user_id, p]));
+    const porIdioma = { es: [] as Sub[], ca: [] as Sub[] };
     for (let from = 0; ; from += 1000) {
       const { data } = await db.from("push_subs").select("endpoint, p256dh, auth, user_id").range(from, from + 999);
-      subs.push(...(data || []).filter((s: { user_id: string }) => !skip.has(s.user_id))); if (!data || data.length < 1000) break;
+      for (const s of data || []) { const p = info.get(s.user_id); if (p && p.tipo !== "deportista") porIdioma[lang(p.lang)].push(s); }
+      if (!data || data.length < 1000) break;
     }
-    return json({ sent: await send(db, subs, REMINDER), madrid: now });
+    const sent = Object.fromEntries(await Promise.all((["es", "ca"] as const).map(async (l) =>
+      [l, porIdioma[l].length ? await send(db, porIdioma[l], { ...textos(l).domingo(), tag: "domingo" }) : null])));
+    return json({ sent, madrid: now });
   }
 
   const user = await userFromRequest(db, req);
@@ -48,7 +46,7 @@ Deno.serve(async (req) => {
   if (body.action === "test") {
     const { data } = await db.from("push_subs").select("endpoint, p256dh, auth").eq("user_id", user.id);
     if (!data?.length) return json({ error: "Este usuario no tiene ningún dispositivo con el recordatorio activado" }, 404);
-    return json({ ok: true, sent: await send(db, data, { ...REMINDER, title: "Prueba · Vòlei EnXarxa", tag: "prueba" }) });
+    return json({ ok: true, sent: await send(db, data, { ...textos(await langOf(db, user.id)).prueba(), tag: "prueba" }) });
   }
   return json({ error: "Acción no válida" }, 400);
 });

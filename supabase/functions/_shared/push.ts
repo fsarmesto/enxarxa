@@ -1,10 +1,14 @@
 // Envío de notificaciones (Web Push) a los dispositivos suscritos (tabla push_subs).
 import webpush from "npm:web-push@3.6.7";
+import { lang, type Lang, textos, type Textos } from "./textos.ts";
+export { cap } from "./textos.ts";
 
 webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT")!, Deno.env.get("VAPID_PUBLIC")!, Deno.env.get("VAPID_PRIVATE")!);
 
 export type Sub = { endpoint: string; p256dh: string; auth: string };
 export type Msg = { title: string; body: string; tag?: string; url?: string };
+// Aviso con los textos en el idioma de quien lo recibe (issue #36): se monta con su catálogo (_shared/textos.ts).
+export type MsgFn = (t: Textos) => Msg;
 // deno-lint-ignore no-explicit-any
 type Db = any;
 
@@ -23,10 +27,17 @@ export async function send(db: Db, subs: Sub[], msg: Msg) {
   return { ok, gone, fail };
 }
 
-// A todos los dispositivos de un árbitro (si no tiene ninguno, no hace nada).
-export async function sendToUser(db: Db, userId: string, msg: Msg) {
+// Idioma de los avisos de un usuario: el de su interfaz (profiles.lang, lo pone la web) o LANG_DEFECTO.
+export async function langOf(db: Db, userId: string): Promise<Lang> {
+  const { data } = await db.from("profiles").select("lang").eq("user_id", userId).maybeSingle();
+  return lang(data?.lang);
+}
+
+// A todos los dispositivos de un usuario (si no tiene ninguno, no hace nada), en su idioma.
+export async function sendToUser(db: Db, userId: string, msg: Msg | MsgFn) {
   const { data } = await db.from("push_subs").select("endpoint, p256dh, auth").eq("user_id", userId);
-  return data?.length ? await send(db, data, msg) : { ok: 0, gone: 0, fail: 0 };
+  if (!data?.length) return { ok: 0, gone: 0, fail: 0 };
+  return await send(db, data, typeof msg === "function" ? msg(textos(await langOf(db, userId))) : msg);
 }
 
 export function madridNow() {
@@ -35,7 +46,3 @@ export function madridNow() {
   return { weekday: p.weekday, hour: +p.hour % 24 };
 }
 
-// "2026-10-24" → "sáb 24 oct"
-export const shortDate = (ds: string) =>
-  new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(ds + "T12:00:00Z")).replace(/[.,]/g, "");
-export const cap = (s: string) => (s || "").toLowerCase().replace(/(^|[\s'-])\S/g, (c) => c.toUpperCase());
