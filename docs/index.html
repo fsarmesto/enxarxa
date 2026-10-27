@@ -21,9 +21,9 @@ label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);
    Pendiente = rojo; cobrado = negro relleno. El marcador de arriba es negro en los dos temas. */
 :root{
   --yellow:#FFD100; --red:#D2232A; --black:#000000;
-  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F2F2F2; --ink:#000000; --ink-2:#4A4A4A; --ink-3:#707070;
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F2F2F2; --ink:#000000; --ink-2:#4A4A4A; --ink-3:#686868;
   --line:#DCDCDC; --rule:#000000;
-  --accent:#000000; --accent-ink:#FFFFFF; --pend:#D2232A; --pend-bg:#FCE9EA;
+  --accent:#000000; --accent-ink:#FFFFFF; --pend:#D2232A; --pend-bg:#FCE9EA; --pend-tag:#C41E25;
   --paid-bg:#000000; --paid-ink:#FFFFFF; --neg:#D2232A; --focus:#D2232A;
   --board:#000000; --board-ink:#FFFFFF; --board-2:#A6A6A6; --board-num:#FFD100; --board-pend:#FF4A4F;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
@@ -33,7 +33,7 @@ label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#000000; --surface:#141414; --surface-2:#1F1F1F; --ink:#FFFFFF; --ink-2:#C2C2C2; --ink-3:#8C8C8C;
   --line:#2E2E2E; --rule:#FFD100;
-  --accent:#FFD100; --accent-ink:#000000; --pend:#FF4A4F; --pend-bg:#3A1214;
+  --accent:#FFD100; --accent-ink:#000000; --pend:#FF4A4F; --pend-bg:#3A1214; --pend-tag:#FF4A4F;
   --paid-bg:#FFFFFF; --paid-ink:#000000; --neg:#FF4A4F; --focus:#FFD100;
   --board:#000000; --board-ink:#FFFFFF; --board-2:#A6A6A6; --board-num:#FFD100; --board-pend:#FF4A4F;
   color-scheme:dark;
@@ -41,7 +41,7 @@ label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);
 :root[data-theme="dark"]{
   --bg:#000000; --surface:#141414; --surface-2:#1F1F1F; --ink:#FFFFFF; --ink-2:#C2C2C2; --ink-3:#8C8C8C;
   --line:#2E2E2E; --rule:#FFD100;
-  --accent:#FFD100; --accent-ink:#000000; --pend:#FF4A4F; --pend-bg:#3A1214;
+  --accent:#FFD100; --accent-ink:#000000; --pend:#FF4A4F; --pend-bg:#3A1214; --pend-tag:#FF4A4F;
   --paid-bg:#FFFFFF; --paid-ink:#000000; --neg:#FF4A4F; --focus:#FFD100;
   color-scheme:dark;
 }
@@ -196,7 +196,8 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
 .calc-res{margin-top:14px;border:2px solid var(--ink);border-radius:6px;padding:6px 14px 10px}
 .calc-why{margin:10px 0 0;font-size:15px;font-weight:600}
 .drow{display:grid;grid-template-columns:96px 1fr;gap:4px 10px;align-items:center;margin:10px 0}
-.drow.dim{opacity:.4}
+.drow.dim .dbar{opacity:.35}
+.drow.dim .dlab{color:var(--ink-3)}
 .drow .dlab{font-size:13px;font-weight:700}
 .dbar{position:relative;display:flex;height:24px;border-radius:3px;overflow:visible;background:var(--surface-2)}
 .dbar i{display:block;height:100%}
@@ -241,7 +242,7 @@ table.m .total{font-weight:700}
 table.m tr.paid td{color:var(--ink-3)}
 table.m tr.paid td .total{color:var(--ink)}
 .tag{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:2px;background:var(--surface-2);color:var(--ink-2);margin-left:6px;vertical-align:middle}
-.tag.warn{background:var(--pend-bg);color:var(--pend)}
+.tag.warn{background:var(--pend-bg);color:var(--pend-tag)}   /* sobre el rosa, un rojo algo más oscuro: contraste 5:1 */
 .tag.ok{background:var(--paid-bg);color:var(--paid-ink)}
 /* Resultado y acta de un partido arbitrado (#31) */
 .pubt{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px}
@@ -521,12 +522,12 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 @media (max-width:420px){ .ctrlbtn{padding:4px 10px;font-size:16px} .ctrlbtns{gap:6px} .ctrlrow{gap:6px} }
 /* Agenda */
 .ag-day{margin:0 0 22px}
-.ag-day h3{font-family:var(--display);font-size:21px;font-weight:600;margin:0 0 8px;padding-bottom:4px;border-bottom:3px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.ag-day h3 .when{font-family:"Barlow",system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-3)}
-.ag-day h3 .when.soon{color:var(--pend)}
+.ag-day h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0 0 8px;padding-bottom:4px;border-bottom:3px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ag-day h2 .when{font-family:"Barlow",system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-3)}
+.ag-day h2 .when.soon{color:var(--pend)}
 /* Dentro de una semana (#27), el día va con una línea fina, como en Cobros: la gruesa es la de la semana */
 .week .ag-day{margin:12px 0 18px}
-.week .ag-day h3{font-size:18px;border-bottom:1px solid var(--line)}
+.week .ag-day h2{font-size:18px;border-bottom:1px solid var(--line)}
 .ag{display:grid;grid-template-columns:70px 1fr;gap:4px 14px;padding:14px 0;border-bottom:1px solid var(--line)}
 .ag:last-child{border-bottom:0}
 .ag .t{font-family:var(--display);font-weight:700;font-size:26px;line-height:1}
@@ -616,7 +617,7 @@ details.cal>summary::-webkit-details-marker{display:none}
 .eq-row .nx{font-size:13.5px;color:var(--ink-2);margin-top:3px}
 .eq-row button{white-space:nowrap}
 .eq-row button.on{background:var(--yellow);border-color:var(--yellow);color:#000}
-.eq-row.off .n,.eq-row.off .nx,.eq-row.off details.cal{opacity:.5}
+.eq-row.off{background:color-mix(in srgb,var(--surface-2) 50%,var(--bg))}   /* desactivado: fondo gris, sin bajar el contraste del texto */
 .eq-row .acts{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 /* Tarjeta de equipo (#18): nombre grande, división · club pequeño, dos filas con el tamaño del texto normal y acciones que bajan de línea */
 .eq-row.eqc{display:block;min-width:0}
@@ -634,7 +635,7 @@ details.cal>summary::-webkit-details-marker{display:none}
 .eqc .eqb.more{flex:none;min-width:44px;padding:6px 0;font-size:20px;line-height:1}
 .eqc .moremenu{margin-top:8px}
 .eqc .calbox{margin-top:8px;border-top:1px solid var(--line)}
-.eq-row.off .calbox{opacity:.5}
+
 .eq-hi{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .infobtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-8px -10px -8px 0;padding:0;border:0;border-radius:50%;background:transparent;color:var(--ink-2)}
 .infobtn[aria-expanded="true"]{color:var(--ink);background:var(--surface-2)}
@@ -1738,7 +1739,7 @@ function render(){
     for(const [ds,dl] of [...days].sort((a,b)=>b[0].localeCompare(a[0]))){
       const dt=dl.reduce((s,m)=>s+res.get(m.id).total,0), rows=dl.sort((a,b)=>a.time.localeCompare(b.time)).map(matchHtml).join('');
       body+=`<div class="day"><div class="day-head"><span>${fmtDay(ds)}</span><span>${eur(dt)}</span></div>`+(mobile ? `<div class="mcs">${rows}</div>` : `<div class="wrap"><table class="m"><thead><tr>
-        <th>Hora</th><th>Partido</th><th>Designación</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`)+'</div>';
+        <th>Hora</th><th>Partido</th><th>Designación</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th><span class="sr">Acciones</span></th></tr></thead><tbody>${rows}</tbody></table></div>`)+'</div>';
     }
     return body;
   };
@@ -2439,7 +2440,7 @@ function renderAgenda(allMs,res){
   const days=new Map(); for(const it of wl){ const d=it.k.slice(0,10); (days.get(d)||days.set(d,[]).get(d)).push(it); }
   for(const [ds,dl] of days){
     const w=whenLabel(ds), soon = ds>=t && (w==='Hoy'||w==='Mañana');
-    html+=`<section class="ag-day"><h3><span>${esc(fmtShort(ds).replace(/^./,c=>c.toUpperCase()))}</span><span class="when${soon?' soon':''}">${w}</span></h3>`;
+    html+=`<section class="ag-day"><h2><span>${esc(fmtShort(ds).replace(/^./,c=>c.toUpperCase()))}</span><span class="when${soon?' soon':''}">${w}</span></h2>`;
     for(const it of dl){
       if(it.x){
         const {m:p,f}=it.x, done=isDone(p), id=`eq|${p.d}|${norm(p.l)}|${norm(p.v)}`;
