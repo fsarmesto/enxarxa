@@ -89,6 +89,9 @@ input[type=checkbox]{accent-color:var(--red);width:16px;height:16px}
 .brand .sub .upd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 a.gh{display:inline-flex;align-items:center;gap:5px;color:inherit;font-weight:600}
 .board .actions{display:flex;gap:8px;align-items:center;flex:none}
+/* Móvil estrecho: 3 botones (Avisos, Ajustes, Actualizar) y el título en una línea; la fecha puede ir en 2 */
+@media (max-width:440px){ .board .actions{gap:4px} .board .actions .iconbtn{width:40px;height:40px} .board .top{gap:10px} .brand{gap:10px!important} .brand .logo{height:34px!important} .board h1{font-size:24px;white-space:nowrap} .brand .sub .upd{white-space:normal} }
+#btnAjustes[aria-current="page"],#mbAjustes[aria-current="page"]{background:var(--yellow);color:#000;border-color:var(--yellow)}
 .board button{border-color:var(--board-ink);color:var(--board-ink)}
 .board button.ghost{border-color:transparent}
 .board button:focus-visible{outline-color:var(--yellow)}
@@ -263,6 +266,11 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:28px}
 /* Ajustes: pestaña propia, una tarjeta por tema e índice arriba */
 .ajustes{max-width:760px}
+.aj-back{padding-left:0;font-weight:700}
+.aj-t:focus{outline:none}   /* el foco se pone al abrir la página (para lectores de pantalla), sin recuadro */
+/* Ajustes es una página aparte: sin pestañas, ni la línea de estado, ni la tarjeta de activar avisos */
+body[data-vista="ajustes"] .views,body[data-vista="ajustes"] #pushCard{display:none}
+@media (max-width:720px){ body[data-vista="ajustes"] #appView{padding-bottom:24px} }
 .aj-t{font-family:var(--display);font-size:30px;margin:0 0 10px}
 .aj-nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
 .aj-nav a{display:inline-flex;align-items:center;min-height:40px;padding:4px 14px;border:2px solid var(--line);border-radius:20px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600}
@@ -492,8 +500,6 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
   .views{position:fixed;left:0;right:0;bottom:0;z-index:40;width:auto;max-width:none;margin:0;border:0;border-top:1px solid var(--line);border-radius:0;overflow:visible;background:var(--bg);padding:0 0 env(safe-area-inset-bottom,0px);box-shadow:0 -2px 12px rgba(0,0,0,.08)}
   .views button{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;padding:6px 2px;font-size:13px;line-height:1.1;white-space:nowrap;color:var(--ink-2)}
   .views button span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
-  .views button:nth-last-child(5):first-child,.views button:nth-last-child(5):first-child~button{font-size:12px}
-  .views button:nth-last-child(5):first-child span,.views button:nth-last-child(5):first-child~button span{white-space:normal;text-align:center}
   .views .ico{display:block;width:22px;height:22px}
   .views button[aria-selected="true"]{background:transparent;color:var(--ink);box-shadow:inset 0 3px 0 var(--red)}
   .views button.dot::after{position:absolute;top:8px;left:calc(50% + 9px);margin:0}
@@ -804,7 +810,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 </main>
 
 <!-- ============ App ============ -->
-<div class="minibar" id="miniBar" inert><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong><button type="button" id="mbAvisos" aria-label="Avisos"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="mbBdg"></span></button><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+<div class="minibar" id="miniBar" inert><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong><button type="button" id="mbAvisos" aria-label="Avisos"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="mbBdg"></span></button><button type="button" id="mbAjustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></g></svg></button><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
 <main id="appView" class="hidden">
   <div class="board">
     <div class="top">
@@ -814,6 +820,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       </div>
       <div class="actions">
         <button id="btnAvisos" class="iconbtn" aria-label="Avisos"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="avBdg"></span></button>
+        <button id="btnAjustes" class="iconbtn" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></g></svg></button>
         <button id="btnSync" class="iconbtn arb-only" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </div>
@@ -837,7 +844,6 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
     <button type="button" data-view="agenda" role="tab"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></g></svg><span>Mis partidos</span></button>
     <button type="button" data-view="equipos" role="tab" id="tabEquipos"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14c2.4.3 4 1.9 4.5 4.5"/></g></svg><span>Equipos</span></button>
     <button type="button" data-view="resumen" role="tab" class="arb-only"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5M3 20h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Resumen</span></button>
-    <button type="button" data-view="ajustes" role="tab"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></g></svg><span>Ajustes</span></button>
   </div>
   <div class="banner hidden" id="banner"></div>
   <div class="alerts" id="alerts"></div>
@@ -884,7 +890,8 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   </details>
 
   <div id="ajustes" class="hidden ajustes">
-    <h2 class="aj-t">Ajustes</h2>
+    <button type="button" class="ghost back aj-back" data-aj-back>← Volver</button>
+    <h2 class="aj-t" tabindex="-1">Ajustes</h2>
     <nav class="aj-nav" aria-label="Secciones de Ajustes">
       <a href="#aj-avisos">Notificaciones</a><a href="#aj-cal">Calendario</a><a href="#aj-idioma">Idioma</a><a class="arb-only" href="#aj-despl">Desplazamiento</a><a class="arb-only" href="#aj-irpf">IRPF</a><a class="arb-only" href="#aj-km">Km por pabellón</a><a class="arb-only" href="#aj-coche">Compartir coche</a><a href="#aj-ayuda">Ayuda</a><a href="#aj-cuenta">Tu cuenta</a>
     </nav>
@@ -1696,7 +1703,8 @@ function render(){
   $('tabEquipos').classList.toggle('hidden', GUEST);
   led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
   $('calc').classList.toggle('hidden', VIEW!=='calc'); if(VIEW!=='calc') $('calc').dataset.built='';
-  $('ajustes').classList.toggle('hidden', VIEW!=='ajustes'); $('manualPanel').classList.toggle('hidden', !['cobros','agenda'].includes(VIEW));
+  $('ajustes').classList.toggle('hidden', VIEW!=='ajustes');
+  for(const id of ['btnAjustes','mbAjustes']) VIEW==='ajustes' ? $(id).setAttribute('aria-current','page') : $(id).removeAttribute('aria-current'); $('manualPanel').classList.toggle('hidden', !['cobros','agenda'].includes(VIEW));
   const noCtrl = ['equipos','calc','ajustes'].includes(VIEW);
   $('ctrl').classList.toggle('hidden', noCtrl); if(noCtrl) $('fsum').classList.add('hidden');
   if(VIEW!=='agenda'){ $('ctrlSlot').innerHTML=''; AG_INFO=null; }
@@ -1866,7 +1874,14 @@ function renderCalcOut(){
     <p class="small muted">Una ida y vuelta por jornada y pabellón: mañana y tarde cuentan aparte. Los peajes van aparte.</p>
     <p>${r.km>0 ? `${r.km} km × 2 × ${eur(rate)} = <b>${eur(r.km*2*rate)}</b>${r.minimo?` → <span>mínimo</span> <b>${eur(minT)}</b>`:''}` : '<span class="muted">Pon los km de ida arriba para ver la cuenta.</span>'}</p>`;
 }
-$('ajustes').addEventListener('click', e=>{ if(e.target.closest('[data-open-calc]')) openCalc(''); });
+// Ajustes: página aparte desde el engranaje de la cabecera; "Volver" lleva a la pestaña de antes.
+let AJ_FROM = null;
+function openAjustes(){ if(VIEW!=='ajustes') AJ_FROM=VIEW; VIEW='ajustes'; render(); scrollTo(0,0); $('ajustes').querySelector('.aj-t')?.focus(); }
+for(const id of ['btnAjustes','mbAjustes']) $(id).addEventListener('click', openAjustes);
+$('ajustes').addEventListener('click', e=>{
+  if(e.target.closest('[data-open-calc]')) openCalc('');
+  if(e.target.closest('[data-aj-back]')){ VIEW = AJ_FROM && AJ_FROM!=='ajustes' ? AJ_FROM : (DEP?'agenda':'cobros'); render(); scrollTo(0,0); }
+});
 $('calc').addEventListener('click', e=>{ if(e.target.closest('[data-calc-back]')){ VIEW='cobros'; render(); scrollTo(0,0); } });
 $('calc').addEventListener('input', e=>{
   const k=e.target.dataset.c; if(k==null && e.target.dataset.tcat==null) return;
@@ -2330,6 +2345,7 @@ try{ AGROLE=localStorage.getItem('liq-agenda-rol')||'todo'; }catch(e){}
 // De quién es cada partido de la agenda: arbitraje, jugador (también invitado), entrenador o un equipo que solo sigo.
 const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : it.x.f.rol ? 'jugador' : 'sigo');
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
+if(VIEW==='ajustes') VIEW='cobros';   // Ajustes es una página aparte: no se abre sola al entrar
 // Al abrir desde una notificación (?vista=agenda), directamente en esa pestaña.
 let OPEN_AVISOS = new URLSearchParams(location.search).has('avisos');   // desde una notificación: abrir los Avisos
 { const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos','resumen'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); }

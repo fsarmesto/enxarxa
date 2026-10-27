@@ -340,9 +340,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## Ajustes como pestaña (27-oct-2026)
 
-- Ajustes ya no es un desplegable al final de la página: es la 5ª pestaña (`VIEW='ajustes'`, `?vista=ajustes`, engranaje),
-  `#ajustes` con un índice de secciones arriba y una tarjeta por tema (`.aj-card`, mismos ids de siempre). Con 5 pestañas,
-  en el móvil la letra baja a 12 px y el texto puede partirse en 2 líneas. "Añadir un partido a mano" solo en Cobros y
+- Ajustes ya no es un desplegable al final de la página: botón de engranaje junto a la campana (cabecera y barra compacta,
+  `#btnAjustes`/`#mbAjustes`, amarillo mientras está abierta) que abre una página aparte (`VIEW='ajustes'`, `?vista=ajustes`):
+  "← Volver" a la pestaña de antes (`AJ_FROM`), sin barra de pestañas ni tarjeta de avisos, y no se recuerda al recargar.
+  `#ajustes` con un índice de secciones arriba y una tarjeta por tema (`.aj-card`, mismos ids de siempre). Con 3 botones, por
+  debajo de 440 px los botones de la cabecera miden 40 px y el título va en una línea. "Añadir un partido a mano" solo en Cobros y
   Mis partidos. Ayuda: `docs/ayuda.html` (preguntas frecuentes en castellano y catalán, como las legales) y contacto.
 
 ## Cabecera por pestaña (21-oct-2026)
