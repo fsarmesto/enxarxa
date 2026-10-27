@@ -2504,9 +2504,11 @@ function avSeen(){ try{ return new Set(JSON.parse(localStorage.getItem(AV_SEEN_K
 function avSave(s){ try{ localStorage.setItem(AV_SEEN_KEY, JSON.stringify([...s].slice(-300))); }catch(e){} }
 async function loadAvisos(){
   if(GUEST || isOffline()) return;
-  const {data} = await sb.from('push_log').select('key,msg,sent_at').not('msg','is',null)
-    .gte('sent_at', new Date(Date.now()-14*864e5).toISOString()).order('sent_at',{ascending:false}).limit(60);
-  AV_LOG = data || []; renderAvisosBadge();
+  try{   // sin red o con un fallo, la lista se queda como estaba
+    const {data} = await sb.from('push_log').select('key,msg,sent_at').not('msg','is',null)
+      .gte('sent_at', new Date(Date.now()-14*864e5).toISOString()).order('sent_at',{ascending:false}).limit(60);
+    if(data){ AV_LOG = data; renderAvisosBadge(); }
+  }catch(e){}
 }
 const resLate = m => { const s=pubState(m).res; return s.st==='Pendiente' && s.cls==='warn'; };
 function avisos(){

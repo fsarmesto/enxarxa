@@ -65,13 +65,18 @@ const scheme = async dark => cdp('Emulation.setEmulatedMedia', {features:[{name:
 const URL0 = 'http://localhost:8123/index.html';
 await scheme(false);
 await go(URL0);
+// Cada comprobación se imprime; si alguna falla, el script sale con código 1 (lo usan las pruebas automáticas).
+const fallos = [];
+const check = (nombre, ok, detalle = '') => { console.log(`${ok ? 'OK   ' : 'FALLA'} ${nombre}${detalle !== '' ? ': ' + detalle : ''}`); if (!ok) fallos.push(nombre); };
 await ev(`localStorage.setItem('liq-guia-vista','1')`);
 await go(URL0);                       // 1ª carga con red: guarda la copia y el service worker cachea la app
 await sleep(1500);
-console.log('SW activo:', await ev(`navigator.serviceWorker.getRegistration().then(r=>!!(r&&r.active))`));
-console.log('cachés:', await ev(`caches.keys().then(async ks=>{const c=await caches.open(ks[0]);return ks.join()+' '+(await c.keys()).length})`));
-console.log('copia local:', await ev(`new Promise(ok=>{const r=indexedDB.open('enxarxa-offline');r.onsuccess=()=>{const g=r.result.transaction('kv').objectStore('kv').getAllKeys();g.onsuccess=()=>ok(g.result.join())}})`));
-console.log('barra online oculta:', await ev(`document.getElementById('offBar').classList.contains('hidden')`));
+check('service worker activo', await ev(`navigator.serviceWorker.getRegistration().then(r=>!!(r&&r.active))`) === true);
+const cach = await ev(`caches.keys().then(async ks=>{const c=await caches.open(ks[0]);return (await c.keys()).length})`);
+check('app en caché', cach >= 15, `${cach} ficheros`);
+const copia = await ev(`new Promise(ok=>{const r=indexedDB.open('enxarxa-offline');r.onsuccess=()=>{const g=r.result.transaction('kv').objectStore('kv').getAllKeys();g.onsuccess=()=>ok(g.result.join())}})`);
+check('copia local guardada', /snap:u-demo/.test(copia || ''), copia);
+check('con red, sin barra de sin conexión', await ev(`document.getElementById('offBar').classList.contains('hidden')`) === true);
 await shot('online-claro.png');
 await scheme(true); await sleep(300); await shot('online-oscuro.png');
 
@@ -80,16 +85,19 @@ server.closeAllConnections(); await new Promise(r => server.close(r));
 await cdp('Network.enable'); await cdp('Network.emulateNetworkConditions', {offline:true, latency:0, downloadThroughput:0, uploadThroughput:0});
 await scheme(false);
 await go(URL0);
-console.log('offBar texto:', await ev(`document.getElementById('offBar').textContent`), '| visible:', await ev(`!document.getElementById('offBar').classList.contains('hidden')`));
-console.log('app visible:', await ev(`!document.getElementById('appView').classList.contains('hidden')`), '| texto pabellón:', await ev(`/DEMO NORD/i.test(document.body.innerText)`), '| partidos:', await ev(`document.getElementById('sCount').textContent`));
+const barra = await ev(`document.getElementById('offBar').textContent`);
+check('modo avión: barra "Sin conexión · datos del …"', /^Sin conexión · datos del /.test(barra || '') && await ev(`!document.getElementById('offBar').classList.contains('hidden')`), barra);
+check('modo avión: la app abre con los partidos', await ev(`!document.getElementById('appView').classList.contains('hidden') && /DEMO NORD/i.test(document.body.innerText)`) === true);
 await shot('offline-claro.png');
 await ev(`document.getElementById('btnSync').click()`); await sleep(300);
-console.log('toast actualizar:', await ev(`document.getElementById('toast').textContent`));
+const t1 = await ev(`document.getElementById('toast').textContent`);
+check('modo avión: "Actualizar" avisa', /Sin conexión/.test(t1 || ''), t1);
 await shot('offline-actualizar-claro.png');
 await ev(`document.querySelector('[data-view="agenda"]').click()`); await sleep(3500);
 await scheme(true); await sleep(400); await shot('offline-oscuro.png');
 await ev(`localStorage.setItem('liq-lang','ca')`); await go(URL0); await scheme(false); await sleep(300);
-console.log('offBar ca:', await ev(`document.getElementById('offBar').textContent`));
+const bca = await ev(`document.getElementById('offBar').textContent`);
+check('modo avión en catalán', /^Sense connexió · dades del /.test(bca || ''), bca);
 await shot('offline-catalan-claro.png');
 // Cobertura débil: hay red pero todo tarda. La página sale de la caché a los 4 s y la copia local a los 8 s; al acabar
 // la carga, los datos nuevos y "Conexión recuperada".
@@ -99,12 +107,15 @@ SLOW = 20000; await mk();
 await ev(`localStorage.setItem('liq-mock-lento','1')`);
 cdp('Page.navigate', {url: URL0});
 await sleep(6000);
-console.log('débil 6 s, página en pantalla:', await ev(`!!document.getElementById('offBar')`));
+check('cobertura débil: la página sale de la caché antes de 6 s', await ev(`!!document.getElementById('offBar')`) === true);
 await sleep(7000);
-console.log('débil 13 s, barra:', await ev(`document.getElementById('offBar').textContent`), '| app visible:', await ev(`!document.getElementById('appView').classList.contains('hidden')`));
+check('cobertura débil: a los 13 s, la copia local con la barra', await ev(`!document.getElementById('appView').classList.contains('hidden') && !document.getElementById('offBar').classList.contains('hidden')`) === true);
 await shot('debil-claro.png');
 await sleep(12000);
-console.log('débil 25 s, barra oculta:', await ev(`document.getElementById('offBar').classList.contains('hidden')`), '| toast:', await ev(`document.getElementById('toast').textContent`));
+check('cobertura débil: al llegar los datos, sin barra y "Conexión recuperada"', await ev(`document.getElementById('offBar').classList.contains('hidden') && /Conexión recuperada/.test(document.getElementById('toast').textContent)`) === true);
 await ev(`localStorage.removeItem('liq-mock-lento')`);
-console.log('errores:', logs.filter(l=>/exception/i.test(l)).slice(0,5));
-ws.close(); chrome.kill(); process.exit(0);
+const errs = logs.filter(l=>/exception/i.test(l));
+check('sin errores de JavaScript', !errs.length, errs.slice(0, 3).join(' | '));
+ws.close(); chrome.kill();
+console.log(fallos.length ? `${fallos.length} comprobaciones fallan` : 'Todo bien.');
+process.exit(fallos.length ? 1 : 0);
