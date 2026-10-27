@@ -31,6 +31,21 @@ select cron.schedule(
   $$
 );
 
+-- Resultados sin subir de la semana (issue #31): domingo a las 21:00 de Madrid (función notify con tipo resultados). Se
+-- lanza a las 19 y a las 20 UTC; la función solo envía si en Madrid son las 21.
+select cron.schedule(
+  'aviso-resultados',
+  '0 19,20 * * 0',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/notify',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{"tipo":"resultados"}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $$
+);
+
 -- Cuentas sin usar 6 meses: aviso 30 días antes y borrado (función inactivas). Cada día a las 10:00 UTC.
 select cron.schedule(
   'inactivas',

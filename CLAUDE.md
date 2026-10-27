@@ -56,10 +56,11 @@ rama `claude/...` con PR. Reglas para esos trabajos:
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…029). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…030). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
+    `aviso-resultados` `0 19,20 * * 0` UTC (notify con `{"tipo":"resultados"}`; solo envía si en Madrid son las 21).
 
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
@@ -379,7 +380,21 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   "Ver el acta" en el detalle de Mis partidos. Ojo: alevín se juega a 3 sets y un 2-1 sale irregular.
 - La página que da el token de la API (`competicion.php`) llegaba el 26-oct con error 500 y entera: `apiToken` ya no
   mira el código de estado, solo si trae el token.
-- Pendiente del #31: aviso del domingo a las 21:00, sección de Avisos y punto en la pestaña, resultados de tus equipos.
+- Aviso del domingo a las 21:00 (27-oct-2026, `avisoResultados` en `resultados.ts`, cron `aviso-resultados`): a cada árbitro,
+  los partidos de la semana (lunes a domingo) que siguen "Pendiente" en color de aviso (mismo criterio que la web, sin
+  estatales); antes se repasan con `checkResultados`. Uno por usuario y semana (push_log `resultado:<lunes>`). R1: "Encara no
+  has pujat el resultat" · equipos (día) · "Puja'l a iSquad abans que la FCVB ho revisi dilluns."; resto del equipo
+  arbitral: "El resultat encara no està pujat" · "Recorda-li al 1r àrbitre que el pugi a iSquad."; varios: "N partits sense
+  resultat" con la lista. R1 = `matches.role` r1 leído de iSquad.
+- Resultados de tus equipos (vigilar): la foto `snap:<id_equipo>` guarda también `rl/rv`; cuando un partido de los
+  últimos 7 días pasa a tener resultado: "Igualada V.C. … 3-1 Caldes · Guanyat". También de los equipos que solo sigues
+  (de esos, sin avisos de horario; su calendario sale de la caché de 30 min).
+- Sección de Avisos en la web (campana en la cabecera y en la barra compacta, con contador): "Pendiente de hacer"
+  (resultados por subir de los últimos 14 días, que también ponen un punto en "Mis partidos", y pago por pedir) y
+  "Últimos días": los avisos de push_log (migración 030: `msg` con el texto en su idioma y política para leer los
+  propios; `sendToUser` guarda SIEMPRE el aviso, tenga o no notificaciones) y los resultados de sus equipos de la última
+  semana. Vistos en localStorage `liq-avisos-vistos` al abrir la lista; los de acción se van solos al resolverse.
+  Tocar uno lleva al partido (Mis partidos, tarjeta abierta) o a su pestaña. `?avisos=1` (desde la notificación) la abre.
 
 ## Sin conexión (issue #30, 27-oct-2026)
 
