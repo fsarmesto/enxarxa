@@ -212,7 +212,7 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .newver.hidden{display:none}
 .newver button{flex:none;min-height:44px;padding:4px 14px;border:0;background:var(--yellow);color:#000;font-weight:700}
 @media (max-width:720px){ .newver{bottom:calc(76px + env(safe-area-inset-bottom,0px))} }
-.offbar{display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 12px;background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;text-align:center}
+.offbar{display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 12px;background:var(--black);color:#fff;border-bottom:1px solid var(--yellow);font-size:13px;font-weight:600;text-align:center}
 .offbar.hidden{display:none}
 .offbar::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:var(--yellow)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--yellow);color:var(--black);font-weight:600;padding:10px 18px;border-radius:3px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -1012,8 +1012,9 @@ let USER = null, P = null, MATCHES = [], VENUES = {};
 // Tras cargar bien perfil, partidos, pabellones y equipos se guarda una copia en IndexedDB, por usuario. Sin red se
 // pinta la app con esa copia, con un aviso y sin las acciones que necesitan servidor. Al cerrar sesión o borrar la
 // cuenta se borra la copia.
-let OFFLINE_START = false, SNAP_T = null;
-const isOffline = () => !navigator.onLine;
+let OFFLINE_START = false, SNAP_T = null, NET_DOWN = false;
+// Sin red (modo avión) o con una cobertura tan débil que la carga no llega (NET_DOWN, ver start0).
+const isOffline = () => !navigator.onLine || NET_DOWN;
 const idb = (mode, fn) => new Promise((ok, ko)=>{
   let rq; try{ rq = indexedDB.open('enxarxa-offline', 1); }catch(e){ return ko(e); }
   rq.onupgradeneeded = ()=>rq.result.createObjectStore('kv');
@@ -1037,6 +1038,7 @@ function renderOffline(){
   b.classList.toggle('hidden', !on);
   if(on) b.textContent = SNAP_T ? `Sin conexión · datos del ${new Date(SNAP_T).toLocaleString(LOC(),{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}` : 'Sin conexión';
   document.body.classList.toggle('offline', on);
+  if(USER) renderPush();
 }
 // Las acciones que escriben en el servidor no valen sin red: se avisa en vez de fallar en silencio.
 function blockOffline(){
@@ -1044,8 +1046,8 @@ function blockOffline(){
   toast('Sin conexión: este cambio necesita internet. Inténtalo cuando vuelva la cobertura.'); render();
   return true;
 }
-async function startOffline(){
-  const id = await snapGet('last'); if(!id) return false;
+async function startOffline(id0){
+  const id = id0 || await snapGet('last'); if(!id) return false;
   const sn = await snapGet('snap:'+id); if(!sn || !sn.P) return false;
   USER = {id}; P = sn.P; MATCHES = sn.MATCHES || []; VENUES = sn.VENUES || {}; SNAP_T = sn.t; OFFLINE_START = true;
   const eq = await snapGet('eq:'+id); if(eq) EQ = eq;
@@ -1071,13 +1073,18 @@ async function selectAll(table){
     out.push(...data); if(data.length<1000) return {data:out,error:null};
   }
 }
-async function loadAll(){
+// fetchAll pide y applyAll pone los datos en la app: así una carga lenta que acaba tarde (start0) no pisa la copia local.
+async function fetchAll(){
   const [p, m, v] = await Promise.all([
     sb.from('profiles').select('*').single(),
     selectAll('matches'),
     sb.from('venues').select('*')
   ]);
   if(p.error){ throw p.error; }
+  return [p, m, v];
+}
+async function loadAll(){ applyAll(await fetchAll()); }
+function applyAll([p, m, v]){
   P = p.data; MATCHES = m.data || []; VENUES = Object.fromEntries((v.data||[]).map(x=>[x.venue_key,x]));
   // Jugador o entrenador sin licencia de árbitro: sin cobros ni designaciones, solo sus equipos.
   DEP = P.tipo==='deportista'; document.body.classList.toggle('dep', DEP);
@@ -1928,7 +1935,7 @@ function renderPush(){
   // Aviso arriba: solo si aún no está activado, se puede hacer algo y no ha dicho "Ahora no".
   let dismissed=false; try{ dismissed=!!localStorage.getItem(PUSH_DISMISS); }catch(e){}
   const card=$('pushCard');
-  const can = !GUEST && !PUSH_SUB && !denied && (iosNeedsInstall || pushSupported() || INSTALL_EVT);
+  const can = !GUEST && !isOffline() && !PUSH_SUB && !denied && (iosNeedsInstall || pushSupported() || INSTALL_EVT);
   if(!can || dismissed){ card.classList.add('hidden'); }
   else {
     const txt = iosNeedsInstall
@@ -2541,12 +2548,31 @@ async function start0(){
   let session=null; try{ ({data:{session}} = await sb.auth.getSession()); }catch(e){}
   if(!session){ if(isOffline() && await startOffline()) return; show('auth'); return; }
   USER = session.user;
-  try{ await loadAll(); }catch(e){
-    if((isOffline() || /fetch|network/i.test(String(e&&e.message))) && await startOffline()) return;   // sin cobertura: la copia local
+  // Cobertura muy débil (el móvil dice que hay red pero no llega nada): a los 8 s se pinta la copia local con el aviso
+  // y se sigue esperando; cuando la carga acaba, la app pasa sola a los datos nuevos. Si falla, se reintenta cada 30 s.
+  const user = session.user, load = fetchAll();
+  try{
+    const d = await Promise.race([load, new Promise(ok=>setTimeout(ok, 8000, null))]);
+    if(d){ applyAll(d); }
+    else if(await startOffline(user.id)){ NET_DOWN = true; renderOffline(); retryLoad(load, user); return; }
+    else applyAll(await load);
+  }catch(e){
+    if((isOffline() || /fetch|network/i.test(String(e&&e.message))) && await startOffline(user.id)){   // sin cobertura: la copia local
+      if(navigator.onLine){ NET_DOWN = true; renderOffline(); retryLoad(null, user); }
+      return;
+    }
     await sb.auth.signOut(); show('auth'); return;
   }
+  started(user);
+}
+function started(user){
+  USER = user; NET_DOWN = false; OFFLINE_START = false; renderOffline();
   sb.rpc('marcar_actividad').then(()=>{}, ()=>{});   // las cuentas sin abrir la app en 6 meses se borran
   show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); if(needsConsent()) openConsent(); else setTimeout(maybeGuide, 600);
+}
+function retryLoad(load, user){
+  (load || fetchAll()).then(d=>{ applyAll(d); started(user); toast('Conexión recuperada'); },
+    ()=>setTimeout(()=>retryLoad(null, user), 30e3));
 }
 renderOffline();
 start();

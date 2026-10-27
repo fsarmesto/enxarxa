@@ -374,6 +374,20 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   mira el código de estado, solo si trae el token.
 - Pendiente del #31: aviso del domingo a las 21:00, sección de Avisos y punto en la pestaña, resultados de tus equipos.
 
+## Sin conexión (issue #30, 27-oct-2026)
+
+- `sw.js` guarda la app (lo propio, mismo origen, GET; `CACHE = enxarxa-app-v1`): red primero y caché si falla o si
+  tarda más de 4 s (cobertura débil); tras un fallo así, 30 s de caché primero para el resto de ficheros. `vendor/`
+  (versionado), caché primero. Supabase y lo externo no pasan por él. Sigue con los avisos push igual.
+- Copia local en IndexedDB `enxarxa-offline` (`last`, `snap:<user>` = perfil, partidos y pabellones; `eq:<user>` =
+  Equipos), al cargar bien (`applyAll`, `loadEquipos`). Se borra al cerrar sesión y al borrar la cuenta.
+- `start0`: sin red (o error de red) pinta la copia (`startOffline`); si la carga tarda más de 8 s con "red", también,
+  con `NET_DOWN`, y en cuanto la carga acaba (o en un reintento cada 30 s) pasa a los datos nuevos (`started`).
+  `isOffline()` = sin red o `NET_DOWN`. Barra `#offBar` "Sin conexión · datos del …"; las escrituras y `callFn`
+  avisan (`blockOffline`) en vez de fallar; sin aviso de política ni tarjeta de notificaciones.
+- Prueba: `CHROME=<ruta> node .github/capturas/prueba-sin-conexion-30.mjs` (supabase simulado, modo avión emulado y
+  cobertura débil con el servidor lento; capturas en `.github/capturas/30/`).
+
 ## Avisos al momento (función vigilar, 21-oct-2026)
 
 - Cada 10 minutos, de 7:00 a 24:00 de Madrid, y solo para quien tiene notificaciones (`push_subs`):
@@ -417,8 +431,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## App instalable y recordatorio del domingo (21-oct-2026)
 
-- PWA: `manifest.webmanifest`, iconos PNG (`icon-192/512`, `icon-maskable`, `apple-touch-icon`), `sw.js` (solo
-  notificaciones, sin caché a propósito: la app se carga siempre de la red). En iPhone las notificaciones solo
+- PWA: `manifest.webmanifest`, iconos PNG (`icon-192/512`, `icon-maskable`, `apple-touch-icon`), `sw.js`
+  (notificaciones y caché para abrir sin cobertura, ver "Sin conexión"). En iPhone las notificaciones solo
   funcionan con la app añadida a la pantalla de inicio (iOS 16.4+) y abierta desde el icono.
 - Web Push: tabla `push_subs` (sin políticas: solo la función `notify` con service role). La web suscribe con
   `notify {action:"subscribe"}`, borra con `unsubscribe` y prueba con `test` (solo los dispositivos de ese árbitro).

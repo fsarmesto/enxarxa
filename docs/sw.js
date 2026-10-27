@@ -11,18 +11,24 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => e.waitUntil(
   caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('enxarxa-app-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())
 ));
+let slowAt = 0;
 self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.endsWith('/sw.js') || url.pathname.includes('/app/')) return;
-  const vendor = url.pathname.includes('/vendor/');
   const net = () => fetch(req).then((res) => {
     if (res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
     return res;
   });
-  const hit = () => caches.match(req, { ignoreSearch: true });
-  e.respondWith(vendor
-    ? hit().then((r) => r || net())
-    : net().catch(() => hit().then((r) => r || (req.mode === 'navigate' ? caches.match('index.html') : Response.error()))));
+  const hit = () => caches.match(req, { ignoreSearch: true }).then((r) => r || (req.mode === 'navigate' ? caches.match('index.html') : undefined));
+  if (url.pathname.includes('/vendor/')) { e.respondWith(hit().then((r) => r || net())); return; }
+  // Con cobertura muy débil la red puede tardar muchísimo en contestar: a los 4 s sale de la caché lo que haya (la
+  // petición sigue y renueva la caché para la próxima vez). Después de eso, durante 30 s, la caché va primero para
+  // que el resto de ficheros de la página no espere otros 4 s cada uno.
+  const fromNet = net();
+  const wait = Date.now() - slowAt < 30e3 ? 0 : 4000;
+  const slow = new Promise((ok) => setTimeout(ok, wait)).then(hit).then((r) => { if (r && wait) slowAt = Date.now(); return r || fromNet; });
+  e.waitUntil(fromNet.catch(() => {}));
+  e.respondWith(Promise.race([fromNet.catch(hit), slow]).then((r) => r || Response.error(), () => hit().then((r) => r || Response.error())));
 });
 
 self.addEventListener('push', (e) => {
