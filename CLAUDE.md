@@ -348,6 +348,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `#ajustes` con un índice de secciones arriba y una tarjeta por tema (`.aj-card`, mismos ids de siempre). Con 3 botones, por
   debajo de 440 px los botones de la cabecera miden 40 px y el título va en una línea. "Añadir un partido a mano" solo en Cobros y
   Mis partidos. Ayuda: `docs/ayuda.html` (preguntas frecuentes en castellano y catalán, como las legales) y contacto.
+- Issue #52: el icono es un engranaje de 8 dientes (el de antes parecía el de brillo). El logo y el nombre (cabecera grande y
+  compacta, `[data-home]`) llevan al inicio (`goHome`): cierran hojas y paneles y van a la vista con la que se abre la app
+  (`liq-vista`); si ya estás, scroll arriba. Cada cambio de vista es una entrada del historial (`history.state.vista`, en
+  `render()`) y `popstate` vuelve a la anterior: el botón Atrás del navegador y del Android recorre las vistas.
 
 ## Cabecera por pestaña (21-oct-2026)
 
