@@ -1,7 +1,8 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 import { decrypt, encrypt } from "./crypto.ts";
 import { fetchDesignaciones, IsquadAuthError, ScrapedMatch, venueLabel, WithStaff } from "./isquad.ts";
-import { cap, Msg, sendToUser, shortDate } from "./push.ts";
+import { sendToUser } from "./push.ts";
+import type { Aviso, Textos } from "./textos.ts";
 import { checkResultados } from "./resultados.ts";
 
 export const admin = (): SupabaseClient =>
@@ -373,7 +374,8 @@ export const background = (p: Promise<unknown>) => { const rt = (globalThis as a
 // reconoce por el código base, los equipos y la competición (el mismo día puede haber cadete y juvenil con el mismo código): sin aviso de nueva ni de anulada, y lo puesto a mano pasa a la fila nueva.
 export type Prev = { id: string; date: string; time: string; venue: string; comp: string; teams: string; role: string; staff_checked: string | null; estado?: string;
   missing_since?: string | null };
-type Change = Msg & { key: string };
+// Cada cambio con su clave de push_log y el texto en el idioma de quien lo recibe.
+type Change = { key: string; tag: string; url: string; aviso: (t: Textos) => Aviso };
 const MANUAL = ["paid", "not_received", "km_override", "dieta_override", "tolls", "holiday", "no_dieta"] as const;
 async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], now: WithStaff[]) {
   const { msgs, missing, gone, renamed } = designChanges(prev, now);
@@ -394,16 +396,13 @@ async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], n
     { onConflict: "user_id,key", ignoreDuplicates: true }).select("key");
   const ok = new Set((fresh || []).map((r) => r.key));
   const send = msgs.filter((m) => ok.has(m.key));
-  for (const { key: _k, ...msg } of send.slice(0, 5)) await sendToUser(db, userId, msg);
+  for (const m of send.slice(0, 5)) await sendToUser(db, userId, (t) => ({ ...m.aviso(t), tag: m.tag, url: m.url }));
   return send.length;
 }
 export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[]; missing: string[]; gone: string[]; renamed: { from: string; to: string }[] } {
   const today = new Date().toISOString().slice(0, 10);
   const before = new Map(prev.map((m) => [m.id, m]));
   const after = new Map(now.filter((m) => m.date >= today).map((m) => [m.id, m]));
-  const vs = (t: string) => cap(t).replace(/ vs /i, " – ");
-  const role = (r?: string) => ({ r1: "R1", r2: "R2", an: "Anotador", jl: "Juez de línea" } as Record<string, string>)[r || ""] || "";
-  const line = (m: { date: string; time: string; teams: string; venue: string }) => `${shortDate(m.date)} · ${m.time}`;
   const base = (id: string) => id.split("@")[0];
   const msgs: Change[] = [], missing: string[] = [], gone: string[] = [], renamed: { from: string; to: string }[] = [];
   const vanished = [...before.values()].filter((p) => !after.has(p.id) && p.date >= today);
@@ -416,14 +415,13 @@ export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[];
       if (p) { used.add(p.id); renamed.push({ from: p.id, to: id }); }
     }
     if (!p) {
-      msgs.push({ key: `nueva:${id}`, title: `Nueva designación · ${line(m)}`, body: `${vs(m.teams)}${m.staff ? ` · ${role(m.staff.role)}` : ""} · ${cap(m.venue)}`, tag: `desig-${id}`, url: "./?vista=agenda" });
+      msgs.push({ key: `nueva:${id}`, aviso: (t) => t.nueva(m, m.staff?.role), tag: `desig-${id}`, url: "./?vista=agenda" });
     } else if (p.date !== m.date || p.time !== m.time || p.venue !== m.venue) {
-      const what = p.date !== m.date ? `antes ${shortDate(p.date)} ${p.time}` : p.time !== m.time ? `antes a las ${p.time}` : `antes en ${cap(p.venue)}`;
-      msgs.push({ key: `cambio:${id}:${m.date}|${m.time}|${m.venue}`, title: `Cambio en tu designación · ${line(m)}`, body: `${vs(m.teams)} · ${cap(m.venue)} (${what})`, tag: `desig-${id}`, url: "./?vista=agenda" });
+      const before = p;
+      msgs.push({ key: `cambio:${id}:${m.date}|${m.time}|${m.venue}`, aviso: (t) => t.cambio(m, before), tag: `desig-${id}`, url: "./?vista=agenda" });
     }
     if (p && m.estado !== p.estado && /SUSPEND|APLAZ|ANULA/.test(m.estado || "")) {
-      const est = (m.estado || "").toLowerCase();
-      msgs.push({ key: `estado:${id}:${m.estado}`, title: `Partido ${est} · ${line(m)}`, body: `${vs(m.teams)}: iSquad lo marca como ${est}. Sigue en tu lista.`, tag: `desig-${id}`, url: "./?vista=agenda" });
+      msgs.push({ key: `estado:${id}:${m.estado}`, aviso: (t) => t.estadoDesig(m, m.estado || ""), tag: `desig-${id}`, url: "./?vista=agenda" });
     }
   }
   // Quitadas: solo si iSquad ha devuelto la temporada (si viniera vacía por un fallo, no se avisa de nada).
@@ -431,7 +429,7 @@ export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[];
     if (used.has(p.id)) continue;
     if (!p.missing_since) { missing.push(p.id); continue; }
     gone.push(p.id);
-    msgs.push({ key: `quitada:${p.id}:${p.missing_since}`, title: `Ya no estás designado · ${line(p)}`, body: `${vs(p.teams)}: ya no sale en tus designaciones de iSquad. Lo he quitado de tus partidos.`, tag: `desig-${p.id}`, url: "./?vista=agenda" });
+    msgs.push({ key: `quitada:${p.id}:${p.missing_since}`, aviso: (t) => t.quitada(p), tag: `desig-${p.id}`, url: "./?vista=agenda" });
   }
   return { msgs, missing, gone, renamed };
 }

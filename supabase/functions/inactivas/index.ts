@@ -1,7 +1,7 @@
 // Cuentas sin usar (política de privacidad, 22-oct-2026): a los 6 meses sin abrir la app se borran con todos sus datos;
 // 30 días antes, un aviso a quien tiene notificaciones (una vez). Cron diario "inactivas" (cron.sql).
 import { admin, borrarCuenta, cors, json } from "../_shared/sync.ts";
-import { sendToUser, shortDate } from "../_shared/push.ts";
+import { sendToUser } from "../_shared/push.ts";
 
 const MESES = 6, AVISO_DIAS = 30;
 const masMeses = (iso: string, n: number) => { const d = new Date(iso); d.setUTCMonth(d.getUTCMonth() + n); return d; };
@@ -26,8 +26,7 @@ Deno.serve(async (req) => {
     const { data: done } = await db.from("pub_cache").select("key").eq("key", key).maybeSingle();
     if (done) continue;
     const fin = masMeses(p.last_active, MESES).toISOString().slice(0, 10);
-    const r = await sendToUser(db, p.user_id, { title: "Tu cuenta de EnXarxa se borrará pronto",
-      body: `Hace casi 6 meses que no abres la app. Si no entras antes del ${shortDate(fin)}, se borrará con todos tus datos.`, tag: "inactiva", url: "./" });
+    const r = await sendToUser(db, p.user_id, (t) => ({ ...t.inactiva(fin), tag: "inactiva", url: "./" }));
     await db.from("pub_cache").upsert({ key, data: { enviados: r.ok }, fetched_at: now.toISOString() });
     if (r.ok) avisadas++;
   }

@@ -8,27 +8,26 @@
 //    fecha u hora y suspendidos, comparando el calendario de la API pública con la foto anterior (pub_cache "snap:").
 import { admin, cors, json } from "../_shared/sync.ts";
 import { huellaFicha, idArbitro, teamMatches, type PartidoEquipo } from "../_shared/publico.ts";
-import { cap, madridNow, type Msg, sendToUser, shortDate } from "../_shared/push.ts";
+import { cap, madridNow, type MsgFn, sendToUser } from "../_shared/push.ts";
 import { dietasDelDia } from "../_shared/dieta.ts";
 
 type Snap = Pick<PartidoEquipo, "id" | "d" | "t" | "conf" | "est">;
 
-export function teamChanges(prev: Snap[], now: PartidoEquipo[]): Msg[] {
-  const today = new Date().toISOString().slice(0, 10), before = new Map(prev.map((m) => [m.id, m])), out: Msg[] = [];
+export function teamChanges(prev: Snap[], now: PartidoEquipo[]): MsgFn[] {
+  const today = new Date().toISOString().slice(0, 10), before = new Map(prev.map((m) => [m.id, m])), out: MsgFn[] = [];
   const hora = (m: Snap) => (m.t && m.conf ? m.t : "");
   for (const m of now) {
     const p = before.get(m.id);
     if (!p || m.d < today) continue;
     const vs = `${cap(m.l)} – ${cap(m.v)}`, base = { tag: `eq-${m.id}`, url: "./?vista=agenda" };
-    if (/SUSPEN|APLAZ/i.test(m.est) && m.est !== p.est) out.push({ ...base, title: `Partido ${m.est.toLowerCase()} · ${shortDate(m.d)}`, body: vs });
-    else if (!hora(p) && hora(m)) out.push({ ...base, title: `Ya hay horario · ${shortDate(m.d)} a las ${m.t}`, body: vs });
-    else if (hora(m) && (p.d !== m.d || hora(p) !== hora(m))) out.push({ ...base, title: `Cambio de horario · ${shortDate(m.d)} a las ${m.t}`, body: `${vs} (antes ${shortDate(p.d)}${hora(p) ? " a las " + hora(p) : ""})` });
-    else if (!hora(m) && p.d !== m.d) out.push({ ...base, title: `Cambio de fecha · ${shortDate(m.d)}`, body: `${vs} (antes ${shortDate(p.d)}), hora por confirmar` });
+    if (/SUSPEN|APLAZ/i.test(m.est) && m.est !== p.est) out.push((t) => ({ ...base, ...t.eqEstado(vs, m.d, m.est) }));
+    else if (!hora(p) && hora(m)) out.push((t) => ({ ...base, ...t.eqHorario(vs, m.d, m.t) }));
+    else if (hora(m) && (p.d !== m.d || hora(p) !== hora(m))) out.push((t) => ({ ...base, ...t.eqCambioHorario(vs, m.d, m.t, p.d, hora(p)) }));
+    else if (!hora(m) && p.d !== m.d) out.push((t) => ({ ...base, ...t.eqCambioFecha(vs, m.d, p.d) }));
   }
   return out;
 }
 
-const eur = (v: number) => v.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 // deno-lint-ignore no-explicit-any
 async function avisoCobro(db: any, users: string[]) {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
@@ -47,14 +46,7 @@ async function avisoCobro(db: any, users: string[]) {
     const { data: done } = await db.from("pub_cache").select("key").eq("key", key).maybeSingle();
     if (done) continue;
     const dietas = dietasDelDia(list), total = dietas.reduce((a, d) => a + d.importe, 0), n = list.length;
-    const msg: Msg = {
-      title: "Pide el pago de hoy antes de mañana",
-      body: total > 0
-        ? `Te corresponde dieta: ${eur(total)} (${dietas.map((d) => d.franja).join(" y ")}). Ponla en la hoja de gastos de iSquad junto con el desplazamiento.`
-        : `Pide la tarifa y el desplazamiento de ${n === 1 ? "tu partido" : `tus ${n} partidos`} de hoy en la hoja de gastos de iSquad.`,
-      tag: `cobro-${today}`, url: "./?vista=cobros",
-    };
-    await sendToUser(db, u, msg);
+    await sendToUser(db, u, (t) => ({ ...t.cobro(total, dietas.map((d) => d.franja), n), tag: `cobro-${today}`, url: "./?vista=cobros" }));
     await db.from("pub_cache").upsert({ key, data: { total, n }, fetched_at: new Date().toISOString() });
     sent++;
   }
