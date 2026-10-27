@@ -11,6 +11,7 @@
 // Los ids salen de la tabla de designaciones (parseDesignaciones). Una vez encontrado, no se vuelve a pedir.
 import { PUB, seasonCode, teamMatches, UA, type Db } from "./publico.ts";
 import { sendToUser } from "./push.ts";
+import { todas } from "./db.ts";
 
 // Todos los partidos arbitrados tienen que acabar con los 2 estados: se miran los empezados hace más de 1 h, los de los
 // últimos DAYS días en cada pasada y los anteriores que aún falten, como mucho una vez cada OLD_EVERY (los que ya no se
@@ -122,11 +123,12 @@ export async function avisoResultados(db: Db, deadline: number) {
   const now = madridNow(), today = now.slice(0, 10), noon = Date.parse(`${today}T12:00:00Z`);
   const mon = new Date(noon - ((new Date(noon).getUTCDay() + 6) % 7) * 864e5).toISOString().slice(0, 10), key = `resultado:${mon}`;
   const pendientes = async (userId?: string) => {
-    let q = db.from("matches").select("user_id, id, date, time, teams, venue, comp, estado, role, staff_checked")
-      .not("id_partido", "is", null).is("res_l", null).gte("date", mon).lte("date", today);
-    if (userId) q = q.eq("user_id", userId);
-    const { data } = await q;
-    return ((data || []) as Pend[]).filter((m) => !/SELECCI/i.test(m.comp) && !ESTATAL.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "")
+    const data = await todas<Pend>(() => {
+      const q = db.from("matches").select("user_id, id, date, time, teams, venue, comp, estado, role, staff_checked")
+        .not("id_partido", "is", null).is("res_l", null).gte("date", mon).lte("date", today).order("user_id").order("id");
+      return userId ? q.eq("user_id", userId) : q;
+    });
+    return data.filter((m) => !/SELECCI/i.test(m.comp) && !ESTATAL.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "")
       && now >= plusMin(m.date, m.time || "00:00", 150)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   };
   const users = [...new Set((await pendientes()).map((m) => m.user_id))];

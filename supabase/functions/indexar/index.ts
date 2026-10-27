@@ -4,6 +4,7 @@
 // 2) plantillas sin revisar o caducadas (14 días) → huellas de cada persona a roster_idx.
 // De cada persona solo se guarda la huella (HMAC con ROSTER_SALT) de su foto de afiliado y de su nombre, y su perfil.
 import { admin, cors, json } from "../_shared/sync.ts";
+import { todas } from "../_shared/db.ts";
 import { clubs, clubTeams, huella, nameKey, roster } from "../_shared/publico.ts";
 
 const PAGES_PER_RUN = 120;
@@ -19,7 +20,7 @@ Deno.serve(async (req) => {
 
   // 1) Clubs que el índice no ha repasado en 14 días (marca "idx:<id>" en pub_cache).
   const cl = await clubs(db);
-  const { data: marks } = await db.from("pub_cache").select("key, fetched_at").like("key", "idx:%");
+  const marks = await todas<{ key: string; fetched_at: string }>(() => db.from("pub_cache").select("key, fetched_at").like("key", "idx:%").order("key"));
   const seen = new Map((marks || []).map((c: { key: string; fetched_at: string }) => [c.key.slice(4), new Date(c.fetched_at).getTime()]));
   const staleClubs = cl.filter((c) => !seen.has(c.id) || Date.now() - seen.get(c.id)! > STALE);
   for (const c of staleClubs) {

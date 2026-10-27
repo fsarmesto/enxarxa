@@ -4,6 +4,7 @@
 //   mismo día van al mismo pabellón o a la misma población. Solo se ve entre quienes lo tienen activado, y solo
 //   nombre, hora, pabellón y población de salida.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
+import { porIds } from "../_shared/db.ts";
 
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 const town = (addr: string) => norm(addr).match(/\b\d{5}\s+([^,]+)/)?.[1]?.trim() || "";
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
   const { data: mine } = await db.from("matches").select(cols).eq("user_id", user.id).gte("date", today).lte("date", until);
   if (!mine?.length) return json({ ok: true, activo: true, sugerencias: {}, participantes: others.length + 1 });
   const dates = [...new Set((mine as M[]).map((m) => m.date))];
-  const { data: theirs } = await db.from("matches").select(cols).in("user_id", others.map((o) => o.user_id)).in("date", dates);
+  const theirs = await porIds<M>(others.map((o) => o.user_id), (g) => db.from("matches").select(cols).in("user_id", g).in("date", dates).order("user_id").order("id"));
   const who = new Map(others.map((o) => [o.user_id, o]));
   // Nombre "Nombre Apellido" tal como sale en sus designaciones (la cabecera de iSquad lo da al revés).
   const displayName = (m: M) => cap((m.crew || []).find((c) => c.me)?.n || who.get(m.user_id)?.nombre || "");

@@ -243,10 +243,13 @@ export function matchOfficials(db: Db, idPartido: string, jugado: boolean): Prom
 }
 
 // Páginas de árbitros de la web pública: llegan en windows-1252 y solo responden bien como petición AJAX.
-export async function getLatin(url: string) {
+// valeCon: una respuesta con error que se acepta igual si su texto lo cumple (iSquad da 500 con páginas válidas).
+export async function getLatin(url: string, valeCon?: RegExp) {
   const r = await fetch(url, { headers: { "User-Agent": UA, "X-Requested-With": "XMLHttpRequest" }, signal: AbortSignal.timeout(15_000) });
-  if (!r.ok) { await r.body?.cancel(); throw new Error(`iSquad ${r.status}`); }
-  return new TextDecoder("windows-1252").decode(await r.arrayBuffer());
+  if (!r.ok && !valeCon) { await r.body?.cancel(); throw new Error(`iSquad ${r.status}`); }
+  const s = new TextDecoder("windows-1252").decode(await r.arrayBuffer());
+  if (!r.ok && !valeCon!.test(s)) throw new Error(`iSquad ${r.status}`);
+  return s;
 }
 
 // Árbitros de la FCVB en la web pública (listado_arbitros.php, 1,6 MB): id de su ficha, nombre y foto de afiliado. 7 días.
@@ -277,7 +280,8 @@ export async function idArbitro(db: Db, nombre: string | null, foto: string | nu
 // Huella de la ficha pública "próximos partidos que arbitrará" (~2 KB, sin login): partido, fecha, hora, pabellón y
 // equipo arbitral. Si no cambia, en el área privada no hay nada nuevo que leer.
 export async function huellaFicha(id: string): Promise<string> {
-  const s = await getLatin(`${PUB}/partidos_arbitro.php?id_arbitro=${id}&id_superficie=1`);
+  // Sin designaciones próximas, iSquad responde "SIN PARTIDOS" con error 500 (visto el 27-oct-2026): es una ficha vacía.
+  const s = await getLatin(`${PUB}/partidos_arbitro.php?id_arbitro=${id}&id_superficie=1`, /SIN PARTIDOS/);
   const rows = (s.match(/<tr[\s\S]*?<\/tr>/g) || []).map((tr) => text(tr)).join("\n");
   const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rows));
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
