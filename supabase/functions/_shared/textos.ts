@@ -92,11 +92,12 @@ export function textos(l: Lang) {
         ? (es ? "Súbelos a iSquad antes de que la FCVB los revise el lunes." : "Puja'ls a iSquad abans que la FCVB els revisi dilluns.")
         : (es ? "Recuérdale al 1r árbitro que los suba a iSquad." : "Recorda-li al 1r àrbitre que els pugi a iSquad.")}`,
     }),
-    // Recordatorio del domingo (notify, 20:00): solo cobros; el resultado sin subir tiene su propio aviso (#31).
-    domingo: (): Aviso => ({
-      title: "Vòlei EnXarxa",
-      body: es ? "¡No te olvides de revisar tus cobros de dietas y kilometraje de la semana!"
-        : "No t'oblidis de revisar els cobraments de dietes i quilometratge de la setmana!",
+    // Recordatorio del domingo (notify, 20:00): solo cobros y solo si queda algo por pedir (n partidos de la semana); el
+    // resultado sin subir tiene su propio aviso (#31).
+    domingo: (n: number): Aviso => ({
+      title: es ? "Revisa tus cobros de la semana" : "Revisa els cobraments de la setmana",
+      body: es ? `${n === 1 ? "Te queda 1 partido" : `Te quedan ${n} partidos`} por pedir en iSquad: pide la tarifa, las dietas y el kilometraje.`
+        : `${n === 1 ? "Et queda 1 partit" : `Et queden ${n} partits`} per demanar a iSquad: demana la tarifa, les dietes i el quilometratge.`,
     }),
     prueba: (): Aviso => ({ title: es ? "Prueba · Vòlei EnXarxa" : "Prova · Vòlei EnXarxa", body: es ? "Así te llegarán los avisos." : "Així t'arribaran els avisos." }),
     // Cuenta sin usar (inactivas)

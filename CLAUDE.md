@@ -264,8 +264,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   web lo guarda en `started()`, también tras cambiar de idioma, que recarga). Sin dato, catalán (`LANG_DEFECTO`).
   **Regla: todo aviso nuevo va en el catálogo `_shared/textos.ts` con las 2 versiones**; se manda con
   `sendToUser(db, user, (t) => ({ ...t.algo(...), tag, url }))`, que elige el idioma (`langOf`). Fechas con `t.fecha`
-  ("sáb 24 oct" / "ds. 24 d’oct."). El recordatorio del domingo (20:00) queda solo para cobros; el resultado sin subir
-  tiene su propio aviso (#31). Probado con una suscripción de prueba de un Chrome local (nunca los dispositivos de
+  ("sáb 24 oct" / "ds. 24 d’oct."). El recordatorio del domingo (20:00) queda solo para cobros y **solo sale si queda algo por pedir**
+  (`avisoCobros` en `_shared/domingo.ts`: partidos de lunes a hoy sin pedir ni pagar, con importe o sin recibo, ni marcados
+  como cobrados; "Et queden 2 partits per demanar a iSquad…"; push_log `domingo:<lunes>`). El de resultados (21:00) igual:
+  solo si queda alguno. Decidido por Ferran el 27-oct: si todo está subido y pedido, ningún aviso. Probado con una suscripción de prueba de un Chrome local (nunca los dispositivos de
   Ferran): 28 de 28 avisos recibidos, uno de cada tipo en los 2 idiomas.
 
 ## Edad mínima y política aceptada (21-oct-2026)
@@ -474,7 +476,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   funcionan con la app añadida a la pantalla de inicio (iOS 16.4+) y abierta desde el icono.
 - Web Push: tabla `push_subs` (sin políticas: solo la función `notify` con service role). La web suscribe con
   `notify {action:"subscribe"}`, borra con `unsubscribe` y prueba con `test` (solo los dispositivos de ese árbitro).
-  El cron manda "¡No te olvides de revisar tus cobros de dietas y kilometraje de la semana!" (en el idioma de cada uno). Las
+  El cron manda, solo a quien le queda algún partido de la semana por pedir, "Te quedan N partidos por pedir en iSquad…" (en su idioma). Las
   suscripciones que devuelven 404/410 se borran solas. Forzar un envío a todos: `notify` con cron secret y `{"force":true}`.
 
 ## Km que paga la FCVB (aprendidos de los recibos)

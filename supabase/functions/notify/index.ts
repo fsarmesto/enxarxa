@@ -1,13 +1,14 @@
 // Notificaciones (Web Push).
-// - Cron (x-cron-secret): recordatorio del domingo a las 20:00 de Madrid a los árbitros suscritos, en su idioma. El cron se lanza a
-//   las 18 y a las 19 UTC (horario de verano e invierno) y aquí solo se envía si en Madrid son las 20.
-//   Con {force:true} se envía ya (para probar). Con {tipo:"resultados"}: aviso de resultados sin subir de la semana, el
-//   domingo a las 21:00 (cron a las 19 y 20 UTC; ver avisoResultados).
+// - Cron (x-cron-secret): recordatorio de cobros del domingo a las 20:00 de Madrid, solo a quien le queda algo por pedir
+//   (avisoCobros). El cron se lanza a las 18 y a las 19 UTC (horario de verano e invierno) y aquí solo se envía si en
+//   Madrid son las 20. Con {force:true} se envía ya. Con {tipo:"resultados"}: aviso de resultados sin subir de la semana,
+//   el domingo a las 21:00, solo a quien le queda alguno (cron a las 19 y 20 UTC; ver avisoResultados).
 // - Con la sesión del árbitro: {action:"subscribe", sub}, {action:"unsubscribe", endpoint}, {action:"test"}.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
-import { langOf, madridNow, send, Sub } from "../_shared/push.ts";
-import { lang, textos } from "../_shared/textos.ts";
+import { langOf, madridNow, send } from "../_shared/push.ts";
+import { textos } from "../_shared/textos.ts";
 import { avisoResultados } from "../_shared/resultados.ts";
+import { avisoCobros } from "../_shared/domingo.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -25,18 +26,8 @@ Deno.serve(async (req) => {
       return json({ resultados: await avisoResultados(db, deadline), madrid: now });
     }
     if (!body.force && !(now.weekday === "Sun" && now.hour === 20)) return json({ skipped: true, madrid: now });
-    // Solo árbitros: el recordatorio es de revisar cobros. Cada uno en su idioma (profiles.lang).
-    const { data: ps } = await db.from("profiles").select("user_id, tipo, lang");
-    const info = new Map((ps || []).map((p: { user_id: string; tipo: string; lang: string | null }) => [p.user_id, p]));
-    const porIdioma = { es: [] as Sub[], ca: [] as Sub[] };
-    for (let from = 0; ; from += 1000) {
-      const { data } = await db.from("push_subs").select("endpoint, p256dh, auth, user_id").range(from, from + 999);
-      for (const s of data || []) { const p = info.get(s.user_id); if (p && p.tipo !== "deportista") porIdioma[lang(p.lang)].push(s); }
-      if (!data || data.length < 1000) break;
-    }
-    const sent = Object.fromEntries(await Promise.all((["es", "ca"] as const).map(async (l) =>
-      [l, porIdioma[l].length ? await send(db, porIdioma[l], { ...textos(l).domingo(), tag: "domingo" }) : null])));
-    return json({ sent, madrid: now });
+    // Solo a los árbitros a los que les queda algún partido de la semana por pedir, en su idioma (avisoCobros).
+    return json({ cobros: await avisoCobros(db), madrid: now });
   }
 
   const user = await userFromRequest(db, req);

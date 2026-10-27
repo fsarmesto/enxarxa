@@ -2484,7 +2484,7 @@ function avisos(){
   }
   // Los de resultado sin subir, cobro y resultados de equipos ya salen arriba o abajo calculados aquí.
   for(const x of AV_LOG){
-    if(/^(eqr-|resultado-|cobro-|prueba)/.test(x.msg?.tag||'')) continue;
+    if(/^(eqr-|resultado-|cobro-|domingo|prueba)/.test(x.msg?.tag||'')) continue;
     const mid=x.key.split(':')[1];
     out.push({id:'log:'+x.key, log:true, ic:'🔔', t:x.msg.title||'', s:x.msg.body||'',
       go: MATCHES.some(m=>m.id===mid) ? {match:mid} : {view:((x.msg.url||'').match(/vista=(\w+)/)||[])[1]||'agenda'}});
