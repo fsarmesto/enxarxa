@@ -56,7 +56,7 @@ rama `claude/...` con PR. Reglas para esos trabajos:
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…027). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…028). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
@@ -474,6 +474,14 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   (los antiguos y los de Matrix); los manuales no se tocan. Caché de rutas con prefijo `c:` (sin prefijo = antiguas, rápidas).
 - Caché compartida entre árbitros: `geo_cache` (también "no encontrado", 7 días) y `route_cache`.
   Coordenadas del origen en `profiles.origin_lon/lat` (un trigger las borra si cambia `origin`).
+- Tiempo de trayecto (issue #29, 27-oct-2026): `venues.min` = minutos de ida en coche desde la población de origen, sin
+  tráfico (migración 028). Sale de la misma consulta que los km: en la ruta suelta, la duración de la más rápida de las
+  alternativas (la que tomaría Maps), aunque los km sean los de la más corta; en Matrix, `metrics: distance, duration`.
+  `route_cache.min` la comparte. Paso 5 de `fillKm`: los pabellones con km y sin minutos (antiguos, km a mano, tras
+  cambiar de población), una consulta a Matrix por pasada (49 como mucho). **Decidido: los km a mano no cambian la
+  duración** (es la calculada). Al cambiar de población, el trigger vacía `min`. Web: `tripHtml` ("≈ 35 min", "≈ 1 h 10
+  min") junto a "Cómo llegar" en Mis partidos y en la línea del pabellón en Cobros; title "Tiempo aproximado en coche
+  desde [origen], sin tráfico". Sin población o sin dato, nada. 27-oct: 41 de 41 pabellones de Ferran con duración.
 - Un solo cálculo a la vez (fila `km_lock`). Errores del servicio no cuentan como intento; lo no encontrado se
   reintenta a la semana (`venues.km_tried_at`).
 

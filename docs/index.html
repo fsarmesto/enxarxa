@@ -471,6 +471,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .crew span.me b{color:#000}
 .where{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:14px}
 .where .addr{color:var(--ink-2);font-size:13px}
+.trip{color:var(--ink-2);font-size:13px;white-space:nowrap}
 .where a.map{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:5px 12px;color:var(--ink);text-decoration:none;white-space:nowrap}
 .ag .meta{font-size:13px;color:var(--ink-3);margin-top:6px}
 @media (max-width:560px){ .ag{grid-template-columns:1fr} .ag .t{font-size:24px} }
@@ -1557,7 +1558,7 @@ function cardHtml(m,r,km,gone,manual){
   const editor = edit ? `<div class="mc-edit"><label>Km (solo ida)<input type="number" step="1" data-f="km" data-id="${id}" value="${km||''}" placeholder="?"></label>${r.fcvb&&fcvbFixed(m)?'<p class="small muted">Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.</p>':''}<label>Peajes<input type="number" step="0.05" data-f="tolls" data-id="${id}" value="${+m.tolls||''}" placeholder="0"></label>${r.fcvb?'':`<label>Dieta<input type="number" step="0.5" min="0" data-f="dieta" data-id="${id}" value="${r.dieta||''}" placeholder="0">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${id}">automática (${eur(r.dietaAuto)})</button>`:''}</label>`}<p class="small muted">Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.</p></div>` : '';
   const pay = `<span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${paid}">Cobrado</button></span>`;
   return `<details class="mc${paid?' paid':''}" data-mc="${id}"${open?' open':''}><summary aria-expanded="${open}">
-    <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}</div>${pubTags(m)}</div>
+    <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}${tripHtml(m, ' · ')}</div>${pubTags(m)}</div>
     <div class="mc-r"><b>${eur(r.total)}</b>${paid?'<span class="tag ok">cobrado</span>':'<span class="tag pend">pendiente</span>'}</div>${chevHtml(open)}</summary>
     <div class="mc-more"><div class="mc-role">${[m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad', m.staff_checked&&m.team!=='t1'&&m.role!=='jl'&&TEAM_OPTS[m.team], esc(CATS[catOf(m)].label), (isHoliday(m.date)||m.holiday)&&'festivo'].filter(Boolean).map(x=>`<span>${x}</span>`).join(' · ')}</div>
     <dl class="mc-dl">${rows}</dl>
@@ -1619,7 +1620,7 @@ function render(){
     let html='';
         html+=`<tr class="${isPaid(m)?'paid':''}">
           <td class="time">${esc(m.time)}</td>
-          <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div>${pubTags(m)}<div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}</div></td>
+          <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div>${pubTags(m)}<div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}${tripHtml(m, ' · ')}</div></td>
           <td class="ctrl"><div class="desig"><strong>${m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad'}</strong>${m.staff_checked&&m.team!=='t1'&&m.role!=='jl'?' · '+TEAM_OPTS[m.team]:''}<br>${esc(CATS[catOf(m)].label)}${isHoliday(m.date)||m.holiday?' · festivo':''}</div>
             <label class="chk small">km <input type="number" step="1" data-f="km" data-id="${esc(m.id)}" value="${km||''}" placeholder="?" title="Km solo ida. Cambia el valor del pabellón para todos sus partidos."></label></td>
           <td class="n" data-l="Tarifa">${eur(r.tariff)}${r.fcvb||r.fcvbTarifa?`<span class="shared" title="Importes de la FCVB (recibos de iSquad)">FCVB</span>`:''}${r.fcvb&&Math.abs(r.est.tariff-r.tariff)>0.009?`<span class="shared" title="La app calculaba ${eur(r.est.tariff)}">app ${eur(r.est.tariff)}</span>`:''}</td>
@@ -2138,6 +2139,14 @@ function venueDest(m){
   if(name.length>3 && !/^PISTA\b/.test(norm(name))) return [capName(name), town?capName(town):''].filter(Boolean).join(', ');
   return m.addr||m.venue;
 }
+// Tiempo de trayecto en coche (issue #29): minutos de ida desde la población de origen, sin tráfico (venues.min, de la
+// misma ruta de ORS que los km). Sin población o sin dato, nada.
+function tripHtml(m, sep=''){
+  const n = VENUES[m.venue_key]?.min; if(n==null || !P?.origin) return '';
+  const txt = n<60 ? `≈ ${n} min` : `≈ ${Math.floor(n/60)} h${n%60?` ${n%60} min`:''}`;
+  const t = `Tiempo aproximado en coche desde ${capName(P.origin)}, sin tráfico`;
+  return `<span class="trip" title="${esc(t)}" aria-label="${esc(t)}: ${txt}">${sep}${txt}</span>`;
+}
 function mapLink(dest, dir){
   const q = encodeURIComponent(dest);
   const web = dir ? `https://www.google.com/maps/dir/?api=1&destination=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
@@ -2240,7 +2249,7 @@ function renderAgenda(allMs,res){
       const est = m.estado && !/FINALIZ/.test(m.estado) ? ` · ${esc(m.estado.toLowerCase())}` : '';
       const clashArb = (clashes.get(m.id)||[]).length ? `<div class="clash">⚠ Ese día ${(clashes.get(m.id)).map(x=>`${rolKind(x.f.rol)[1].toLowerCase()} con ${esc(capName(x.f.team))}${x.m.t?' a las '+x.m.t+(x.m.conf?'':' (sin confirmar)'):' (sin horario)'}`).join(' y ')}</div>` : '';
       const more = `${crew}
-        <div class="where"><div><strong>${esc(venue)}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?mapLink(venueDest(m), true):''}</div>
+        <div class="where"><div><strong>${esc(venue)}</strong><div class="addr">${esc(niceAddr(m.addr))}</div></div>${m.addr||m.venue?mapLink(venueDest(m), true):''}${tripHtml(m)}</div>
         <div class="full">${esc(capName(m.comp))}${est}${km?` · ${km} km`:''}${r?` · ${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}${actaLink(m)}</div>`;
       html+=`<details class="agc arb" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary aria-expanded="${AGC_OPEN.has(id)}">
         <div class="tm">${esc(m.time)}</div>
