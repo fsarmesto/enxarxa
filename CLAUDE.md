@@ -199,7 +199,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   ~15 s; el índice completo, en unas 15 pasadas) y guarda por persona la huella HMAC de foto y nombre, el perfil y si
   tenía foto. En `equipos mis` se cruzan: por foto siempre; por nombre solo si esa persona no tiene foto (si tiene
   otra, es un homónimo). Comprobado 21-oct: 11 de 14 árbitros encontrados, todos por foto. Los añade como `auto`; si
-  el árbitro los quita quedan `oculto` y no vuelven.
+  el árbitro los quita quedan `oculto` y no vuelven. **En la interfaz no se dice que se le ha encontrado por la foto**
+  (Ferran, 27-oct-2026: queda raro): los equipos simplemente aparecen. Solo lo explican la política de privacidad y el aviso
+  al entrar como jugador (información obligatoria).
 - Web: pestaña "Equipos" y, en "Mis partidos", los partidos de los equipos con aviso de choque con un arbitraje
   (mismo día a menos de 2 h 30 min, o mismo día con la hora por confirmar).
 - Calendario completo con resultados: API del buscador público `voleibol.isquad.es/json/api/call.php/resultados/
