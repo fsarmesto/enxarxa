@@ -337,6 +337,13 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Flecha de desplegar (alertas, tarjetas de Mis partidos, calendarios de Equipos): `chevHtml`, botón de 44 px con
   chevron SVG que gira, `aria-expanded` en el summary y texto oculto "Mostrar/Ocultar el detalle".
 
+## Ajustes como pestaña (27-oct-2026)
+
+- Ajustes ya no es un desplegable al final de la página: es la 5ª pestaña (`VIEW='ajustes'`, `?vista=ajustes`, engranaje),
+  `#ajustes` con un índice de secciones arriba y una tarjeta por tema (`.aj-card`, mismos ids de siempre). Con 5 pestañas,
+  en el móvil la letra baja a 12 px y el texto puede partirse en 2 líneas. "Añadir un partido a mano" solo en Cobros y
+  Mis partidos. Ayuda: `docs/ayuda.html` (preguntas frecuentes en castellano y catalán, como las legales) y contacto.
+
 ## Cabecera por pestaña (21-oct-2026)
 
 - Cabecera ligera (issue #15): título, "App no oficial" y "Actualizado: …" (`#updTxt`) debajo, y el botón de icono
