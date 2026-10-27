@@ -543,6 +543,15 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   Toda consulta nueva que lea de varios usuarios, con ellas.
 - En filtros `in(...)` la barra invertida se toma como escape: con claves de pabellón usar `eq` uno a uno.
 
+## Pruebas automáticas (27-oct-2026)
+
+- `.github/workflows/pruebas.yml` en cada PR y en main (solo lectura, sin secretos, acciones fijadas a un commit):
+  `deno check` de las funciones, `deno test -A supabase/functions/_shared/` (`avisos_test.ts`: textos de todos los avisos en
+  los 2 idiomas, paginación, avisos del domingo con base de datos simulada y claves VAPID de prueba), que `docs/i18n-ca.js`
+  esté regenerado, y en Chrome sin ventana `tools/prueba-calculadora-37.mjs` y `.github/capturas/prueba-sin-conexion-30.mjs`
+  (sale con código 1 si falla alguna comprobación). No fusionar un PR con las pruebas en rojo.
+- Al añadir un aviso nuevo, añadirlo también a `todos()` de `avisos_test.ts`.
+
 ## Probar sin tocar producción
 
 Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script>` de supabase-js por un
