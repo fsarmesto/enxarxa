@@ -133,6 +133,18 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   viernes 18:00, sábado 15:00, domingo 19:00, festivo del 12-oct y Alevín), la calculadora rellenada con ese partido da lo
   mismo que `compute()`. Pasarla si se toca el cálculo.
 
+## Cobros en escritorio ancho (issue #55, 28-oct-2026)
+
+- Solo desde 1024 px (`DESK_Q`); entre 721 y 1023 px sigue la tabla de antes y el móvil, las tarjetas. Cobros mide como mucho 1080 px.
+- Lista de semanas en columnas (Semana · Partidos · Estado · Total · flecha) con una cabecera encima (`.wk-cols`), separadores
+  finos y la flecha sin cuadrado; esta semana con una raya amarilla a la izquierda. Estado: "Pendiente" (etiqueta roja suave),
+  "✓ Cobrada" (gris) o "Por jugar". Al abrir una semana, una tabla (`deskRow`): fecha, partido, rol (por debajo de 1200 px va
+  dentro de la celda del partido), tarifa, dieta, desplazamiento, peajes, IRPF, neto, estado y "⋯" (`MC_EDIT`), que abre una fila
+  debajo con Marcar cobrado, ¿Cómo se calcula?, quitar, el aviso de plazo y km/peajes/dieta (`editorHtml`, el mismo de la tarjeta).
+- Panel lateral fijo (`cobAside`): total de la temporada, barra de lo cobrado, cobrado/pendiente/partidos, botón "Cómo calcular ·
+  Calculadora de dietas" (el mismo texto en el móvil) y "+ Añadir partido a mano", que enseña el formulario (oculto en escritorio
+  ancho; `body.man-open`).
+
 ## Importes de la FCVB (mandan sobre el cálculo)
 
 - Login: iSquad alterna entre 2 pantallas. El 20-oct-2026 `loginarbitros.php` redirigía a `loginunico.php?area=arbitros`
