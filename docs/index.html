@@ -224,7 +224,70 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
 .tcard b{display:block;font-size:13px;margin-bottom:6px}
 .tcard div{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
 .calc-cta{margin:0 0 12px}
-.calc-cta button{font-weight:700;padding-left:0}
+.calc-cta button{font-weight:700;padding-left:0;display:flex;flex-direction:column;align-items:flex-start;text-align:left;line-height:1.2}
+.calc-cta button b{font-size:16px}
+.calc-cta button small{font-size:13px;font-weight:500;color:var(--ink-2)}
+/* ---------- Cobros en escritorio ancho (#55): lista en columnas y panel lateral. El móvil y las tabletas no cambian. ---------- */
+@media (min-width:1024px){
+  body[data-vista="cobros"] :is(#banner,#alerts,#ctrl,#fsum,#ledger,#manualPanel){max-width:1080px}
+  body[data-vista="cobros"]:not(.man-open) #manualPanel{display:none}
+  .cob-grid{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:28px;align-items:start}
+  .cob-list .wk-cols,.cob-list .week-head{display:grid;grid-template-columns:minmax(0,1fr) 96px 120px 112px 32px;align-items:center;gap:12px}
+  .cob-list .wk-cols{padding:0 8px 6px 12px;font-size:12px;font-weight:600;color:var(--ink-3);border-bottom:1px solid var(--line)}
+  .cob-list .wk-cols span:nth-child(4){text-align:right}
+  .cob-list .week{margin-bottom:0}
+  .cob-list .week.wk[open],.cob-list .week:not(.wk){margin-bottom:22px}
+  .cob-list .week.cur{border:0;border-radius:0;padding:0;background:none}
+  .cob-list .week-head{padding:10px 8px;border-bottom:1px solid var(--line);border-left:4px solid transparent}
+  .cob-list .week.cur .week-head{border-left-color:var(--yellow);background:var(--surface)}
+  .cob-list .week.cur .wk-lbl{padding:14px 0 4px 12px}
+  .cob-list .wk-sec{margin:34px 0 4px}
+  .cob-list .week.wk>summary{border-radius:0}
+  .cob-list .week.wk>summary:hover{background:var(--surface-2)}
+  .cob-list .week.wk>summary:focus-visible{outline:3px solid var(--focus,var(--ink));outline-offset:-3px}
+  .cob-list summary .chev{width:32px;height:32px;background:none;color:var(--ink-2)}
+  .wc-w{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.15;min-width:0}
+  .wc-n{font-size:13px;color:var(--ink-3)}
+  .wc-s .tag{margin-left:0}
+  .wst{font-size:13px;color:var(--ink-3);white-space:nowrap}
+  .wc-t{font-family:var(--display);font-weight:700;font-size:20px;text-align:right;white-space:nowrap}
+  .cob-list .wk-acts{margin:8px 0 2px 12px}
+  table.m.dk{min-width:0;font-size:13.5px}
+  table.m.dk td,table.m.dk th{padding:9px 6px}
+  table.m.dk .dt{white-space:nowrap;line-height:1.25}
+  table.m.dk .dt span{display:block;font-size:12.5px;color:var(--ink-3)}
+  table.m.dk .dt b{font-family:var(--display);font-size:17px}
+  table.m.dk .teams{font-weight:600;color:var(--ink);font-size:13.5px}
+  table.m.dk .venue,table.m.dk .rl{font-size:12.5px;color:var(--ink-2)}
+  table.m.dk .rl{display:none}
+  table.m.dk td small{display:block;font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+  table.m.dk .role{white-space:nowrap}
+  table.m.dk .pst .tag{margin-left:0;white-space:nowrap}
+  table.m.dk .acts{width:40px;text-align:right}
+  table.m.dk .dk-more-b{width:36px;height:36px;padding:0 0 6px;font-size:20px;font-weight:700;line-height:1;border-radius:6px;text-decoration:none;border-color:var(--line)}
+  table.m.dk .dk-more-b:hover,table.m.dk .dk-more-b[aria-expanded="true"]{border-color:var(--ink)}
+  table.m.dk tr.open td{border-bottom:0}
+  table.m.dk tr.edrow td{background:var(--surface);padding:10px 12px 14px}
+  .dk-more .dk-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+  .dk-more .mc-edit{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:flex-end;margin:8px 0 0;padding:0;border:0}
+  .dk-more .mc-edit label{flex:0 0 130px}
+  .dk-more .mc-edit input{font-size:14px;padding:6px 8px}
+  .dk-more .mc-edit p{flex-basis:100%;margin:0}
+  .cob-aside{position:sticky;top:16px;border:1px solid var(--line);border-radius:8px;padding:18px;background:var(--surface)}
+  .ca-l{font-size:12.5px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+  .ca-v{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.1;margin:2px 0 12px}
+  .ca-bar{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+  .ca-bar i{display:block;height:100%;background:var(--ink)}
+  .ca-pct{font-size:13px;color:var(--ink-2);margin:6px 0 12px}
+  .ca-dl{margin:0 0 16px;border-top:1px solid var(--line)}
+  .ca-dl>div{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .ca-dl dt{color:var(--ink-2)} .ca-dl dd{margin:0;font-weight:700}
+  .ca-dl .p dd{color:var(--pend-tag)}
+  .ca-calc{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 14px;text-align:left;line-height:1.2}
+  .ca-calc b{font-size:17px} .ca-calc small{font-size:12.5px;font-weight:500;opacity:.85}
+  .ca-man{width:100%;margin-top:10px}
+}
+@media (min-width:1024px) and (max-width:1199px){ table.m.dk .role{display:none} table.m.dk .rl{display:block} }
 .mc-acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 8px}
 .mc-acts .segb button{min-height:44px;padding:3px 14px}
 .mc-ed{display:inline-flex;align-items:center;gap:6px}
@@ -1620,6 +1683,53 @@ $('statLine').addEventListener('click', ()=>{
 // en dos columnas, km/peajes/dieta tras "Editar" y el estado como selector [Pendiente | Cobrado].
 const MOBILE_Q = matchMedia('(max-width:720px)');
 MOBILE_Q.addEventListener('change', ()=>{ if(VIEW==='cobros' && P) render(); });
+// Cobros en escritorio ancho (#55, desde 1024 px): una tabla por semana con los importes como texto. Lo que se toca
+// (cobrado, km, peajes, dieta, cómo se calcula, quitar) va en una fila debajo que abre "Más opciones" (MC_EDIT).
+const DESK_Q = matchMedia('(min-width:1024px)');
+DESK_Q.addEventListener('change', ()=>{ if(VIEW==='cobros' && P) render(); });
+function deskStTag(m){
+  if(isPaid(m)) return '<span class="wst">✓ Cobrado</span>';
+  const st=payState(m);
+  if(st==='solicitar') return '<span class="tag bad">Pide el pago</span>';
+  if(st==='perdido') return '<span class="tag bad">Plazo terminado</span>';
+  return m.date>today() ? '<span class="wst">Por jugar</span>' : '<span class="tag warn">Pendiente</span>';
+}
+function deskRow(m,r,km,gone,manual,cols){
+  const id=esc(m.id), open=MC_EDIT.has(m.id), paid=isPaid(m), sm=t=>t?`<small>${t}</small>`:'';
+  const warn = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && !/^(FINALIZADO|PENDIENTE)$/.test(m.estado) ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
+  const lbl=VENUES[m.venue_key]?.label, city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
+  const venue=(lbl||capName(m.venue))+(city&&!(lbl||'').includes('(')?' · '+capName(city[1]):'');
+  const kmNote = km ? `${km} km${r.kmSrc==='fcvb'?' · km FCVB':r.kmSrc==='min'?' · mínimo FCVB':r.kmSrc==='aprox'?' · km aprox.':''}` : '';
+  const role = m.staff_checked||manual ? ROLE_OPTS[m.role] : 'Rol por leer de iSquad';
+  const cat = esc(CATS[catOf(m)].label)+(isHoliday(m.date)||m.holiday?' · festivo':'');
+  const day = new Date(m.date+'T12:00:00').toLocaleDateString(LOC(),{weekday:'short',day:'numeric'});
+  const dieta = r.fcvb ? '<span class="muted" title="La FCVB da la dieta y el desplazamiento juntos">incl.</span>' : eur(r.dieta||0)+sm(m.dieta_override!=null?'a mano':(r.dietaShared&&r.dieta?'jornada':''));
+  const despl = r.fcvb ? eur(r.travel)+sm('gastos FCVB') : (r.travel?eur(r.travel):(km?'—':'<span class="tag warn">km?</span>'))+sm(kmNote);
+  let h = `<tr class="${paid?'paid':''}${open?' open':''}">
+    <td class="dt"><span>${esc(day)}</span><b>${esc(m.time)}</b></td>
+    <td class="match"><div class="teams">${esc(capName(m.teams).replace(/ Vs /,' vs '))}${warn}</div><div class="venue">${esc(shortComp(m.comp))} · ${esc(venue)}${tripHtml(m, ' · ')}</div><div class="rl">${role} · ${cat}</div>${pubTags(m)}</td>
+    <td class="role">${role}${sm(cat)}</td>
+    <td class="n">${eur(r.tariff)}${sm(r.fcvb||r.fcvbTarifa?'FCVB':'')}</td><td class="n">${dieta}</td><td class="n">${despl}</td><td class="n">${eur(+m.tolls||0)}</td>
+    ${+P.irpf?`<td class="n">${r.irpf?'−'+eur(r.irpf):'—'}</td>`:''}<td class="n total">${eur(r.total)}</td>
+    <td class="pst">${deskStTag(m)}</td>
+    <td class="acts"><button type="button" class="ghost dk-more-b" data-edit="${id}" aria-expanded="${open}" aria-label="Más opciones" title="Más opciones">⋯</button></td></tr>`;
+  if(open) h += `<tr class="edrow"><td colspan="${cols}"><div class="dk-more">
+    <div class="dk-acts"><button type="button" class="pay${paid?' is-paid':''}" data-pay="${id}" aria-pressed="${paid}">${paid?'✓ Cobrado':'Marcar cobrado'}</button><button type="button" class="ghost small" data-calc="${id}">¿Cómo se calcula?</button>${manual||gone?`<button type="button" class="ghost small danger" data-del="${id}">quitar</button>`:''}</div>
+    ${payTag(m)}${editorHtml(m,r,km)}</div></td></tr>`;
+  return h;
+}
+// Panel lateral fijo: lo cobrado y lo pendiente del periodo, el acceso a la calculadora y añadir un partido a mano.
+function cobAside(n, pend, paid){
+  const tot=pend+paid, pct = tot>0 ? Math.round(paid/tot*100) : 0;
+  return `<aside class="cob-aside" aria-label="Resumen de cobros">
+    <div class="ca-l">Total temporada ${seasonLabel(SEASON)}</div><div class="ca-v">${eur(tot)}</div>
+    <div class="ca-bar" aria-hidden="true"><i style="width:${pct}%"></i></div><div class="ca-pct"><span>${pct} %</span> <span>cobrado</span></div>
+    <dl class="ca-dl"><div><dt>Cobrado</dt><dd>${eur(paid)}</dd></div><div class="p"><dt>Pendiente</dt><dd>${eur(pend)}</dd></div><div><dt>Partidos</dt><dd>${n}</dd></div></dl>
+    <button type="button" class="primary ca-calc" data-calc=""><b>Cómo calcular</b><small>Calculadora de dietas</small></button>
+    <button type="button" class="ca-man" data-man="">+ Añadir partido a mano</button>
+  </aside>`;
+}
+
 const MC_OPEN=new Set(), MC_EDIT=new Set(), WK_OPEN=new Map();
 const PEN_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
 // Estado de acta y de resultado de cada partido arbitrado (issue #31): siempre los 2. Los lee el sync de la web pública
@@ -1648,6 +1758,11 @@ function pubTags(m){
     + (s.res.st==='Irregular' ? `<div class="pubw">⚠ <span>Resultado irregular:</span> ${s.res.sc}. <span>Al mejor de 5 solo valen 3-0, 3-1, 3-2 y al revés: revisa el resultado en iSquad.</span></div>` : '');
 }
 const actaLink = m => m.acta_url && /^https:\/\/voleibol\.isquad\.es\//.test(m.acta_url.replace(/^http:/,'https:')) ? ` · <a href="${esc(m.acta_url.replace(/^http:/,'https:'))}" target="_blank" rel="noopener">Ver el acta</a>` : '';
+// Km, peajes y dieta a mano de un partido (tarjeta del móvil y fila de escritorio ancho).
+function editorHtml(m,r,km){
+  const id=esc(m.id);
+  return `<div class="mc-edit"><label>Km (solo ida)<input type="number" step="1" data-f="km" data-id="${id}" value="${km||''}" placeholder="?"></label>${r.fcvb&&fcvbFixed(m)?'<p class="small muted">Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.</p>':''}<label>Peajes<input type="number" step="0.05" data-f="tolls" data-id="${id}" value="${+m.tolls||''}" placeholder="0"></label>${r.fcvb?'':`<label>Dieta<input type="number" step="0.5" min="0" data-f="dieta" data-id="${id}" value="${r.dieta||''}" placeholder="0">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${id}">automática (${eur(r.dietaAuto)})</button>`:''}</label>`}<p class="small muted">Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.</p></div>`;
+}
 function cardHtml(m,r,km,gone,manual){
   const id=esc(m.id), open=MC_OPEN.has(m.id), edit=MC_EDIT.has(m.id), paid=isPaid(m);
   const warn = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && !/^(FINALIZADO|PENDIENTE)$/.test(m.estado) ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
@@ -1660,7 +1775,7 @@ function cardHtml(m,r,km,gone,manual){
       : row('Dieta', eur(r.dieta||0), m.dieta_override!=null?'a mano':(r.dietaShared&&r.dieta?'jornada':'')) + row('Desplazamiento', r.travel?eur(r.travel):(km?'—':'<span class="tag warn">km?</span>'), kmNote))
     + row('Peajes', eur(+m.tolls||0)) + (+P.irpf ? row('IRPF', r.irpf?'−'+eur(r.irpf):'—') : '')
     + row(+P.irpf?'Neto':'Total', eur(r.total), '', ' tot');
-  const editor = edit ? `<div class="mc-edit"><label>Km (solo ida)<input type="number" step="1" data-f="km" data-id="${id}" value="${km||''}" placeholder="?"></label>${r.fcvb&&fcvbFixed(m)?'<p class="small muted">Este recibo ya está pedido en iSquad: sus gastos son los de la FCVB y los km no los cambian.</p>':''}<label>Peajes<input type="number" step="0.05" data-f="tolls" data-id="${id}" value="${+m.tolls||''}" placeholder="0"></label>${r.fcvb?'':`<label>Dieta<input type="number" step="0.5" min="0" data-f="dieta" data-id="${id}" value="${r.dieta||''}" placeholder="0">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${id}">automática (${eur(r.dietaAuto)})</button>`:''}</label>`}<p class="small muted">Los km son del pabellón: cambian todos sus partidos. Se guarda al salir de cada campo.</p></div>` : '';
+  const editor = edit ? editorHtml(m,r,km) : '';
   const pay = `<span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${paid}">Cobrado</button></span>`;
   return `<details class="mc${paid?' paid':''}" data-mc="${id}"${open?' open':''}><summary aria-expanded="${open}">
     <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}${tripHtml(m, ' · ')}</div>${pubTags(m)}</div>
@@ -1726,12 +1841,14 @@ function render(){
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
-  const syncT = P.last_sync ? new Date(P.last_sync).getTime() : 0, mobile=MOBILE_Q.matches;
+  const syncT = P.last_sync ? new Date(P.last_sync).getTime() : 0, mobile=MOBILE_Q.matches, desk=!mobile && DESK_Q.matches;
+  const dkCols = 10 + (+P.irpf?1:0);
   // Una fila de tabla (escritorio) o una tarjeta plegable (móvil) por partido.
   const matchHtml = m => {
     const r=res.get(m.id), km=kmFor(m), manual=m.id.startsWith('MAN-');
     const gone = !manual && syncT && new Date(m.last_seen).getTime() < syncT-120000;
     if(mobile) return cardHtml(m,r,km,gone,manual);
+    if(desk) return deskRow(m,r,km,gone,manual,dkCols);
     const tag = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && m.estado!=='FINALIZADO' ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
     const city = (m.addr||'').match(/\d{5}\s+([^,]+)/);
     let html='';
@@ -1761,8 +1878,22 @@ function render(){
     return body;
   };
   // Las semanas anteriores se abren solas si queda algún pago por pedir.
-  led.innerHTML = '<div class="calc-cta"><button type="button" class="ghost" data-calc="">¿Cómo se calculan? Calculadora de dietas y tarifas</button></div>'
-    + weeksHtml(shown, m=>m.date, {head, body, openPrev:(w,list)=>list.some(m=>payState(m)==='solicitar')});
+  const openPrev = (w,list)=>list.some(m=>payState(m)==='solicitar');
+  if(desk){
+    // Semana · Partidos · Estado · Total, en columnas alineadas con la cabecera de encima.
+    const dHead = (w, list, kind) => { const allPaid=list.every(isPaid), n=list.length;
+      const st = allPaid ? '<span class="wst">✓ Cobrada</span>' : list.some(m=>m.date<=today()) ? '<span class="tag warn">Pendiente</span>' : '<span class="wst">Por jugar</span>';
+      return `<span class="wc-w">Semana ${weekRange(w)}</span><span class="wc-n">${n} partido${n===1?'':'s'}</span><span class="wc-s">${st}</span><span class="wc-t">${eur(list.reduce((s,m)=>s+res.get(m.id).total,0))}</span>${kind==='prev'?'':'<span class="wc-c" aria-hidden="true"></span>'}`; };
+    const dBody = (w, list) => { const allPaid=list.every(isPaid);
+      const rows=[...list].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(matchHtml).join('');
+      return `<div class="wk-acts"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button></div>
+        <div class="wrap"><table class="m dk"><thead><tr><th>Fecha</th><th>Partido</th><th class="role">Rol</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th>Estado</th><th><span class="sr">Acciones</span></th></tr></thead><tbody>${rows}</tbody></table></div>`; };
+    led.innerHTML = `<div class="cob-grid"><div class="cob-list"><div class="wk-cols" aria-hidden="true"><span>Semana</span><span>Partidos</span><span>Estado</span><span>Total</span><span></span></div>`
+      + weeksHtml(shown, m=>m.date, {head:dHead, body:dBody, openPrev}) + `</div>${cobAside(ms.length, pend, paid)}</div>`;
+    renderSettings(); return;
+  }
+  led.innerHTML = '<div class="calc-cta"><button type="button" class="ghost" data-calc=""><b>Cómo calcular</b><small>Calculadora de dietas</small></button></div>'
+    + weeksHtml(shown, m=>m.date, {head, body, openPrev});
   renderSettings();
 }
 function renderSettings(){
@@ -1952,6 +2083,8 @@ $('ledger').addEventListener('toggle', e=>{ const d=e.target;
 $('ledger').addEventListener('click', async e=>{
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.calc!=null){ openCalc(b.dataset.calc); return; }
+  // Escritorio ancho: "+ Añadir partido a mano" del panel lateral enseña y abre el formulario (sin él, oculto).
+  if(b.dataset.man!=null){ document.body.classList.add('man-open'); const p=$('manualPanel'); p.open=true; p.scrollIntoView({behavior:'smooth', block:'start'}); $('mDate').focus({preventScroll:true}); return; }
   if(b.dataset.dietaAuto){ patchMatch(b.dataset.dietaAuto,{dieta_override:null}); return; }
   if(b.dataset.pay){ const m=MATCHES.find(x=>x.id===b.dataset.pay); if(!m) return; const v=b.dataset.v ? b.dataset.v==='1' : !isPaid(m); if(isPaid(m)!==v) patchMatch(m.id,payPatch(m,v)); return; }
   if(b.dataset.edit){ const k=b.dataset.edit; MC_EDIT.has(k)?MC_EDIT.delete(k):MC_EDIT.add(k); render(); return; }
@@ -1969,6 +2102,7 @@ $('ledger').addEventListener('click', async e=>{
     if(res.some(x=>x.error)) toast('No se ha guardado el cambio. Revisa la conexión.');
   }
 });
+$('manualPanel').addEventListener('toggle', e=>{ if(!e.target.open) document.body.classList.remove('man-open'); });
 $('venueTable').addEventListener('change', e=>{ const k=e.target.dataset.venue; if(k!=null) setVenueKm(k, e.target.value===''?null:+e.target.value); });
 async function setIrpf(v){
   if(!(v>=0 && v<=50)){ toast('El IRPF tiene que estar entre 0 y 50 %'); renderSettings(); return; }
