@@ -899,7 +899,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
     <button type="button" class="ghost back aj-back" data-aj-back>← Volver</button>
     <h2 class="aj-t" tabindex="-1">Ajustes</h2>
     <nav class="aj-nav" aria-label="Secciones de Ajustes">
-      <a href="#aj-avisos">Notificaciones</a><a href="#aj-cal">Calendario</a><a href="#aj-idioma">Idioma</a><a class="arb-only" href="#aj-despl">Desplazamiento</a><a class="arb-only" href="#aj-irpf">IRPF</a><a class="arb-only" href="#aj-km">Km por pabellón</a><a class="arb-only" href="#aj-coche">Compartir coche</a><a href="#aj-ayuda">Ayuda</a><a href="#aj-cuenta">Tu cuenta</a>
+      <a href="#aj-avisos">Notificaciones</a><a href="#aj-cal">Calendario</a><a href="#aj-idioma">Idioma</a><a class="arb-only" href="#aj-despl">Desplazamiento</a><a class="arb-only" href="#aj-irpf">IRPF</a><a class="arb-only" href="#aj-km">Km por pabellón</a><a class="arb-only" href="#aj-coche">Compartir coche</a><a href="#aj-ayuda">Ayuda</a><a href="#aj-cuenta">Tu cuenta</a><a class="adm hidden" href="#desigPanel">Designaciones publicadas (FCVB)</a><a class="adm hidden" href="#saludPanel">Salud de la app</a>
     </nav>
     <section class="aj-card" id="aj-avisos" aria-labelledby="h-aj-avisos">
       <h3 id="h-aj-avisos">Notificaciones</h3>
@@ -2813,7 +2813,11 @@ async function loadAdmin(){
   if(GUEST) return;
   const r = await callFn('designadas',{action:'admin'}); if(!r.ok) return;
   $('desigPanel').classList.remove('hidden'); $('saludPanel').classList.remove('hidden');
+  document.querySelectorAll('.aj-nav .adm').forEach(a=>a.classList.remove('hidden'));
 }
+// Desde el índice de Ajustes, los paneles de admin se abren solos (y se cargan).
+document.querySelector('.aj-nav').addEventListener('click', e=>{
+  const a=e.target.closest('a.adm'); const d=a && document.querySelector(a.getAttribute('href')); if(d) d.open=true; });
 
 /* ---------- Designaciones publicadas (solo admins) ---------- */
 let DESIG=null, DESIG_BUSY=false;
