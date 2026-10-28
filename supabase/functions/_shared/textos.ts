@@ -106,6 +106,11 @@ export function textos(l: Lang) {
       body: es ? `Hace casi 6 meses que no abres la app. Si no entras antes del ${f(fin)}, se borrará con todos tus datos.`
         : `Fa gairebé 6 mesos que no obres l'app. Si no hi entres abans del ${f(fin)}, s'esborrarà amb totes les teves dades.`,
     }),
+    // A todos los árbitros (designadas), una vez por semana: la FCVB ha empezado a designar.
+    designan: (): Aviso => ({
+      title: es ? "Ep! Han empezado a designar" : "Ep! Han començat a designar",
+      body: es ? "A ver si toca algo interesante." : "A veure si toca alguna cosa interessant.",
+    }),
     // Admin (designadas)
     designaciones: (nuevas: string[]): Aviso => ({
       title: `${es ? "Han salido designaciones de" : "Han sortit designacions de"} ${nuevas.length === 1 ? nuevas[0] : `${nuevas.length} ${es ? "categorías" : "categories"}`}`,
