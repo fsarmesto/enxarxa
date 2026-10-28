@@ -907,6 +907,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <div class="row" id="pushBtns"></div>
       <p class="small muted">Con las notificaciones activadas te aviso al momento (se mira cada 10 minutos, de 7:00 a 24:00) de:</p>
       <ul class="small muted aj-ul"><li class="arb-only">designaciones nuevas, cambiadas o anuladas;</li><li>partidos de tus equipos (donde juegas o entrenas) cuando ya tienen horario, cambian de fecha u hora o se suspenden;</li><li>resultados de los partidos de tus equipos;</li><li class="arb-only">y los domingos, solo si queda algo pendiente: a las 20:00, los partidos por pedir, y a las 21:00, los resultados por subir.</li></ul>
+      <label class="chk small arb-only" style="display:flex;white-space:normal;margin:4px 0 12px"><input type="checkbox" id="avDesignan"> Avisarme cuando la FCVB empiece a designar cada semana</label>
       <p class="small muted">Todos salen también en la campana de Avisos, aunque no actives las notificaciones.</p>
       <p class="small muted">En el iPhone, primero añade la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde el icono.</p>
     </section>
@@ -1767,6 +1768,7 @@ function render(){
 function renderSettings(){
   renderCoche();
   $('origin').value=P.origin; $('rate').value=P.rate; $('minTravel').value=P.min_travel;
+  $('avDesignan').checked = P.aviso_designan!==false;
   const iv=String(+P.irpf||0), preset=[...$('irpf').options].some(o=>o.value===iv);
   $('irpf').value = preset ? iv : 'otro'; $('irpfOtherL').classList.toggle('hidden', preset); if(!preset) $('irpfOther').value=iv;
   $('accountInfo').textContent = GUEST ? `Sin guardar: datos de ${P.isquad_login} leídos de iSquad solo para esta pestaña.` : `Conectada a iSquad como ${P.isquad_login}.`;
@@ -1979,6 +1981,12 @@ $('irpf').addEventListener('change', e=>{
   setIrpf(+e.target.value);
 });
 $('irpfOther').addEventListener('change', e=>{ if(e.target.value!=='') setIrpf(+e.target.value); });
+// Aviso semanal "Han empezado a designar" (función designadas): se puede quitar.
+$('avDesignan').addEventListener('change', async e=>{
+  if(blockOffline()){ e.target.checked=!e.target.checked; return; }
+  P.aviso_designan=e.target.checked; const {error}=await store().from('profiles').update({aviso_designan:P.aviso_designan}).eq('user_id',USER.id);
+  if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
+});
 for(const [id,f] of [['origin','origin'],['rate','rate'],['minTravel','min_travel']]){
   $(id).addEventListener('change', async e=>{
     const v = f==='origin' ? e.target.value.trim() : (+e.target.value||0); if(f==='origin'&&!v) return;

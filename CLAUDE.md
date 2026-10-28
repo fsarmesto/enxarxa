@@ -56,7 +56,7 @@ rama `claude/...` con PR. Reglas para esos trabajos:
   - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…031). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…032). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
@@ -323,6 +323,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `desig-snap:<domingo>` y avisa a los admins de las categorías que pasan de 0 a tener designaciones (sin Alevín ni
   Amateur/Máster). Además `revisarSalud`: si la mitad o más de los árbitros tiene `last_error` o el último sync tiene
   más de 13 h, aviso a los admins (como mucho uno cada 6 h por motivo, `pub_cache salud-aviso:`).
+- Aviso para todos los árbitros (28-oct-2026, idea de Ferran): "Ep! Han empezado a designar · A ver si toca algo interesante."
+  (`t.designan`). En el mismo cron, `avisoDesignan`: cuando la semana pasa de menos de 3 a 3 o más partidos designados en
+  categorías de liga (sin pasada anterior, la semana empieza en 0), una vez por semana (push_log `designan:<lunes>`). Campana para
+  todos y notificación a quien la tiene activada. Se quita en Ajustes → Notificaciones (`profiles.aviso_designan`, migración 032,
+  por defecto activado). Al desplegarlo la semana del 26-oct ya tenía 9: no salió, empieza la semana siguiente.
 - Panel "Salud de la app" (dentro de Ajustes, solo admin): `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
   dispositivos, índice de plantillas y edad de las cachés.
 

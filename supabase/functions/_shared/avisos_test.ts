@@ -20,7 +20,7 @@ function todos(l: "es" | "ca") {
     t.eqEstado("A – B", P.date, "Aplazado"), t.eqHorario("A – B", P.date, "12:00"), t.eqCambioHorario("A – B", P.date, "12:00", "2026-10-29", "11:00"),
     t.eqCambioFecha("A – B", P.date, "2026-10-29"), t.eqResultado("A", 3, 1, "B", true, P.date), t.cobro(23.5, ["mañana", "tarde"], 2), t.cobro(0, [], 1),
     t.resultado1(true, P), t.resultado1(false, P), t.resultadoN(true, [P, P]), t.domingo(1), t.domingo(3), t.prueba(), t.inactiva("2026-11-26"),
-    t.designaciones(["Cadete (1/2)"]), t.designaciones(["A", "B"]), t.salud({ fallan: 9, total: 16 }), t.salud({ horas: 14 })];
+    t.designan(), t.designaciones(["Cadete (1/2)"]), t.designaciones(["A", "B"]), t.salud({ fallan: 9, total: 16 }), t.salud({ horas: 14 })];
 }
 
 Deno.test("cada aviso tiene título y texto en castellano y en catalán, y son distintos", () => {

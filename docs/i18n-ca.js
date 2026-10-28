@@ -509,6 +509,7 @@ I.exact = {
 "Acciones": "Accions",
 "← Volver": "← Torna",
 "Vòlei EnXarxa, inicio": "Vòlei EnXarxa, inici",
+"Avisarme cuando la FCVB empiece a designar cada semana": "Avisa'm quan la FCVB comenci a designar cada setmana",
 "Preguntas frecuentes": "Preguntes freqüents",
 "Km por pabellón": "Km per pavelló",
 "¿Algo no cuadra o no funciona? Escríbeme a": "Alguna cosa no quadra o no funciona? Escriu-me a",

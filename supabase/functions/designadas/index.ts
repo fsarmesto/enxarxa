@@ -66,8 +66,29 @@ async function cron(db: Db) {
   }
   await db.from("pub_cache").upsert({ key: snapKey, data: r.categorias.map(({ cat, desig }) => ({ cat, desig })), fetched_at: new Date().toISOString() });
   if (nuevas.length) for (const a of admins) await sendToUser(db, a, (t) => ({ ...t.designaciones(nuevas), tag: "designaciones", url: "./?vista=cobros" }));
+  const designan = await avisoDesignan(db, r, (prev?.data || []) as { cat: string; desig: number }[]);
   const salud = await revisarSalud(db, admins);
-  return { nuevas, salud };
+  return { nuevas, designan, salud };
+}
+
+// "Ep! Han empezado a designar": a todos los árbitros (salvo quien lo quita en Ajustes), una vez por semana, cuando ya hay
+// al menos MIN_DESIGNAN partidos designados de la semana en las categorías de liga (una designación suelta adelantada no cuenta).
+// Solo al pasar de menos a MIN_DESIGNAN o más respecto a la pasada anterior (sin pasada anterior, la semana empieza en 0).
+// Va a la campana de todos y como notificación a quien la tiene activada. push_log designan:<lunes>.
+const MIN_DESIGNAN = 3;
+async function avisoDesignan(db: Db, r: Resultado, antes: { cat: string; desig: number }[]) {
+  const suma = (cs: { cat: string; desig: number }[]) => cs.filter((c) => relevante(c.cat)).reduce((t, c) => t + c.desig, 0);
+  if (suma(r.categorias) < MIN_DESIGNAN || suma(antes) >= MIN_DESIGNAN) return 0;
+  const key = `designan:${r.desde}`;
+  const ya = new Set((await todas<{ user_id: string }>(() => db.from("push_log").select("user_id").eq("key", key).order("user_id"))).map((x) => x.user_id));
+  const arbitros = await todas<{ user_id: string }>(() => db.from("profiles").select("user_id").eq("tipo", "arbitro").eq("aviso_designan", true).order("user_id"));
+  let enviados = 0;
+  for (const { user_id } of arbitros) {
+    if (ya.has(user_id)) continue;
+    await sendToUser(db, user_id, (t) => ({ ...t.designan(), tag: "designan", url: "./?vista=agenda" }), key);
+    enviados++;
+  }
+  return enviados;
 }
 
 // Salud: si muchos árbitros fallan a la vez (p. ej. iSquad cambia el login) o el sync automático no funciona, aviso a
