@@ -484,8 +484,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   si iSquad ya no la acepta, login nuevo. Logins por día en `pub_cache logins:AAAA-MM-DD` (función `contar_login`).
   Prueba 22-oct: 1ª pasada 5 fichas y 5 syncs; 2ª pasada 5 fichas y 0 syncs; sync con sesión guardada sin login.
   Esperado: los logins del sync completo del cron (2 por árbitro y día) más uno cuando cambia una ficha.
-  Ojo (27-oct-2026): sin designaciones próximas, la ficha responde "SIN PARTIDOS" con error 500; `getLatin(url, /SIN PARTIDOS/)`
-  lo acepta como ficha vacía (antes contaba como fallo y vigilar no leía ninguna: `fichas: 0`).
+  Ojo (27/28-oct-2026): la ficha responde SIEMPRE con error 500, con partidos y sin ellos ("SIN PARTIDOS"); `getLatin(url, FICHA_VALE)`
+  la acepta si trae la tabla o "SIN PARTIDOS" (antes contaba como fallo: vigilar no leía ninguna, `fichas: 0`, y el panel de
+  designaciones salía a 0 con las 454 fichas en error). Comprobado con Guillem (2 partidos el viernes 30-oct).
 
 ## App instalable y recordatorio del domingo (21-oct-2026)
 

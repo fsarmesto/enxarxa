@@ -3,7 +3,7 @@
 // cada árbitro (partidos_arbitro.php, ~0,5 KB; la de toda la federación da error 500), cruzada con el listado de
 // partidos de la federación para saber la categoría. Resultado en caché 1 h ({refresh:true} para forzarlo).
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
-import { arbitrosPublicos, cached, feed, fixMojibake, getLatin, norm, PUB } from "../_shared/publico.ts";
+import { arbitrosPublicos, cached, feed, FICHA_VALE, fixMojibake, getLatin, norm, PUB } from "../_shared/publico.ts";
 import { madridNow, sendToUser } from "../_shared/push.ts";
 import { todas } from "../_shared/db.ts";
 
@@ -140,7 +140,8 @@ function calcular(db: Db): Promise<Resultado> {
       while (queue.length && Date.now() - started < 110_000) {
         const id = queue.shift()!;
         try {
-          const s = await getLatin(`${PUB}/partidos_arbitro.php?id_arbitro=${id}&id_superficie=1`); ok++;
+          // iSquad da error 500 con todas las fichas (ver FICHA_VALE): desde el 27-oct-2026 contaban como fallo y el panel salía a 0.
+          const s = await getLatin(`${PUB}/partidos_arbitro.php?id_arbitro=${id}&id_superficie=1`, FICHA_VALE); ok++;
           let comp = "";
           for (const tr of s.match(/<tr[\s\S]*?<\/tr>/g) || []) {
             const th = tr.match(/<th[^>]*>([\s\S]*?)<\/th>/); if (th) { comp = txt(th[1]).replace(/\s+-\s+(PRIMERA|SEGUNDA|TERCERA|FASE|FINAL|GRUP|GRUPO|LLIGA|JORNADA)[\s\S]*$/i, ""); continue; }

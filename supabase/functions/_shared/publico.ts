@@ -277,11 +277,14 @@ export async function idArbitro(db: Db, nombre: string | null, foto: string | nu
   return cands.length === 1 ? cands[0].id : null;
 }
 
+// La ficha pública de un árbitro llega SIEMPRE con error 500 (visto el 28-oct-2026), también con partidos (la de Guillem, con
+// 2 el viernes): vale si trae la tabla de partidos o "SIN PARTIDOS" (sin designaciones próximas).
+export const FICHA_VALE = /SIN PARTIDOS|<table/;
+
 // Huella de la ficha pública "próximos partidos que arbitrará" (~2 KB, sin login): partido, fecha, hora, pabellón y
 // equipo arbitral. Si no cambia, en el área privada no hay nada nuevo que leer.
 export async function huellaFicha(id: string): Promise<string> {
-  // Sin designaciones próximas, iSquad responde "SIN PARTIDOS" con error 500 (visto el 27-oct-2026): es una ficha vacía.
-  const s = await getLatin(`${PUB}/partidos_arbitro.php?id_arbitro=${id}&id_superficie=1`, /SIN PARTIDOS/);
+  const s = await getLatin(`${PUB}/partidos_arbitro.php?id_arbitro=${id}&id_superficie=1`, FICHA_VALE);
   const rows = (s.match(/<tr[\s\S]*?<\/tr>/g) || []).map((tr) => text(tr)).join("\n");
   const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rows));
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
