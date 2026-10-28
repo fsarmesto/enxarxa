@@ -62,13 +62,20 @@ export function feed(db: Db): Promise<Partido[]> {
       return {
         d: String(x.fecha).slice(0, 16), c: String(x.fecha_confirmada) === "1",
         l: text(fixMojibake(x.nombre_local)), v: text(fixMojibake(x.nombre_visitante)),
-        cl: String(x.id_club_local || ""), cv: String(x.id_club_visitante || ""),
+        cl: clubId(x.id_club_local, x.nombre_local), cv: clubId(x.id_club_visitante, x.nombre_visitante),
         // La categoría de iSquad no lleva el género ("CUARTA DIVISION SENIOR"): se añade de la competición ("... SEN FEM").
         comp: text(fixMojibake(x.nombre_competicion)), cat: withGender(text(fixMojibake(x.categoria)), text(x.nombre_competicion)),
         pab: text(fixMojibake(x.nombre_instalacion)) || campo[0] || "", pista: campo[1] || "",
       };
     });
   });
+}
+
+// Visto el 29-oct-2026: iSquad ya no manda id_club_local/visitante: el nombre llega como HTML con el escudo del club
+// (".../images/afiliacion_clubs/<id del club>/square_...jpg"), y ese número es el mismo id que el de listado_clubs.
+// Sin id, ningún equipo seguido encontraba sus partidos.
+export function clubId(id: unknown, nombre: unknown): string {
+  return String(id || "") || (String(nombre || "").match(/afiliacion_clubs\/(\d+)\//)?.[1] ?? "");
 }
 
 // Clubs de la federación (id y nombre).
