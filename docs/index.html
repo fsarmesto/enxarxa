@@ -493,6 +493,9 @@ body.noscroll{overflow:hidden}
 .dg-grp{font-family:var(--display);font-size:19px;font-weight:600;margin:16px 0 4px;border-bottom:2px solid var(--rule);padding-bottom:2px}
 .dg-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
 .dg-row .st{flex:none}
+.dg-filt{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}
+.dg-filt label{display:flex;flex-direction:column;gap:2px;flex:1 1 100px;font-size:12px;font-weight:600;color:var(--ink-3)}
+.dg-filt select{min-height:40px;font-size:14.5px;color:var(--ink)}
 .hl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
 .hl-row .s{grid-column:1/-1;font-size:12.5px;color:var(--ink-3)}
 .hl-row.bad .s{color:var(--pend);font-weight:600}
@@ -2963,6 +2966,9 @@ document.querySelector('.aj-nav').addEventListener('click', e=>{
 
 /* ---------- Designaciones publicadas (solo admins) ---------- */
 let DESIG=null, DESIG_BUSY=false;
+// Filtro del panel (categoría, género y estado): se recuerda en este navegador.
+const DGF_KEY='liq-dg-filt', DGF={age:'',gen:'',st:''};
+try{ Object.assign(DGF, JSON.parse(localStorage.getItem(DGF_KEY)||'{}')); }catch(e){}
 async function loadDesig(refresh){
   if(DESIG_BUSY) return; DESIG_BUSY=true;
   $('desigBody').innerHTML = `<p class="small muted">${refresh?'Leyendo las fichas de los árbitros en iSquad…':'Cargando…'}</p>`;
@@ -2978,17 +2984,28 @@ function renderDesig(){
   const DORD=['SL','SL2','1','2','3','4','PREF','MA','OTROS'], GEN={F:'Femenino',M:'Masculino',X:'Mixto'};
   const rows=r.categorias.map(c=>{ const p=compParts(c.cat); const age=/AMATEUR|MASTER|VETERA/.test(norm(c.cat))?'AMA':p.age; return {...c, age, div:p.div, gen:p.gen}; })
     .filter(c=>AGE.some(([a])=>a===c.age));
-  const nDesig=rows.reduce((t,c)=>t+c.desig,0), nTotal=rows.reduce((t,c)=>t+c.total,0);
+  const opt=(v,l,cur)=>`<option value="${v}"${v===cur?' selected':''}>${l}</option>`;
+  const gens=Object.keys(GEN).filter(g=>rows.some(c=>c.gen===g));
+  const filt=`<div class="dg-filt">
+    <label>Categoría<select id="dgAge">${opt('','Todas',DGF.age)}${AGE.filter(([a])=>rows.some(c=>c.age===a)).map(([a,al])=>opt(a,al,DGF.age)).join('')}</select></label>
+    <label>Género<select id="dgGen">${opt('','Todos',DGF.gen)}${gens.map(g=>opt(g,GEN[g],DGF.gen)).join('')}</select></label>
+    <label>Estado<select id="dgSt">${opt('','Todas',DGF.st)}${opt('con','Con alguna designada',DGF.st)}${opt('sin','Sin ninguna designada',DGF.st)}</select></label></div>`;
+  const shown=rows.filter(c=>(!DGF.age||c.age===DGF.age) && (!DGF.gen||c.gen===DGF.gen) && (DGF.st!=='con'||c.desig>0) && (DGF.st!=='sin'||c.desig===0));
+  const nDesig=shown.reduce((t,c)=>t+c.desig,0), nTotal=shown.reduce((t,c)=>t+c.total,0);
   const chip=c=> c.desig===0 ? `<span class="st sin">Sin designaciones · 0/${c.total}</span>`
     : c.desig/c.total>=0.5 ? `<span class="st win">Con designaciones · ${c.desig}/${c.total}</span>` : `<span class="st part">Algunas · ${c.desig}/${c.total}</span>`;
-  let html=`<div class="dg-head"><span>Del ${esc(fmtTiny(r.desde))} al ${esc(fmtTiny(r.hasta))} · ${nDesig} partidos designados de ${nTotal} · leído ${esc(ago(r.actualizado))}</span><button class="ghost" id="dgRefresh">Actualizar</button></div>`;
+  let html=`<div class="dg-head"><span>Del ${esc(fmtTiny(r.desde))} al ${esc(fmtTiny(r.hasta))} · ${nDesig} partidos designados de ${nTotal} · leído ${esc(ago(r.actualizado))}</span><button class="ghost" id="dgRefresh">Actualizar</button></div>`+filt;
+  if(!shown.length) html+='<p class="small muted">Ninguna categoría con estos filtros.</p>';
   for(const [a,al] of AGE){
-    const list=rows.filter(x=>x.age===a).sort((x,y)=>DORD.indexOf(x.div)-DORD.indexOf(y.div) || (x.gen||'').localeCompare(y.gen||''));
+    const list=shown.filter(x=>x.age===a).sort((x,y)=>DORD.indexOf(x.div)-DORD.indexOf(y.div) || (x.gen||'').localeCompare(y.gen||''));
     if(!list.length) continue;
     html+=`<div class="dg-grp">${al}</div>`+list.map(c=>`<div class="dg-row"><span>${esc([DIV[c.div],al,GEN[c.gen]||''].filter(Boolean).join(' '))}</span>${chip(c)}</div>`).join('');
   }
   $('desigBody').innerHTML=html;
   $('dgRefresh').onclick=()=>loadDesig(true);
+  for(const [id,k] of [['dgAge','age'],['dgGen','gen'],['dgSt','st']]) $(id).onchange=e=>{
+    DGF[k]=e.target.value; try{ localStorage.setItem(DGF_KEY, JSON.stringify(DGF)); }catch(e){}
+    renderDesig(); $(id).focus(); };
 }
 $('desigPanel').addEventListener('toggle', e=>{ if(e.target.open && !DESIG) loadDesig(false); });
 

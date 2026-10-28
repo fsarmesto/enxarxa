@@ -330,7 +330,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `listado_arbitros.php` (~454; `partidos_arbitro_territorial.php` da 500), de 10 en 10 (~8 s). Cada designación
   ("LOCAL - VISITANTE", fecha en texto) se cruza con el listado de partidos por fecha y local o visitante; si no,
   por la competición (`compToCat`: "1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO). Caché `desig-global` 1 h.
-- En la web, panel "Designaciones publicadas (FCVB)" (dentro de Ajustes, solo admin), se carga al abrirlo.
+- En la web, panel "Designaciones publicadas (FCVB)" (dentro de Ajustes, solo admin), se carga al abrirlo. Filtro por categoría, género y estado (con alguna designada / sin ninguna), recordado en `liq-dg-filt`.
 - Cron `designadas-hora` (`5 * * * *`, la función solo trabaja de 8 a 22 h de Madrid): recalcula, compara con la foto
   `desig-snap:<domingo>` y avisa a los admins de las categorías que pasan de 0 a tener designaciones (sin Alevín ni
   Amateur/Máster). Además `revisarSalud`: si la mitad o más de los árbitros tiene `last_error` o el último sync tiene

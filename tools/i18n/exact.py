@@ -349,6 +349,8 @@ EXACT = {
 "Cómo calcular": "Com calcular", "Calculadora de dietas": "Calculadora de dietes", "Por jugar": "Per jugar",
 "✓ Cobrada": "✓ Cobrada", "Pide el pago": "Demana el pagament", "Resumen de cobros": "Resum de cobraments",
 "+ Añadir partido a mano": "+ Afegeix un partit a mà", "Semana": "Setmana", "Estado": "Estat",
+"Con alguna designada": "Amb alguna designada", "Sin ninguna designada": "Sense cap designada",
+"Ninguna categoría con estos filtros.": "Cap categoria amb aquests filtres.",
 "Avisarme cuando la FCVB empiece a designar cada semana": "Avisa'm quan la FCVB comenci a designar cada setmana",
 "Preguntas frecuentes": "Preguntes freqüents",
 "Km por pabellón": "Km per pavelló",
