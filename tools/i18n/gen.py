@@ -1,6 +1,8 @@
 import json,sys
 sys.path.insert(0, sys.argv[1]); from exact import EXACT
 FRAGS = [
+ ("De aquí al domingo","D'aquí a diumenge"), ("partidos de liga","partits de lliga"), ("comprobado","comprovat"),
+ ("en los últimos 7 días","en els últims 7 dies"), ("jugador o entrenador","jugador o entrenador"), ("árbitro","àrbitre"),
  ("partidos de la federación leídos","partits de la federació llegits"), ("vigilancia de equipos","vigilància d'equips"),
  ("dispositivos con avisos","dispositius amb avisos"), ("jugadores o entrenadores","jugadors o entrenadors"),
  ("ninguno con error","cap amb error"), ("con error","amb error"), ("Índice de plantillas:","Índex de plantilles:"),
@@ -36,6 +38,7 @@ RULES = r"""[
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
   [/^(.+?) \((\d+)\)$/, (m,l,n) => { const t = I.exact[l] || l.replace(/^Jugados /,'Jugats ').replace(/^Calendario de la temporada$/,'Calendari de la temporada'); return t===l && !/^Jugados |^Calendario/.test(l) ? null : `${t} (${n})`; }],
   [/^En (\d+) días?$/, "D'aquí a $1 dies"],
+  [/^Solo se han comprobado los (\d+) más cercanos de (\d+)\.$/, "Només s'han comprovat els $1 més propers de $2."],
   [/^Hace (\d+) días?$/, "Fa $1 dies"],
   [/^(\d+) partidos?$/, (m,n) => `${n} ${n==='1'?'partit':'partits'}`],
   [/^(\d+) jornadas?$/, (m,n) => `${n} ${n==='1'?'jornada':'jornades'}`],

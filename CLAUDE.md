@@ -43,7 +43,7 @@ rama `claude/...` con PR. Reglas para esos trabajos:
 
 - Toda lista con varios partidos se agrupa por semanas con el componente común (semana actual destacada, secciones de
   próximas y anteriores, título fijo al hacer scroll). No crear listas de partidos sin agrupar. (Issue #27.)
-  - `weeksHtml(items, dateOf, {scope, head, body, openPrev})` para listas grandes (Cobros, Mis partidos): anteriores
+  - `weeksHtml(items, dateOf, {scope, head, body, openPrev, cls})` para listas grandes (Cobros, Mis partidos): anteriores
     plegadas, `WK_OPEN` con clave scope+lunes; `wkHead(w, n, extra)` da el título. `weekGroups` hace la agrupación.
   - `weeksCompact(items, dateOf, row)` para listas dentro de una tarjeta (calendario de un equipo, partidos desde
     Clasificación): casi siempre 1 partido por semana, así que no se pliega ni se fija; mismo orden y borde amarillo.
@@ -65,7 +65,7 @@ rama `claude/...` con PR. Reglas para esos trabajos:
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
 `CREDS_KEY` (cifra las contraseñas de iSquad; si se pierde, cada usuario solo tiene que volver a entrar),
-`CRON_SECRET`, `ORS_KEY` (OpenRouteService), contraseña de la base de datos, `ADMIN_LOGINS` (quién ve los paneles de admin),
+`CRON_SECRET`, `ORS_KEY` (OpenRouteService), contraseña de la base de datos, `ADMIN_LOGINS` (quién ve Administración: ver abajo),
 `VAPID_PUBLIC`/`VAPID_PRIVATE`/`VAPID_SUBJECT` (notificaciones; la pública también va en `docs/config.js`; si se
 cambian, todas las suscripciones dejan de valer y cada árbitro tiene que volver a activarlo), `ROSTER_SALT`
 (huellas del índice de plantillas; si cambia, hay que reindexar: `update pub_teams set checked_at=null`). `ALLOWED_LOGINS` está vacío:
@@ -139,7 +139,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Solo desde 1024 px (`DESK_Q`); entre 721 y 1023 px sigue la tabla de antes y el móvil, las tarjetas. Cobros mide como mucho 1080 px.
 - Lista de semanas en columnas (Semana · Partidos · Estado · Total · flecha) con una cabecera encima (`.wk-cols`), separadores
   finos y la flecha sin cuadrado; esta semana con una raya amarilla a la izquierda. Estado: "Pendiente" (etiqueta roja suave),
-  "✓ Cobrada" (gris) o "Por jugar". Al abrir una semana, una tabla (`deskRow`): fecha, partido, rol (por debajo de 1200 px va
+  "✓ Cobrada" (gris) o "Por jugar". Semanas anteriores plegadas (29-oct-2026, Ferran): toda la fila verdosa si está cobrada entera
+  (`--ok-bg`/`--ok-line`, clase `w-ok`) o rojiza si falta algo (`--pend-bg`, `w-pend`); `weeksHtml` acepta `cls(w,list,kind)`. Al abrir una semana, una tabla (`deskRow`): fecha, partido, rol (por debajo de 1200 px va
   dentro de la celda del partido), tarifa, dieta, desplazamiento, peajes, IRPF, neto, estado y "⋯" (`MC_EDIT`), que abre una fila
   debajo con Marcar cobrado, ¿Cómo se calcula?, quitar, el aviso de plazo y km/peajes/dieta (`editorHtml`, el mismo de la tarjeta).
 - Panel lateral fijo (`cobAside`): total de la temporada, barra de lo cobrado, cobrado/pendiente/partidos, botón "Cómo calcular ·
@@ -328,6 +329,29 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - iPhone: `apple-mobile-web-app-title` era "Liquidación" (por eso los avisos salían con ese nombre); ahora "EnXarxa".
   Quien la tenga añadida a la pantalla de inicio tiene que quitarla y volver a añadirla para que cambie.
 
+## Administración (29-oct-2026)
+
+- Página aparte (`VIEW='admin'`, `?vista=admin`, como Ajustes: sin pestañas, "← Volver" a donde estabas, `AD_FROM`), solo para
+  administradores. Se entra desde el botón amarillo "Administración" del índice de Ajustes; los avisos de admin (designaciones y
+  salud) abren `./?vista=admin`. `ADMIN` = null mientras se pregunta a `designadas {action:"admin"}`; si no es admin, la vista
+  cae a la de inicio.
+- **Quién es admin: lista fija y a mano**, el secret `ADMIN_LOGINS` (logins de iSquad separados por comas, como
+  `profiles.login_key`). Decidido por Ferran el 29-oct: es lo único de la app que va "hardcoded", sin pantalla para meter o sacar
+  gente; se cambia con `supabase secrets set ADMIN_LOGINS=a@b.com,c@d.com --project-ref vevsurxxvjivjizuuqad` (no va en el repo,
+  que es público). Por ahora solo Ferran. Comprobación en `_shared/admin.ts` (`esAdmin`, `adminIds`, `adminLogins`); el servidor
+  la hace en cada petición.
+- Contenido: cifras arriba (`.kpi`: usuarios, abiertos en 7 días con `last_active`, dispositivos con notificaciones, árbitros con
+  error, logins a iSquad hoy y en 7 días de `pub_cache logins:`, avisos de `push_log` en 7 días; todo de `designadas {action:"salud"}`),
+  y tres tarjetas: Partidos sin árbitro, Designaciones publicadas y Salud de la app. Se carga al entrar (`ADM_LOADED`), cada
+  tarjeta con su "Actualizar".
+- **Partidos sin árbitro** (`designadas {action:"sin-arbitro"}`, caché `sin-arbitro` 30 min): partidos de liga (sin alevín ni
+  amateur) de ahora al domingo que no salen en ninguna ficha de árbitro (`calcular` guarda ahora `pendientes`), confirmados uno a
+  uno con su Previo (`matchOfficials`), que manda. El listado de la federación no trae id de partido: `idPartido` (publico.ts)
+  busca por el nombre del local en el buscador público (da primero la jornada en curso; 1a página, 2a si hace falta) y elige
+  fecha, hora y visitante iguales (caché `pid:` 6 h). Probado el 29-oct: 32 de 32 partidos del viernes con id. Como mucho los 60
+  más cercanos (`MAX_REVISAR`); los que no se han podido mirar salen "Sin comprobar". Si no hay cálculo de la semana (o es de
+  antes de existir `pendientes`), lo rehace en segundo plano y responde `{calculando:true}`: la web vuelve a preguntar cada 40 s.
+
 ## Panel de designaciones publicadas (admin, 21-oct-2026)
 
 - Función `designadas` (solo `ADMIN_LOGINS`): qué categorías tienen partidos designados de hoy al domingo, en toda
@@ -335,7 +359,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `listado_arbitros.php` (~454; `partidos_arbitro_territorial.php` da 500), de 10 en 10 (~8 s). Cada designación
   ("LOCAL - VISITANTE", fecha en texto) se cruza con el listado de partidos por fecha y local o visitante; si no,
   por la competición (`compToCat`: "1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO). Caché `desig-global` 1 h.
-- En la web, panel "Designaciones publicadas (FCVB)" (dentro de Ajustes, solo admin), se carga al abrirlo. Filtro por categoría, género y estado (con alguna designada / sin ninguna), recordado en `liq-dg-filt`.
+- En la web, tarjeta "Designaciones publicadas" de Administración (antes, panel dentro de Ajustes). Filtro por categoría, género y estado (con alguna designada / sin ninguna), recordado en `liq-dg-filt`.
 - Cron `designadas-hora` (`5 * * * *`, la función solo trabaja de 8 a 22 h de Madrid): recalcula, compara con la foto
   `desig-snap:<domingo>` y avisa a los admins de las categorías que pasan de 0 a tener designaciones (sin Alevín ni
   Amateur/Máster). Además `revisarSalud`: si la mitad o más de los árbitros tiene `last_error` o el último sync tiene
@@ -345,8 +369,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   categorías de liga (sin pasada anterior, la semana empieza en 0), una vez por semana (push_log `designan:<lunes>`). Campana para
   todos y notificación a quien la tiene activada. Se quita en Ajustes → Notificaciones (`profiles.aviso_designan`, migración 032,
   por defecto activado). Al desplegarlo la semana del 26-oct ya tenía 9: no salió, empieza la semana siguiente.
-- Panel "Salud de la app" (dentro de Ajustes, solo admin): `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
-  dispositivos, índice de plantillas y edad de las cachés.
+- Tarjeta "Salud de la app" de Administración: `designadas {action:"salud"}`: usuarios con su tipo, último sync, error y avisos;
+  dispositivos, índice de plantillas, edad de las cachés y las cifras de uso de arriba.
 
 ## Móvil: pestañas abajo, cabecera compacta y Cómo llegar (22-oct-2026, issues #2, #3 y #4)
 
@@ -359,8 +383,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   dentro de Maps. El selector de modo del issue #4 se quitó en el #15 (y se borra `liq-ruta`).
 - Accesibilidad (#10): `--ink-3` en claro #686868 (5,6:1 sobre blanco y 5:1 sobre el gris de las etiquetas; 27-oct-2026, antes #707070), foco visible en enlaces, zonas táctiles de 44 px en
   pantallas táctiles.
-- Flecha de desplegar (alertas, tarjetas de Mis partidos, calendarios de Equipos): `chevHtml`, botón de 44 px con
-  chevron SVG que gira, `aria-expanded` en el summary y texto oculto "Mostrar/Ocultar el detalle".
+- Flecha de desplegar (alertas, tarjetas, semanas, calendarios de Equipos): `chevHtml`, círculo gris discreto de 32 px con el
+  chevron SVG que gira (29-oct-2026, Ferran: el cuadrado negro de 44 px quedaba grande y descuadrado; a juego con el menú de abajo).
+  Es solo un indicador (`aria-hidden`): se toca todo el summary. `aria-expanded` en el summary y texto oculto "Mostrar/Ocultar el detalle".
 
 ## Ajustes como pestaña (27-oct-2026)
 

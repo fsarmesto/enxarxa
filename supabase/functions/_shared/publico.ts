@@ -199,6 +199,25 @@ export function teamMatches(db: Db, idEquipo: string, name: string): Promise<Par
   });
 }
 
+// Id público de un partido del listado de la federación (que no lo trae), para su Previo: se busca por el nombre del
+// local y se elige el de la misma fecha, hora y visitante. El buscador da primero la jornada en curso, así que basta
+// la 1a página (2a si hace falta). d = "AAAA-MM-DD HH:MM". Caché 6 h (también "no encontrado").
+export function idPartido(db: Db, local: string, visitante: string, d: string): Promise<string | null> {
+  return cached(db, `pid:${d}|${norm(local)}`, 6 * H, async () => {
+    const [f, h] = d.split(" "), [y, m, dd] = f.split("-"), fecha = `${dd}/${m}/${y}`;
+    const igual = (a: unknown, b: string) => norm(fixMojibake(String(a || ""))) === norm(b);
+    for (let page = 1; page <= 2; page++) {
+      const res = await apiSearch(db, { q: local, id_temporada: seasonCode(), id_superficie: "1", seleccion: "0", limit: "20", categoria: "partidos", page: String(page) });
+      // deno-lint-ignore no-explicit-any
+      for (const p of (res?.data?.partidos || []) as any[]) {
+        if (p.fecha === fecha && String(p.hora || "").padStart(5, "0") === h && igual(p.nombre_local, local) && igual(p.nombre_visitante, visitante)) return String(p.id_partido);
+      }
+      if (!res?.has_more?.partidos) break;
+    }
+    return null;
+  });
+}
+
 // Clasificación de un grupo (torneo) según la web pública (clasificacion.php, ~900 KB): una fila por equipo con
 // posición, puntos, partidos, sets, puntos de juego y racha de los 5 últimos (G/P/-). Caché 1 h.
 export type FilaClasif = { pos: number; id: string; n: string; esc: string; pt: number; pj: number; pg: number; pp: number;
