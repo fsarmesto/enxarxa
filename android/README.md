@@ -25,5 +25,17 @@ BUBBLEWRAP_KEYSTORE_PASSWORD=... BUBBLEWRAP_KEY_PASSWORD=... npx -y @bubblewrap/
 cp app-release-signed.apk ../docs/app/enxarxa.apk
 ```
 
+En Windows (PC de casa, 29-oct-2026) `bubblewrap build` falla al llamar a `gradlew.bat`. Tras `update`, en una
+copia del manifest con `signingKey.path` apuntando a la keystore local:
+
+```bash
+echo "sdk.dir=<ruta del SDK>" > local.properties && sh ./gradlew assembleRelease
+zipalign -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+java -jar <build-tools>/lib/apksigner.jar sign --ks <keystore> --ks-key-alias liquidacion \
+  --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEYSTORE_PASSWORD --out app-release-signed.apk aligned.apk
+```
+
+Comprobar con `apksigner verify --print-certs` que la huella SHA-256 es la de `assetlinks.json` (EB:7E:23:…).
+
 Requisitos en la máquina: JDK 17 con compilador y SDK de Android (`~/.bubblewrap/config.json` con `jdkPath` y
 `androidSdkPath`; Bubblewrap busca `sdk/tools`: enlace a `cmdline-tools/latest`).
