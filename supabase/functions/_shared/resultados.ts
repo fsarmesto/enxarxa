@@ -4,18 +4,21 @@
 //   pública). De la temporada en curso se mira antes el calendario público del equipo (teamMatches, caché compartida con
 //   Equipos), que es más barato; si no sale, el PDF. De temporadas pasadas la búsqueda no sirve (los partidos salen a
 //   partir de la página 9-15, o no salen): directamente el PDF.
-// - Acta subida: json/competicion/acta_escaneada.php?id_partido= devuelve la URL del PDF escaneado o null (80 bytes).
-//   Es la foto del acta de papel: puede estar sin resultado y al revés.
+// - Acta subida: los botones del partido que pinta json/competicion/buscador_partidos.php (POST id_partidos=, lo usa el
+//   buscador de la web): con acta, "mostrarActaFormal(<id>, &quot;<URL>&quot;)". Es la foto del acta de papel: puede
+//   estar sin resultado y al revés. (json/competicion/acta_escaneada.php, el de antes, da 404 desde el 28/29-oct-2026.)
 // - Competiciones estatales (Superliga, Nacional): su resultado no sale en la web de la FCVB ni en el acta completa; en la
 //   web, resultado "Otro". El acta sí se mira.
 // Los ids salen de la tabla de designaciones (parseDesignaciones). Una vez encontrado, no se vuelve a pedir.
-import { PUB, seasonCode, teamMatches, UA, type Db } from "./publico.ts";
+import { actaDeBotones, PUB, seasonCode, teamMatches, UA, type Db } from "./publico.ts";
 import { sendToUser } from "./push.ts";
 import { todas } from "./db.ts";
 
 // Todos los partidos arbitrados tienen que acabar con los 2 estados: se miran los empezados hace más de 1 h, los de los
-// últimos DAYS días en cada pasada y los anteriores que aún falten, como mucho una vez cada OLD_EVERY (los que ya no se
-// publicarán no deben gastar peticiones cada día). Como mucho MAX por pasada, primero los más nuevos.
+// últimos DAYS días en cada pasada y los anteriores de esta temporada que aún falten, como mucho una vez cada OLD_EVERY
+// (los que ya no se publicarán no deben gastar peticiones cada día). Los de temporadas pasadas, una sola vez: el
+// 29-oct-2026 había ~800 sin resultado y ~1.000 sin acta que se volvían a pedir cada semana (~2,5 s cada uno, el PDF), y
+// la sincronización de las 7 y las 15 se quedaba sin tiempo para la mitad de los árbitros. Como mucho MAX por pasada.
 const DAYS = 30, OLD_EVERY = 7 * 864e5, MAX = 20, AFTER_MIN = 60;
 // Mismo criterio que pubState en la web.
 export const ESTATAL = /SUPERLIGA|NACIONAL/i;
@@ -24,12 +27,15 @@ const madridNow = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Mad
 const plusMin = (d: string, t: string, min: number) => new Date(Date.parse(`${d}T${t}:00Z`) + min * 6e4).toISOString().slice(0, 16).replace("T", " ");
 
 export async function actaEscaneada(idPartido: string): Promise<string | null> {
-  const r = await fetch(`${PUB}/json/competicion/acta_escaneada.php?id_partido=${encodeURIComponent(idPartido)}`,
-    { headers: { "User-Agent": UA, "X-Requested-With": "XMLHttpRequest" }, signal: AbortSignal.timeout(10_000) });
+  const r = await fetch(`${PUB}/json/competicion/buscador_partidos.php`, {
+    method: "POST", body: new URLSearchParams({ id_partidos: idPartido }),
+    headers: { "User-Agent": UA, "X-Requested-With": "XMLHttpRequest" }, signal: AbortSignal.timeout(10_000) });
   if (!r.ok) { await r.body?.cancel(); throw new Error(`acta ${r.status}`); }
-  const url = (await r.json())?.result;
-  return typeof url === "string" && url ? url : null;
+  const html = (await r.json())?.[idPartido];
+  if (typeof html !== "string") throw new Error("acta: partido sin botones");
+  return actaDeBotones(html);
 }
+
 // Hora de subida: en la mayoría de actas el nombre del fichero es la hora en segundos Unix (uploads/actas/<id>/<s>.pdf).
 const subidaDe = (url: string) => { const s = url.match(/\/(\d{10})\.pdf$/)?.[1]; return s ? new Date(+s * 1000).toISOString() : null; };
 
@@ -78,7 +84,8 @@ export async function checkResultados(db: Db, userId: string, deadline: number):
   const needRes = (m: Row) => m.res_l == null && !ESTATAL.test(m.comp);
   const todo = ((data || []) as Row[]).filter((m) => !/SELECCI/i.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "")
     && (needRes(m) || !m.acta_url) && now >= plusMin(m.date, m.time || "00:00", AFTER_MIN)
-    && (m.date >= recent || !m.pub_checked || Date.now() - Date.parse(m.pub_checked) > OLD_EVERY)).slice(0, MAX);
+    && (m.date >= recent || !m.pub_checked
+      || (seasonCode(new Date(`${m.date}T12:00:00Z`)) === season && Date.now() - Date.parse(m.pub_checked) > OLD_EVERY))).slice(0, MAX);
   let res = 0, actas = 0, errores = 0, fallo = "", n = 0;
   for (const m of todo) {
     if (Date.now() > deadline - 15_000) break;

@@ -193,7 +193,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   - Todos los partidos de la federación desde hoy: POST `json/partidos_equipos_consultas.php`
     (`accion=obtener_partidos`, `id_ambito=17` = FCVB, `fecha_actual`, `consulta=0`, `id_superficie=1`): ~7.000
     filas (13 MB) con local, visitante, ids de club, competición, categoría, fecha y pabellón. Sin resultados.
-  - Clubs: `listado_clubs.php`; equipos de un club: `club.php?id=` (id_equipo, nombre, categoría sin género);
+    Desde el 28/29-oct-2026 no trae `id_club_local/visitante`: el nombre llega como HTML con el escudo
+    (`images/afiliacion_clubs/<id del club>/...`) y `clubId()` saca el id de ahí (sin él, nadie veía partidos de equipos).
+  - Clubs: `listado_clubs.php`; equipos de un club: `club.php?id=` (id_equipo, nombre, categoría sin género; llega con
+    error 500 y entera desde el 29-oct-2026: `getText(url, {}, valeCon)`);
     plantilla: `equipo.php?id_equipo=&id_territorial=17` (tabla `tabla-plantilla`: nombre, perfil Jugador/Invitado/Entrenador).
   - Calendario iCal de un equipo (3 KB, sin pabellón ni resultado): `voleibol.isquad.es/json/equipo_google_calendar.php?id_equipo=&v=<firma de la ficha>`.
   - Textos con UTF-8 leído como Windows-1252 ("PAVELLÃ“"): `fixMojibake` ANTES de limpiar espacios (la "à" acaba en 0xA0).
@@ -216,15 +219,16 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   al entrar como jugador (información obligatoria).
 - Web: pestaña "Equipos" y, en "Mis partidos", los partidos de los equipos con aviso de choque con un arbitraje
   (mismo día a menos de 2 h 30 min, o mismo día con la hora por confirmar).
-- Calendario completo con resultados: API del buscador público `voleibol.isquad.es/json/api/call.php/resultados/
-  busquedaGlobal?token=<token de la página>` (POST q=<nombre del equipo>, categoria=partidos, id_temporada, limit=20,
-  page). Devuelve por partido estado (Pendiente, Finalizado, Suspendido...), resultado en sets, fecha, hora,
+- Calendario completo con resultados: buscador público, POST `resultadosvoleibol.isquad.es/json/isquad_proxy.php` con
+  `recurso=busqueda` (q=<nombre del equipo>, categoria=partidos, id_temporada "2627", id_superficie, seleccion, limit=20,
+  page), sin token. Hasta el 28/29-oct-2026 era `voleibol.isquad.es/json/api/call.php/resultados/busquedaGlobal?token=`
+  con el `let token` de las páginas; iSquad quitó el token y esa API da 500. Misma respuesta. Devuelve por partido estado (Pendiente, Finalizado, Suspendido...), resultado en sets, fecha, hora,
   `fecha_confirmada` (1 = horario confirmado; si no, hora provisional o 0:00 = sin horario), jornada, grupo e ids de
-  equipo. Sin pabellón: se cruza con el listado. Token: `let token = "..."` de cualquier página pública (caché 12 h,
-  se renueva si la API da error). `teamMatches` en `_shared/publico.ts`, caché `tm:<id_equipo>` 30 min.
+  equipo. Sin pabellón: se cruza con el listado. `teamMatches` en `_shared/publico.ts`, caché `tm:<id_equipo>` 30 min.
   En la web, etiquetas: Ganado/Perdido con el resultado, Por jugar · hora, hora sin confirmar, sin horario, Suspendido.
   Equipo arbitral: `previo.php?id_partido=` (página pública ~800 KB): un bloque `divN` por persona ("ARBITRO",
-  "ARBITRO", "ANOTADOR/CRONOMETRADOR", "TV" vacío); el primer ARBITRO es el 1r. Sale en cuanto está designado.
+  "ARBITRO", "ANOTADOR/CRONOMETRADOR", "TV" vacío; desde el 28/29-oct-2026 la función va en `<i-t page='common'>`);
+  el primer ARBITRO es el 1r. Sale en cuanto está designado.
   `matchOfficials`: caché `arb:<id>` 3 h si no se ha jugado, 30 días si sí; en `equipos mis`, partidos de ±21 días de
   los equipos activos, como mucho 16 por petición.
   Pendiente: clasificación.
@@ -407,8 +411,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Investigado en el issue #31 (comentarios). "Resultado subido" = marcador en la API pública (`busquedaGlobal`): es lo
   mismo que el acta "rellena" de `voleibol_acta_completa.php` (ese PDF se genera siempre, ~106 KB y ~3 s; sale con los
   sets cuando el resultado está metido en iSquad y con ceros si no: comprobado en 81 partidos). "Acta subida" = la foto
-  del acta de papel: `resultadosvoleibol.isquad.es/json/competicion/acta_escaneada.php?id_partido=` (sin login, 80
-  bytes: URL del PDF o null). Pueden ir por separado (acta sin resultado y al revés).
+  del acta de papel: POST `resultadosvoleibol.isquad.es/json/competicion/buscador_partidos.php` (`id_partidos=`, admite
+  varios separados por comas; JSON id → HTML de los botones del partido): con acta, `mostrarActaFormal(<id>, &quot;URL&quot;)`
+  (`actaDeBotones`). Hasta el 28/29-oct-2026 era `json/competicion/acta_escaneada.php` (ahora 404). Pueden ir por
+  separado (acta sin resultado y al revés). Partidos de temporadas pasadas: se miran una sola vez (`checkResultados`).
 - `arbitros_listado_actas.php` (área privada) no sirve: lista todos los jugados, sin estado del acta.
 - Ids: la tabla de designaciones lleva el `id_partido` público (DOCUMENTOS: `voleibol_acta_completa.php?id_partido=`)
   y el id_equipo de local y visitante (`verAlineacionEquipo(id_partido, id_equipo, ...)`). `parseDesignaciones` los

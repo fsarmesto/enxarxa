@@ -116,7 +116,7 @@ async function salud(db: Db) {
   const subs = await todas<{ user_id: string; last_sent: string | null }>(() => db.from("push_subs").select("user_id, last_sent").order("endpoint"));
   const { count: equipos } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true });
   const { count: revisados } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true }).not("checked_at", "is", null);
-  const { data: caches } = await db.from("pub_cache").select("key, fetched_at").in("key", ["feed", "token", "clubs", "arbitros", "desig-global"]);
+  const { data: caches } = await db.from("pub_cache").select("key, fetched_at").in("key", ["feed", "clubs", "arbitros", "desig-global"]);
   const { data: snaps } = await db.from("pub_cache").select("fetched_at").like("key", "snap:%").order("fetched_at", { ascending: false }).limit(1);
   // Sin nombres ni emails: cada cuenta, con un id corto (los 6 primeros caracteres de su user_id).
   const usuarios = (ps || []).map((p: { user_id: string; tipo: string; last_sync: string | null; last_error: string | null; created_at: string }) => ({
