@@ -1,4 +1,4 @@
-// Auditoría de accesibilidad con axe-core (WCAG 2.0/2.1/2.2 AA y buenas prácticas) en todas las vistas, claro y oscuro,
+// Auditoría de accesibilidad con axe-core (WCAG 2.0/2.1/2.2 AA y buenas prácticas) en todas las vistas (también Administración), claro y oscuro,
 // a 390 px (móvil) y 1280 px (escritorio), con un supabase simulado y datos inventados. Sale con código 1 si hay algún
 // incumplimiento serio o crítico (contraste, nombres de botones, etiquetas...).
 // Uso, desde la raíz del repo: npm i --no-save axe-core@4.10.2 && CHROME=<ruta de Chrome> node tools/prueba-accesibilidad.mjs
@@ -33,7 +33,21 @@ const MOCK = `(() => {
     then(a, b) { return Promise.resolve({ data: data(t), error: null }).then(a, b) } }; return o; };
   window.supabase = { createClient() { return { from: q, rpc: async () => ({ data: null, error: null }),
     auth: { getSession: async () => ({ data: { session: { access_token: 't', user: { id: 'u-demo' } } } }), signOut: async () => ({}) } }; } };
-  const f = window.fetch; window.fetch = (u, o) => /functions\\/v1\\//.test(String(u)) ? Promise.resolve(new Response(JSON.stringify({ ok: true, favs: [], partidos: [], sugerencias: {} }), { status: 200 })) : f(u, o);
+  // Funciones: lo mínimo de cada una; la de administración (designadas), con datos inventados por acción.
+  const iso = h => new Date(Date.now() - h * 3600e3).toISOString();
+  const ADM = {
+    salud: { usuarios: [{ id: 'a1b2c3', tipo: 'arbitro', last_sync: iso(1), last_error: null, alta: iso(500), avisos: 1 }, { id: 'd4e5f6', tipo: 'arbitro', last_sync: iso(30), last_error: 'conexion', alta: iso(300), avisos: 0 }],
+      dispositivos: 1, indice: { equipos: 10, revisados: 9 }, cache: { feed: iso(1) }, vigilancia: iso(0.2), activos7: 2, avisos7: 5, admins: 1, logins: [{ dia: d(0), n: 3 }] },
+    'sin-arbitro': { actualizado: iso(0.1), desde: d(-3), hasta: d(3), total: 20, candidatos: 2, revisados: 2, conArbitro: 0,
+      partidos: [{ d: d(1) + ' 20:00', l: 'CLUB DE PROVA', v: 'CV INVENTAT', cat: 'PRIMERA DIVISION JUNIOR MASCULINO', pab: 'PAVELLO DE PROVA', pista: 'PISTA 1', id: '1', estado: 'sin' },
+        { d: d(2) + ' 10:30', l: 'CE MOSTRA', v: 'CV EXEMPLE', cat: 'SEGUNDA DIVISION CADETE FEMENINO', pab: 'PAVELLO DE MOSTRA', pista: '', id: null, estado: 'nd' }] },
+    '': { actualizado: iso(0.5), desde: d(-3), hasta: d(3), categorias: [{ cat: 'PRIMERA DIVISION SENIOR FEMENINO', total: 4, desig: 4 }, { cat: 'SEGUNDA DIVISION JUVENIL FEMENINO', total: 6, desig: 0 }], otras: [] } };
+  const f = window.fetch; window.fetch = (u, o) => {
+    if (!/functions\\/v1\\//.test(String(u))) return f(u, o);
+    let b = {}; try { b = JSON.parse(o && o.body || '{}'); } catch (e) {}
+    const r = /designadas/.test(String(u)) && ADM[b.action || ''] || {};
+    return Promise.resolve(new Response(JSON.stringify({ ok: true, favs: [], partidos: [], sugerencias: {}, ...r }), { status: 200 }));
+  };
   try { localStorage.setItem('liq-guia-vista', '1'); localStorage.setItem('liq-push-ahora-no', '1'); } catch (e) {}
 })();`;
 
@@ -69,8 +83,8 @@ for (const W of [390, 1280]) for (const dark of [false, true]) {
   await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
   const sfx = `${W}-${dark ? 'oscuro' : 'claro'}`;
   await cdp('Page.navigate', { url: 'http://localhost:8126/index.html?vista=cobros' }); await sleep(3000);
-  for (const v of ['cobros', 'agenda', 'equipos', 'resumen', 'ajustes']) {
-    await ev(v === 'ajustes' ? `document.getElementById('btnAjustes').click()` : `document.querySelector('[data-view="${v}"]').click()`); await sleep(600);
+  for (const v of ['cobros', 'agenda', 'equipos', 'resumen', 'ajustes', 'admin']) {
+    await ev(v === 'ajustes' ? `document.getElementById('btnAjustes').click()` : v === 'admin' ? `openAdmin()` : `document.querySelector('[data-view="${v}"]').click()`); await sleep(600);
     await ev(`document.querySelectorAll('details.agc,details.mc').forEach(d=>d.open=true)`); await sleep(150);
     await audit(`${v}-${sfx}`);
   }

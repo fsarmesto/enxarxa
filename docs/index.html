@@ -25,6 +25,7 @@ label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);
   --line:#DCDCDC; --rule:#000000;
   --accent:#000000; --accent-ink:#FFFFFF; --pend:#D2232A; --pend-bg:#FCE9EA; --pend-tag:#C41E25;
   --paid-bg:#000000; --paid-ink:#FFFFFF; --neg:#D2232A; --focus:#D2232A;
+  --ok-bg:#E5F3E8; --ok-line:#1E7B34;   /* semana cobrada (plegada, escritorio) */
   --board:#000000; --board-ink:#FFFFFF; --board-2:#A6A6A6; --board-num:#FFD100; --board-pend:#FF4A4F;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
@@ -35,6 +36,7 @@ label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);
   --line:#2E2E2E; --rule:#FFD100;
   --accent:#FFD100; --accent-ink:#000000; --pend:#FF4A4F; --pend-bg:#3A1214; --pend-tag:#FF4A4F;
   --paid-bg:#FFFFFF; --paid-ink:#000000; --neg:#FF4A4F; --focus:#FFD100;
+  --ok-bg:#10301A; --ok-line:#4CC26B;
   --board:#000000; --board-ink:#FFFFFF; --board-2:#A6A6A6; --board-num:#FFD100; --board-pend:#FF4A4F;
   color-scheme:dark;
 }}
@@ -43,6 +45,7 @@ label.f .hint{display:block;font-size:12.5px;font-weight:400;color:var(--ink-3);
   --line:#2E2E2E; --rule:#FFD100;
   --accent:#FFD100; --accent-ink:#000000; --pend:#FF4A4F; --pend-bg:#3A1214; --pend-tag:#FF4A4F;
   --paid-bg:#FFFFFF; --paid-ink:#000000; --neg:#FF4A4F; --focus:#FFD100;
+  --ok-bg:#10301A; --ok-line:#4CC26B;
   color-scheme:dark;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -166,7 +169,7 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
 /* Tarjeta de partido del móvil */
 .mc{border-bottom:1px solid var(--line)}
 .mc:last-child{border-bottom:0}
-.mc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto 44px;gap:4px 10px;padding:12px 0;align-items:start}
+.mc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto 28px;gap:4px 10px;padding:12px 0;align-items:start}
 .mc>summary::-webkit-details-marker{display:none}
 .mc-1{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;font-size:14px;font-weight:600}
 .mc-1 .tm{font-family:var(--display);font-size:20px;font-weight:700;line-height:1.1}
@@ -176,6 +179,7 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
 .mc-r{display:flex;flex-direction:column;align-items:flex-end;gap:5px;padding-top:2px}
 .mc-r b{font-family:var(--display);font-size:22px;font-weight:700;line-height:1;white-space:nowrap}
 .mc-r .tag{margin-left:0}
+.mc .chev{margin-top:-2px}   /* centrada con el importe */
 .mc.paid .mc-tt,.mc.paid .mc-1 span{color:var(--ink-2)}
 .mc-more{padding:0 0 14px}
 .mc-role{font-size:13.5px;color:var(--ink-2);margin-bottom:8px}
@@ -246,6 +250,12 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
   .cob-list .week.wk>summary:hover{background:var(--surface-2)}
   .cob-list .week.wk>summary:focus-visible{outline:3px solid var(--focus,var(--ink));outline-offset:-3px}
   .cob-list summary .chev{width:32px;height:32px;background:none;color:var(--ink-2)}
+  /* Semanas anteriores plegadas: toda la fila verdosa si está cobrada entera, rojiza si falta algo */
+  .cob-list .week.wk.w-ok:not([open])>summary{background:var(--ok-bg);border-left-color:var(--ok-line)}
+  .cob-list .week.wk.w-pend:not([open])>summary{background:var(--pend-bg);border-left-color:var(--pend)}
+  .cob-list .week.wk:is(.w-ok,.w-pend):not([open])>summary:hover{box-shadow:inset 0 0 0 999px color-mix(in srgb,var(--ink) 6%,transparent)}
+  .cob-list .week.wk.w-ok:not([open]) .wst{color:var(--ok-line);font-weight:600}
+  .cob-list .week.wk:is(.w-ok,.w-pend):not([open]) .wc-n{color:var(--ink-2)}   /* el gris claro no llega a 4,5:1 sobre el verde oscuro */
   .wc-w{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.15;min-width:0}
   .wc-n{font-size:13px;color:var(--ink-3)}
   .wc-s .tag{margin-left:0}
@@ -336,13 +346,14 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 .ajustes{max-width:760px}
 .aj-back{padding-left:0;font-weight:700}
 .aj-t:focus{outline:none}   /* el foco se pone al abrir la página (para lectores de pantalla), sin recuadro */
-/* Ajustes es una página aparte: sin pestañas, ni la línea de estado, ni la tarjeta de activar avisos */
-body[data-vista="ajustes"] .views,body[data-vista="ajustes"] #pushCard{display:none}
-@media (max-width:720px){ body[data-vista="ajustes"] #appView{padding-bottom:24px} }
+/* Ajustes y Administración son páginas aparte: sin pestañas, ni la línea de estado, ni la tarjeta de activar avisos */
+body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){display:none}
+@media (max-width:720px){ body:is([data-vista="ajustes"],[data-vista="admin"]) #appView{padding-bottom:24px} }
 .aj-t{font-family:var(--display);font-size:30px;margin:0 0 10px}
 .aj-nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
 .aj-nav a{display:inline-flex;align-items:center;min-height:40px;padding:4px 14px;border:2px solid var(--line);border-radius:20px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600}
 .aj-nav a:hover{border-color:var(--ink)}
+.aj-nav a.adm{border-color:var(--yellow);background:var(--yellow);color:#000}
 .aj-card{border:1px solid var(--line);border-radius:8px;padding:14px 16px 16px;margin:0 0 12px;scroll-margin-top:76px}
 .aj-card h3{font-family:var(--display);font-size:23px;margin:0 0 10px}
 .aj-card .aj-h4{font-size:15px;margin:16px 0 6px}
@@ -431,9 +442,11 @@ body[data-vista="ajustes"] .views,body[data-vista="ajustes"] #pushCard{display:n
 .alert>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;min-height:38px}
 .alert>summary::-webkit-details-marker{display:none}
 .alert>summary .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* Flecha de desplegar (alertas, tarjetas de Mis partidos, calendarios): botón de 44 px con el chevron grueso */
-summary .chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;border-radius:8px;background:var(--accent);color:var(--accent-ink);transition:transform .15s}
-summary .chev svg{display:block}
+/* Flecha de desplegar (alertas, tarjetas, semanas): solo el trazo, fino y gris como los iconos del menú de abajo. Solo es un
+   indicador (aria-hidden): se toca toda la fila del summary, que mide más de 44 px de alto. */
+summary .chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;color:var(--ink-2);transition:transform .15s}
+summary .chev svg{display:block;width:20px;height:20px}
+summary .chev svg path{stroke-width:2.2}
 details[open]>summary .chev{transform:rotate(180deg)}
 details>summary:active{background:var(--surface-2)}
 @media (prefers-reduced-motion:reduce){summary .chev{transition:none}}
@@ -488,6 +501,27 @@ body.noscroll{overflow:hidden}
 @media (max-width:360px){ .fpanel .fgrid{grid-template-columns:1fr} }
 .fsum{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;font-size:14px;margin:0 0 24px;padding:10px 12px;background:var(--surface-2)}
 .fsum strong{font-family:var(--display);font-size:19px}
+/* Administración (VIEW='admin', solo ADMIN_LOGINS): cifras arriba y una tarjeta por panel */
+.adm-intro{margin:0 0 14px}
+.adm-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:0 0 14px}
+@media (min-width:600px){ .adm-kpis{grid-template-columns:repeat(3,1fr)} }
+.kpi{border:1px solid var(--line);border-top:4px solid var(--yellow);border-radius:6px;padding:10px 12px 12px;background:var(--surface)}
+.kpi .v{font-family:var(--display);font-size:34px;font-weight:700;line-height:1}
+.kpi .l{font-size:13.5px;font-weight:700;margin-top:6px;line-height:1.25}
+.kpi .s{font-size:12.5px;color:var(--ink-3);margin-top:2px;line-height:1.3}
+.kpi.bad{border-top-color:var(--pend)}
+.kpi.bad .v{color:var(--pend)}
+.sa-sum{display:flex;align-items:baseline;gap:8px;margin:0 0 4px}
+.sa-n{font-family:var(--display);font-size:44px;font-weight:700;line-height:1}
+.sa-n.bad{color:var(--pend)}
+.sa-l{font-family:var(--display);font-size:20px;font-weight:600}
+.sa-row{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:2px 10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
+.sa-row:last-child{border-bottom:0}
+.sa-row .tm{font-family:var(--display);font-size:20px;font-weight:700;line-height:1.05}
+.sa-row .tm small{display:block;font-family:"Barlow",system-ui,sans-serif;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.sa-c{font-size:13px;font-weight:700}
+.sa-t{font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+.sa-p{font-size:12.5px;color:var(--ink-3);margin-top:2px;overflow-wrap:anywhere}
 /* Paneles de admin */
 .dg-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13.5px;color:var(--ink-2)}
 .dg-grp{font-family:var(--display);font-size:19px;font-weight:600;margin:16px 0 4px;border-bottom:2px solid var(--rule);padding-bottom:2px}
@@ -632,7 +666,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 /* Estado de un partido de equipo */
 .st{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:2px;white-space:nowrap;vertical-align:middle}
 .st.win{background:#1E7B34;color:#fff}
-.st.loss{background:var(--pend);color:#fff}
+.st.loss{background:var(--pend);color:var(--bg)}   /* en oscuro, texto negro: el blanco sobre el rojo claro no llega a 4,5:1 */
 .st.hora{background:var(--yellow);color:#000}
 .st.prov{background:var(--surface);color:var(--ink);border:1px dashed var(--ink-3)}
 .st.sin{background:var(--surface-2);color:var(--ink-2)}
@@ -641,7 +675,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 /* Tarjeta de la agenda: plegada lo esencial; al tocar, lo secundario */
 .agc{border-bottom:1px solid var(--line)}
 .agc:last-child{border-bottom:0}
-.agc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:56px minmax(0,1fr) 44px;gap:4px 12px;padding:12px 0;align-items:start}
+.agc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:56px minmax(0,1fr) 28px;gap:4px 12px;padding:12px 0;align-items:start}
 .agc>summary::-webkit-details-marker{display:none}
 .agc .tm{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.05}
 .agc .tm small{display:block;font-family:"Barlow",system-ui,sans-serif;font-size:11px;font-weight:600;color:var(--ink-3)}
@@ -666,7 +700,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .agc .car{font-size:12.5px;color:#1E7B34;font-weight:600;margin-top:4px}
 :root[data-theme="dark"] .agc .car{color:#5BD07A}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .agc .car{color:#5BD07A} }
-@media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 44px;gap:4px 8px} .agc .tm{font-size:22px} }
+@media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 28px;gap:4px 8px} .agc .tm{font-size:22px} }
 .res{font-family:var(--display);font-size:22px;font-weight:700;margin-left:8px;vertical-align:middle}
 details.cal{margin-top:6px}
 details.cal>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -965,7 +999,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
     <button type="button" class="ghost back aj-back" data-aj-back>← Volver</button>
     <h2 class="aj-t" tabindex="-1">Ajustes</h2>
     <nav class="aj-nav" aria-label="Secciones de Ajustes">
-      <a href="#aj-avisos">Notificaciones</a><a href="#aj-cal">Calendario</a><a href="#aj-idioma">Idioma</a><a class="arb-only" href="#aj-despl">Desplazamiento</a><a class="arb-only" href="#aj-irpf">IRPF</a><a class="arb-only" href="#aj-km">Km por pabellón</a><a class="arb-only" href="#aj-coche">Compartir coche</a><a href="#aj-ayuda">Ayuda</a><a href="#aj-cuenta">Tu cuenta</a><a class="adm hidden" href="#desigPanel">Designaciones publicadas (FCVB)</a><a class="adm hidden" href="#saludPanel">Salud de la app</a>
+      <a href="#aj-avisos">Notificaciones</a><a href="#aj-cal">Calendario</a><a href="#aj-idioma">Idioma</a><a class="arb-only" href="#aj-despl">Desplazamiento</a><a class="arb-only" href="#aj-irpf">IRPF</a><a class="arb-only" href="#aj-km">Km por pabellón</a><a class="arb-only" href="#aj-coche">Compartir coche</a><a href="#aj-ayuda">Ayuda</a><a href="#aj-cuenta">Tu cuenta</a><a class="adm hidden" href="./?vista=admin" data-open-admin>Administración</a>
     </nav>
     <section class="aj-card" id="aj-avisos" aria-labelledby="h-aj-avisos">
       <h3 id="h-aj-avisos">Notificaciones</h3>
@@ -1030,17 +1064,29 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <p class="small muted legal-links" style="margin-top:14px"><a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
       <p class="small muted" style="margin-top:14px">Hecha por <a class="gh" href="https://github.com/fsarmesto" target="_blank" rel="noopener" title="GitHub de fsarmesto"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>fsarmesto</a></p>
     </section>
-    <details class="panel hidden" id="saludPanel">
-    <summary>Salud de la app</summary>
-    <p class="small muted">Solo lo ves tú. Si muchos árbitros fallan a la vez o la actualización automática se para, te llega un aviso.</p>
-    <div id="saludBody"><p class="small muted">Ábrelo para cargarlo.</p></div>
-    </details>
+  </div>
 
-    <details class="panel hidden" id="desigPanel">
-    <summary>Designaciones publicadas (FCVB)</summary>
-    <p class="small muted">Solo lo ves tú. Qué categorías tienen ya partidos designados esta semana (de lunes a domingo), en toda la federación (de las fichas públicas de los árbitros en iSquad).</p>
-    <div id="desigBody"><p class="small muted">Ábrelo para cargarlo (tarda unos segundos).</p></div>
-    </details>
+  <!-- Administración: solo para la lista fija ADMIN_LOGINS (el servidor lo comprueba en cada petición). -->
+  <div id="admin" class="hidden ajustes">
+    <button type="button" class="ghost back aj-back" data-adm-back>← Volver</button>
+    <h2 class="aj-t" tabindex="-1">Administración</h2>
+    <p class="small muted adm-intro">Solo lo ven los administradores. La lista es fija en el servidor: no se cambia desde la app. <span class="hidden" id="admNw">Administradores: <b data-noi18n id="admN"></b></span></p>
+    <div class="adm-kpis" id="admKpis" aria-live="polite"></div>
+    <section class="aj-card" id="adm-sin" aria-labelledby="h-adm-sin">
+      <h3 id="h-adm-sin">Partidos sin árbitro</h3>
+      <p class="small muted">Partidos de liga (sin alevín ni amateur) de aquí al domingo que aún no tienen ningún árbitro designado. Se comprueba en la ficha pública de cada partido de la web de la federación, como mucho cada 30 minutos.</p>
+      <div id="sinBody"></div>
+    </section>
+    <section class="aj-card" id="adm-desig" aria-labelledby="h-adm-desig">
+      <h3 id="h-adm-desig">Designaciones publicadas</h3>
+      <p class="small muted">Qué categorías tienen ya partidos designados esta semana (de lunes a domingo), en toda la federación, según las fichas públicas de los árbitros en iSquad.</p>
+      <div id="desigBody"></div>
+    </section>
+    <section class="aj-card" id="adm-salud" aria-labelledby="h-adm-salud">
+      <h3 id="h-adm-salud">Salud de la app</h3>
+      <p class="small muted">Usuarios, errores al actualizar, avisos y estado de las tareas automáticas. Si muchos árbitros fallan a la vez o la actualización automática se para, te llega un aviso.</p>
+      <div id="saludBody"></div>
+    </section>
   </div>
 </main>
 
@@ -1243,6 +1289,9 @@ async function startOffline(id0){
   USER = {id}; P = sn.P; MATCHES = sn.MATCHES || []; VENUES = sn.VENUES || {}; SNAP_T = sn.t; OFFLINE_START = true;
   const eq = await snapGet('eq:'+id); if(eq) EQ = eq;
   DEP = P.tipo==='deportista'; document.body.classList.toggle('dep', DEP);
+  // Sin sesión (modo avión al abrir) no se puede comprobar: sin Administración. Con sesión, se reintenta la carga y
+  // started() llama a loadAdmin(): mientras, Administración enseña "Cargando…".
+  if(!id0) ADMIN=false;
   learnFcvbKm(); show('app'); render(); renderOffline();
   return true;
 }
@@ -1498,12 +1547,12 @@ function weekGroups(items, dateOf){
   return { cur: weeks.has(cur) ? [cur, weeks.get(cur)] : null, next: ws.filter(([w])=>w>cur), prev: ws.filter(([w])=>w<cur).reverse() };
 }
 // Lista grande (Cobros, Mis partidos): título de semana fijo al bajar y las anteriores plegadas en una fila (WK_OPEN
-// recuerda las abiertas: clave scope+lunes). o = {scope, head(w,list,kind), body(w,list,kind), openPrev(w,list,i)}.
+// recuerda las abiertas: clave scope+lunes). o = {scope, head(w,list,kind), body(w,list,kind), openPrev(w,list,i), cls(w,list,kind)}.
 function weeksHtml(items, dateOf, o){
   const g=weekGroups(items, dateOf), scope=o.scope||'';
-  const block=(w,list,kind,i)=>{ const head=o.head(w,list,kind), body=o.body(w,list,kind), k=scope+w;
+  const block=(w,list,kind,i)=>{ const head=o.head(w,list,kind), body=o.body(w,list,kind), k=scope+w, c=o.cls?' '+o.cls(w,list,kind):'';
     if(kind==='prev'){ const open = WK_OPEN.has(k) ? WK_OPEN.get(k) : !!o.openPrev?.(w,list,i);
-      return `<details class="week wk" data-wk="${esc(k)}"${open?' open':''}><summary class="week-head" aria-expanded="${open}">${head}${chevHtml(open)}</summary>${body}</details>`; }
+      return `<details class="week wk${c}" data-wk="${esc(k)}"${open?' open':''}><summary class="week-head" aria-expanded="${open}">${head}${chevHtml(open)}</summary>${body}</details>`; }
     return `<div class="week${kind==='cur'?' cur':''}">${kind==='cur'?'<div class="wk-lbl">Esta semana</div>':''}<div class="week-head">${head}</div>${body}</div>`; };
   let html = g.cur ? block(g.cur[0], g.cur[1], 'cur') : '';
   if(g.next.length) html+='<h2 class="wk-sec">Próximas semanas</h2>'+g.next.map(([w,l],i)=>block(w,l,'next',i)).join('');
@@ -1838,7 +1887,9 @@ function render(){
   const led = $('ledger');
   if(GUEST && VIEW==='equipos') VIEW='agenda';
   if(DEP && (VIEW==='cobros' || VIEW==='resumen' || VIEW==='calc')) VIEW='agenda';
-  if(!['cobros','agenda','equipos','resumen','calc','ajustes'].includes(VIEW)) VIEW='agenda';
+  if(VIEW==='admin' && ADMIN===false) VIEW = DEP ? 'agenda' : 'cobros';   // null = aún se está comprobando
+  if(!['cobros','agenda','equipos','resumen','calc','ajustes','admin'].includes(VIEW)) VIEW='agenda';
+  if(VIEW!=='admin') ADM_LOADED=false;   // al volver a entrar, se recargan las cifras
   // Cada cambio de vista es una entrada del historial, para que Atrás vuelva a la vista anterior (#52).
   if(history.state?.vista!==VIEW) history[history.state?.vista ? 'pushState' : 'replaceState']({vista:VIEW}, '', location.pathname);
   // "Cómo calcular dietas" es una subsección de Cobros: su pestaña sigue marcada.
@@ -1851,9 +1902,9 @@ function render(){
   $('tabEquipos').classList.toggle('hidden', GUEST);
   led.classList.toggle('hidden', VIEW!=='cobros'); $('agenda').classList.toggle('hidden', VIEW!=='agenda'); $('equipos').classList.toggle('hidden', VIEW!=='equipos'); $('resumen').classList.toggle('hidden', VIEW!=='resumen');
   $('calc').classList.toggle('hidden', VIEW!=='calc'); if(VIEW!=='calc') $('calc').dataset.built='';
-  $('ajustes').classList.toggle('hidden', VIEW!=='ajustes');
+  $('ajustes').classList.toggle('hidden', VIEW!=='ajustes'); $('admin').classList.toggle('hidden', VIEW!=='admin');
   for(const id of ['btnAjustes','mbAjustes']) VIEW==='ajustes' ? $(id).setAttribute('aria-current','page') : $(id).removeAttribute('aria-current'); $('manualPanel').classList.toggle('hidden', !['cobros','agenda'].includes(VIEW));
-  const noCtrl = ['equipos','calc','ajustes'].includes(VIEW);
+  const noCtrl = ['equipos','calc','ajustes','admin'].includes(VIEW);
   $('ctrl').classList.toggle('hidden', noCtrl); if(noCtrl) $('fsum').classList.add('hidden');
   if(VIEW!=='agenda'){ $('ctrlSlot').innerHTML=''; AG_INFO=null; }
   renderFilters(ms,res); renderPeriod();
@@ -1862,6 +1913,7 @@ function render(){
   if(VIEW==='resumen'){ renderResumen(allMs,res); renderSettings(); return; }
   if(VIEW==='calc'){ renderCalc(); renderSettings(); return; }
   if(VIEW==='ajustes'){ renderSettings(); return; }
+  if(VIEW==='admin'){ renderAdmin(); return; }
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
@@ -1913,7 +1965,7 @@ function render(){
       return `<div class="wk-acts"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button></div>
         <div class="wrap"><table class="m dk"><thead><tr><th>Fecha</th><th>Partido</th><th class="role">Rol</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th>Estado</th><th><span class="sr">Acciones</span></th></tr></thead><tbody>${rows}</tbody></table></div>`; };
     led.innerHTML = `<div class="cob-grid"><div class="cob-list"><div class="wk-cols" aria-hidden="true"><span>Semana</span><span>Partidos</span><span>Estado</span><span>Total</span><span></span></div>`
-      + weeksHtml(shown, m=>m.date, {head:dHead, body:dBody, openPrev}) + `</div>${cobAside(ms.length, pend, paid)}</div>`;
+      + weeksHtml(shown, m=>m.date, {head:dHead, body:dBody, openPrev, cls:(w,list)=>list.every(isPaid)?'w-ok':'w-pend'}) + `</div>${cobAside(ms.length, pend, paid)}</div>`;
     renderSettings(); return;
   }
   led.innerHTML = '<div class="calc-cta"><button type="button" class="ghost" data-calc=""><b>Cómo calcular</b><small>Calculadora de dietas</small></button></div>'
@@ -2041,7 +2093,7 @@ function renderCalcOut(){
 }
 // Ajustes: página aparte desde el engranaje de la cabecera; "Volver" lleva a la pestaña de antes.
 let AJ_FROM = null;
-function openAjustes(){ if(VIEW!=='ajustes') AJ_FROM=VIEW; VIEW='ajustes'; render(); scrollTo(0,0); $('ajustes').querySelector('.aj-t')?.focus(); }
+function openAjustes(){ if(VIEW!=='ajustes' && VIEW!=='admin') AJ_FROM=VIEW; VIEW='ajustes'; render(); scrollTo(0,0); $('ajustes').querySelector('.aj-t')?.focus(); }
 for(const id of ['btnAjustes','mbAjustes']) $(id).addEventListener('click', openAjustes);
 // Logo y nombre (#52): cierran hojas y paneles y van a la vista de inicio (con la que se abre la app); si ya estás, arriba.
 function closePanels(){ closeFilters(); closePeriod(); if(!CONSENT_OPEN) $('guide').classList.add('hidden'); }
@@ -2066,6 +2118,12 @@ $('ajustes').addEventListener('click', e=>{
   if(e.target.closest('[data-aj-back]')){ VIEW = AJ_FROM && AJ_FROM!=='ajustes' ? AJ_FROM : (DEP?'agenda':'cobros'); render(); scrollTo(0,0); }
 });
 $('calc').addEventListener('click', e=>{ if(e.target.closest('[data-calc-back]')){ VIEW='cobros'; render(); scrollTo(0,0); } });
+// Administración: página aparte desde Ajustes (o desde un aviso de admin, ?vista=admin); "Volver" lleva a donde estabas.
+let AD_FROM = null;
+function openAdmin(){ if(VIEW!=='admin') AD_FROM=VIEW; VIEW='admin'; render(); scrollTo(0,0); $('admin').querySelector('.aj-t')?.focus(); }
+$('admin').addEventListener('click', e=>{
+  if(e.target.closest('[data-adm-back]')){ VIEW = AD_FROM && AD_FROM!=='admin' ? AD_FROM : (DEP?'agenda':'cobros'); render(); scrollTo(0,0); }
+});
 $('calc').addEventListener('input', e=>{
   const k=e.target.dataset.c; if(k==null && e.target.dataset.tcat==null) return;
   if(e.target.dataset.tcat!=null){ CALC_TCAT=e.target.value; renderCalcOut(); return; }
@@ -2245,7 +2303,7 @@ $('btnDelete').addEventListener('click', async ()=>{
   if(!r.ok){ toast(r.error||'No se ha podido borrar'); return; }
   await snapClear(); await sb.auth.signOut(); location.reload();
 });
-async function logout(){ if(GUEST){ location.reload(); return; } await snapClear(); await sb.auth.signOut(); show('auth'); }
+async function logout(){ if(GUEST){ location.reload(); return; } await snapClear(); await sb.auth.signOut(); location.reload(); }   // recargar: no queda nada de la sesión (p. ej. Administración) en la página
 $('btnLogout').addEventListener('click', logout);
 
 /* ---------- Entrar ---------- */
@@ -2263,6 +2321,7 @@ async function enterGuest(){
   P={isquad_login:login, nombre:r.nombre, origin:'', rate:'0.26', min_travel:'4', irpf:'2', last_sync:new Date().toISOString(), last_error:null};
   MATCHES=(r.matches||[]).map(m=>({cat:null, team:'t1', role:'r1', tolls:0, holiday:false, no_dieta:null, paid:false, not_received:false, km_override:null, dieta_override:null, ...m}));
   VENUES={}; for(const m of MATCHES) VENUES[m.venue_key] ||= {venue_key:m.venue_key, label:null, km:null, km_source:null};
+  ADMIN=false;   // sin guardar no hay cuenta: nunca es administrador
   learnFcvbKm(); show('app'); render(); renderPush();
 }
 $('authForm').addEventListener('submit', async e=>{
@@ -2541,7 +2600,8 @@ if(VIEW==='ajustes') VIEW='cobros';   // Ajustes es una página aparte: no se ab
 let OPEN_AVISOS = new URLSearchParams(location.search).has('avisos');   // desde una notificación: abrir los Avisos
 { const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos','resumen'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); }
   else if(v==='com-calcular-dietes' || v==='calc'){ VIEW='calc'; history.replaceState(null,'',location.pathname); }
-  else if(v==='ajustes' || v==='configuracio'){ VIEW='ajustes'; history.replaceState(null,'',location.pathname); } }
+  else if(v==='ajustes' || v==='configuracio'){ VIEW='ajustes'; history.replaceState(null,'',location.pathname); }
+  else if(v==='admin'){ VIEW='admin'; history.replaceState(null,'',location.pathname); } }
 const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
 // "PRIMERA DIVISION SENIOR FEMENINO" → "1ª Sén. Fem" (para la línea corta de la tarjeta).
 function shortComp(comp){
@@ -2973,17 +3033,55 @@ async function shareApp(){
   }catch(e){ $('qrBox').innerHTML='<p class="small muted">No se ha podido generar el QR: comparte el enlace.</p>'; }
 }
 
-/* ---------- Paneles de admin (solo ADMIN_LOGINS; el servidor lo comprueba) ---------- */
+/* ---------- Administración (solo ADMIN_LOGINS, una lista fija en el servidor; lo comprueba en cada petición) ---------- */
 const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpperCase());
+let ADMIN = null, ADM_LOADED = false;   // ADMIN null: aún no se sabe
+// Como callFn, pero un fallo de red (fetch rechazado) es una respuesta con error: nada se queda en "Cargando…".
+const admFn = body => callFn('designadas', body).catch(()=>({ok:false, error:'No se ha podido conectar. Inténtalo de nuevo.'}));
 async function loadAdmin(){
-  if(GUEST) return;
-  const r = await callFn('designadas',{action:'admin'}); if(!r.ok) return;
-  $('desigPanel').classList.remove('hidden'); $('saludPanel').classList.remove('hidden');
-  document.querySelectorAll('.aj-nav .adm').forEach(a=>a.classList.remove('hidden'));
+  const r = GUEST ? {ok:false} : await admFn({action:'admin'});
+  ADMIN = !!r.ok;
+  document.querySelectorAll('.aj-nav .adm').forEach(a=>a.classList.toggle('hidden', !ADMIN));
+  if(VIEW==='admin') render();   // abierta con ?vista=admin: ya se sabe si se enseña
 }
-// Desde el índice de Ajustes, los paneles de admin se abren solos (y se cargan).
 document.querySelector('.aj-nav').addEventListener('click', e=>{
-  const a=e.target.closest('a.adm'); const d=a && document.querySelector(a.getAttribute('href')); if(d) d.open=true; });
+  if(e.target.closest('a[data-open-admin]')){ e.preventDefault(); openAdmin(); } });
+// Se carga al entrar en la página (cada vez); dentro, cada panel tiene su botón Actualizar.
+function renderAdmin(){
+  if(ADMIN===null){ $('admKpis').innerHTML='<p class="small muted">Cargando…</p>'; return; }
+  if(ADM_LOADED) return; ADM_LOADED=true;
+  SIN_TRY=0; loadSalud(); loadSin(false); loadDesig(false);
+}
+
+/* ---------- Partidos sin árbitro de aquí al domingo (solo admins) ---------- */
+let SIN_T=null, SIN_TRY=0;
+async function loadSin(refresh){
+  clearTimeout(SIN_T); if(refresh) SIN_TRY=0;
+  $('sinBody').innerHTML = `<p class="small muted">${refresh?'Comprobando los partidos en la web de la federación…':'Cargando…'}</p>`;
+  const r = await admFn({action:'sin-arbitro', refresh:!!refresh});
+  const otraVez = msg => { $('sinBody').innerHTML = `<p class="small muted">${msg}</p><button class="ghost" id="saRefresh">Actualizar</button>`; $('saRefresh').onclick=()=>loadSin(true); };
+  if(!r.ok){ otraVez(esc(r.error||'No se ha podido cargar')); return; }
+  // Sin el cálculo de designaciones de la semana, el servidor lo rehace (~1 min): se vuelve a preguntar solo, 5 veces.
+  if(r.calculando){
+    if(SIN_TRY++<5){ $('sinBody').innerHTML='<p class="small muted">Leyendo las designaciones de toda la federación (tarda un minuto). Se actualiza solo.</p>';
+      SIN_T=setTimeout(()=>{ if(VIEW==='admin') loadSin(false); }, 40000); }
+    else otraVez('Está tardando más de lo normal. Prueba a actualizar en unos minutos.');
+    return; }
+  SIN_TRY=0;
+  const ps=r.partidos||[], sin=ps.filter(p=>p.estado==='sin').length;
+  let html=`<div class="sa-sum"><span class="sa-n${sin?' bad':''}">${sin}</span><span class="sa-l">${sin===1?'partido sin árbitro':'partidos sin árbitro'}</span></div>
+    <div class="dg-head"><span>De aquí al domingo · ${r.total} ${r.total===1?'partido de liga':'partidos de liga'} · comprobado ${esc(ago(r.actualizado))}</span><button class="ghost" id="saRefresh">Actualizar</button></div>`;
+  if(!ps.length) html += `<p class="small">${r.total?'Todos los partidos de liga de aquí al domingo tienen árbitro.':'No quedan partidos de liga hasta el domingo.'}</p>`;
+  else {
+    const row = p => `<div class="sa-row"><div class="tm">${esc(p.d.slice(11,16))}<small>${esc(fmtTiny(p.d.slice(0,10)))}</small></div>
+      <div><div class="sa-c">${esc(shortComp(p.cat))}</div><div class="sa-t" data-noi18n>${esc(capName(p.l))} – ${esc(capName(p.v))}</div><div class="sa-p" data-noi18n>${esc(capName(p.pab))}${p.pista?' · '+esc(capName(p.pista)):''}</div></div>
+      ${p.estado==='sin'?'<span class="st loss">Sin árbitro</span>':'<span class="st sin">Sin comprobar</span>'}</div>`;
+    html += weeksCompact(ps, p=>p.d.slice(0,10), row);
+  }
+  if(r.candidatos>r.revisados) html += `<p class="small muted">Solo se han comprobado los ${r.revisados} más cercanos de ${r.candidatos}.</p>`;
+  $('sinBody').innerHTML=html;
+  $('saRefresh').onclick=()=>loadSin(true);
+}
 
 /* ---------- Designaciones publicadas (solo admins) ---------- */
 let DESIG=null, DESIG_BUSY=false;
@@ -2993,7 +3091,7 @@ try{ Object.assign(DGF, JSON.parse(localStorage.getItem(DGF_KEY)||'{}')); }catch
 async function loadDesig(refresh){
   if(DESIG_BUSY) return; DESIG_BUSY=true;
   $('desigBody').innerHTML = `<p class="small muted">${refresh?'Leyendo las fichas de los árbitros en iSquad…':'Cargando…'}</p>`;
-  const r = await callFn('designadas', refresh?{refresh:true}:{}); DESIG_BUSY=false;
+  const r = await admFn(refresh?{refresh:true}:{}); DESIG_BUSY=false;
   if(!r.ok){ $('desigBody').innerHTML = `<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; return; }
   DESIG=r; renderDesig();
 }
@@ -3028,22 +3126,32 @@ function renderDesig(){
     DGF[k]=e.target.value; try{ localStorage.setItem(DGF_KEY, JSON.stringify(DGF)); }catch(e){}
     renderDesig(); $(id).focus(); };
 }
-$('desigPanel').addEventListener('toggle', e=>{ if(e.target.open && !DESIG) loadDesig(false); });
+
 
 /* ---------- Salud de la app (solo admins) ---------- */
 async function loadSalud(){
   $('saludBody').innerHTML='<p class="small muted">Cargando…</p>';
-  const r=await callFn('designadas',{action:'salud'});
-  if(!r.ok){ $('saludBody').innerHTML=`<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; return; }
+  const r=await admFn({action:'salud'});
+  if(!r.ok){ $('saludBody').innerHTML=`<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; $('admKpis').innerHTML=''; return; }
   const arb=r.usuarios.filter(u=>u.tipo!=='deportista'), dep=r.usuarios.length-arb.length, err=arb.filter(u=>u.last_error);
+  // Cifras de arriba: uso de la app y lo que hay que mirar (en rojo si hay árbitros con error).
+  const hoy=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Madrid'}), lg=r.logins||[];
+  const kpi=(v,l,s,bad)=>`<div class="kpi${bad?' bad':''}"><div class="v">${v}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+  $('admKpis').innerHTML = kpi(r.usuarios.length,'Usuarios',`${arb.length} ${arb.length===1?'árbitro':'árbitros'} · ${dep} ${dep===1?'jugador o entrenador':'jugadores o entrenadores'}`)
+    + kpi(r.activos7??'—','Han abierto la app','en los últimos 7 días')
+    + kpi(r.dispositivos,'Dispositivos con notificaciones','')
+    + kpi(err.length,'Árbitros con error','al actualizar desde iSquad',err.length>0)
+    + kpi((lg.find(x=>x.dia===hoy)||{}).n||0,'Logins a iSquad hoy',`${lg.reduce((t,x)=>t+x.n,0)} en los últimos 7 días`)
+    + kpi(r.avisos7??'—','Avisos enviados','en los últimos 7 días');
+  if(r.admins){ $('admN').textContent=r.admins; $('admNw').classList.remove('hidden'); }
   const c=r.cache||{}, h=k=>c[k]?ago(c[k]):'—';
-  let html=`<div class="dg-head"><span>${r.usuarios.length} usuarios (${arb.length} árbitros${dep?`, ${dep} jugadores o entrenadores`:''}) · ${err.length?`<b style="color:var(--pend)">${err.length} con error</b>`:'ninguno con error'} · ${r.dispositivos} dispositivos con avisos</span><button class="ghost" id="hlRefresh">Actualizar</button></div>
+  let html=`<div class="dg-head"><span>${r.usuarios.length} usuarios (${arb.length} ${arb.length===1?'árbitro':'árbitros'}${dep?`, ${dep} ${dep===1?'jugador o entrenador':'jugadores o entrenadores'}`:''}) · ${err.length?`<b style="color:var(--pend)">${err.length} con error</b>`:'ninguno con error'} · ${r.dispositivos} dispositivos con avisos</span><button class="ghost" id="hlRefresh">Actualizar</button></div>
     <p class="small muted">Índice de plantillas: ${r.indice.revisados} de ${r.indice.equipos} equipos · partidos de la federación leídos ${h('feed')} · designaciones ${h('desig-global')} · vigilancia de equipos ${r.vigilancia?ago(r.vigilancia):'—'}</p>`;
   html+=r.usuarios.map(u=>`<div class="hl-row${u.last_error?' bad':''}"><span data-noi18n>#${esc(u.id)}</span><span class="small muted">${u.tipo==='deportista'?'jugador/entrenador':'árbitro'}${u.avisos?` · 🔔 ${u.avisos}`:''}</span>
     <span class="s">${u.tipo==='deportista' ? `alta ${esc(ago(u.alta))}` : u.last_error ? `Error: ${esc(u.last_error)} · última actualización ${esc(ago(u.last_sync))}` : `Actualizado ${esc(ago(u.last_sync))}`}</span></div>`).join('');
   $('saludBody').innerHTML=html; $('hlRefresh').onclick=loadSalud;
 }
-$('saludPanel').addEventListener('toggle', e=>{ if(e.target.open) loadSalud(); });
+
 
 // Cabecera compacta (#3): visible cuando la fila del título de la cabecera grande sale de la pantalla.
 // Aviso de versión nueva: compara los estilos y scripts de la página abierta con los de la publicada. cache:'reload'
