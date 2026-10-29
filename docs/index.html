@@ -169,7 +169,7 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
 /* Tarjeta de partido del móvil */
 .mc{border-bottom:1px solid var(--line)}
 .mc:last-child{border-bottom:0}
-.mc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto 32px;gap:4px 10px;padding:12px 0;align-items:start}
+.mc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto 28px;gap:4px 10px;padding:12px 0;align-items:start}
 .mc>summary::-webkit-details-marker{display:none}
 .mc-1{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;font-size:14px;font-weight:600}
 .mc-1 .tm{font-family:var(--display);font-size:20px;font-weight:700;line-height:1.1}
@@ -179,7 +179,7 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
 .mc-r{display:flex;flex-direction:column;align-items:flex-end;gap:5px;padding-top:2px}
 .mc-r b{font-family:var(--display);font-size:22px;font-weight:700;line-height:1;white-space:nowrap}
 .mc-r .tag{margin-left:0}
-.mc .chev{margin-top:-3px}   /* centrada con el importe */
+.mc .chev{margin-top:-2px}   /* centrada con el importe */
 .mc.paid .mc-tt,.mc.paid .mc-1 span{color:var(--ink-2)}
 .mc-more{padding:0 0 14px}
 .mc-role{font-size:13.5px;color:var(--ink-2);margin-bottom:8px}
@@ -442,10 +442,11 @@ body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){displ
 .alert>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;min-height:38px}
 .alert>summary::-webkit-details-marker{display:none}
 .alert>summary .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* Flecha de desplegar (alertas, tarjetas, semanas): círculo discreto de 32 px, a juego con el menú de abajo. Solo es un
+/* Flecha de desplegar (alertas, tarjetas, semanas): solo el trazo, fino y gris como los iconos del menú de abajo. Solo es un
    indicador (aria-hidden): se toca toda la fila del summary, que mide más de 44 px de alto. */
-summary .chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:32px;height:32px;border-radius:50%;background:var(--surface-2);color:var(--ink);transition:transform .15s}
-summary .chev svg{display:block;width:16px;height:16px}
+summary .chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;color:var(--ink-2);transition:transform .15s}
+summary .chev svg{display:block;width:20px;height:20px}
+summary .chev svg path{stroke-width:2.2}
 details[open]>summary .chev{transform:rotate(180deg)}
 details>summary:active{background:var(--surface-2)}
 @media (prefers-reduced-motion:reduce){summary .chev{transition:none}}
@@ -674,7 +675,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 /* Tarjeta de la agenda: plegada lo esencial; al tocar, lo secundario */
 .agc{border-bottom:1px solid var(--line)}
 .agc:last-child{border-bottom:0}
-.agc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:56px minmax(0,1fr) 32px;gap:4px 12px;padding:12px 0;align-items:start}
+.agc>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:56px minmax(0,1fr) 28px;gap:4px 12px;padding:12px 0;align-items:start}
 .agc>summary::-webkit-details-marker{display:none}
 .agc .tm{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.05}
 .agc .tm small{display:block;font-family:"Barlow",system-ui,sans-serif;font-size:11px;font-weight:600;color:var(--ink-3)}
@@ -699,7 +700,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .agc .car{font-size:12.5px;color:#1E7B34;font-weight:600;margin-top:4px}
 :root[data-theme="dark"] .agc .car{color:#5BD07A}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .agc .car{color:#5BD07A} }
-@media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 32px;gap:4px 8px} .agc .tm{font-size:22px} }
+@media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 28px;gap:4px 8px} .agc .tm{font-size:22px} }
 .res{font-family:var(--display);font-size:22px;font-weight:700;margin-left:8px;vertical-align:middle}
 details.cal{margin-top:6px}
 details.cal>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -1288,7 +1289,9 @@ async function startOffline(id0){
   USER = {id}; P = sn.P; MATCHES = sn.MATCHES || []; VENUES = sn.VENUES || {}; SNAP_T = sn.t; OFFLINE_START = true;
   const eq = await snapGet('eq:'+id); if(eq) EQ = eq;
   DEP = P.tipo==='deportista'; document.body.classList.toggle('dep', DEP);
-  ADMIN=false;   // sin conexión no se puede comprobar: sin Administración hasta que vuelva la red
+  // Sin sesión (modo avión al abrir) no se puede comprobar: sin Administración. Con sesión, se reintenta la carga y
+  // started() llama a loadAdmin(): mientras, Administración enseña "Cargando…".
+  if(!id0) ADMIN=false;
   learnFcvbKm(); show('app'); render(); renderOffline();
   return true;
 }
@@ -3033,8 +3036,10 @@ async function shareApp(){
 /* ---------- Administración (solo ADMIN_LOGINS, una lista fija en el servidor; lo comprueba en cada petición) ---------- */
 const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpperCase());
 let ADMIN = null, ADM_LOADED = false;   // ADMIN null: aún no se sabe
+// Como callFn, pero un fallo de red (fetch rechazado) es una respuesta con error: nada se queda en "Cargando…".
+const admFn = body => callFn('designadas', body).catch(()=>({ok:false, error:'No se ha podido conectar. Inténtalo de nuevo.'}));
 async function loadAdmin(){
-  const r = GUEST ? {ok:false} : await callFn('designadas',{action:'admin'});
+  const r = GUEST ? {ok:false} : await admFn({action:'admin'});
   ADMIN = !!r.ok;
   document.querySelectorAll('.aj-nav .adm').forEach(a=>a.classList.toggle('hidden', !ADMIN));
   if(VIEW==='admin') render();   // abierta con ?vista=admin: ya se sabe si se enseña
@@ -3053,7 +3058,7 @@ let SIN_T=null, SIN_TRY=0;
 async function loadSin(refresh){
   clearTimeout(SIN_T); if(refresh) SIN_TRY=0;
   $('sinBody').innerHTML = `<p class="small muted">${refresh?'Comprobando los partidos en la web de la federación…':'Cargando…'}</p>`;
-  const r = await callFn('designadas',{action:'sin-arbitro', refresh:!!refresh});
+  const r = await admFn({action:'sin-arbitro', refresh:!!refresh});
   const otraVez = msg => { $('sinBody').innerHTML = `<p class="small muted">${msg}</p><button class="ghost" id="saRefresh">Actualizar</button>`; $('saRefresh').onclick=()=>loadSin(true); };
   if(!r.ok){ otraVez(esc(r.error||'No se ha podido cargar')); return; }
   // Sin el cálculo de designaciones de la semana, el servidor lo rehace (~1 min): se vuelve a preguntar solo, 5 veces.
@@ -3086,7 +3091,7 @@ try{ Object.assign(DGF, JSON.parse(localStorage.getItem(DGF_KEY)||'{}')); }catch
 async function loadDesig(refresh){
   if(DESIG_BUSY) return; DESIG_BUSY=true;
   $('desigBody').innerHTML = `<p class="small muted">${refresh?'Leyendo las fichas de los árbitros en iSquad…':'Cargando…'}</p>`;
-  const r = await callFn('designadas', refresh?{refresh:true}:{}); DESIG_BUSY=false;
+  const r = await admFn(refresh?{refresh:true}:{}); DESIG_BUSY=false;
   if(!r.ok){ $('desigBody').innerHTML = `<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; return; }
   DESIG=r; renderDesig();
 }
@@ -3126,7 +3131,7 @@ function renderDesig(){
 /* ---------- Salud de la app (solo admins) ---------- */
 async function loadSalud(){
   $('saludBody').innerHTML='<p class="small muted">Cargando…</p>';
-  const r=await callFn('designadas',{action:'salud'});
+  const r=await admFn({action:'salud'});
   if(!r.ok){ $('saludBody').innerHTML=`<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; $('admKpis').innerHTML=''; return; }
   const arb=r.usuarios.filter(u=>u.tipo!=='deportista'), dep=r.usuarios.length-arb.length, err=arb.filter(u=>u.last_error);
   // Cifras de arriba: uso de la app y lo que hay que mirar (en rojo si hay árbitros con error).

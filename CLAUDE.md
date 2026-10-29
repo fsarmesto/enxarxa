@@ -351,7 +351,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   fecha, hora y visitante iguales (caché `pid:<fecha>|<local>|<visitante>` 6 h, guardada como `{id}` porque `pub_cache.data` no
   admite null). Probado el 29-oct: 32 de 32 partidos del viernes con id. Como mucho los 60 más cercanos (`MAX_REVISAR`) y sin
   empezar ninguno pasados 70 s de la petición; los que no se han podido mirar salen "Sin comprobar" (y la caché dura 5 min en vez
-  de 30). "Actualizar" (`refresh`) vuelve a leer también los Previos (borra sus `arb:`). Si el cálculo de la semana falta, es de
+  de 30). "Actualizar" (`refresh`) vuelve a buscar los ids y a leer los Previos (`force` de `idPartido` y `matchOfficials`: si iSquad falla, se queda lo de antes). Si el cálculo de la semana falta, es de
   antes de existir `pendientes`, tiene más de 2 h (de noche no hay cron) o es de otra semana, lo rehace en segundo plano
   (`calcular(db, true)`, uno a la vez con el candado `pub_cache desig-calc` de 3 min) y responde `{calculando:true}`: la web
   vuelve a preguntar cada 40 s, 5 veces, y luego ofrece Actualizar. El cruce designación ↔ partido de `calcular` va en dos
@@ -390,7 +390,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   dentro de Maps. El selector de modo del issue #4 se quitó en el #15 (y se borra `liq-ruta`).
 - Accesibilidad (#10): `--ink-3` en claro #686868 (5,6:1 sobre blanco y 5:1 sobre el gris de las etiquetas; 27-oct-2026, antes #707070), foco visible en enlaces, zonas táctiles de 44 px en
   pantallas táctiles.
-- Flecha de desplegar (alertas, tarjetas, semanas, calendarios de Equipos): `chevHtml`, círculo gris discreto de 32 px con el
+- Flecha de desplegar (alertas, tarjetas, semanas, calendarios de Equipos): `chevHtml`, trazo fino y gris de 20 px (sin fondo) con el
   chevron SVG que gira (29-oct-2026, Ferran: el cuadrado negro de 44 px quedaba grande y descuadrado; a juego con el menú de abajo).
   Es solo un indicador (`aria-hidden`): se toca todo el summary. `aria-expanded` en el summary y texto oculto "Mostrar/Ocultar el detalle".
 

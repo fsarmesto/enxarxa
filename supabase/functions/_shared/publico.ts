@@ -203,9 +203,9 @@ export function teamMatches(db: Db, idEquipo: string, name: string): Promise<Par
 // Id público de un partido del listado de la federación (que no lo trae), para su Previo: se busca por el nombre del
 // local y se elige el de la misma fecha, hora y visitante. El buscador da primero la jornada en curso, así que basta
 // la 1a página (2a si hace falta). d = "AAAA-MM-DD HH:MM". Caché 6 h, también "no encontrado": va en {id}, porque
-// pub_cache.data no admite null.
-export async function idPartido(db: Db, local: string, visitante: string, d: string): Promise<string | null> {
-  return (await cached(db, `pid:${d}|${norm(local)}|${norm(visitante)}`, 6 * H, async () => ({ id: await buscarIdPartido(db, local, visitante, d) }))).id;
+// pub_cache.data no admite null. force: buscar otra vez (si el buscador falla, se queda lo de antes).
+export async function idPartido(db: Db, local: string, visitante: string, d: string, force = false): Promise<string | null> {
+  return (await cached(db, `pid:${d}|${norm(local)}|${norm(visitante)}`, force ? 0 : 6 * H, async () => ({ id: await buscarIdPartido(db, local, visitante, d) }))).id;
 }
 async function buscarIdPartido(db: Db, local: string, visitante: string, d: string): Promise<string | null> {
   const [f, h] = d.split(" "), [y, m, dd] = f.split("-"), fecha = `${dd}/${m}/${y}`;
@@ -250,8 +250,9 @@ export function standings(db: Db, torneo: string): Promise<FilaClasif[]> {
 // con su función ("ARBITRO", "ARBITRO", "ANOTADOR/CRONOMETRADOR"...); el primer ARBITRO es el 1r. Sale en cuanto la
 // FCVB lo designa. Caché: 3 h si aún no se ha jugado (lo pueden designar o cambiar), 30 días si ya se jugó.
 export type Oficial = { f: string; n: string };
-export function matchOfficials(db: Db, idPartido: string, jugado: boolean): Promise<Oficial[]> {
-  return cached(db, `arb:${idPartido}`, (jugado ? 30 * 24 : 3) * H, async () => {
+// force: leer el Previo otra vez (si iSquad falla, se queda lo de antes).
+export function matchOfficials(db: Db, idPartido: string, jugado: boolean, force = false): Promise<Oficial[]> {
+  return cached(db, `arb:${idPartido}`, force ? 0 : (jugado ? 30 * 24 : 3) * H, async () => {
     const s = await getText(`${PUB}/previo.php?id_partido=${encodeURIComponent(idPartido)}`);
     const out: Oficial[] = [];
     let refs = 0;

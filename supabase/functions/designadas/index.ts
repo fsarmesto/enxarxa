@@ -258,27 +258,27 @@ async function sinArbitro(db: Db, refresh: boolean, t0: number) {
   const cand = r.pendientes.filter((p) => p.d >= ahora).sort((a, b) => a.d.localeCompare(b.d));
   const lista: SinArbitro[] = cand.slice(0, MAX_REVISAR).map((p) => ({ ...p, id: null, estado: "nd" }));
   const queue = [...lista];
-  let mirados = 0;
+  let intentados = 0;
   // Cada partido son como mucho 2 búsquedas (20 s) y un Previo (25 s): a partir de 70 s no se empieza ninguno más, para
   // acabar dentro de los ~150 s de la función. Lo que no se mira queda "nd" (Sin comprobar).
   const worker = async () => {
     while (queue.length && Date.now() - t0 < 70_000) {
       const x = queue.shift()!;
+      intentados++;
       try {
-        x.id = await idPartido(db, x.l, x.v, x.d);
+        x.id = await idPartido(db, x.l, x.v, x.d, refresh);
         if (x.id) {
-          if (refresh) await db.from("pub_cache").delete().eq("key", `arb:${x.id}`);
-          const oficiales = await matchOfficials(db, x.id, false);
+          const oficiales = await matchOfficials(db, x.id, false, refresh);
           x.estado = oficiales.some((o) => o.f === "r1" || o.f === "r2") ? "con" : "sin";
         }
-        mirados++;
-      } catch { /* sin datos: queda "nd" */ }
+      } catch { /* sin datos: queda "nd" (Sin comprobar) */ }
     }
   };
   await Promise.all(Array.from({ length: 6 }, worker));
   const out = {
     actualizado: new Date().toISOString(), desde: r.desde, hasta: r.hasta, designaciones: r.actualizado, total,
-    candidatos: cand.length, revisados: mirados, incompleto: mirados < lista.length,
+    // revisados: los que se llegaron a intentar (incompleto = faltó tiempo); un error de iSquad deja el partido "nd".
+    candidatos: cand.length, revisados: intentados, incompleto: intentados < lista.length,
     conArbitro: lista.filter((x) => x.estado === "con").length, partidos: lista.filter((x) => x.estado !== "con"),
   };
   await db.from("pub_cache").upsert({ key: "sin-arbitro", data: out, fetched_at: out.actualizado });
