@@ -26,10 +26,13 @@ export function fixMojibake(s: string) {
 }
 export const madridDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
 
-export async function getText(url: string, init: RequestInit = {}) {
+// valeCon: iSquad responde algunas páginas con error 500 pero enteras; valen si traen ese texto.
+export async function getText(url: string, init: RequestInit = {}, valeCon?: RegExp) {
   const r = await fetch(url, { ...init, headers: { "User-Agent": UA, ...(init.headers || {}) }, signal: AbortSignal.timeout(25_000) });
-  if (!r.ok) { await r.body?.cancel(); throw new Error(`iSquad ${r.status}`); }
-  return await r.text();
+  if (!r.ok && !valeCon) { await r.body?.cancel(); throw new Error(`iSquad ${r.status}`); }
+  const s = await r.text();
+  if (!r.ok && !valeCon!.test(s)) throw new Error(`iSquad ${r.status}`);
+  return s;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -78,6 +81,12 @@ export function clubId(id: unknown, nombre: unknown): string {
   return String(id || "") || (String(nombre || "").match(/afiliacion_clubs\/(\d+)\//)?.[1] ?? "");
 }
 
+// URL del acta subida en los botones de un partido de json/competicion/buscador_partidos.php (ver resultados.ts).
+export function actaDeBotones(html: string): string | null {
+  const url = html.match(/mostrarActaFormal\(\d+,\s*&quot;(.*?)&quot;\)/)?.[1]?.replace(/\\\//g, "/");
+  if (!url) return null;
+  return url.startsWith("//") ? `https:${url}` : url.replace(/^http:/, "https:");
+}
 // Clubs de la federación (id y nombre).
 export function clubs(db: Db): Promise<{ id: string; name: string }[]> {
   return cached(db, "clubs", 7 * 24 * H, async () => {
@@ -91,7 +100,8 @@ export function clubs(db: Db): Promise<{ id: string; name: string }[]> {
 // Equipos de un club en la temporada en curso: id_equipo, nombre y categoría.
 export function clubTeams(db: Db, clubId: string): Promise<{ id: string; name: string; cat: string }[]> {
   return cached(db, `club:${clubId}`, 7 * 24 * H, async () => {
-    const s = await getText(`${PUB}/club.php?id=${encodeURIComponent(clubId)}&id_superficie=1`);
+    // Llega con error 500 y entera (visto el 29-oct-2026).
+    const s = await getText(`${PUB}/club.php?id=${encodeURIComponent(clubId)}&id_superficie=1`, {}, /equipo\.php\?id_equipo=/);
     const out: { id: string; name: string; cat: string }[] = [];
     for (const m of s.matchAll(/<a href='equipo\.php\?id_equipo=(\d+)[^']*?id_temp=(\d+)[^']*'>([\s\S]*?)<\/a>[\s\S]*?<\/td>\s*<td>([\s\S]*?)<\/td>/g)) {
       if (m[2] !== seasonCode()) continue; // la ficha del club lista también temporadas pasadas
@@ -148,32 +158,16 @@ export function withGender(cat: string, comp: string) {
 export const sameCat = (fav: string, full: string) => norm(full) === norm(fav) || norm(full).startsWith(norm(fav) + " ");
 
 
-// API del buscador público (la que usa el buscador de resultadosvoleibol): necesita el token que va en cada página
-// ("let token = ..."). Se guarda 12 h y se renueva si la API lo rechaza. La página puede llegar con error 500 y
-// entera (pasaba el 26-oct-2026): vale igual si trae el token.
-const API = "https://voleibol.isquad.es/json/api/call.php/resultados/busquedaGlobal";
-async function apiToken(db: Db, renew = false): Promise<string> {
-  if (renew) await db.from("pub_cache").delete().eq("key", "token");
-  return await cached(db, "token", 12 * H, async () => {
-    const r = await fetch(`${PUB}/competicion.php?id_superficie=1&seleccion=0&id_territorial=${TERRITORIAL}`,
-      { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(25_000) });
-    const s = await r.text();
-    const t = s.match(/let token = "([0-9a-f]+)"/)?.[1];
-    if (!t) throw new Error(`sin token (iSquad ${r.status})`);
-    return t;
+// Buscador público de resultadosvoleibol (js/buscador.js): POST json/isquad_proxy.php con recurso=busqueda, sin token.
+// Hasta el 28/29-oct-2026 era voleibol.isquad.es/json/api/call.php/resultados/busquedaGlobal con el token de la página
+// ("let token = ..."); iSquad quitó el token de las páginas y la API vieja da 500. La respuesta es la misma.
+async function apiSearch(_db: Db, params: Record<string, string>) {
+  const r = await fetch(`${PUB}/json/isquad_proxy.php`, {
+    method: "POST", body: new URLSearchParams({ ...params, recurso: "busqueda" }), signal: AbortSignal.timeout(20_000),
+    headers: { "User-Agent": UA, Origin: PUB, Referer: `${PUB}/competicion.php` },
   });
-}
-async function apiSearch(db: Db, params: Record<string, string>) {
-  for (const renew of [false, true]) {
-    const token = await apiToken(db, renew);
-    const r = await fetch(`${API}?token=${token}`, {
-      method: "POST", body: new URLSearchParams(params), signal: AbortSignal.timeout(20_000),
-      headers: { "User-Agent": UA, Origin: PUB, Referer: `${PUB}/` },
-    });
-    if (r.ok) return await r.json();
-    await r.body?.cancel();
-  }
-  throw new Error("API de iSquad no disponible");
+  if (!r.ok) { await r.body?.cancel(); throw new Error(`buscador de iSquad ${r.status}`); }
+  return await r.json();
 }
 
 // Calendario de la temporada de un equipo con estado y resultado (sets). Estados de iSquad: Pendiente, Finalizado,
@@ -239,7 +233,8 @@ export function matchOfficials(db: Db, idPartido: string, jugado: boolean): Prom
     const s = await getText(`${PUB}/previo.php?id_partido=${encodeURIComponent(idPartido)}`);
     const out: Oficial[] = [];
     let refs = 0;
-    for (const m of s.matchAll(/<div class="div\d+">\s*<div>\s*([^<]*?)\s*<\/div>\s*<div>\s*([^<]*?)\s*<\/div>\s*<\/div>/g)) {
+    // Desde el 28/29-oct-2026 la función va dentro de <i-t page='common'>ARBITRO</i-t> (antes, texto suelto).
+    for (const m of s.matchAll(/<div class="div\d+">\s*<div>\s*(?:<i-t[^>]*>)?\s*([^<]*?)\s*(?:<\/i-t>)?\s*<\/div>\s*<div>\s*([^<]*?)\s*<\/div>\s*<\/div>/g)) {
       const fn = norm(m[1]), n = text(fixMojibake(m[2]));
       if (!n || /^TV$/.test(fn)) continue;
       const f = /ANOTADOR/.test(fn) ? "an" : /LINEA/.test(fn) ? "jl" : /ARBITRO/.test(fn) ? (refs++ === 0 ? "r1" : "r2") : fn.toLowerCase();
