@@ -1288,6 +1288,7 @@ async function startOffline(id0){
   USER = {id}; P = sn.P; MATCHES = sn.MATCHES || []; VENUES = sn.VENUES || {}; SNAP_T = sn.t; OFFLINE_START = true;
   const eq = await snapGet('eq:'+id); if(eq) EQ = eq;
   DEP = P.tipo==='deportista'; document.body.classList.toggle('dep', DEP);
+  ADMIN=false;   // sin conexión no se puede comprobar: sin Administración hasta que vuelva la red
   learnFcvbKm(); show('app'); render(); renderOffline();
   return true;
 }
@@ -2089,7 +2090,7 @@ function renderCalcOut(){
 }
 // Ajustes: página aparte desde el engranaje de la cabecera; "Volver" lleva a la pestaña de antes.
 let AJ_FROM = null;
-function openAjustes(){ if(VIEW!=='ajustes') AJ_FROM=VIEW; VIEW='ajustes'; render(); scrollTo(0,0); $('ajustes').querySelector('.aj-t')?.focus(); }
+function openAjustes(){ if(VIEW!=='ajustes' && VIEW!=='admin') AJ_FROM=VIEW; VIEW='ajustes'; render(); scrollTo(0,0); $('ajustes').querySelector('.aj-t')?.focus(); }
 for(const id of ['btnAjustes','mbAjustes']) $(id).addEventListener('click', openAjustes);
 // Logo y nombre (#52): cierran hojas y paneles y van a la vista de inicio (con la que se abre la app); si ya estás, arriba.
 function closePanels(){ closeFilters(); closePeriod(); if(!CONSENT_OPEN) $('guide').classList.add('hidden'); }
@@ -2299,7 +2300,7 @@ $('btnDelete').addEventListener('click', async ()=>{
   if(!r.ok){ toast(r.error||'No se ha podido borrar'); return; }
   await snapClear(); await sb.auth.signOut(); location.reload();
 });
-async function logout(){ if(GUEST){ location.reload(); return; } await snapClear(); await sb.auth.signOut(); show('auth'); }
+async function logout(){ if(GUEST){ location.reload(); return; } await snapClear(); await sb.auth.signOut(); location.reload(); }   // recargar: no queda nada de la sesión (p. ej. Administración) en la página
 $('btnLogout').addEventListener('click', logout);
 
 /* ---------- Entrar ---------- */
@@ -2317,6 +2318,7 @@ async function enterGuest(){
   P={isquad_login:login, nombre:r.nombre, origin:'', rate:'0.26', min_travel:'4', irpf:'2', last_sync:new Date().toISOString(), last_error:null};
   MATCHES=(r.matches||[]).map(m=>({cat:null, team:'t1', role:'r1', tolls:0, holiday:false, no_dieta:null, paid:false, not_received:false, km_override:null, dieta_override:null, ...m}));
   VENUES={}; for(const m of MATCHES) VENUES[m.venue_key] ||= {venue_key:m.venue_key, label:null, km:null, km_source:null};
+  ADMIN=false;   // sin guardar no hay cuenta: nunca es administrador
   learnFcvbKm(); show('app'); render(); renderPush();
 }
 $('authForm').addEventListener('submit', async e=>{
@@ -3043,23 +3045,27 @@ document.querySelector('.aj-nav').addEventListener('click', e=>{
 function renderAdmin(){
   if(ADMIN===null){ $('admKpis').innerHTML='<p class="small muted">Cargando…</p>'; return; }
   if(ADM_LOADED) return; ADM_LOADED=true;
-  loadSalud(); loadSin(false); loadDesig(false);
+  SIN_TRY=0; loadSalud(); loadSin(false); loadDesig(false);
 }
 
 /* ---------- Partidos sin árbitro de aquí al domingo (solo admins) ---------- */
 let SIN_T=null, SIN_TRY=0;
 async function loadSin(refresh){
-  clearTimeout(SIN_T);
+  clearTimeout(SIN_T); if(refresh) SIN_TRY=0;
   $('sinBody').innerHTML = `<p class="small muted">${refresh?'Comprobando los partidos en la web de la federación…':'Cargando…'}</p>`;
   const r = await callFn('designadas',{action:'sin-arbitro', refresh:!!refresh});
-  if(!r.ok){ $('sinBody').innerHTML = `<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; return; }
-  // Sin el cálculo de designaciones de la semana, el servidor lo rehace (~1 min): se vuelve a preguntar solo.
-  if(r.calculando){ $('sinBody').innerHTML='<p class="small muted">Leyendo las designaciones de toda la federación (tarda un minuto). Se actualiza solo.</p>';
-    if(SIN_TRY++<5) SIN_T=setTimeout(()=>{ if(VIEW==='admin') loadSin(false); }, 40000); return; }
+  const otraVez = msg => { $('sinBody').innerHTML = `<p class="small muted">${msg}</p><button class="ghost" id="saRefresh">Actualizar</button>`; $('saRefresh').onclick=()=>loadSin(true); };
+  if(!r.ok){ otraVez(esc(r.error||'No se ha podido cargar')); return; }
+  // Sin el cálculo de designaciones de la semana, el servidor lo rehace (~1 min): se vuelve a preguntar solo, 5 veces.
+  if(r.calculando){
+    if(SIN_TRY++<5){ $('sinBody').innerHTML='<p class="small muted">Leyendo las designaciones de toda la federación (tarda un minuto). Se actualiza solo.</p>';
+      SIN_T=setTimeout(()=>{ if(VIEW==='admin') loadSin(false); }, 40000); }
+    else otraVez('Está tardando más de lo normal. Prueba a actualizar en unos minutos.');
+    return; }
   SIN_TRY=0;
   const ps=r.partidos||[], sin=ps.filter(p=>p.estado==='sin').length;
   let html=`<div class="sa-sum"><span class="sa-n${sin?' bad':''}">${sin}</span><span class="sa-l">${sin===1?'partido sin árbitro':'partidos sin árbitro'}</span></div>
-    <div class="dg-head"><span>De aquí al domingo · ${r.total} partidos de liga · comprobado ${esc(ago(r.actualizado))}</span><button class="ghost" id="saRefresh">Actualizar</button></div>`;
+    <div class="dg-head"><span>De aquí al domingo · ${r.total} ${r.total===1?'partido de liga':'partidos de liga'} · comprobado ${esc(ago(r.actualizado))}</span><button class="ghost" id="saRefresh">Actualizar</button></div>`;
   if(!ps.length) html += `<p class="small">${r.total?'Todos los partidos de liga de aquí al domingo tienen árbitro.':'No quedan partidos de liga hasta el domingo.'}</p>`;
   else {
     const row = p => `<div class="sa-row"><div class="tm">${esc(p.d.slice(11,16))}<small>${esc(fmtTiny(p.d.slice(0,10)))}</small></div>

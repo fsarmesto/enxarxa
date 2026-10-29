@@ -348,9 +348,16 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   amateur) de ahora al domingo que no salen en ninguna ficha de árbitro (`calcular` guarda ahora `pendientes`), confirmados uno a
   uno con su Previo (`matchOfficials`), que manda. El listado de la federación no trae id de partido: `idPartido` (publico.ts)
   busca por el nombre del local en el buscador público (da primero la jornada en curso; 1a página, 2a si hace falta) y elige
-  fecha, hora y visitante iguales (caché `pid:` 6 h). Probado el 29-oct: 32 de 32 partidos del viernes con id. Como mucho los 60
-  más cercanos (`MAX_REVISAR`); los que no se han podido mirar salen "Sin comprobar". Si no hay cálculo de la semana (o es de
-  antes de existir `pendientes`), lo rehace en segundo plano y responde `{calculando:true}`: la web vuelve a preguntar cada 40 s.
+  fecha, hora y visitante iguales (caché `pid:<fecha>|<local>|<visitante>` 6 h, guardada como `{id}` porque `pub_cache.data` no
+  admite null). Probado el 29-oct: 32 de 32 partidos del viernes con id. Como mucho los 60 más cercanos (`MAX_REVISAR`) y sin
+  empezar ninguno pasados 70 s de la petición; los que no se han podido mirar salen "Sin comprobar" (y la caché dura 5 min en vez
+  de 30). "Actualizar" (`refresh`) vuelve a leer también los Previos (borra sus `arb:`). Si el cálculo de la semana falta, es de
+  antes de existir `pendientes`, tiene más de 2 h (de noche no hay cron) o es de otra semana, lo rehace en segundo plano
+  (`calcular(db, true)`, uno a la vez con el candado `pub_cache desig-calc` de 3 min) y responde `{calculando:true}`: la web
+  vuelve a preguntar cada 40 s, 5 veces, y luego ofrece Actualizar. El cruce designación ↔ partido de `calcular` va en dos
+  pasadas (primero local y visitante exactos, luego local o visitante), para no dar a un equipo la designación del otro equipo
+  del mismo club a la misma hora.
+- Sin guardar y sin conexión, `ADMIN=false` (no se puede comprobar); al salir de la cuenta se recarga la página.
 
 ## Panel de designaciones publicadas (admin, 21-oct-2026)
 

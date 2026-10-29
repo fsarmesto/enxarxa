@@ -1,7 +1,7 @@
 import json,sys
 sys.path.insert(0, sys.argv[1]); from exact import EXACT
 FRAGS = [
- ("De aquí al domingo","D'aquí a diumenge"), ("partidos de liga","partits de lliga"), ("comprobado","comprovat"),
+ ("De aquí al domingo","D'aquí a diumenge"), ("partidos de liga","partits de lliga"), ("partido de liga","partit de lliga"), ("comprobado","comprovat"),
  ("en los últimos 7 días","en els últims 7 dies"), ("jugador o entrenador","jugador o entrenador"), ("árbitro","àrbitre"),
  ("partidos de la federación leídos","partits de la federació llegits"), ("vigilancia de equipos","vigilància d'equips"),
  ("dispositivos con avisos","dispositius amb avisos"), ("jugadores o entrenadores","jugadors o entrenadors"),

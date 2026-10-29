@@ -42,7 +42,8 @@ export async function cached<T>(db: Db, key: string, ttl: number, load: () => Pr
   if (data && Date.now() - new Date(data.fetched_at).getTime() < ttl) return data.data as T;
   try {
     const fresh = await load();
-    await db.from("pub_cache").upsert({ key, data: fresh, fetched_at: new Date().toISOString() });
+    const { error } = await db.from("pub_cache").upsert({ key, data: fresh, fetched_at: new Date().toISOString() });
+    if (error) console.error("pub_cache", key, error.message);   // p. ej. null: data es NOT NULL
     return fresh;
   } catch (e) {
     if (data) return data.data as T; // si iSquad falla, mejor lo de antes que nada
@@ -201,21 +202,23 @@ export function teamMatches(db: Db, idEquipo: string, name: string): Promise<Par
 
 // Id público de un partido del listado de la federación (que no lo trae), para su Previo: se busca por el nombre del
 // local y se elige el de la misma fecha, hora y visitante. El buscador da primero la jornada en curso, así que basta
-// la 1a página (2a si hace falta). d = "AAAA-MM-DD HH:MM". Caché 6 h (también "no encontrado").
-export function idPartido(db: Db, local: string, visitante: string, d: string): Promise<string | null> {
-  return cached(db, `pid:${d}|${norm(local)}`, 6 * H, async () => {
-    const [f, h] = d.split(" "), [y, m, dd] = f.split("-"), fecha = `${dd}/${m}/${y}`;
-    const igual = (a: unknown, b: string) => norm(fixMojibake(String(a || ""))) === norm(b);
-    for (let page = 1; page <= 2; page++) {
-      const res = await apiSearch(db, { q: local, id_temporada: seasonCode(), id_superficie: "1", seleccion: "0", limit: "20", categoria: "partidos", page: String(page) });
-      // deno-lint-ignore no-explicit-any
-      for (const p of (res?.data?.partidos || []) as any[]) {
-        if (p.fecha === fecha && String(p.hora || "").padStart(5, "0") === h && igual(p.nombre_local, local) && igual(p.nombre_visitante, visitante)) return String(p.id_partido);
-      }
-      if (!res?.has_more?.partidos) break;
+// la 1a página (2a si hace falta). d = "AAAA-MM-DD HH:MM". Caché 6 h, también "no encontrado": va en {id}, porque
+// pub_cache.data no admite null.
+export async function idPartido(db: Db, local: string, visitante: string, d: string): Promise<string | null> {
+  return (await cached(db, `pid:${d}|${norm(local)}|${norm(visitante)}`, 6 * H, async () => ({ id: await buscarIdPartido(db, local, visitante, d) }))).id;
+}
+async function buscarIdPartido(db: Db, local: string, visitante: string, d: string): Promise<string | null> {
+  const [f, h] = d.split(" "), [y, m, dd] = f.split("-"), fecha = `${dd}/${m}/${y}`;
+  const igual = (a: unknown, b: string) => norm(fixMojibake(String(a || ""))) === norm(b);
+  for (let page = 1; page <= 2; page++) {
+    const res = await apiSearch(db, { q: local, id_temporada: seasonCode(), id_superficie: "1", seleccion: "0", limit: "20", categoria: "partidos", page: String(page) });
+    // deno-lint-ignore no-explicit-any
+    for (const p of (res?.data?.partidos || []) as any[]) {
+      if (p.fecha === fecha && String(p.hora || "").padStart(5, "0") === h && igual(p.nombre_local, local) && igual(p.nombre_visitante, visitante)) return String(p.id_partido);
     }
-    return null;
-  });
+    if (!res?.has_more?.partidos) break;
+  }
+  return null;
 }
 
 // Clasificación de un grupo (torneo) según la web pública (clasificacion.php, ~900 KB): una fila por equipo con

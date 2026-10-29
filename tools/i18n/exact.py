@@ -410,6 +410,8 @@ EXACT = {
 "Dispositivos con notificaciones": "Dispositius amb notificacions", "Árbitros con error": "Àrbitres amb error",
 "al actualizar desde iSquad": "en actualitzar des d'iSquad", "Logins a iSquad hoy": "Inicis de sessió a iSquad avui",
 "Avisos enviados": "Avisos enviats",
+"No se ha podido cargar": "No s'ha pogut carregar",
+"Está tardando más de lo normal. Prueba a actualizar en unos minutos.": "Està trigant més del normal. Prova d'actualitzar d'aquí a uns minuts.",
 "Partidos sin árbitro": "Partits sense àrbitre",
 "Partidos de liga (sin alevín ni amateur) de aquí al domingo que aún no tienen ningún árbitro designado. Se comprueba en la ficha pública de cada partido de la web de la federación, como mucho cada 30 minutos.": "Partits de lliga (sense aleví ni amateur) d'aquí a diumenge que encara no tenen cap àrbitre designat. Es comprova a la fitxa pública de cada partit de la web de la federació, com a molt cada 30 minuts.",
 "partido sin árbitro": "partit sense àrbitre", "partidos sin árbitro": "partits sense àrbitre",
