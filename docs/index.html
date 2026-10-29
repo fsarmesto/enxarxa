@@ -1077,6 +1077,25 @@ const CATS = {
   alv:  {label:'Aleví / Amateur',                  t3:[0,0,0],             t2a:[0,0],        t2b:[0,0],        t1:25.17, noDieta:true},
   none: {label:'Sin tarifa',                       t3:[0,0,0],             t2a:[0,0],        t2b:[0,0],        t1:0}
 };
+// Tarifas de la temporada 2025/26, sacadas de los recibos de iSquad (1.282 partidos de 17 árbitros, 29-oct-2026). Son las de
+// 2026/27 sin la subida del ~5 %, con algún céntimo de diferencia; las casillas sin ningún recibo, 2026/27 ÷ 1,05.
+const CATS_2526 = {
+  sl1:  {t3:[30,0,33.33],         t2a:[0,0],         t2b:[0,0],         t1:0},
+  sl2:  {t3:[0,57.14,30.48],      t2a:[0,0],         t2b:[0,0],         t1:0},
+  pde:  {t3:[44.52,32.38,16.19],  t2a:[55.86,37.24], t2b:[65.17,27.93], t1:93.10},
+  s1:   {t3:[42.13,30.90,20.60],  t2a:[51.87,34.57], t2b:[59.06,25.31], t1:78.20},
+  s2:   {t3:[32.88,24.11,16.08],  t2a:[41.37,27.58], t2b:[46.10,19.76], t1:60.71},
+  s3:   {t3:[29.17,21.39,14.26],  t2a:[37.04,24.69], t2b:[41.77,17.90], t1:54.54},
+  s4:   {t3:[25.01,18.34,12.23],  t2a:[29.63,19.75], t2b:[33.13,14.20], t1:42.19},
+  j1:   {t3:[25.01,18.34,12.23],  t2a:[31.49,20.99], t2b:[35.29,15.12], t1:48.36},
+  j2:   {t3:[23.15,16.98,11.31],  t2a:[27.78,18.52], t2b:[29.53,12.66], t1:36.01},
+  j34:  {t3:[22.69,16.64,11.10],  t2a:[27.16,18.11], t2b:[28.82,12.35], t1:34.99},
+  c1:   {t3:[22.69,16.64,11.10],  t2a:[27.16,18.11], t2b:[28.82,12.35], t1:34.99},
+  c234: {t3:[22.22,16.30,10.87],  t2a:[26.55,17.70], t2b:[28.10,12.04], t1:33.95},
+  inf:  {t3:[22.22,16.30,10.87],  t2a:[26.55,17.70], t2b:[28.10,12.04], t1:33.95},
+  infp: {t1:23.97},
+  alv:  {t1:23.97},
+};
 const CAT_OPTS = Object.fromEntries(Object.entries(CATS).map(([k,v])=>[k,v.label]));
 const TEAM_OPTS = {t1:'1 árbitro', t2a:'2 árbitros (1r–2n)', t2b:'2 árbitros (1r–An)', t3:'3 árbitros'};
 const ROLE_OPTS = {r1:'1r árbitro', r2:'2n árbitro', an:'Anotador', jl:'Juez de línea'};
@@ -1268,7 +1287,9 @@ const toMins = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
 // Franja como la cuenta la FCVB: mañana hasta las 14:59, tarde desde las 15:00.
 const franjaOf = m => toMins(m.time)<900 ? 'M' : 'T';
 function tariff(m){
-  const c = CATS[catOf(m)] || CATS.none;
+  // Selecciones: la FCVB no paga tarifa, solo los gastos del día (ver isHidden).
+  if(isTerritorial(m)) return 0;
+  const k = catOf(m), c = {...(CATS[k] || CATS.none), ...(seasonOf(m.date)==='2025' ? CATS_2526[k] : null)};
   if(m.role==='jl') return c.jl || 0;
   if(m.team==='t1') return m.role==='r1' ? c.t1 : 0;
   if(m.team==='t2a') return m.role==='r1'?c.t2a[0]: m.role==='r2'?c.t2a[1]:0;

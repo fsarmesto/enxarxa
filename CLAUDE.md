@@ -106,7 +106,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## Reglas de pago (en `docs/index.html`)
 
-- Tarifas: objeto `CATS` (anexo 2026/27; también se aplica a 25/26). Categoría automática con `guessCat`
+- Tarifas: objeto `CATS` (anexo 2026/27) y `CATS_2526` (temporada 25/26, sacada de los recibos el 29-oct-2026: 2026/27 sin el
+  ~5 %; `tariff()` elige por la fecha). Categoría automática con `guessCat`
   (Júnior de 2ª se paga como 1ª). Al cambiar de temporada, actualizar `CATS` y `dietaFor` con el anexo nuevo.
 - Franja (dieta y desplazamiento): mañana hasta las 14:59, tarde desde las 15:00 (`franjaOf`; lo dijo Ferran y cuadra
   con los recibos: 13:00+14:45 = 1 viaje, 13:00+16:00 = 2).
@@ -621,7 +622,8 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 
 - Acceso abierto: `ALLOWED_LOGINS` vacío, cualquier árbitro con cuenta de iSquad puede entrar. Para cerrarlo,
   poner la lista de usuarios en ese secret (quien no esté, deja de poder entrar).
-- La temporada 2025/26 se calcula con las tarifas de 2026/27 (decisión del autor: importes aproximados en esa temporada).
+- La temporada 2025/26 tiene sus tarifas (`CATS_2526`, de los recibos). Antes usaba las de 2026/27 y casi todas sus tarifas
+  salían con la etiqueta "app X €" al lado de la de la FCVB.
 - Se traen la temporada en curso y la anterior; la web tiene selector de temporada (se recuerda en el navegador).
 - Sin logo de la FCVB (quitado el 21-oct-2026, tarea legal): en la cabecera va el icono de la app y siempre "App no oficial".
   A la FCVB solo se la nombra de forma descriptiva ("para árbitros, jugadores y entrenadores de la FCVB").
