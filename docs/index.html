@@ -149,8 +149,8 @@ details.panel[open]>summary{margin-bottom:14px}
 .wk-sec{font-family:var(--display);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:44px 0 12px}
 .week.wk{margin-bottom:12px}
 .week.wk[open]{margin-bottom:34px}
-.week.wk>summary{list-style:none;cursor:pointer}
-.week.wk>summary::-webkit-details-marker{display:none}
+.week.wk>summary,.wk-fold>summary{list-style:none;cursor:pointer}
+.week.wk>summary::-webkit-details-marker,.wk-fold>summary::-webkit-details-marker{display:none}
 .wk-acts{margin:8px 0 4px}
 .week-head{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;padding:6px 0;border-bottom:3px solid var(--rule);position:sticky;top:0;z-index:5;background:var(--bg)}
 .week.cur .week-head{background:var(--surface)}
@@ -247,8 +247,8 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
   .cob-list .week.cur .wk-lbl{padding:14px 0 4px 12px}
   .cob-list .wk-sec{margin:34px 0 4px}
   .cob-list .week.wk>summary{border-radius:0}
-  .cob-list .week.wk>summary:hover{background:var(--surface-2)}
-  .cob-list .week.wk>summary:focus-visible{outline:3px solid var(--focus,var(--ink));outline-offset:-3px}
+  .cob-list :is(.week.wk,.wk-fold)>summary:hover{background:var(--surface-2)}
+  .cob-list :is(.week.wk,.wk-fold)>summary:focus-visible{outline:3px solid var(--focus,var(--ink));outline-offset:-3px}
   .cob-list summary .chev{width:32px;height:32px;background:none;color:var(--ink-2)}
   /* Semanas anteriores plegadas: toda la fila verdosa si está cobrada entera, rojiza si falta algo */
   .cob-list .week.wk.w-ok:not([open])>summary{background:var(--ok-bg);border-left-color:var(--ok-line)}
@@ -1551,6 +1551,9 @@ function weeksHtml(items, dateOf, o){
   const block=(w,list,kind,i)=>{ const head=o.head(w,list,kind), body=o.body(w,list,kind), k=scope+w, c=o.cls?' '+o.cls(w,list,kind):'';
     if(kind==='prev'){ const open = WK_OPEN.has(k) ? WK_OPEN.get(k) : !!o.openPrev?.(w,list,i);
       return `<details class="week wk${c}" data-wk="${esc(k)}"${open?' open':''}><summary class="week-head" aria-expanded="${open}">${head}${chevHtml(open)}</summary>${body}</details>`; }
+    // foldCur (Cobros): esta semana también se pliega, pero empieza abierta. La etiqueta queda fuera del <details>.
+    if(kind==='cur' && o.foldCur){ const open = WK_OPEN.has(k) ? WK_OPEN.get(k) : true;
+      return `<div class="week cur"><div class="wk-lbl">Esta semana</div><details class="wk-fold" data-wk="${esc(k)}"${open?' open':''}><summary class="week-head" aria-expanded="${open}">${head}${chevHtml(open)}</summary>${body}</details></div>`; }
     return `<div class="week${kind==='cur'?' cur':''}">${kind==='cur'?'<div class="wk-lbl">Esta semana</div>':''}<div class="week-head">${head}</div>${body}</div>`; };
   let html = g.cur ? block(g.cur[0], g.cur[1], 'cur') : '';
   if(g.next.length) html+='<h2 class="wk-sec">Próximas semanas</h2>'+g.next.map(([w,l],i)=>block(w,l,'next',i)).join('');
@@ -1957,17 +1960,17 @@ function render(){
     // Semana · Partidos · Estado · Total, en columnas alineadas con la cabecera de encima.
     const dHead = (w, list, kind) => { const allPaid=list.every(isPaid), n=list.length;
       const st = allPaid ? '<span class="wst">✓ Cobrada</span>' : list.some(m=>m.date<=today()) ? '<span class="tag warn">Pendiente</span>' : '<span class="wst">Por jugar</span>';
-      return `<span class="wc-w">Semana ${weekRange(w)}</span><span class="wc-n">${n} partido${n===1?'':'s'}</span><span class="wc-s">${st}</span><span class="wc-t">${eur(list.reduce((s,m)=>s+res.get(m.id).total,0))}</span>${kind==='prev'?'':'<span class="wc-c" aria-hidden="true"></span>'}`; };
+      return `<span class="wc-w">Semana ${weekRange(w)}</span><span class="wc-n">${n} partido${n===1?'':'s'}</span><span class="wc-s">${st}</span><span class="wc-t">${eur(list.reduce((s,m)=>s+res.get(m.id).total,0))}</span>${kind==='next'?'<span class="wc-c" aria-hidden="true"></span>':''}`; };
     const dBody = (w, list) => { const allPaid=list.every(isPaid);
       const rows=[...list].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(matchHtml).join('');
       return `<div class="wk-acts"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button></div>
         <div class="wrap"><table class="m dk"><thead><tr><th>Fecha</th><th>Partido</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th>Estado</th><th><span class="sr">Acciones</span></th></tr></thead><tbody>${rows}</tbody></table></div>`; };
     led.innerHTML = `<div class="cob-grid"><div class="cob-list"><div class="wk-cols" aria-hidden="true"><span>Semana</span><span>Partidos</span><span>Estado</span><span>Total</span><span></span></div>`
-      + weeksHtml(shown, m=>m.date, {head:dHead, body:dBody, openPrev, cls:(w,list)=>list.every(isPaid)?'w-ok':'w-pend'}) + `</div>${cobAside(ms.length, pend, paid)}</div>`;
+      + weeksHtml(shown, m=>m.date, {head:dHead, body:dBody, openPrev, foldCur:true, cls:(w,list)=>list.every(isPaid)?'w-ok':'w-pend'}) + `</div>${cobAside(ms.length, pend, paid)}</div>`;
     renderSettings(); return;
   }
   led.innerHTML = '<div class="calc-cta"><button type="button" class="ghost" data-calc=""><b>Cómo calcular</b><small>Calculadora de dietas</small></button></div>'
-    + weeksHtml(shown, m=>m.date, {head, body, openPrev});
+    + weeksHtml(shown, m=>m.date, {head, body, openPrev, foldCur:true});
   renderSettings();
 }
 function renderSettings(){
