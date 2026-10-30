@@ -269,13 +269,11 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
   table.m.dk .dt b{font-family:var(--display);font-size:17px}
   table.m.dk .teams{font-weight:600;color:var(--ink);font-size:13.5px}
   table.m.dk .venue,table.m.dk .rl{font-size:12.5px;color:var(--ink-2)}
-  table.m.dk .rl{display:none}
   table.m.dk td small{display:block;font-size:11.5px;color:var(--ink-3);white-space:nowrap}
-  table.m.dk .role{white-space:nowrap}
-  table.m.dk .role small{white-space:normal;max-width:12em}   /* "Cadet 2ª/3ª/4ª/Preferent · festivo" en una línea sacaba el "⋯" de la tabla */
   table.m.dk .pst .tag{margin-left:0;white-space:nowrap}
   table.m.dk .acts{width:40px;text-align:right}
-  table.m.dk .dk-more-b{width:36px;height:36px;padding:0 0 6px;font-size:20px;font-weight:700;line-height:1;border-radius:6px;text-decoration:none;border-color:var(--line)}
+  table.m.dk .dk-more-b{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border-radius:6px;border-color:var(--line)}
+  table.m.dk .dk-more-b svg{display:block;width:18px;height:18px}   /* el "⋯" de texto se cortaba según la fuente del sistema */
   table.m.dk .dk-more-b:hover,table.m.dk .dk-more-b[aria-expanded="true"]{border-color:var(--ink)}
   table.m.dk tr.open td{border-bottom:0}
   table.m.dk tr.edrow td{background:var(--surface);padding:10px 12px 14px}
@@ -298,7 +296,6 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
   .ca-calc b{font-size:17px} .ca-calc small{font-size:12.5px;font-weight:500;opacity:.85}
   .ca-man{width:100%;margin-top:10px}
 }
-@media (min-width:1024px) and (max-width:1199px){ table.m.dk .role{display:none} table.m.dk .rl{display:block} }
 .mc-acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 8px}
 .mc-acts .segb button{min-height:44px;padding:3px 14px}
 .mc-ed{display:inline-flex;align-items:center;gap:6px}
@@ -1770,7 +1767,8 @@ function deskStTag(m){
 }
 function deskRow(m,r,km,gone,manual,cols){
   const id=esc(m.id), open=MC_EDIT.has(m.id), paid=isPaid(m), sm=t=>t?`<small>${t}</small>`:'';
-  const warn = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && !/^(FINALIZADO|PENDIENTE)$/.test(m.estado) ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
+  // Aplazado, suspendido o anulado ya sale en pubTags.
+  const warn = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && !/^(FINALIZADO|PENDIENTE)$|SUSPEND|APLAZ|ANULA/.test(m.estado) ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
   const lbl=VENUES[m.venue_key]?.label, city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
   const venue=(lbl||capName(m.venue))+(city&&!(lbl||'').includes('(')?' · '+capName(city[1]):'');
   const kmNote = km ? `${km} km${r.kmSrc==='fcvb'?' · km FCVB':r.kmSrc==='min'?' · mínimo FCVB':r.kmSrc==='aprox'?' · km aprox.':''}` : '';
@@ -1782,11 +1780,10 @@ function deskRow(m,r,km,gone,manual,cols){
   let h = `<tr class="${paid?'paid':''}${open?' open':''}">
     <td class="dt"><span>${esc(day)}</span><b>${esc(m.time)}</b></td>
     <td class="match"><div class="teams">${esc(capName(m.teams).replace(/ Vs /,' vs '))}${warn}</div><div class="venue">${esc(shortComp(m.comp))} · ${esc(venue)}${tripHtml(m, ' · ')}</div><div class="rl">${role} · ${cat}</div>${pubTags(m)}</td>
-    <td class="role">${role}${sm(cat)}</td>
     <td class="n">${eur(r.tariff)}${sm(r.fcvb||r.fcvbTarifa?'FCVB':'')}</td><td class="n">${dieta}</td><td class="n">${despl}</td><td class="n">${eur(+m.tolls||0)}</td>
     ${+P.irpf?`<td class="n">${r.irpf?'−'+eur(r.irpf):'—'}</td>`:''}<td class="n total">${eur(r.total)}</td>
     <td class="pst">${deskStTag(m)}</td>
-    <td class="acts"><button type="button" class="ghost dk-more-b" data-edit="${id}" aria-expanded="${open}" aria-label="Más opciones" title="Más opciones">⋯</button></td></tr>`;
+    <td class="acts"><button type="button" class="ghost dk-more-b" data-edit="${id}" aria-expanded="${open}" aria-label="Más opciones" title="Más opciones"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg></button></td></tr>`;
   if(open) h += `<tr class="edrow"><td colspan="${cols}"><div class="dk-more">
     <div class="dk-acts"><button type="button" class="pay${paid?' is-paid':''}" data-pay="${id}" aria-pressed="${paid}">${paid?'✓ Cobrado':'Marcar cobrado'}</button><button type="button" class="ghost small" data-calc="${id}">¿Cómo se calcula?</button>${manual||gone?`<button type="button" class="ghost small danger" data-del="${id}">quitar</button>`:''}</div>
     ${payTag(m)}${editorHtml(m,r,km)}</div></td></tr>`;
@@ -1919,7 +1916,7 @@ function render(){
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
   const syncT = P.last_sync ? new Date(P.last_sync).getTime() : 0, mobile=MOBILE_Q.matches, desk=!mobile && DESK_Q.matches;
-  const dkCols = 10 + (+P.irpf?1:0);
+  const dkCols = 9 + (+P.irpf?1:0);
   // Una fila de tabla (escritorio) o una tarjeta plegable (móvil) por partido.
   const matchHtml = m => {
     const r=res.get(m.id), km=kmFor(m), manual=m.id.startsWith('MAN-');
@@ -1964,7 +1961,7 @@ function render(){
     const dBody = (w, list) => { const allPaid=list.every(isPaid);
       const rows=[...list].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(matchHtml).join('');
       return `<div class="wk-acts"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button></div>
-        <div class="wrap"><table class="m dk"><thead><tr><th>Fecha</th><th>Partido</th><th class="role">Rol</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th>Estado</th><th><span class="sr">Acciones</span></th></tr></thead><tbody>${rows}</tbody></table></div>`; };
+        <div class="wrap"><table class="m dk"><thead><tr><th>Fecha</th><th>Partido</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th>Estado</th><th><span class="sr">Acciones</span></th></tr></thead><tbody>${rows}</tbody></table></div>`; };
     led.innerHTML = `<div class="cob-grid"><div class="cob-list"><div class="wk-cols" aria-hidden="true"><span>Semana</span><span>Partidos</span><span>Estado</span><span>Total</span><span></span></div>`
       + weeksHtml(shown, m=>m.date, {head:dHead, body:dBody, openPrev, cls:(w,list)=>list.every(isPaid)?'w-ok':'w-pend'}) + `</div>${cobAside(ms.length, pend, paid)}</div>`;
     renderSettings(); return;
