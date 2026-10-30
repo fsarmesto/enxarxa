@@ -45,7 +45,7 @@ async function entrarDeportista(key: string, login: string, dep: { area: string;
   }
   const { data: link, error: le } = await db.auth.admin.generateLink({ type: "magiclink", email });
   if (le || !link?.user) return json({ error: "No se ha podido iniciar sesión" }, 500);
-  const { error: pe } = await db.from("profiles").upsert({ user_id: link.user.id, login_key: key, isquad_login: login, origin: "", tipo: "deportista",
+  const { error: pe } = await db.from("profiles").upsert({ user_id: link.user.id, login_key: key, isquad_login: login, ...(existing ? {} : { origin: "" }), tipo: "deportista",
     nombre: dep.nombre || null, foto: dep.foto || null, last_error: null, ...(existing ? {} : consentNew()) }, { onConflict: "user_id" });
   if (pe) return json({ error: "No se ha podido guardar el perfil" }, 500);
   await db.from("isquad_credentials").delete().eq("user_id", link.user.id);   // por si antes era árbitro: nada guardado
@@ -91,6 +91,12 @@ Deno.serve(async (req) => {
   try { matches = await fetchDesignaciones(login, password); }
   catch (e) {
     if (!(e instanceof IsquadAuthError)) return json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502);
+    // Un árbitro que ya tiene cuenta y cuya página de designaciones no se puede leer (iSquad en mantenimiento o con otro
+    // diseño) NO pasa a jugador: perdería Cobros, su población y la contraseña guardada, y no volvería a ser árbitro.
+    if (e.message === "ilegible") {
+      const { data: prev } = await db0.from("profiles").select("tipo").eq("login_key", key).maybeSingle();
+      if (prev && prev.tipo !== "deportista") return json({ error: "No se ha podido leer iSquad. Prueba en unos minutos." }, 502);
+    }
     // No es árbitro (o no entra en esa área): ¿jugador o entrenador? Misma cuenta de iSquad.
     let dep;
     try { dep = await loginDeportista(login, password); }
@@ -117,9 +123,10 @@ Deno.serve(async (req) => {
   if (le || !link?.user) return json({ error: "No se ha podido iniciar sesión" }, 500);
   const userId = link.user.id;
 
-  const origin = existing?.origin || body.origin!.trim();
+  const origin = existing?.origin || (body.origin || "").trim();   // quien antes entró como jugador no tiene población: se pone en Ajustes
   const { error: pe } = await db.from("profiles").upsert(
-    { user_id: userId, login_key: key, isquad_login: login, origin, last_error: null, ...(existing ? {} : consentNew()) }, { onConflict: "user_id" });
+    // tipo: quien entra como árbitro lo es, aunque antes hubiera entrado como jugador (licencia nueva o un fallo de iSquad).
+    { user_id: userId, login_key: key, isquad_login: login, origin, tipo: "arbitro", last_error: null, ...(existing ? {} : consentNew()) }, { onConflict: "user_id" });
   if (pe) return json({ error: "No se ha podido guardar el perfil" }, 500);
   await db.from("isquad_credentials").upsert({ user_id: userId, secret: await encrypt(password), session: null, session_at: null, updated_at: new Date().toISOString() });
   // Los partidos se guardan ya; el equipo arbitral de cada designación y los km se leen después, sin hacer esperar.

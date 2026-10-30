@@ -44,7 +44,9 @@ self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   const url = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
-    for (const w of wins) if (w.url.startsWith(self.registration.scope) && 'focus' in w) return w.focus();
+    // Con la app ya abierta, además de traerla al frente hay que llevarla a la vista del aviso (?vista=…, &avisos=1).
+    for (const w of wins) if (w.url.startsWith(self.registration.scope) && 'focus' in w)
+      return w.focus().then((c) => (c && 'navigate' in c ? c.navigate(url).catch(() => c) : c));
     return self.clients.openWindow(url);
   }));
 });

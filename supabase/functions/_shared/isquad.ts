@@ -181,7 +181,7 @@ export async function fetchDesignaciones(
     jar.clear();
     await loginIsquad(jar, login, password);
     html = await designaciones(jar);
-    if (!parseDesignaciones(html)) throw new IsquadAuthError("login");
+    if (!parseDesignaciones(html)) throw new IsquadAuthError("ilegible");   // entra pero la tabla no se lee (cambio de diseño, mantenimiento… o no es árbitro)
   }
   opts.onSession?.(cookie(new Map([...jar].filter(([k]) => k !== "TemporadaSelect"))), fresh);
   const { current, previous } = seasons(html);
