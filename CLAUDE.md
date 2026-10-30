@@ -245,7 +245,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## Guía, resumen y compartir coche (21-oct-2026)
 
-- Guía de 3 pasos la primera vez (localStorage `liq-guia-vista`) y "Compartir la app" (navigator.share o enlace + QR
+- Guía interactiva la primera vez (30-oct-2026; localStorage `liq-guia-vista`): hoja de entrada (`openGuide`), recorrido
+  sobre la app de verdad (`tourSteps`: 4 bandas oscuras + marco amarillo + burbuja; en los pasos `act` se avanza tocando
+  el botón, "Siguiente" lo toca por ti; un paso sin elemento se salta) y hoja final de instalar/avisos (`renderGuideEnd`).
+  Saltar o Escape en cualquier paso; al acabar vuelve a la pestaña y deja `liq-vista` y las cifras como estaban. Está en
+  la prueba de accesibilidad. Y "Compartir la app" (navigator.share o enlace + QR
   con qrcodejs 1.0.0 de `docs/vendor`, cargado al pulsar). Ambos también en Ajustes.
 - Pestaña "Resumen" (`renderResumen`): temporada (neto por mes, por categoría, por designación, compañeros más
   frecuentes, pabellones) o año natural para la renta (solo lo cobrado, por la fecha de "PAGADO - dd/mm/aaaa").
