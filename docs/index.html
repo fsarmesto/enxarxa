@@ -413,6 +413,21 @@ body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){displ
 .sheet .nav{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .sheet .nav .primary{padding:10px 22px;font-size:16px}
 .sheet .nav{flex-wrap:wrap}
+/* Guía interactiva: 4 bandas oscurecen todo menos el elemento del paso (con un marco amarillo) y al lado va una burbuja.
+   Con bandas y no con una sombra enorme: la sombra de 9999 px no siempre se pintaba (junto al menú de abajo). */
+#tour{position:fixed;inset:0;z-index:55;pointer-events:none}
+#tour.hidden{display:none}
+#tour .tour-dim{position:fixed;background:rgba(0,0,0,.62)}
+.tour-hole{position:fixed;border-radius:10px;box-shadow:0 0 0 3px var(--yellow)}
+.tour-hole.act{animation:tourPulse 1.4s ease-in-out infinite}
+@keyframes tourPulse{50%{box-shadow:0 0 0 7px var(--yellow)}}
+.tour-tip{position:fixed;pointer-events:auto;width:min(340px,calc(100vw - 32px));background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:16px 16px 12px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.tour-tip .tour-n{font-size:12px;font-weight:700;color:var(--ink-3);letter-spacing:.04em;margin:0 0 4px}
+.tour-tip h2{font-family:var(--display);font-size:22px;line-height:1.15;margin:0 0 6px}
+.tour-tip p.tx{font-size:15px;color:var(--ink-2);margin:0 0 12px}
+.tour-tip .nav{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.tour-tip .nav .primary{padding:9px 20px}
+@media (prefers-reduced-motion:reduce){ .tour-hole.act{animation:none} }
 .calopts{display:flex;flex-direction:column;gap:8px;margin:12px 0}
 .calopts a.go{display:block;text-align:center;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:10px 14px;color:var(--ink);text-decoration:none}
 .sheet .acts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
@@ -1092,6 +1107,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 <div class="toast" id="toast"></div>
 <div class="newver hidden" id="newVer" role="status"><span>Hay una versión nueva de la app.</span><button type="button" id="newVerBtn">Actualizar</button></div>
 <div class="ovl hidden" id="guide" role="dialog" aria-modal="true" aria-labelledby="guideTitle"><div class="sheet" id="guideSheet"></div></div>
+<div class="hidden" id="tour" role="dialog" aria-modal="true" aria-labelledby="tourT"><div class="tour-dim"></div><div class="tour-dim"></div><div class="tour-dim"></div><div class="tour-dim"></div><div class="tour-hole" id="tourHole"></div><div class="tour-tip" id="tourTip"></div></div>
 
 <script src="vendor/supabase-2.45.4.js"></script>
 <script src="config.js"></script>
@@ -2919,45 +2935,131 @@ function renderResumen(allMs,res){
 }
 
 /* ---------- Guía de bienvenida (la primera vez) y compartir la app ---------- */
+// Guía interactiva: una hoja de entrada, un recorrido que resalta los botones de verdad (en los pasos "act" se avanza
+// tocándolos; "Siguiente" lo hace por ti) y la hoja final de instalar y avisos. Se puede saltar en cualquier momento
+// (Saltar o Escape) y vuelve a la pestaña de antes. Un paso cuyo elemento no está (sin partidos aún, p. ej.) se salta.
 const APP_URL = 'https://fsarmesto.github.io/enxarxa/';
 const GUIDE_KEY = 'liq-guia-vista';
-let GUIDE_STEP = 0;
-function guideSteps(){
+let TOUR = [], TI = 0, TOUR_ON = false, TOUR_EL = null, TOUR_FROM = null, TOUR_VKEY = null, TOUR_SCORE = false;
+function tourSteps(){
+  const s = [];
+  if(!DEP){
+    s.push({ sel:'#statLine', view:'cobros', top:true, act:true, t:'Lo que te deben', p:'Aquí ves lo pendiente y lo cobrado. Tócalo para ver las cifras de la temporada.' });
+    s.push({ sel:'#ledger :is(.mc, table.m tbody tr)', view:'cobros', t:'Cada partido, con su importe', p:'Tarifa, dieta y desplazamiento de cada partido. Cuando te paguen, márcalo como cobrado.' });
+    s.push({ sel:'#views [data-view="agenda"]', view:'cobros', act:true, t:'Mis partidos', p:'Toca la pestaña Mis partidos.' });
+    s.push({ sel:'#agenda .agc', view:'agenda', t:'Tus designaciones', p:'Con el equipo arbitral, el pabellón y cómo llegar. Toca un partido para ver más.' });
+  } else s.push({ sel:'#agenda .agc', view:'agenda', t:'Tus partidos', p:'Los de tus equipos, con horario, pabellón, árbitros y resultado. Toca uno para ver más.' });
+  s.push({ sel:'#tabEquipos', t:'Equipos', p:'Sigue a tus equipos y a cualquier otro: horarios, resultados y clasificación.' });
+  s.push({ sel:'#btnAvisos', top:true, t:'Avisos', p: DEP ? 'Aquí te aviso cuando tus partidos tengan horario o cambien.' : 'Aquí te aviso de designaciones nuevas, cambios de horario y pagos por pedir.' });
+  s.push({ sel:'#btnAjustes', top:true, t:'Ajustes', p: DEP ? 'Tu idioma, tus avisos y esta guía, cuando quieras.' : 'Tu población, el IRPF, el idioma y esta guía, cuando quieras.' });
+  return s;
+}
+function tourShow(){
+  const s = TOUR[TI];
+  if(!s) return tourEnd(true);
+  if(s.view && VIEW!==s.view){ VIEW=s.view; render(); }
+  const el = document.querySelector(s.sel);
+  if(!el || !el.getClientRects().length){ TI++; return tourShow(); }
+  TOUR_EL = el;
+  if(s.top) scrollTo(0,0); else el.scrollIntoView({block:'center'});
+  $('tourHole').classList.toggle('act', !!s.act);
+  $('tourTip').innerHTML = `<p class="tour-n" data-noi18n>${TI+1} / ${TOUR.length}</p><h2 id="tourT">${s.t}</h2><p class="tx">${s.p}</p>
+    <div class="nav"><button type="button" class="ghost" id="tSkip">Saltar</button><button type="button" class="primary" id="tNext">Siguiente</button></div>`;
+  $('tSkip').onclick = ()=>tourEnd(false);
+  // En un paso "act", Siguiente toca el botón por ti (y tourBlock pasa al siguiente paso).
+  $('tNext').onclick = ()=>{ if(s.act) TOUR_EL.click(); else { TI++; tourShow(); } };
+  tourPlace(); requestAnimationFrame(tourPlace); $('tNext').focus({preventScroll:true});
+}
+function tourPlace(){
+  if(!TOUR_ON || !TOUR_EL) return;
+  // Si la app se repinta (llega una actualización), el elemento es otro: se vuelve a buscar.
+  if(!TOUR_EL.isConnected){ const el=document.querySelector(TOUR[TI]?.sel); if(!el) return; TOUR_EL=el; }
+  const r = TOUR_EL.getBoundingClientRect(), pad = 6, gap = 12, W = innerWidth, H = innerHeight;
+  const top = Math.max(r.top-pad, 4), bot = Math.min(r.bottom+pad, H-4), L = Math.max(r.left-pad, 0), R = Math.min(r.right+pad, W);
+  Object.assign($('tourHole').style, { left:L+'px', top:top+'px', width:(R-L)+'px', height:Math.max(bot-top,0)+'px' });
+  const px = n => Math.max(n,0)+'px', [a,b,c,d] = document.querySelectorAll('#tour .tour-dim');   // arriba, abajo, izquierda, derecha
+  Object.assign(a.style, { left:'0', top:'0', width:'100%', height:px(top) });
+  Object.assign(b.style, { left:'0', top:px(bot), width:'100%', height:px(H-bot) });
+  Object.assign(c.style, { left:'0', top:px(top), width:px(L), height:px(bot-top) });
+  Object.assign(d.style, { left:px(R), top:px(top), width:px(W-R), height:px(bot-top) });
+  const tip = $('tourTip'), tw = tip.offsetWidth, th = tip.offsetHeight;
+  let y = bot+gap+th <= H-8 ? bot+gap : top-gap-th >= 8 ? top-gap-th : H-th-8;   // debajo, encima o abajo del todo
+  if(y < 8) y = 8;
+  tip.style.left = Math.min(Math.max(r.left+r.width/2-tw/2, 8), W-tw-8)+'px'; tip.style.top = y+'px';
+}
+// Mientras dura el recorrido, solo se puede tocar la burbuja y, en un paso "act", el botón resaltado.
+function tourBlock(e){
+  if(!TOUR_ON) return;
+  if($('tourTip').contains(e.target)) return;
+  const s = TOUR[TI];
+  if(s && s.act && TOUR_EL && TOUR_EL.contains(e.target)){ if(e.type==='click'){ const i=TI; setTimeout(()=>{ if(TOUR_ON && TI===i){ TI++; tourShow(); } }, 250); } return; }
+  e.preventDefault(); e.stopPropagation();
+}
+function tourKey(e){
+  if(!TOUR_ON) return;
+  if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); tourEnd(false); return; }
+  if(e.key==='Tab'){   // el foco se queda en la burbuja
+    const b=[...$('tourTip').querySelectorAll('button')], i=b.indexOf(document.activeElement);
+    e.preventDefault(); b[(i+(e.shiftKey?b.length-1:1))%b.length].focus();
+  }
+}
+const tourRe = ()=>requestAnimationFrame(tourPlace);
+function tourStart(){
+  TOUR = tourSteps(); TI = 0; TOUR_ON = true; TOUR_SCORE = SCORE_OPEN;
+  try{ TOUR_VKEY = localStorage.getItem(VIEW_KEY); }catch(e){}
+  $('tour').classList.remove('hidden');
+  addEventListener('click', tourBlock, true); addEventListener('keydown', tourKey, true);
+  addEventListener('resize', tourRe); addEventListener('scroll', tourRe, {passive:true});
+  tourShow();
+}
+function tourEnd(done){
+  TOUR_ON = false; TOUR_EL = null; $('tour').classList.add('hidden');
+  removeEventListener('click', tourBlock, true); removeEventListener('keydown', tourKey, true);
+  removeEventListener('resize', tourRe); removeEventListener('scroll', tourRe);
+  // Tocar "Mis partidos" en el recorrido no cambia la pestaña con la que se abre la app.
+  try{ TOUR_VKEY==null ? localStorage.removeItem(VIEW_KEY) : localStorage.setItem(VIEW_KEY, TOUR_VKEY); }catch(e){}
+  SCORE_OPEN = TOUR_SCORE;   // las cifras que abre el paso 1 se vuelven a plegar
+  if(TOUR_FROM && VIEW!==TOUR_FROM) VIEW=TOUR_FROM;
+  render();
+  scrollTo(0,0);
+  if(done) renderGuideEnd(); else closeGuide();
+}
+// Hoja final: instalar la app y activar los avisos.
+function guideEnd(){
   const install = offerApk() ? `<a class="go" href="${APK_URL}" download>Descargar la app Android</a>`
     : INSTALL_EVT && !isStandalone() ? '<button id="gInstall">Instalar la app</button>'
     : (isIOS && !isStandalone()) ? '<p class="small">En el iPhone: pulsa <b>Compartir</b> y <b>"Añadir a pantalla de inicio"</b>, y ábrela desde el icono.</p>' : '';
   const push = !GUEST && !PUSH_SUB && pushSupported() && !(isIOS && !isStandalone()) ? '<button class="primary" id="gPush">Activar avisos</button>' : (PUSH_SUB ? '<p class="small"><b>✓ Avisos activados en este dispositivo.</b></p>' : '');
-  if(DEP) return [
-    { ico:'🏐', t:'Tus equipos, solos', h:`<p>En <b>Mis partidos</b> tienes los partidos de tus equipos: horario, pabellón con "Cómo llegar", árbitros y resultados.</p>
-      <ul><li>En <b>Equipos</b> puedes seguir cualquier otro equipo.</li><li>Si alguno no es tuyo, lo quitas y no vuelve.</li></ul>` },
-    { ico:'🔔', t:'Instálala y activa los avisos', h:`<p>Te aviso al momento cuando <b>tus partidos tengan horario</b>, cambien de fecha u hora o se suspendan.</p>
+  if(DEP) return { ico:'🔔', t:'Instálala y activa los avisos', h:`<p>Te aviso al momento cuando <b>tus partidos tengan horario</b>, cambien de fecha u hora o se suspendan.</p>
       <div class="acts">${install}${push}</div>
-      <p class="small muted" style="margin-top:12px">¿Conoces a más gente que juegue? <button class="ghost" id="gShare" style="padding-left:0">Comparte la app</button></p>` },
-  ];
-  return [
-    { ico:'💶', t:'Tus cobros, solos', h:`<p>Cada partido con su tarifa, dieta, desplazamiento e IRPF. Cuando la FCVB lo liquida, salen sus importes.</p>
-      <ul><li><b>Pide el pago a tiempo:</b> la FCVB solo deja pedirlo hasta el día siguiente al partido. Te aviso arriba con la fecha límite.</li><li>Pendiente, solicitado, cobrado y lo que no se pidió a tiempo, de un vistazo.</li></ul>` },
-    { ico:'📅', t:'Tus partidos y tus equipos', h:`<p>En <b>Mis partidos</b> tienes tus designaciones con el equipo arbitral, el pabellón y "Cómo llegar".</p>
-      <ul><li>Si juegas o entrenas, te encuentro solo en las plantillas de la FCVB y añado tus partidos con su horario y resultado.</li><li>Te aviso si te designan a la hora a la que juegas.</li></ul>` },
-    { ico:'🔔', t:'Instálala y activa los avisos', h:`<p>Te aviso al momento de <b>designaciones nuevas o cambiadas</b>, de cuando <b>tus partidos de jugador tienen horario</b>, y los domingos te recuerdo revisar tus cobros.</p>
+      <p class="small muted" style="margin-top:12px">¿Conoces a más gente que juegue? <button class="ghost" id="gShare" style="padding-left:0">Comparte la app</button></p>` };
+  return { ico:'🔔', t:'Instálala y activa los avisos', h:`<p>Te aviso al momento de <b>designaciones nuevas o cambiadas</b>, de cuando <b>tus partidos de jugador tienen horario</b>, y los domingos te recuerdo revisar tus cobros.</p>
       <div class="acts">${install}${push}</div>
-      <p class="small muted" style="margin-top:12px">¿Conoces a más árbitros? <button class="ghost" id="gShare" style="padding-left:0">Comparte la app</button></p>` },
-  ];
+      <p class="small muted" style="margin-top:12px">¿Conoces a más árbitros? <button class="ghost" id="gShare" style="padding-left:0">Comparte la app</button></p>` };
 }
-function renderGuide(){
-  const st=guideSteps(), i=GUIDE_STEP, x=st[i];
+function renderGuideEnd(){
+  const x=guideEnd();
   $('guideSheet').innerHTML = `<div class="step-ico">${x.ico}</div><h2 id="guideTitle">${x.t}</h2>${x.h}
-    <div class="dots">${st.map((_,k)=>`<i class="${k===i?'on':''}"></i>`).join('')}</div>
-    <p class="small muted legal-links" style="text-align:center;margin:0 0 10px">${LEGAL_LINKS}</p>
-    <div class="nav"><button class="ghost" id="gSkip">${i===st.length-1?'':'Saltar'}</button>${i<st.length-1?'<button class="primary" id="gNext">Siguiente</button>':'<button class="primary" id="gDone">Empezar</button>'}</div>`;
+    <div class="nav" style="margin-top:16px"><span></span><button class="primary" id="gDone">Listo</button></div>`;
   const on=(id,fn)=>{ const el=$(id); if(el) el.onclick=fn; };
-  on('gNext',()=>{ GUIDE_STEP++; renderGuide(); });
-  on('gSkip',closeGuide); on('gDone',closeGuide);
-  on('gPush', async()=>{ await pushOn(); renderGuide(); });
-  on('gInstall', async()=>{ if(!INSTALL_EVT) return; INSTALL_EVT.prompt(); await INSTALL_EVT.userChoice; INSTALL_EVT=null; renderGuide(); });
+  on('gDone',closeGuide);
+  on('gPush', async()=>{ await pushOn(); renderGuideEnd(); });
+  on('gInstall', async()=>{ if(!INSTALL_EVT) return; INSTALL_EVT.prompt(); await INSTALL_EVT.userChoice; INSTALL_EVT=null; renderGuideEnd(); });
   on('gShare', shareApp);
+  $('guide').classList.remove('hidden'); $('gDone').focus();
 }
-function openGuide(){ GUIDE_STEP=0; renderGuide(); $('guide').classList.remove('hidden'); }
+// Hoja de entrada: empezar el recorrido o saltarlo. Desde Ajustes ("Ver la guía") se vuelve antes a la pestaña principal.
+function openGuide(){
+  if(!['cobros','agenda','equipos','resumen'].includes(VIEW)){ VIEW = DEP ? 'agenda' : 'cobros'; render(); scrollTo(0,0); }
+  TOUR_FROM = VIEW;
+  $('guideSheet').innerHTML = `<div class="step-ico">👋</div><h2 id="guideTitle">Te enseño la app</h2>
+    <p>Un recorrido rápido por lo importante, sobre la app de verdad. Puedes saltarlo cuando quieras.</p>
+    <p class="small muted legal-links" style="text-align:center;margin:18px 0 10px">${LEGAL_LINKS}</p>
+    <div class="nav"><button class="ghost" id="gSkip">Saltar</button><button class="primary" id="gNext">Vamos</button></div>`;
+  $('gSkip').onclick = closeGuide;
+  $('gNext').onclick = ()=>{ $('guide').classList.add('hidden'); tourStart(); };
+  $('guide').classList.remove('hidden'); $('gNext').focus();
+}
 function closeGuide(){ if(CONSENT_OPEN) return; $('guide').classList.add('hidden'); try{ localStorage.setItem(GUIDE_KEY,'1'); }catch(e){} }
 // Edad mínima y política: las cuentas sin aceptar la versión vigente ven este aviso (no se puede cerrar) antes que nada.
 // POLICY_VERSION tiene que coincidir con supabase/functions/_shared/politica.ts.

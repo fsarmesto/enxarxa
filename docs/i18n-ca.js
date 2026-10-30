@@ -602,7 +602,25 @@ I.exact = {
 "Leyendo las designaciones de toda la federación (tarda un minuto). Se actualiza solo.": "Llegint les designacions de tota la federació (triga un minut). S'actualitza sol.",
 "Designaciones publicadas": "Designacions publicades",
 "Qué categorías tienen ya partidos designados esta semana (de lunes a domingo), en toda la federación, según las fichas públicas de los árbitros en iSquad.": "Quines categories ja tenen partits designats aquesta setmana (de dilluns a diumenge), a tota la federació, segons les fitxes públiques dels àrbitres a iSquad.",
-"Usuarios, errores al actualizar, avisos y estado de las tareas automáticas. Si muchos árbitros fallan a la vez o la actualización automática se para, te llega un aviso.": "Usuaris, errors en actualitzar, avisos i estat de les tasques automàtiques. Si molts àrbitres fallen alhora o l'actualització automàtica s'atura, t'arriba un avís."
+"Usuarios, errores al actualizar, avisos y estado de las tareas automáticas. Si muchos árbitros fallan a la vez o la actualización automática se para, te llega un aviso.": "Usuaris, errors en actualitzar, avisos i estat de les tasques automàtiques. Si molts àrbitres fallen alhora o l'actualització automàtica s'atura, t'arriba un avís.",
+"Te enseño la app": "T'ensenyo l'app",
+"Un recorrido rápido por lo importante, sobre la app de verdad. Puedes saltarlo cuando quieras.": "Un recorregut ràpid pel que és important, sobre l'app de veritat. El pots ometre quan vulguis.",
+"Vamos": "Som-hi",
+"Listo": "Fet",
+"Lo que te deben": "El que et deuen",
+"Aquí ves lo pendiente y lo cobrado. Tócalo para ver las cifras de la temporada.": "Aquí veus el que tens pendent i el que has cobrat. Toca-ho per veure les xifres de la temporada.",
+"Cada partido, con su importe": "Cada partit, amb el seu import",
+"Tarifa, dieta y desplazamiento de cada partido. Cuando te paguen, márcalo como cobrado.": "Tarifa, dieta i desplaçament de cada partit. Quan et paguin, marca'l com a cobrat.",
+"Toca la pestaña Mis partidos.": "Toca la pestanya Els meus partits.",
+"Tus designaciones": "Les teves designacions",
+"Con el equipo arbitral, el pabellón y cómo llegar. Toca un partido para ver más.": "Amb l'equip arbitral, el pavelló i com arribar-hi. Toca un partit per veure'n més.",
+"Tus partidos": "Els teus partits",
+"Los de tus equipos, con horario, pabellón, árbitros y resultado. Toca uno para ver más.": "Els dels teus equips, amb horari, pavelló, àrbitres i resultat. Toca'n un per veure'n més.",
+"Sigue a tus equipos y a cualquier otro: horarios, resultados y clasificación.": "Segueix els teus equips i qualsevol altre: horaris, resultats i classificació.",
+"Aquí te aviso cuando tus partidos tengan horario o cambien.": "Aquí t'aviso quan els teus partits tinguin horari o canviïn.",
+"Aquí te aviso de designaciones nuevas, cambios de horario y pagos por pedir.": "Aquí t'aviso de designacions noves, canvis d'horari i pagaments per demanar.",
+"Tu idioma, tus avisos y esta guía, cuando quieras.": "El teu idioma, els teus avisos i aquesta guia, quan vulguis.",
+"Tu población, el IRPF, el idioma y esta guía, cuando quieras.": "La teva població, l'IRPF, l'idioma i aquesta guia, quan vulguis."
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

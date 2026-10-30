@@ -90,6 +90,10 @@ for (const W of [390, 1280]) for (const dark of [false, true]) {
   }
   await ev(`openCalc('')`); await sleep(600); await audit(`calc-${sfx}`);
   await ev(`openAvisos()`); await sleep(400); await audit(`avisos-${sfx}`); await ev(`document.getElementById('guide').classList.add('hidden')`);
+  // Guía interactiva: la hoja de entrada, un paso del recorrido (burbuja sobre la app) y la hoja final.
+  await ev(`openGuide()`); await sleep(300); await audit(`guia-${sfx}`);
+  await ev(`document.getElementById('gNext').click()`); await sleep(500); await audit(`guia-paso-${sfx}`);
+  await ev(`tourEnd(true)`); await sleep(400); await audit(`guia-fin-${sfx}`); await ev(`closeGuide()`);
 }
 ws.close(); chrome.kill(); server.close();
 let graves = 0;
