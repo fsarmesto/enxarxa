@@ -140,8 +140,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Lista de semanas en columnas (Semana · Partidos · Estado · Total · flecha) con una cabecera encima (`.wk-cols`), separadores
   finos y la flecha sin cuadrado; esta semana con una raya amarilla a la izquierda. Estado: "Pendiente" (etiqueta roja suave),
   "✓ Cobrada" (gris) o "Por jugar". Semanas anteriores plegadas (29-oct-2026, Ferran): toda la fila verdosa si está cobrada entera
-  (`--ok-bg`/`--ok-line`, clase `w-ok`) o rojiza si falta algo (`--pend-bg`, `w-pend`); `weeksHtml` acepta `cls(w,list,kind)`. Al abrir una semana, una tabla (`deskRow`): fecha, partido, rol (por debajo de 1200 px va
-  dentro de la celda del partido), tarifa, dieta, desplazamiento, peajes, IRPF, neto, estado y "⋯" (`MC_EDIT`), que abre una fila
+  (`--ok-bg`/`--ok-line`, clase `w-ok`) o rojiza si falta algo (`--pend-bg`, `w-pend`); `weeksHtml` acepta `cls(w,list,kind)`. Al abrir una semana, una tabla (`deskRow`): fecha, partido (con rol y categoría en una línea
+  dentro: una columna Rol aparte dejaba el partido en 120 px y lo apilaba), tarifa, dieta, desplazamiento, peajes, IRPF, neto, estado y "⋯" (SVG, no texto: según la fuente se cortaba; `MC_EDIT`), que abre una fila
   debajo con Marcar cobrado, ¿Cómo se calcula?, quitar, el aviso de plazo y km/peajes/dieta (`editorHtml`, el mismo de la tarjeta).
 - Panel lateral fijo (`cobAside`): total de la temporada, barra de lo cobrado, cobrado/pendiente/partidos, botón "Cómo calcular ·
   Calculadora de dietas" (el mismo texto en el móvil) y "+ Añadir partido a mano", que enseña el formulario (oculto en escritorio
