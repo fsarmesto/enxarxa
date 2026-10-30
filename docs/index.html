@@ -272,6 +272,7 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
   table.m.dk .rl{display:none}
   table.m.dk td small{display:block;font-size:11.5px;color:var(--ink-3);white-space:nowrap}
   table.m.dk .role{white-space:nowrap}
+  table.m.dk .role small{white-space:normal;max-width:12em}   /* "Cadet 2ª/3ª/4ª/Preferent · festivo" en una línea sacaba el "⋯" de la tabla */
   table.m.dk .pst .tag{margin-left:0;white-space:nowrap}
   table.m.dk .acts{width:40px;text-align:right}
   table.m.dk .dk-more-b{width:36px;height:36px;padding:0 0 6px;font-size:20px;font-weight:700;line-height:1;border-radius:6px;text-decoration:none;border-color:var(--line)}
@@ -1946,7 +1947,7 @@ function render(){
   const body = (w, list) => { const allPaid=list.every(isPaid);
     let body=`<div class="wk-acts"><button class="ghost small" data-week="${w}" data-paid="${allPaid?0:1}">${allPaid?'Marcar pendiente':'Marcar semana cobrada'}</button></div>`;
     const days=new Map(); for(const m of list){ (days.get(m.date)||days.set(m.date,[]).get(m.date)).push(m); }
-    for(const [ds,dl] of [...days].sort((a,b)=>b[0].localeCompare(a[0]))){
+    for(const [ds,dl] of [...days].sort((a,b)=>a[0].localeCompare(b[0]))){
       const dt=dl.reduce((s,m)=>s+res.get(m.id).total,0), rows=dl.sort((a,b)=>a.time.localeCompare(b.time)).map(matchHtml).join('');
       body+=`<div class="day"><div class="day-head"><span>${fmtDay(ds)}</span><span>${eur(dt)}</span></div>`+(mobile ? `<div class="mcs">${rows}</div>` : `<div class="wrap"><table class="m"><thead><tr>
         <th>Hora</th><th>Partido</th><th>Designación</th><th class="n">Tarifa</th><th class="n">Dieta</th><th class="n">Despl.</th><th class="n">Peajes</th>${+P.irpf?'<th class="n">IRPF</th>':''}<th class="n">${+P.irpf?'Neto':'Total'}</th><th><span class="sr">Acciones</span></th></tr></thead><tbody>${rows}</tbody></table></div>`)+'</div>';
@@ -2083,7 +2084,7 @@ function renderCalcOut(){
   }).join('') + '<div class="daxis"><span></span><div><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div></div>'
     + (c.fest&&c.wd<6 ? '<p class="small muted">Festivo entre semana: 18 € en las franjas de festivo; fuera de ellas, la dieta normal de ese día.</p>' : '');
   // Tarifas de la categoría elegida, con tariff() para cada equipo arbitral y rol.
-  const tk=CALC_TCAT||c.cat, tc=CATS[tk]||CATS.none, val=(team,role)=>{ const v=tariff({cat:tk, team, role}); return v ? eur(v) : '—'; };
+  const tk=CALC_TCAT||c.cat, tc=CATS[tk]||CATS.none, val=(team,role)=>{ const v=tariff({cat:tk, team, role, date:CALC_WEEK}); return v ? eur(v) : '—'; };
   const card=(team,list)=>`<div class="tcard"><b>${TEAM_OPTS[team]}</b>${list.map(rl=>`<div><span>${ROLE_OPTS[rl]}</span><span>${val(team,rl)}</span></div>`).join('')}</div>`;
   $('calcCards').innerHTML = `<div class="tcards">${card('t3',['r1','r2','an'])}${card('t2a',['r1','r2'])}${card('t2b',['r1','an'])}${card('t1',['r1'])}${tc.jl?`<div class="tcard"><b>Superliga</b><div><span>Juez de línea</span><span>${eur(tc.jl)}</span></div></div>`:''}</div>`
     + (/^sl/.test(tk) ? '<p class="small muted">Superliga y Superliga 2: a los árbitros los liquida la RFEVB. Aquí sale lo que paga la FCVB.</p>' : '');
@@ -2227,8 +2228,12 @@ $('btnAddManual').addEventListener('click', async ()=>{
 
 async function callFn(name, body){
   if(isOffline()) return {ok:false, error:'Sin conexión. Inténtalo cuando vuelva la cobertura.'};
-  const {data:{session}} = await sb.auth.getSession();
-  const r = await fetch(FN+name,{method:'POST',headers:{'Content-Type':'application/json','apikey':window.APP_CONFIG.SUPABASE_ANON_KEY,...(session?{Authorization:'Bearer '+session.access_token}:{})},body:JSON.stringify(body||{})});
+  // Si se corta la red a media petición, fetch lanza: sin este catch los botones se quedaban girando hasta recargar.
+  let r;
+  try{
+    const {data:{session}} = await sb.auth.getSession();
+    r = await fetch(FN+name,{method:'POST',headers:{'Content-Type':'application/json','apikey':window.APP_CONFIG.SUPABASE_ANON_KEY,...(session?{Authorization:'Bearer '+session.access_token}:{})},body:JSON.stringify(body||{})});
+  }catch(e){ return {ok:false, error:'Sin conexión. Inténtalo cuando vuelva la cobertura.'}; }
   let j={}; try{ j=await r.json(); }catch(e){}
   return {ok:r.ok, ...j};
 }
@@ -3184,8 +3189,19 @@ async function start(){
   try{ await start0(); } finally{ pepperLoader.done(); }   // app o login, también si algo falla
 }
 async function start0(){
-  let session=null; try{ ({data:{session}} = await sb.auth.getSession()); }catch(e){}
-  if(!session){ if(isOffline() && await startOffline()) return; show('auth'); return; }
+  let session=null, aerr=null; try{ ({data:{session}, error:aerr} = await sb.auth.getSession()); }catch(e){ aerr=e; }
+  // Token caducado y sin poder renovarlo por la red (cobertura débil con el móvil "en línea"): la copia local, no la
+  // pantalla de entrar; se reintenta cada 30 s y, cuando hay sesión, se recarga.
+  const netAuth = aerr && (aerr.name==='AuthRetryableFetchError' || /fetch|network/i.test(String(aerr.message)));
+  if(!session){
+    if((isOffline() || netAuth) && await startOffline()){
+      if(netAuth && navigator.onLine){ NET_DOWN = true; renderOffline();
+        const again = () => sb.auth.getSession().then(({data})=>{ if(data.session) location.reload(); else setTimeout(again, 30e3); }, ()=>setTimeout(again, 30e3));
+        setTimeout(again, 30e3); }
+      return;
+    }
+    show('auth'); return;
+  }
   USER = session.user;
   // Cobertura muy débil (el móvil dice que hay red pero no llega nada): a los 8 s se pinta la copia local con el aviso
   // y se sigue esperando; cuando la carga acaba, la app pasa sola a los datos nuevos. Si falla, se reintenta cada 30 s.
@@ -3200,7 +3216,11 @@ async function start0(){
       if(navigator.onLine){ NET_DOWN = true; renderOffline(); retryLoad(null, user); }
       return;
     }
-    await sb.auth.signOut(); show('auth'); return;
+    // Solo se cierra la sesión si es de la sesión o de la cuenta: token no válido (PGRST301, JWT…) o perfil que ya no
+    // existe (PGRST116, cuenta borrada). Un 5xx de Supabase no: copia local y reintento, o volver a probar más tarde.
+    if(/^PGRST(116|301|302)$/.test(e&&e.code||'') || /jwt|token/i.test(String(e&&e.message))){ await sb.auth.signOut(); show('auth'); return; }
+    if(await startOffline(user.id)){ NET_DOWN = true; renderOffline(); retryLoad(null, user); return; }
+    show('auth'); toast('No se ha podido cargar tu cuenta. Prueba en unos minutos.'); return;
   }
   started(user);
 }

@@ -64,6 +64,12 @@ else for (const r of out) {
   if (!r.ok) fallos++;
   console.log(`${r.ok ? 'OK   ' : 'FALLA'} ${r.caso}: tarifa ${r.app.tarifa} · dieta ${r.app.dieta} · despl. ${r.app.despl} · IRPF ${r.app.irpf} · neto ${r.app.total}${r.ok ? '' : `  (calculadora: ${JSON.stringify(r.calc)})`}`);
 }
+// La vista entera, no solo calcResult: el 29-oct-2026 las tarjetas de tarifas llamaban a tariff() sin fecha, el error
+// cortaba renderCalcOut y "Tarifas por categoría" y "Desplazamiento" salían vacías sin que fallara nada de lo de arriba.
+const vista = await ev(`(()=>{ try{ openCalc(''); }catch(e){ return 'error: '+e.message; }
+  return ['calcRes','calcBars','calcCards','calcTravel'].filter(id=>!(document.getElementById(id)?.textContent||'').trim()).join(', ') || 'ok'; })()`);
+if (vista !== 'ok') fallos++;
+console.log(`${vista === 'ok' ? 'OK   ' : 'FALLA'} vista de la calculadora completa${vista === 'ok' ? '' : ` (vacío o error: ${vista})`}`);
 ws.close(); chrome.kill(); server.close();
 console.log(fallos ? `${fallos} casos no cuadran` : 'La calculadora da lo mismo que el cálculo de los cobros en todos los casos.');
 process.exit(fallos ? 1 : 0);

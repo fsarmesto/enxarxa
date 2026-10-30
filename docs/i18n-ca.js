@@ -320,6 +320,7 @@ I.exact = {
 "No se ha podido abrir la sesión. Prueba de nuevo.": "No s'ha pogut obrir la sessió. Torna-ho a provar.",
 "iSquad no acepta ese usuario y contraseña": "iSquad no accepta aquest usuari i contrasenya",
 "No se ha podido conectar con iSquad. Prueba en unos minutos.": "No s'ha pogut connectar amb iSquad. Prova-ho d'aquí a uns minuts.",
+"No se ha podido cargar tu cuenta. Prueba en unos minutos.": "No s'ha pogut carregar el teu compte. Prova-ho d'aquí a uns minuts.",
 "Escribe tu usuario y contraseña de iSquad": "Escriu el teu usuari i contrasenya d'iSquad",
 "Inicia sesión de nuevo": "Torna a iniciar sessió",
 "Esta cuenta no tiene acceso. Pide a quien gestiona la app que te añada.": "Aquest compte no hi té accés. Demana a qui gestiona l'app que t'hi afegeixi.",

@@ -263,6 +263,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   y entrenadores (`loginentrenadores.php` → `entrenadores_licencias.php`, "STAFF TÉCNICO"); el id de afiliado es el mismo.
 - `auth-isquad`: si no entra como árbitro, prueba `loginDeportista` (jugador, luego entrenador). Crea el perfil con
   `tipo='deportista'` (migración 018), nombre y foto, **sin guardar la contraseña** (no hay nada que leer de su iSquad).
+  Excepción (30-oct-2026): si ya tiene cuenta de árbitro y la página de designaciones llega pero no se lee
+  (`IsquadAuthError("ilegible")`: mantenimiento, otro diseño), no pasa a deportista: "No se ha podido leer iSquad". Entrar como
+  árbitro guarda siempre `tipo='arbitro'` (así se recupera quien se hubiera quedado como jugador).
 - Sync, aviso de cobro y recordatorio del domingo, solo para árbitros. En la web (`DEP`, clase `body.dep`) se oculta
   todo lo `.arb-only` (cobros, resumen, filtros, ajustes de árbitro); quedan Mis partidos y Equipos.
 
