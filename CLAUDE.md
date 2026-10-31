@@ -470,6 +470,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   plano): todos los partidos con id empezados hace más de 1 h, sin selecciones ni suspendidos; los de los últimos 30 días
   en cada pasada y los anteriores que falten, una vez por semana (`pub_checked`); como mucho 20 por pasada (~55 s si van
   por PDF). Guarda `res_l/res_v/res_at` y `acta_url/acta_at` (hora del nombre del fichero) y no los vuelve a pedir.
+- Recién jugados (31-oct-2026, Ferran: el partido de las 11 seguía sin acta ni resultado con todo subido; el sync completo no
+  lo miraba hasta las 17): `checkRecientes` en cada pasada de `vigilar` (cada 10 min, todos los árbitros, tengan o no
+  notificaciones). Desde inicio + 2 h 30 min (≈30 min tras acabar) y durante 2 días: cada 20 min las primeras 6 h, luego cada
+  2 h (`tocaReciente`, con prueba en `avisos_test.ts`); como mucho 30 por pasada. Borra antes la caché `tm2:` del equipo
+  para leer el calendario recién publicado. Misma función por partido que el sync (`mirar`).
 - Web (`pubState`/`pubTags`), en todos los arbitrajes de Mis partidos y Cobros: "Resultado: Pendiente / Subido 3-1 /
   Irregular" y "Acta: Pendiente / Subida / Otro". Irregular = marcador que no es 3-0, 3-1, 3-2, 2-3, 1-3 ni 0-3 (Ferran: al
   mejor de 5), con un aviso debajo. "Otro" (con el motivo) en selecciones, suspendidos/aplazados, sin número de partido,

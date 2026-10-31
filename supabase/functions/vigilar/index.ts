@@ -6,11 +6,14 @@
 //    (que no se olvide de ponerla en la hoja de gastos). Una vez por día (pub_cache "aviso-cobro:").
 // 2) partidos de los equipos donde juega o entrena (y que tiene en "Mis partidos"): horario confirmado, cambio de
 //    fecha u hora y suspendidos, comparando el calendario de la API pública con la foto anterior (pub_cache "snap:").
+// 4) acta y resultado de los partidos recién jugados de todos los árbitros (tengan o no notificaciones), desde 30 min
+//    después de acabar (checkRecientes): antes no se veían hasta el sync completo de las 9 o las 17.
 import { admin, cors, json } from "../_shared/sync.ts";
 import { huellaFicha, idArbitro, teamMatches, type PartidoEquipo } from "../_shared/publico.ts";
 import { cap, madridNow, type MsgFn, sendToUser } from "../_shared/push.ts";
 import { dietasDelDia } from "../_shared/dieta.ts";
 import { aTurnos, porIds, todas } from "../_shared/db.ts";
+import { checkRecientes } from "../_shared/resultados.ts";
 
 type Snap = Pick<PartidoEquipo, "id" | "d" | "t" | "conf" | "est"> & { rl?: number | null; rv?: number | null };
 
@@ -79,7 +82,9 @@ if (import.meta.main) Deno.serve(async (req) => {
   // Designaciones y aviso de cobro solo para árbitros; los equipos, para todos.
   const deps = new Set((await porIds<{ user_id: string }>(users, (g) => db.from("profiles").select("user_id").eq("tipo", "deportista").in("user_id", g).order("user_id"))).map((d) => d.user_id));
   const arbitros = users.filter((u) => !deps.has(u));
-  if (!users.length) return json({ users: 0 });
+  // 4) Va en paralelo desde el principio; no depende de quién tiene notificaciones.
+  const recientes = checkRecientes(db, started + 110_000).catch((e) => `error: ${(e as Error).message}`);
+  if (!users.length) return json({ users: 0, resultados: await recientes });
 
   // 1) Designaciones: ficha pública de cada árbitro; si cambia, una ejecución de sync para él (en una sola no caben
   //    la CPU ni la memoria de varios).
@@ -138,5 +143,6 @@ if (import.meta.main) Deno.serve(async (req) => {
   await Promise.all([worker(), worker(), worker()]);
   const desigMsgs = (await desig).reduce((a, b) => a + b, 0);
   const cobro = await avisoCobro(db, arbitros).catch(() => 0);
-  return json({ users: users.length, fichas, syncs, equipos: teams.size, avisos: { designaciones: desigMsgs, equipos: teamMsgs, cobro }, ms: Date.now() - started });
+  const resultados = await recientes;
+  return json({ users: users.length, fichas, syncs, equipos: teams.size, avisos: { designaciones: desigMsgs, equipos: teamMsgs, cobro }, resultados, ms: Date.now() - started });
 });

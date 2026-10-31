@@ -10,7 +10,7 @@ Deno.env.set("VAPID_PRIVATE", k.privateKey);
 const { textos } = await import("./textos.ts");
 const { todas, porIds } = await import("./db.ts");
 const { avisoCobros, porPedir } = await import("./domingo.ts");
-const { avisoResultados } = await import("./resultados.ts");
+const { avisoResultados, tocaReciente } = await import("./resultados.ts");
 
 const P = { date: "2026-10-30", time: "18:00", teams: "CV EXEMPLE vs CLUB PROVA", venue: "PAVELLO DE PROVA" };
 // Todos los textos del catálogo con datos inventados.
@@ -105,4 +105,19 @@ Deno.test("aTurnos(): como mucho n a la vez y los resultados en orden", async ()
   });
   assertEquals(max, 4);
   assertEquals(r, Array.from({ length: 16 }, (_, i) => i * 2));
+});
+
+Deno.test("acta y resultado de los recién jugados: desde 30 min después de acabar, cada 20 min y luego cada 2 h", () => {
+  const m = { date: "2026-10-31", time: "11:00", pub_checked: null as string | null };
+  const ahora = Date.parse("2026-10-31T12:00:00Z");
+  assertEquals(tocaReciente(m, "2026-10-31 13:20", ahora), false);   // aún no: 2 h 20 min desde el inicio
+  assertEquals(tocaReciente(m, "2026-10-31 13:30", ahora), true);    // 2 h 30 min: nunca mirado
+  // Mirado a la hora de empezar (el sync lo mira desde 1 h después): toca en cuanto acaba, aunque haga menos de 20 min.
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 15 * 6e4).toISOString() }, "2026-10-31 13:40", ahora), true);
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 10 * 6e4).toISOString() }, "2026-10-31 14:00", ahora), false);
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 20 * 6e4).toISOString() }, "2026-10-31 14:00", ahora), true);
+  // Pasadas 6 h desde el fin, cada 2 h; pasados 2 días, ya solo el sync completo.
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 60 * 6e4).toISOString() }, "2026-10-31 21:00", ahora), false);
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 120 * 6e4).toISOString() }, "2026-10-31 21:00", ahora), true);
+  assertEquals(tocaReciente(m, "2026-11-02 14:00", ahora), false);
 });
