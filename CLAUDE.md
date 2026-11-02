@@ -242,6 +242,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   más nuevas y repasa poco a poco las de la temporada en curso que aún no tienen `crew`.
 - En la web, pestañas "Cobros" / "Mis partidos" (`VIEW`, recordada en localStorage `liq-vista`); la agenda
   (`renderAgenda`) tiene "Próximos" y "Jugados" de la temporada, respeta los filtros y enlaza a Google Maps.
+- Vista compacta o detallada (2-nov-2026, Ferran): 2 iconos junto a Filtros (`#densSlot`, `AGDENS`, localStorage
+  `liq-agenda-vista` = lista | fichas). Compacta = clase `ag-compact` en `#agenda`: las tarjetas plegadas solo enseñan hora,
+  equipos y `.cm` (R1/R2/JL/Anot., Juegas/Entrenas o el resultado; ⚠ si choca o el resultado va tarde); abiertas, la ficha entera.
 
 ## Guía, resumen y compartir coche (21-oct-2026)
 
