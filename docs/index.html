@@ -826,6 +826,13 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 .segb button{border:0;border-radius:0;padding:3px 11px;font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.02em;color:var(--ink);background:transparent}
 .segb button[aria-pressed="true"]{background:var(--yellow);color:#000}
 .segb button+button{border-left:2px solid var(--ink)}
+/* Rol al seguir un equipo (2-nov-2026): 4 opciones en 2 columnas */
+.rolpick{flex:1 0 100%;margin:8px 0 4px;padding:10px 12px;border:2px solid var(--ink);border-radius:3px}
+.rolpick .q{font-weight:700;margin:0 0 8px}
+.rolpick .opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rolpick .opts button{min-height:44px}
+.rolpick .opts button[aria-pressed="true"]{background:var(--yellow);color:#000}
+.rolpick .no{margin-top:8px}
 .eq-h{font-family:var(--display);font-size:22px;font-weight:600;margin:6px 0 6px;border-bottom:3px solid var(--rule);padding-bottom:4px}
 .pushcard a.go,#pushBtns a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
 #pepper-loader{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
@@ -2579,7 +2586,15 @@ function renderPush(){
 
 /* ---------- Equipos (web pública de resultados de iSquad) ---------- */
 let EQ = {favs:[], partidos:[], calendario:{}, indice:null}, EQ_RES=null, EQ_BUSY=false;
-const ROL_TXT = {jugador:['jug','Juegas'], entrenador:['ent','Entrenas'], invitado:['jug','Invitado']};
+const ROL_TXT = {jugador:['jug','Juegas'], entrenador:['ent','Entrenas'], invitado:['jug','Invitado'], espectador:['sig','Espectador'], otro:['sig','Sigues']};
+// Rol elegido al seguir un equipo. Jugador y entrenador (e invitado, de la plantilla) participan en sus partidos: avisos de
+// horario, choques con arbitrajes, primero en las listas. Espectador y otro solo lo siguen (participa() en publico.ts).
+const ROL_OPTS = {jugador:'Jugador', entrenador:'Entrenador', espectador:'Espectador', otro:'Otro'};
+const participa = r => !!r && r!=='espectador' && r!=='otro';
+let EQ_PICK = null;   // selector de rol abierto: {res: índice del resultado} o {fav: clave del equipo seguido}
+function rolPickHtml(cur){
+  return `<div class="rolpick" role="group" aria-labelledby="rolq"><p class="q" id="rolq">¿Qué eres en este equipo?</p><div class="opts">${Object.entries(ROL_OPTS).map(([k,v])=>`<button type="button" data-rol="${k}" aria-pressed="${k===cur}">${v}</button>`).join('')}</div><button type="button" class="ghost no" data-rolno>Cancelar</button></div>`;
+}
 const rolKind = r => ROL_TXT[r] || (r ? ['jug', capName(r)] : ['sig','Sigues']);
 const favKey = f => `${f.club_id}|${norm(f.team)}|${norm(f.cat)}`;
 const isFav = t => EQ.favs.some(f=>favKey(f)===favKey(t));
@@ -2602,7 +2617,7 @@ function teamCal(f){
 // Todos los partidos de mis equipos, sin repetir (si juegan 2 equipos que sigo, cuenta el mío).
 function teamItems(){
   const seen=new Map();
-  for(const f of [...EQ.favs].filter(f=>f.activo!==false).sort((a,b)=>(a.rol?0:1)-(b.rol?0:1))) for(const m of teamCal(f)){
+  for(const f of [...EQ.favs].filter(f=>f.activo!==false).sort((a,b)=>(participa(a.rol)?0:1)-(participa(b.rol)?0:1))) for(const m of teamCal(f)){
     const k=`${m.d}|${norm(m.l)}|${norm(m.v)}`; if(!seen.has(k)) seen.set(k,{m,f});
   }
   return [...seen.values()];
@@ -2636,7 +2651,7 @@ function refLine(m){
 }
 const vs = m => `${m.mineLocal?`<b>${esc(capName(m.l))}</b>`:esc(capName(m.l))} – ${!m.mineLocal?`<b>${esc(capName(m.v))}</b>`:esc(capName(m.v))}`;
 function renderEquipos(){
-  const favs=[...EQ.favs].sort((a,b)=>(a.activo===false?1:0)-(b.activo===false?1:0) || (a.rol?0:1)-(b.rol?0:1) || a.team.localeCompare(b.team));
+  const favs=[...EQ.favs].sort((a,b)=>(a.activo===false?1:0)-(b.activo===false?1:0) || (participa(a.rol)?0:1)-(participa(b.rol)?0:1) || a.team.localeCompare(b.team));
   $('eqFavs').innerHTML = favs.length ? favs.map(f=>{
     const [k,txt]=rolKind(f.rol), n=nextOf(f), l=lastOf(f), cal=teamCal(f), key=esc(favKey(f)), on=f.activo!==false, open=CAL_OPEN.has(favKey(f));
     // Una fila por partido: etiqueta, fecha, rival (el nombre del propio equipo no se repite) y estado.
@@ -2644,14 +2659,14 @@ function renderEquipos(){
     const calHtml = cal.length ? `<div class="calbox${open?'':' hidden'}" id="cal-${key}">${weeksCompact(cal, m=>m.d, m=>`<div class="calrow"><span class="dd">${esc(fmtTiny(m.d))}</span><span>${vs(m)}${refLine(m)}</span>${stChip(m)}</div>`)}</div>` : '';
     return `<div class="eq-row eqc${on?'':' off'}"><div class="n"><span class="kind ${k}">${txt}</span>${esc(capName(f.team))}</div><div class="s">${esc(capName(f.cat))} · ${esc(capName(f.club||''))}</div>${l?row('Último',l):''}${n?row('Próximo',n):'<div class="nx"><span class="lb">Próximo</span><span>Sin partidos pendientes</span></div>'}
       <div class="acts"><div class="seg">Mostrar en Mis partidos<span class="segb" role="group"><button type="button" data-act="${key}" data-v="1" aria-pressed="${on}">Sí</button><button type="button" data-act="${key}" data-v="0" aria-pressed="${!on}">No</button></span></div>${cal.some(m=>m.tor)?`<button class="eqb" data-clas="${key}">Clasificación</button>`:''}${cal.length?`<button class="eqb" data-calt="${key}" aria-expanded="${open}" aria-controls="cal-${key}">Calendario (${cal.length})</button>`:''}<button class="eqb more" data-more="${key}" aria-expanded="false" aria-label="Más opciones">⋯</button></div>
-      <div class="moremenu hidden" id="more-${key}"><button class="ghost" data-unfav="${key}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div>${calHtml}</div>`;
+      ${EQ_PICK&&EQ_PICK.fav===favKey(f)?rolPickHtml(f.rol):''}<div class="moremenu hidden" id="more-${key}"><button class="ghost" data-rolchg="${key}">Cambiar rol</button><button class="ghost" data-unfav="${key}">${f.auto?'No soy yo / quitar':'Dejar de seguir'}</button></div>${calHtml}</div>`;
   }).join('') : '<p class="muted small">No te he encontrado en ninguna plantilla de la FCVB de esta temporada. Si juegas o entrenas, busca tu equipo abajo y síguelo; también puedes seguir cualquier otro equipo.</p>';
   // Sin mensaje de "te he encontrado por tu foto" (Ferran, 27-oct-2026: queda raro); los equipos simplemente aparecen.
   $('eqAuto').innerHTML = '';
   if(!EQ_RES){ $('eqRes').innerHTML=''; return; }
   if(EQ_RES.loading){ $('eqRes').innerHTML='<p class="muted small">Buscando…</p>'; return; }
   const clubs=(EQ_RES.clubs||[]).map(c=>`<div class="eq-row"><div><div class="n">${esc(capName(c.name))}</div><div class="s">Club</div></div><button data-findme="${esc(c.id)}"${EQ_BUSY?' disabled':''}>${EQ_BUSY===c.id?'Buscándote en sus plantillas…':'Búscame en este club'}</button></div>`).join('');
-  const teams=(EQ_RES.equipos||[]).map((t,i)=>{ const on=isFav(t); return `<div class="eq-row"><div><div class="n">${esc(capName(t.team))}</div><div class="s">${esc(capName(t.cat))} · ${esc(capName(t.club||''))}</div></div><button class="${on?'on':''}" data-fav="${i}">${on?'★ Siguiendo':'☆ Seguir'}</button></div>`; }).join('');
+  const teams=(EQ_RES.equipos||[]).map((t,i)=>{ const on=isFav(t); return `<div class="eq-row"><div><div class="n">${esc(capName(t.team))}</div><div class="s">${esc(capName(t.cat))} · ${esc(capName(t.club||''))}</div></div><button class="${on?'on':''}" data-fav="${i}"${EQ_PICK&&EQ_PICK.res===i?' aria-expanded="true"':''}>${on?'★ Siguiendo':'☆ Seguir'}</button></div>${EQ_PICK&&EQ_PICK.res===i&&!on?rolPickHtml(''):''}`; }).join('');
   $('eqRes').innerHTML = (clubs||teams) ? `<div class="eq-list">${clubs}${teams}</div>` : '<p class="muted small">No he encontrado ningún equipo ni club con ese nombre.</p>';
 }
 // Clasificación del grupo de un equipo seguido; al tocar un equipo, sus partidos en el grupo (historial).
@@ -2704,10 +2719,25 @@ $('equipos').addEventListener('click', async e=>{
   if(b.dataset.fav!=null){
     const t=EQ_RES.equipos[+b.dataset.fav]; if(!t) return;
     if(isFav(t)){ EQ.favs=EQ.favs.filter(f=>favKey(f)!==favKey(t)); renderEquipos(); await callFn('equipos',{action:'dejar', ...t}); loadEquipos(); return; }
-    b.disabled=true; b.textContent='Mirando la plantilla…';
-    const r=await callFn('equipos',{action:'seguir', club_id:t.club_id, team:t.team, cat:t.cat});
+    // Primero, el rol: jugador, entrenador, espectador u otro.
+    EQ_PICK={res:+b.dataset.fav}; renderEquipos(); document.querySelector('#eqRes .rolpick button')?.focus(); return;
+  }
+  if(b.dataset.rolno!=null){ EQ_PICK=null; renderEquipos(); return; }
+  if(b.dataset.rolchg){ EQ_PICK={fav:b.dataset.rolchg}; renderEquipos(); document.querySelector('#eqFavs .rolpick button')?.focus(); return; }
+  if(b.dataset.rol){
+    const rol=b.dataset.rol, pick=EQ_PICK; EQ_PICK=null; if(!pick) return;
+    if(pick.fav){
+      const f=EQ.favs.find(x=>favKey(x)===pick.fav); if(!f) return;
+      const prev=f.rol; f.rol=rol; render();
+      const r=await callFn('equipos',{action:'rol', club_id:f.club_id, team:f.team, cat:f.cat, rol});
+      if(!r.ok){ f.rol=prev; render(); toast(r.error||'No se ha podido guardar'); } else saveSnapEq();
+      return;
+    }
+    const t=EQ_RES?.equipos?.[pick.res]; if(!t) return;
+    renderEquipos();
+    const r=await callFn('equipos',{action:'seguir', club_id:t.club_id, team:t.team, cat:t.cat, rol});
     if(!r.ok){ toast(r.error||'No se ha podido seguir'); renderEquipos(); return; }
-    toast(r.fav.rol ? `Sales en la plantilla: ${rolKind(r.fav.rol)[1].toLowerCase()}` : 'Siguiendo el equipo');
+    toast('Siguiendo el equipo');
     await loadEquipos(); renderEquipos(); return;
   }
   if(b.dataset.calt){ const k=b.dataset.calt, o=!CAL_OPEN.has(k); o?CAL_OPEN.add(k):CAL_OPEN.delete(k); b.setAttribute('aria-expanded',String(o)); document.getElementById('cal-'+k).classList.toggle('hidden',!o); return; }
@@ -2735,7 +2765,7 @@ try{ AGROLE=localStorage.getItem('liq-agenda-rol')||'todo'; }catch(e){}
 let AGDENS='fichas';
 try{ AGDENS=localStorage.getItem('liq-agenda-vista')==='lista'?'lista':'fichas'; }catch(e){}
 // De quién es cada partido de la agenda: arbitraje, jugador (también invitado), entrenador o un equipo que solo sigo.
-const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : it.x.f.rol ? 'jugador' : 'sigo');
+const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : participa(it.x.f.rol) ? 'jugador' : 'sigo');
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
 if(VIEW==='ajustes') VIEW='cobros';   // Ajustes es una página aparte: no se abre sola al entrar
 // Al abrir desde una notificación (?vista=agenda), directamente en esa pestaña.
@@ -2839,7 +2869,7 @@ function renderAgenda(allMs,res){
   const toMin = (ds,tm) => new Date(ds+'T'+(tm||'12:00')+':00').getTime()/6e4;
   // Choque: juegas o entrenas el mismo día a menos de 2 h 30 min de un arbitraje (o ese día sin horario).
   const clashes = new Map();
-  for(const x of eqUp){ if(!x.f.rol || !isPending(x.m)) continue;
+  for(const x of eqUp){ if(!participa(x.f.rol) || !isPending(x.m)) continue;
     for(const m of up){ if(m.date!==x.m.d) continue;
       if(!x.m.t || Math.abs(toMin(m.date,m.time)-toMin(m.date,x.m.t))<150){ (clashes.get(m.id)||clashes.set(m.id,[]).get(m.id)).push(x); (clashes.get(x)||clashes.set(x,[]).get(x)).push(m); } } }
   const all = AGENDA==='proximos'
@@ -2889,7 +2919,7 @@ function renderAgenda(allMs,res){
         const tm = hasTime(p) ? esc(p.t) : p.t ? `${esc(p.t)}<small>sin confirmar</small>` : '—';
         const more = [
           !done ? `<div class="where"><div><strong>${esc(capName(p.pab||'Pabellón por confirmar'))}</strong><div class="addr">${esc(capName(p.pista||''))}</div></div>${p.pab?mapLink(p.pab+' Catalunya', false):''}</div>` : '',
-          `<div class="full">${esc(capName(p.comp||f.cat))}${p.j?` · Jornada ${esc(p.j)}`:''}${p.g?` · ${esc(capName(p.g))}`:''} · ${esc(rolKind(f.rol)[1])} con ${esc(capName(f.team))}</div>`,
+          `<div class="full">${esc(capName(p.comp||f.cat))}${p.j?` · Jornada ${esc(p.j)}`:''}${p.g?` · ${esc(capName(p.g))}`:''} · ${esc(participa(f.rol)?rolKind(f.rol)[1]:'Sigues')} con ${esc(capName(f.team))}</div>`,
         ].filter(Boolean).join('');
         html+=`<details class="agc eq${done?' done':''}" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary aria-expanded="${AGC_OPEN.has(id)}">
           <div class="tm">${tm}</div>

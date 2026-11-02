@@ -9,7 +9,7 @@
 // 4) acta y resultado de los partidos recién jugados de todos los árbitros (tengan o no notificaciones), desde 30 min
 //    después de acabar (checkRecientes): antes no se veían hasta el sync completo de las 9 o las 17.
 import { admin, cors, json } from "../_shared/sync.ts";
-import { huellaFicha, idArbitro, teamMatches, type PartidoEquipo } from "../_shared/publico.ts";
+import { huellaFicha, idArbitro, participa, teamMatches, type PartidoEquipo } from "../_shared/publico.ts";
 import { cap, madridNow, type MsgFn, sendToUser } from "../_shared/push.ts";
 import { dietasDelDia } from "../_shared/dieta.ts";
 import { aTurnos, porIds, todas } from "../_shared/db.ts";
@@ -125,7 +125,7 @@ if (import.meta.main) Deno.serve(async (req) => {
   const teams = new Map<string, { team: string; users: Set<string>; juegan: Set<string> }>();
   for (const f of favs || []) {
     const t = teams.get(f.id_equipo) || teams.set(f.id_equipo, { team: f.team, users: new Set(), juegan: new Set() }).get(f.id_equipo)!;
-    t.users.add(f.user_id); if (f.rol) t.juegan.add(f.user_id);
+    t.users.add(f.user_id); if (participa(f.rol)) t.juegan.add(f.user_id);
   }
   let teamMsgs = 0;
   const queue = [...teams];

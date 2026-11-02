@@ -463,4 +463,6 @@ EXACT = {
 # RFEVB (2-nov-2026)
 "También puedes seguir equipos de Superliga, Superliga 2 y Primera Nacional: búscalos por su nombre (sus datos son de la RFEVB).": "També pots seguir equips de Superlliga, Superlliga 2 i Primera Nacional: busca'ls pel nom (les dades són de la RFEVB).",
 "Primera Nacional": "Primera Nacional", "Nacional": "Nacional",
+# Rol al seguir un equipo (2-nov-2026)
+"¿Qué eres en este equipo?": "Què ets en aquest equip?", "Espectador": "Espectador", "Cambiar rol": "Canvia el rol", "Cancelar": "Cancel·la",
 }

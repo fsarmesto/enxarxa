@@ -152,6 +152,10 @@ export async function huella(kind: "f" | "n", value: string) {
 }
 export const nameKey = (s: string) => [...new Set(words(s))].sort().join(" ");
 
+// Rol en un equipo seguido: jugador, entrenador e invitado (de la plantilla) participan en sus partidos (avisos de horario,
+// choques con arbitrajes); espectador, otro o sin rol solo lo siguen. Los 4 primeros los elige quien lo sigue (2-nov-2026).
+export const ROLES_ELEGIBLES = ["jugador", "entrenador", "espectador", "otro"];
+export const participa = (rol: string | null | undefined) => !!rol && rol !== "espectador" && rol !== "otro";
 export const sameTeam = (a: string, b: string) => norm(a) === norm(b);
 export function withGender(cat: string, comp: string) {
   const c = norm(comp), g = /\bFEM/.test(c) ? "FEMENINO" : /\bMASC/.test(c) ? "MASCULINO" : /\bMIXT/.test(c) ? "MIXTO" : "";
