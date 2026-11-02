@@ -442,9 +442,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - `body[data-vista]` = pestaña activa. Cifras de cobro, IRPF, Excel y avisos de pedir el pago solo en Cobros; el selector
   de temporada en Cobros y Resumen. Si hay avisos y estás en otra pestaña, punto rojo en "Cobros" (`.views .dot`).
 - Cabecera con red de vóley (CSS puro: `.board::after` = palos hasta la línea amarilla; `.board .top::before` = cintas
-  y malla solo detrás de la fila del título). Icono (2-nov-2026, logo de Ferran "Puru"): una P cuyo palo amarillo es el
-  poste de la red y cuya panza es el balón blanco, montado un poco sobre el palo; la red sale del poste hacia la derecha
-  por detrás del balón (cinta blanca, cuadros grandes). `docs/icon.svg` a sangre sobre negro (el sistema pone las
+  y malla solo detrás de la fila del título). Icono (2-nov-2026, logo de Ferran "Puru"): solo amarillo y negro: fondo
+  amarillo, una P cuyo palo negro es el poste de la red y cuya panza es el balón negro con costuras amarillas, montado
+  un poco sobre el palo; la red negra sale del poste hacia la derecha por detrás del balón (cuadros grandes). El
+  mismo día se publicó por error la versión de fondo negro (APK 7): la buena es la amarilla (APK 8). `docs/icon.svg` a sangre (el sistema pone las
   esquinas); `icon-maskable.png` con el dibujo al 78 % para la zona segura de Android. PNG renderizados con Chrome
   headless (ImageMagick no pinta los trazos). Antes: red con `</>`.
 - Login: el usuario de iSquad es el email (placeholder y aviso; los 15 usuarios entran con email).
