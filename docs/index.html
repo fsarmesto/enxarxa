@@ -476,7 +476,8 @@ details>summary:active{background:var(--surface-2)}
 .ctrl{position:relative;margin:0 0 14px}
 .ctrl.hidden{display:none}
 .ctrlrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.ctrlslot:empty{display:none}
+.ctrlslot:empty,.densslot:empty{display:none}
+.densslot{display:flex}
 .ctrlbtns{display:flex;align-items:center;gap:8px}
 .ctrlslot:not(:empty)+.ctrlbtns{margin-left:auto}
 .ctrlbtn{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:4px 12px;border-width:2px;font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.02em;color:var(--ink);background:var(--bg)}
@@ -713,6 +714,22 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .agc .car{font-size:12.5px;color:#1E7B34;font-weight:600;margin-top:4px}
 :root[data-theme="dark"] .agc .car{color:#5BD07A}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .agc .car{color:#5BD07A} }
+.agc .cm{display:none}
+/* Vista compacta de Mis partidos: plegada, solo hora, equipos y una etiqueta corta; al abrir, la ficha entera. */
+.segb.dens button{display:inline-flex;align-items:center;justify-content:center;padding:3px 8px}
+.segb.dens .ico{width:20px;height:20px}
+#agenda.ag-compact .agc:not([open])>summary{grid-template-columns:56px minmax(0,1fr) auto 28px;padding:9px 0;align-items:center}
+#agenda.ag-compact .agc:not([open]) :is(.top,.sub,.ref,.pubt,.pubw,.clash,.car,.diet){display:none}
+#agenda.ag-compact .agc:not([open]) .tm{font-size:19px}
+#agenda.ag-compact .agc:not([open]) .tm small{display:none}
+#agenda.ag-compact .agc:not([open]) .tt{font-size:14.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#agenda.ag-compact .agc:not([open]) .res{font-size:15px}
+#agenda.ag-compact .agc:not([open]) .cm{display:flex;align-items:center;gap:6px;white-space:nowrap}
+#agenda.ag-compact .agc .cm .kind{margin:0}
+#agenda.ag-compact .agc .cw{color:var(--pend);font-weight:700}
+#agenda.ag-compact .ag-day{margin:0 0 12px}
+#agenda.ag-compact .ag-day h2{font-size:17px;margin-bottom:2px}
+@media (max-width:560px){ #agenda.ag-compact .agc:not([open])>summary{grid-template-columns:46px minmax(0,1fr) auto 24px;gap:4px 8px} #agenda.ag-compact .agc:not([open]) .tm{font-size:18px} }
 @media (max-width:560px){ .agc .more{padding-left:0} .agc>summary{grid-template-columns:50px minmax(0,1fr) 28px;gap:4px 8px} .agc .tm{font-size:22px} }
 .res{font-family:var(--display);font-size:22px;font-weight:700;margin-left:8px;vertical-align:middle}
 details.cal{margin-top:6px}
@@ -972,6 +989,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
     <div class="ctrlrow">
       <div class="ctrlslot" id="ctrlSlot"></div>
       <div class="ctrlbtns">
+        <div class="densslot" id="densSlot"></div>
         <div class="pwrap arb-only hidden" id="pWrap"><button type="button" class="ctrlbtn" id="periodBtn" aria-haspopup="true" aria-expanded="false" aria-controls="periodMenu"></button><div class="pmenu hidden" id="periodMenu" role="menu" aria-label="Periodo"></div></div>
         <button type="button" class="ctrlbtn" id="filtBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fpanel"></button>
       </div>
@@ -1923,7 +1941,7 @@ function render(){
   for(const id of ['btnAjustes','mbAjustes']) VIEW==='ajustes' ? $(id).setAttribute('aria-current','page') : $(id).removeAttribute('aria-current'); $('manualPanel').classList.toggle('hidden', !['cobros','agenda'].includes(VIEW));
   const noCtrl = ['equipos','calc','ajustes','admin'].includes(VIEW);
   $('ctrl').classList.toggle('hidden', noCtrl); if(noCtrl) $('fsum').classList.add('hidden');
-  if(VIEW!=='agenda'){ $('ctrlSlot').innerHTML=''; AG_INFO=null; }
+  if(VIEW!=='agenda'){ $('ctrlSlot').innerHTML=''; $('densSlot').innerHTML=''; AG_INFO=null; }
   renderFilters(ms,res); renderPeriod();
   if(VIEW==='agenda'){ renderAgenda(allMs,res); renderSettings(); return; }
   if(VIEW==='equipos'){ renderEquipos(); renderSettings(); return; }
@@ -2613,6 +2631,9 @@ $('equipos').addEventListener('click', async e=>{
 const VIEW_KEY='liq-vista';
 let VIEW='cobros', AGENDA='proximos', AGROLE='todo';
 try{ AGROLE=localStorage.getItem('liq-agenda-rol')||'todo'; }catch(e){}
+// Vista de Mis partidos: 'fichas' (toda la información) o 'lista' (compacta: hora y equipos; al tocar, la ficha entera).
+let AGDENS='fichas';
+try{ AGDENS=localStorage.getItem('liq-agenda-vista')==='lista'?'lista':'fichas'; }catch(e){}
 // De quién es cada partido de la agenda: arbitraje, jugador (también invitado), entrenador o un equipo que solo sigo.
 const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenador' : it.x.f.rol ? 'jugador' : 'sigo');
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
@@ -2633,6 +2654,9 @@ function shortComp(comp){
   return [D,A,G].filter(Boolean).join(' ') || capName(comp);
 }
 const AGC_OPEN=new Set();
+// Iconos del selector de vista: lista (filas finas) y fichas (tarjetas).
+const DENS_LISTA='<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const DENS_FICHAS='<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="13" width="16" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 const crewLabel=(m,f)=> f==='r2' && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIGA ?2/.test(norm(m.comp)) ? 'Juez de línea' : (CREW_LABEL[f] || capName(f));
 // Dirección legible: sin el país del final y en minúsculas con mayúscula inicial (iSquad la da en mayúsculas).
 const niceAddr = a => capName(String(a||'').replace(/,\s*(ESPA[ÑñN]A|ESPANYA|SPAIN)\s*$/i,'').replace(/ñ/g,'Ñ')).replace(/\b(De|Del|Dels|Des|La|Les|El|Els|I|D'|L')\b/g, w=>w.toLowerCase()).replace(/(^|,\s*)(\S)/g,(x,p,c)=>p+c.toUpperCase());
@@ -2707,6 +2731,8 @@ function renderAgenda(allMs,res){
   AG_INFO = {roles, role, cnt:{todo:cnt('todo'), arbitro:cnt('arbitro'), jugador:cnt('jugador'), entrenador:cnt('entrenador')}};
   renderFilters();
   $('ctrlSlot').innerHTML = `<span class="segb" role="group" aria-label="Próximos o jugados"><button type="button" data-ag="proximos" aria-pressed="${AGENDA==='proximos'}">Próximos (${nUp})</button><button type="button" data-ag="jugados" aria-pressed="${AGENDA==='jugados'}">Jugados ${seasonLabel(SEASON)} (${nPast})</button></span>`;
+  $('densSlot').innerHTML = `<span class="segb dens" role="group" aria-label="Vista de la lista"><button type="button" data-dens="lista" aria-pressed="${AGDENS==='lista'}" aria-label="Vista compacta" title="Vista compacta">${DENS_LISTA}</button><button type="button" data-dens="fichas" aria-pressed="${AGDENS==='fichas'}" aria-label="Vista detallada" title="Vista detallada">${DENS_FICHAS}</button></span>`;
+  box.classList.toggle('ag-compact', AGDENS==='lista');
   let html='';
   if(!list.length && role!=='todo'){
     html += `<div class="empty">No hay partidos ${AGENDA==='proximos'?'próximos':'jugados'} como ${({arbitro:'árbitro',jugador:'jugador',entrenador:'entrenador'})[role]}${filtering()?' con estos filtros':''}.</div>`;
@@ -2745,6 +2771,7 @@ function renderAgenda(allMs,res){
             ${refLine(p)}
             <div class="sub">${esc(shortComp(`${f.cat} ${p.comp||''}`))}${!done&&p.pab?` · ${esc(capName(p.pab))}`:''}</div>
             ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}</div>
+          <div class="cm">${cl?'<span class="cw" title="Coincide con un arbitraje" aria-label="Coincide con un arbitraje">⚠</span>':''}${done&&p.rl!=null?stChip(p):`<span class="kind ${rolKind(f.rol)[0]}">${esc(rolKind(f.rol)[1])}</span>`}</div>
           ${chevHtml(AGC_OPEN.has(id))}</summary><div class="more">${more}</div></details>`;
         continue;
       }
@@ -2767,6 +2794,7 @@ function renderAgenda(allMs,res){
           <div class="tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div>
           <div class="sub">${esc(shortComp(m.comp))} · ${esc(venue)}</div>${pubTags(m)}
           ${clashArb}${carLine(m)}${['solicitar','sinrecibo'].includes(payState(m)) && limitOf(m)>=today() ? dietHint(m) : ''}</div>
+        <div class="cm">${clashArb||resLate(m)?`<span class="cw" title="${clashArb?'Coincide con un partido tuyo':'Resultado sin subir'}" aria-label="${clashArb?'Coincide con un partido tuyo':'Resultado sin subir'}">⚠</span>`:''}<span class="kind arb">${esc(myRole ? ({'Juez de línea':'JL','Anotador':'Anot.'}[myRole]||myRole) : 'Arbitras')}</span></div>
         ${chevHtml(AGC_OPEN.has(id))}</summary><div class="more">${more}</div></details>`;
     }
     html+='</section>';
@@ -2778,7 +2806,10 @@ function renderAgenda(allMs,res){
 $('agenda').addEventListener('toggle', e=>{ const d=e.target;
   if(d.dataset?.agc) d.open ? AGC_OPEN.add(d.dataset.agc) : AGC_OPEN.delete(d.dataset.agc);
   else if(d.dataset?.wk) WK_OPEN.set(d.dataset.wk, d.open); }, true);
-$('ctrlSlot').addEventListener('click', e=>{ const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
+$('densSlot').addEventListener('click', e=>{ const d=e.target.closest('button[data-dens]'); if(!d) return;
+  AGDENS=d.dataset.dens; try{ localStorage.setItem('liq-agenda-vista',AGDENS); }catch(err){} render(); });
+$('ctrlSlot').addEventListener('click', e=>{
+  const b=e.target.closest('button[data-ag]'); if(!b) return; AGENDA=b.dataset.ag; render(); });
 $('views').addEventListener('click', e=>{
   const b=e.target.closest('button[data-view]'); if(!b) return;
   VIEW=b.dataset.view; try{ localStorage.setItem(VIEW_KEY,VIEW); }catch(err){} render();

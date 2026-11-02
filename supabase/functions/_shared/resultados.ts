@@ -74,50 +74,90 @@ export async function actaCompleta(idPartido: string): Promise<[number, number] 
 
 type Row = { id: string; date: string; time: string; teams: string; comp: string; estado: string | null; id_partido: string;
   eq_l: string | null; eq_v: string | null; res_l: number | null; acta_url: string | null; pub_checked: string | null };
+const COLS = "id, date, time, teams, comp, estado, id_partido, eq_l, eq_v, res_l, acta_url, pub_checked";
+// Selecciones, suspendidos y aplazados: no publican resultado ni acta (en la web, estado "Otro"); no se miran.
+const needRes = (m: Row) => m.res_l == null && !ESTATAL.test(m.comp);
+const mirable = (m: Row) => !/SELECCI/i.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "") && (needRes(m) || !m.acta_url);
+
+type Cuenta = { n: number; res: number; actas: number; errores: number; fallo: string };
+const cuenta = (): Cuenta => ({ n: 0, res: 0, actas: 0, errores: 0, fallo: "" });
+const resumen = (total: number, c: Cuenta) =>
+  `${c.n} de ${total} mirados: ${c.res} resultados, ${c.actas} actas${c.errores ? `, ${c.errores} errores (${c.fallo})` : ""}`;
+
+// Mira un partido y guarda lo que encuentre. fresh: calendario del equipo recién leído, sin la caché de 30 min.
+async function mirar(db: Db, userId: string, m: Row, c: Cuenta, fresh = false) {
+  c.n++;
+  const patch: Record<string, unknown> = { pub_checked: new Date().toISOString() };
+  let failed = false;
+  try {
+    if (needRes(m)) {
+      let sets: [number, number] | null | undefined;   // undefined = no encontrado en la API
+      if (seasonCode(new Date(`${m.date}T12:00:00Z`)) === seasonCode()) {
+        const names = m.teams.split(" vs ");
+        for (const [eq, name] of [[m.eq_l, names[0]], [m.eq_v, names[1]]]) {
+          if (!eq || !name) continue;
+          if (fresh) await db.from("pub_cache").delete().eq("key", `tm2:${eq}`);
+          const p = (await teamMatches(db, eq, name)).find((x) => x.id === m.id_partido);
+          if (p) { sets = p.rl != null && p.rv != null ? [p.rl, p.rv] : null; break; }
+        }
+      }
+      if (sets === undefined) sets = await actaCompleta(m.id_partido);
+      if (sets) { patch.res_l = sets[0]; patch.res_v = sets[1]; patch.res_at = patch.pub_checked; c.res++; }
+    }
+  } catch (e) { c.errores++; failed = true; c.fallo ||= (e as Error).message; }
+  try {
+    if (!m.acta_url) {
+      const url = await actaEscaneada(m.id_partido);
+      if (url) { patch.acta_url = url; patch.acta_at = subidaDe(url) ?? patch.pub_checked; c.actas++; }
+    }
+  } catch (e) { c.errores++; failed = true; c.fallo ||= (e as Error).message; }
+  // Si algo ha fallado (iSquad a veces da 500), sin pub_checked: se vuelve a mirar en la siguiente pasada, no a la semana.
+  if (failed) delete patch.pub_checked;
+  if (Object.keys(patch).length) await db.from("matches").update(patch).eq("user_id", userId).eq("id", m.id);
+}
 
 export async function checkResultados(db: Db, userId: string, deadline: number): Promise<string> {
   const now = madridNow(), recent = new Date(Date.now() - DAYS * 864e5).toISOString().slice(0, 10), season = seasonCode();
-  const { data } = await db.from("matches").select("id, date, time, teams, comp, estado, id_partido, eq_l, eq_v, res_l, acta_url, pub_checked")
+  const { data } = await db.from("matches").select(COLS)
     .eq("user_id", userId).not("id_partido", "is", null).lte("date", now.slice(0, 10))
     .or("res_l.is.null,acta_url.is.null").order("date", { ascending: false }).limit(500);
-  // Selecciones, suspendidos y aplazados: no publican resultado ni acta (en la web, estado "Otro"); no se miran.
-  const needRes = (m: Row) => m.res_l == null && !ESTATAL.test(m.comp);
-  const todo = ((data || []) as Row[]).filter((m) => !/SELECCI/i.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "")
-    && (needRes(m) || !m.acta_url) && now >= plusMin(m.date, m.time || "00:00", AFTER_MIN)
+  const todo = ((data || []) as Row[]).filter((m) => mirable(m) && now >= plusMin(m.date, m.time || "00:00", AFTER_MIN)
     && (m.date >= recent || !m.pub_checked
       || (seasonCode(new Date(`${m.date}T12:00:00Z`)) === season && Date.now() - Date.parse(m.pub_checked) > OLD_EVERY))).slice(0, MAX);
-  let res = 0, actas = 0, errores = 0, fallo = "", n = 0;
+  const c = cuenta();
   for (const m of todo) {
     if (Date.now() > deadline - 15_000) break;
-    n++;
-    const patch: Record<string, unknown> = { pub_checked: new Date().toISOString() };
-    let failed = false;
-    try {
-      if (needRes(m)) {
-        let sets: [number, number] | null | undefined;   // undefined = no encontrado en la API
-        if (seasonCode(new Date(`${m.date}T12:00:00Z`)) === season) {
-          const names = m.teams.split(" vs ");
-          for (const [eq, name] of [[m.eq_l, names[0]], [m.eq_v, names[1]]]) {
-            if (!eq || !name) continue;
-            const p = (await teamMatches(db, eq, name)).find((x) => x.id === m.id_partido);
-            if (p) { sets = p.rl != null && p.rv != null ? [p.rl, p.rv] : null; break; }
-          }
-        }
-        if (sets === undefined) sets = await actaCompleta(m.id_partido);
-        if (sets) { patch.res_l = sets[0]; patch.res_v = sets[1]; patch.res_at = patch.pub_checked; res++; }
-      }
-    } catch (e) { errores++; failed = true; fallo ||= (e as Error).message; }
-    try {
-      if (!m.acta_url) {
-        const url = await actaEscaneada(m.id_partido);
-        if (url) { patch.acta_url = url; patch.acta_at = subidaDe(url) ?? patch.pub_checked; actas++; }
-      }
-    } catch (e) { errores++; failed = true; fallo ||= (e as Error).message; }
-    // Si algo ha fallado (iSquad a veces da 500), sin pub_checked: se vuelve a mirar en la siguiente pasada, no a la semana.
-    if (failed) delete patch.pub_checked;
-    if (Object.keys(patch).length) await db.from("matches").update(patch).eq("user_id", userId).eq("id", m.id);
+    await mirar(db, userId, m, c);
   }
-  return `${n} de ${todo.length} mirados: ${res} resultados, ${actas} actas${errores ? `, ${errores} errores (${fallo})` : ""}`;
+  return resumen(todo.length, c);
+}
+
+// Recién jugados (cron vigilar, cada 10 min, todos los árbitros): el 1r suele subir el acta y el resultado al acabar, y el
+// sync completo (9:00 y 17:00) no los veía hasta horas después. Se miran desde FIN_MIN después del inicio (unos 30 min
+// tras acabar) y durante 2 días: cada 20 min las primeras 6 h, luego cada 2 h. Con el calendario del equipo recién leído.
+const FIN_MIN = 150, RECIENTE_MAX = 30;
+// Minutos de un "AAAA-MM-DD HH:MM" de Madrid (solo para restar entre ellos).
+const minDe = (t: string) => Date.parse(`${t.replace(" ", "T")}:00Z`) / 6e4;
+export function tocaReciente(m: Pick<Row, "date" | "time" | "pub_checked">, now: string, ahora = Date.now()): boolean {
+  const desdeFin = minDe(now) - minDe(`${m.date} ${m.time || "00:00"}`) - FIN_MIN;
+  if (desdeFin < 0 || desdeFin > 48 * 60) return false;
+  if (!m.pub_checked) return true;
+  // Mirado antes del fin (el sync lo mira desde 1 h después del inicio): toca ya.
+  const hace = (ahora - Date.parse(m.pub_checked)) / 6e4;
+  return hace >= Math.min(desdeFin, desdeFin < 6 * 60 ? 20 : 120);
+}
+export async function checkRecientes(db: Db, deadline: number): Promise<string> {
+  const now = madridNow(), desde = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
+  const data = await todas<Row & { user_id: string }>(() => db.from("matches").select(`user_id, ${COLS}`)
+    .not("id_partido", "is", null).gte("date", desde).lte("date", now.slice(0, 10))
+    .or("res_l.is.null,acta_url.is.null").order("user_id").order("id"));
+  const todo = data.filter((m) => mirable(m) && tocaReciente(m, now)).slice(0, RECIENTE_MAX);
+  const c = cuenta();
+  for (const m of todo) {
+    if (Date.now() > deadline - 10_000) break;
+    await mirar(db, m.user_id, m, c, true);
+  }
+  return resumen(todo.length, c);
 }
 
 // Aviso del domingo a las 21:00 (issue #31): a cada árbitro, los partidos de la semana (de lunes a domingo) que siguen

@@ -443,4 +443,8 @@ EXACT = {
 "Aquí te aviso de designaciones nuevas, cambios de horario y pagos por pedir.": "Aquí t'aviso de designacions noves, canvis d'horari i pagaments per demanar.",
 "Tu idioma, tus avisos y esta guía, cuando quieras.": "El teu idioma, els teus avisos i aquesta guia, quan vulguis.",
 "Tu población, el IRPF, el idioma y esta guía, cuando quieras.": "La teva població, l'IRPF, l'idioma i aquesta guia, quan vulguis.",
+# Mis partidos: vista compacta o detallada
+"Vista de la lista": "Vista de la llista", "Vista compacta": "Vista compacta", "Vista detallada": "Vista detallada",
+"Coincide con un arbitraje": "Coincideix amb un arbitratge", "Coincide con un partido tuyo": "Coincideix amb un partit teu",
+"Resultado sin subir": "Resultat sense pujar", "Anot.": "Anot.", "JL": "JL",
 }

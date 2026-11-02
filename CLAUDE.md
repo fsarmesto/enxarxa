@@ -242,6 +242,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   más nuevas y repasa poco a poco las de la temporada en curso que aún no tienen `crew`.
 - En la web, pestañas "Cobros" / "Mis partidos" (`VIEW`, recordada en localStorage `liq-vista`); la agenda
   (`renderAgenda`) tiene "Próximos" y "Jugados" de la temporada, respeta los filtros y enlaza a Google Maps.
+- Vista compacta o detallada (2-nov-2026, Ferran): 2 iconos junto a Filtros (`#densSlot`, `AGDENS`, localStorage
+  `liq-agenda-vista` = lista | fichas). Compacta = clase `ag-compact` en `#agenda`: las tarjetas plegadas solo enseñan hora,
+  equipos y `.cm` (R1/R2/JL/Anot., Juegas/Entrenas o el resultado; ⚠ si choca o el resultado va tarde); abiertas, la ficha entera.
 
 ## Guía, resumen y compartir coche (21-oct-2026)
 
@@ -470,6 +473,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   plano): todos los partidos con id empezados hace más de 1 h, sin selecciones ni suspendidos; los de los últimos 30 días
   en cada pasada y los anteriores que falten, una vez por semana (`pub_checked`); como mucho 20 por pasada (~55 s si van
   por PDF). Guarda `res_l/res_v/res_at` y `acta_url/acta_at` (hora del nombre del fichero) y no los vuelve a pedir.
+- Recién jugados (31-oct-2026, Ferran: el partido de las 11 seguía sin acta ni resultado con todo subido; el sync completo no
+  lo miraba hasta las 17): `checkRecientes` en cada pasada de `vigilar` (cada 10 min, todos los árbitros, tengan o no
+  notificaciones). Desde inicio + 2 h 30 min (≈30 min tras acabar) y durante 2 días: cada 20 min las primeras 6 h, luego cada
+  2 h (`tocaReciente`, con prueba en `avisos_test.ts`); como mucho 30 por pasada. Borra antes la caché `tm2:` del equipo
+  para leer el calendario recién publicado. Misma función por partido que el sync (`mirar`).
 - Web (`pubState`/`pubTags`), en todos los arbitrajes de Mis partidos y Cobros: "Resultado: Pendiente / Subido 3-1 /
   Irregular" y "Acta: Pendiente / Subida / Otro". Irregular = marcador que no es 3-0, 3-1, 3-2, 2-3, 1-3 ni 0-3 (Ferran: al
   mejor de 5), con un aviso debajo. "Otro" (con el motivo) en selecciones, suspendidos/aplazados, sin número de partido,
@@ -634,8 +642,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   también de fuera. Si se añade otro servidor al que llama la web, añadirlo a `connect-src`.
 - Comprobado: ningún secreto en el historial del repo; altas directas en Supabase desactivadas (`disable_signup`); contraseñas
   con AES-GCM e IV aleatorio; la web escapa lo que viene de iSquad (`esc`). iCal: `;` escapado (antes no).
-- Pendiente (lo tiene que hacer Ferran en el panel de Supabase): Authentication → URL Configuration → Site URL estaba en
-  `http://localhost:3000`; poner `https://fsarmesto.github.io/enxarxa/`.
+- Site URL de Supabase (Authentication → URL Configuration): `https://fsarmesto.github.io/enxarxa/` y redirecciones
+  `https://fsarmesto.github.io/enxarxa/**` (comprobado por la API de gestión el 2-nov-2026; antes estaba en localhost:3000).
 
 ## Pruebas automáticas (27-oct-2026)
 

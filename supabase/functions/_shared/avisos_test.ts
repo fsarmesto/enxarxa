@@ -10,7 +10,7 @@ Deno.env.set("VAPID_PRIVATE", k.privateKey);
 const { textos } = await import("./textos.ts");
 const { todas, porIds } = await import("./db.ts");
 const { avisoCobros, porPedir } = await import("./domingo.ts");
-const { avisoResultados } = await import("./resultados.ts");
+const { avisoResultados, tocaReciente } = await import("./resultados.ts");
 
 const P = { date: "2026-10-30", time: "18:00", teams: "CV EXEMPLE vs CLUB PROVA", venue: "PAVELLO DE PROVA" };
 // Todos los textos del catálogo con datos inventados.
@@ -82,8 +82,13 @@ Deno.test("cobros del domingo: solo a quien le queda algo por pedir, y una vez",
 });
 
 Deno.test("resultados del domingo: R1, otro rol y varios; sin estatales, selecciones ni suspendidos; una vez", async () => {
-  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()), noon = Date.parse(`${today}T12:00:00Z`);
-  const mon = new Date(noon - ((new Date(noon).getUTCDay() + 6) % 7) * 864e5).toISOString().slice(0, 10);
+  // Hora fija (domingo 1-nov-2026, 21:00 de Madrid): con la de verdad, un lunes antes de las 12:30 el partido del lunes a las
+  // 10:00 aún no tocaba y la prueba fallaba.
+  const RealDate = Date, fijo = RealDate.parse("2026-11-01T20:00:00Z");
+  // deno-lint-ignore no-explicit-any
+  globalThis.Date = class extends RealDate { constructor(...a: any[]) { super(...(a.length ? a : [fijo]) as [number]); } static override now() { return fijo; } } as DateConstructor;
+  try {
+  const mon = "2026-10-26";
   const M = (user_id: string, o: object = {}) => ({ user_id, id: user_id + Math.random(), date: mon, time: "10:00", teams: "CV EXEMPLE vs CLUB PROVA", venue: "PAV",
     comp: "TERCERA DIVISION SENIOR", estado: "PENDIENTE", role: "r1", staff_checked: "x", ...o });
   const matches = [M("u1"), M("u2", { role: "r2" }), M("u3"), M("u3", { role: "r2" }), M("u4", { comp: "SUPERLIGA FEMENINA" }),
@@ -95,6 +100,7 @@ Deno.test("resultados del domingo: R1, otro rol y varios; sin estatales, selecci
   assert(/El resultado aún no está subido/.test(msg("u2")));
   assert(/2 partits sense resultat/.test(msg("u3")));
   assertEquals((await avisoResultados(db, Date.now() - 1)).enviados, 0);
+  } finally { globalThis.Date = RealDate; }
 });
 
 Deno.test("aTurnos(): como mucho n a la vez y los resultados en orden", async () => {
@@ -105,4 +111,19 @@ Deno.test("aTurnos(): como mucho n a la vez y los resultados en orden", async ()
   });
   assertEquals(max, 4);
   assertEquals(r, Array.from({ length: 16 }, (_, i) => i * 2));
+});
+
+Deno.test("acta y resultado de los recién jugados: desde 30 min después de acabar, cada 20 min y luego cada 2 h", () => {
+  const m = { date: "2026-10-31", time: "11:00", pub_checked: null as string | null };
+  const ahora = Date.parse("2026-10-31T12:00:00Z");
+  assertEquals(tocaReciente(m, "2026-10-31 13:20", ahora), false);   // aún no: 2 h 20 min desde el inicio
+  assertEquals(tocaReciente(m, "2026-10-31 13:30", ahora), true);    // 2 h 30 min: nunca mirado
+  // Mirado a la hora de empezar (el sync lo mira desde 1 h después): toca en cuanto acaba, aunque haga menos de 20 min.
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 15 * 6e4).toISOString() }, "2026-10-31 13:40", ahora), true);
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 10 * 6e4).toISOString() }, "2026-10-31 14:00", ahora), false);
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 20 * 6e4).toISOString() }, "2026-10-31 14:00", ahora), true);
+  // Pasadas 6 h desde el fin, cada 2 h; pasados 2 días, ya solo el sync completo.
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 60 * 6e4).toISOString() }, "2026-10-31 21:00", ahora), false);
+  assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 120 * 6e4).toISOString() }, "2026-10-31 21:00", ahora), true);
+  assertEquals(tocaReciente(m, "2026-11-02 14:00", ahora), false);
 });
