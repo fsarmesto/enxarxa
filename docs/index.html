@@ -1030,6 +1030,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
     <div class="eq-h eq-hi"><span>Mis equipos</span><button type="button" class="infobtn" id="eqInfoBtn" aria-expanded="false" aria-controls="eqInfo" aria-label="Cómo funciona"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v5.5M12 7.6v.1" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
     <p class="small" id="eqAuto" style="margin:0 0 6px;font-weight:600"></p>
     <p class="small muted hidden" id="eqInfo" style="margin:0 0 8px">Los equipos en los que juegas o entrenas (la app los encuentra sola en las plantillas públicas), y los que quieras seguir. Sus próximos partidos salen también en "Mis partidos", y te aviso si te designan cuando juegas o entrenas.</p>
+    <p class="small muted hidden" id="eqInfo2" style="margin:0 0 8px">También puedes seguir equipos de Superliga, Superliga 2 y Primera Nacional: búscalos por su nombre (sus datos son de la RFEVB).</p>
     <div class="eq-list" id="eqFavs"></div>
     <div class="eq-h">Buscar equipos</div>
     <div class="eq-search"><input type="search" id="eqQ" placeholder="Equipo o club (p. ej. Sagrat Cor, Begues…)" autocomplete="off"></div>
@@ -1643,7 +1644,7 @@ const estCells = (m,r,km) => `<td class="n" data-l="Dieta"><input type="number" 
 const fcvbCells = r => `<td class="n" data-l="Dieta"><span class="muted" title="La FCVB da la dieta y el desplazamiento juntos">incl.</span></td>
           <td class="n" data-l="Gastos">${eur(r.travel)}<span class="shared" title="Desplazamiento y dieta según los recibos de la FCVB (la app calculaba ${eur(r.est.gastos)}; la FCVB reparte los gastos del día entre los partidos)">gastos FCVB</span></td>`;
 /* ---------- Filtros (designación, división, categoría y género) ---------- */
-const DIVS=[['SL','Superliga'],['SL2','Superliga 2'],['1','1ª División'],['2','2ª División'],['3','3ª División'],['4','4ª División'],['PREF','Preferente'],['MA','Máster/Alevín'],['OTROS','Otros']];
+const DIVS=[['SL','Superliga'],['SL2','Superliga 2'],['PN','Primera Nacional'],['1','1ª División'],['2','2ª División'],['3','3ª División'],['4','4ª División'],['PREF','Preferente'],['MA','Máster/Alevín'],['OTROS','Otros']];
 const AGES=[['SEN','Sénior'],['JUN','Júnior'],['JUV','Juvenil'],['CAD','Cadete'],['INF','Infantil'],['ALE','Alevín'],['AMA','Amateur'],['OTRA','Otras']];
 const GENS=[['F','Femenino'],['M','Masculino'],['X','Mixto']];
 const ROLES=[['r1','R1 · Primer árbitro'],['r2','R2 · Segundo árbitro'],['an','Anotador'],['jl','Juez de línea']];
@@ -1651,9 +1652,10 @@ const ROLES=[['r1','R1 · Primer árbitro'],['r2','R2 · Segundo árbitro'],['an
 function compParts(comp){
   const c=norm(comp);
   // Máster/Alevín: Alevín y Amateur (Máster/Veteranos). Otros: selecciones territoriales y lo que no encaje.
-  const div = /SELECCI/.test(c)?'OTROS' : /AMATEUR|MASTER|VETERA|ALEVI/.test(c)?'MA' : /SUPERLIGA ?2/.test(c)?'SL2' : /SUPERLIGA/.test(c)?'SL'
-    : /PRIMERA/.test(c)?'1' : /SEGUNDA/.test(c)?'2' : /TERCERA/.test(c)?'3' : /CUARTA/.test(c)?'4' : /PREFERENT/.test(c)?'PREF' : 'OTROS';
-  const age = /SENIOR|SUPERLIGA/.test(c)?'SEN' : /JUNIOR/.test(c)?'JUN' : /JUVENIL/.test(c)?'JUV' : /CADET/.test(c)?'CAD' : /INFANTIL/.test(c)?'INF' : /ALEVI/.test(c)?'ALE' : /AMATEUR/.test(c)?'AMA' : 'OTRA';
+  // Estatales (RFEVB): Superliga (también Liga Iberdrola), Superliga 2 y Primera Nacional (2-nov-2026).
+  const div = /SELECCI/.test(c)?'OTROS' : /AMATEUR|MASTER|VETERA|ALEVI/.test(c)?'MA' : /SUPERLIGA ?(\w+ )?2\b/.test(c)?'SL2' : /SUPERLIGA|IBERDROLA/.test(c)?'SL'
+    : /NACIONAL/.test(c)?'PN' : /PRIMERA/.test(c)?'1' : /SEGUNDA/.test(c)?'2' : /TERCERA/.test(c)?'3' : /CUARTA/.test(c)?'4' : /PREFERENT/.test(c)?'PREF' : 'OTROS';
+  const age = /SENIOR|SUPERLIGA|IBERDROLA|NACIONAL/.test(c)?'SEN' : /JUNIOR/.test(c)?'JUN' : /JUVENIL/.test(c)?'JUV' : /CADET/.test(c)?'CAD' : /INFANTIL/.test(c)?'INF' : /ALEVI/.test(c)?'ALE' : /AMATEUR/.test(c)?'AMA' : 'OTRA';
   const gen = /FEMENI|\bFEM\b/.test(c)?'F' : /MASCULI|\bMASC\b/.test(c)?'M' : /MIXT/.test(c)?'X' : '';
   return {div,age,gen};
 }
@@ -1922,8 +1924,11 @@ function pubState(m){
   if(why) return {otro:why, acta:{st:'Otro',cls:''}, res:{st:'Otro',cls:''}};
   const late = Date.now() >= new Date(`${m.date}T${m.time||'00:00'}:00`).getTime() + 150*6e4;
   const pend = {st:'Pendiente', cls:late?'warn':''};
-  // Competiciones estatales (Superliga, Nacional): su resultado no se publica en la web de la FCVB (ESTATAL en resultados.ts).
-  if(/SUPERLIGA|NACIONAL/i.test(m.comp||'') && m.res_l==null) return {otro:'competición estatal', acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend, res:{st:'Otro',cls:''}};
+  // Competiciones estatales (Superliga, Superliga 2, Nacional): el resultado sale de la RFEVB (rfevb.ts), solo de la temporada
+  // en curso; mientras no está, Pendiente sin color de aviso (no lo sube el árbitro a iSquad). De temporadas pasadas, "Otro".
+  if(/SUPERLIGA|NACIONAL/i.test(m.comp||'') && m.res_l==null) return seasonOf(m.date)===seasonOf(today())
+    ? {acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend, res:{st:'Pendiente',cls:''}}
+    : {otro:'competición estatal', acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend, res:{st:'Otro',cls:''}};
   const sc = m.res_l!=null ? `${m.res_l}-${m.res_v}` : '';
   return { acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend,
     res: !sc ? pend : RES_OK.has(sc) ? {st:'Subido',cls:'ok',sc} : {st:'Irregular',cls:'warn',sc} };
@@ -1934,7 +1939,7 @@ function pubTags(m){
   return `<div class="pubt">${tag('Resultado:',s.res)}${tag('Acta:',s.acta)}${s.otro?`<span class="small muted">${esc(s.otro)}</span>`:''}</div>`
     + (s.res.st==='Irregular' ? `<div class="pubw">⚠ <span>Resultado irregular:</span> ${s.res.sc}. <span>Al mejor de 5 solo valen 3-0, 3-1, 3-2 y al revés: revisa el resultado en iSquad.</span></div>` : '');
 }
-const actaLink = m => m.acta_url && /^https:\/\/voleibol\.isquad\.es\//.test(m.acta_url.replace(/^http:/,'https:')) ? ` · <a href="${esc(m.acta_url.replace(/^http:/,'https:'))}" target="_blank" rel="noopener">Ver el acta</a>` : '';
+const actaLink = m => m.acta_url && /^https:\/\/(voleibol\.isquad\.es|intranet\.esvoley\.es)\//.test(m.acta_url.replace(/^http:/,'https:')) ? ` · <a href="${esc(m.acta_url.replace(/^http:/,'https:'))}" target="_blank" rel="noopener">Ver el acta</a>` : '';
 // Km, peajes y dieta a mano de un partido (tarjeta del móvil y fila de escritorio ancho).
 function editorHtml(m,r,km){
   const id=esc(m.id);
@@ -2687,7 +2692,7 @@ $('eqFavs').addEventListener('click', async e=>{
   if(!r.ok){ f.activo=!f.activo; render(); toast(r.error||'No se ha podido guardar'); }
   else toast(f.activo ? `${capName(f.team)} vuelve a salir en Mis partidos` : `${capName(f.team)} ya no sale en Mis partidos`);
 });
-$('eqInfoBtn').addEventListener('click', ()=>{ const o=$('eqInfo').classList.toggle('hidden'); $('eqInfoBtn').setAttribute('aria-expanded', String(!o)); });
+$('eqInfoBtn').addEventListener('click', ()=>{ const o=$('eqInfo').classList.toggle('hidden'); $('eqInfo2').classList.toggle('hidden', o); $('eqInfoBtn').setAttribute('aria-expanded', String(!o)); });
 let eqTimer=null;
 $('eqQ').addEventListener('input', e=>{
   clearTimeout(eqTimer); const q=e.target.value.trim();
@@ -2744,7 +2749,7 @@ const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
 // "PRIMERA DIVISION SENIOR FEMENINO" → "1ª Sén. Fem" (para la línea corta de la tarjeta).
 function shortComp(comp){
   const {div,age,gen}=compParts(comp);
-  const D={SL:'Superliga',SL2:'Superliga 2','1':'1ª','2':'2ª','3':'3ª','4':'4ª',PREF:'Pref.',MA:'Máster/Alev.'}[div]||'';
+  const D={SL:'Superliga',SL2:'Superliga 2',PN:'Nacional','1':'1ª','2':'2ª','3':'3ª','4':'4ª',PREF:'Pref.',MA:'Máster/Alev.'}[div]||'';
   const A={SEN:'Sén.',JUN:'Jún.',JUV:'Juv.',CAD:'Cad.',INF:'Inf.',ALE:'Alev.',AMA:'Amat.'}[age]||'';
   const G={F:'Fem',M:'Masc',X:'Mixto'}[gen]||'';
   return [D,A,G].filter(Boolean).join(' ') || capName(comp);
@@ -2753,7 +2758,8 @@ const AGC_OPEN=new Set();
 // Iconos del selector de vista: lista (filas finas) y fichas (tarjetas).
 const DENS_LISTA='<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const DENS_FICHAS='<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="13" width="16" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-const crewLabel=(m,f)=> f==='r2' && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIGA ?2/.test(norm(m.comp)) ? 'Juez de línea' : (CREW_LABEL[f] || capName(f));
+// En las designaciones de iSquad el 2º "ARBITRO" de Superliga es el juez de línea; en los partidos de la RFEVB (rfevb:…), arb2 es el 2n.
+const crewLabel=(m,f)=> f==='r2' && !String(m.id||'').startsWith('rfevb:') && /SUPERLIGA/.test(norm(m.comp)) && !/SUPERLIGA ?2/.test(norm(m.comp)) ? 'Juez de línea' : (CREW_LABEL[f] || capName(f));
 // Dirección legible: sin el país del final y en minúsculas con mayúscula inicial (iSquad la da en mayúsculas).
 const niceAddr = a => capName(String(a||'').replace(/,\s*(ESPA[ÑñN]A|ESPANYA|SPAIN)\s*$/i,'').replace(/ñ/g,'Ñ')).replace(/\b(De|Del|Dels|Des|La|Les|El|Els|I|D'|L')\b/g, w=>w.toLowerCase()).replace(/(^|,\s*)(\S)/g,(x,p,c)=>p+c.toUpperCase());
 // Botón "Cómo llegar": Google Maps. En iPhone se abre la app de Google Maps (comgooglemaps://) y, si no está instalada
@@ -3300,7 +3306,7 @@ async function shareApp(){
 }
 
 /* ---------- Administración (solo ADMIN_LOGINS, una lista fija en el servidor; lo comprueba en cada petición) ---------- */
-const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpperCase());
+const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpperCase()).replace(/\bRfevb\b/g,'RFEVB');
 let ADMIN = null, ADM_LOADED = false;   // ADMIN null: aún no se sabe
 // Como callFn, pero un fallo de red (fetch rechazado) es una respuesta con error: nada se queda en "Cargando…".
 const admFn = body => callFn('designadas', body).catch(()=>({ok:false, error:'No se ha podido conectar. Inténtalo de nuevo.'}));

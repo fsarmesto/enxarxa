@@ -480,7 +480,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   DecompressionStream de Deno no acepta bytes de más: se corta con /Length). 111 de 116 de la temporada 25/26 de Ferran;
   los 5 que faltan son de Superliga.
 - Competiciones estatales (`ESTATAL` = SUPERLIGA|NACIONAL): su resultado no sale en la web de la FCVB ni en el acta
-  completa: resultado "Otro"; el acta sí se mira.
+  completa. Desde el 2-nov-2026 sale de la RFEVB (ver "Competiciones estatales"), solo de la temporada en curso: mientras
+  no está, "Pendiente" sin color de aviso (no lo sube el árbitro); de temporadas pasadas, "Otro". Sin aviso del domingo.
 - `checkResultados` (`_shared/resultados.ts`, en cada sync completo, no en el rápido; con "Actualizar ahora", en segundo
   plano): todos los partidos con id empezados hace más de 1 h, sin selecciones ni suspendidos; los de los últimos 30 días
   en cada pasada y los anteriores que falten, una vez por semana (`pub_checked`); como mucho 20 por pasada (~55 s si van
@@ -512,6 +513,35 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   propios; `sendToUser` guarda SIEMPRE el aviso, tenga o no notificaciones) y los resultados de sus equipos de la última
   semana. Vistos en localStorage `liq-avisos-vistos` al abrir la lista; los de acción se van solos al resolverse.
   Tocar uno lleva al partido (Mis partidos, tarjeta abierta) o a su pestaña. `?avisos=1` (desde la notificación) la abre.
+
+## Competiciones estatales: RFEVB (2-nov-2026)
+
+- Superliga (masculina y Liga Iberdrola), Superliga 2 y Primera División ("Primera Nacional"; Ferran: muy importante que
+  esté). Fuente única: la API pública que usa esvoley.es para pintar cada grupo, `intranet.esvoley.es/api/competiciones`
+  (JSON utf-8, sin login): `getJornadasCalendario?grupoId=` (calendario sin resultados), `getPartidosByJornada?jornadaId=`
+  (resultado, sets, árbitros arb1-arb4, pabellón), `getPartido?partidoId=` (además, la foto del acta), `getClasificacionGrupo`,
+  `getDatosGrupoCompeticion`. rfevb-web.dataproject.com tiene Superliga pero no Primera: no se usa.
+- Grupos: la API no los lista. Cada página de grupo de esvoley.es lleva `<input id="HiddenGrupoId">`; `grupos()` los descubre
+  una vez por semana desde `/voleibol/competiciones-masculinas` y `-femeninas` (páginas `…/grupo-x` y
+  `…/clasificacion-y-resultados`, sin las de temporadas pasadas `-2025-2026`), así cambian solos de temporada. Reserva: los 16
+  de 2026/27 (206 Superliga M, 213 Liga Iberdrola, 85-87 y 224-226 Superliga 2, 100-103 y 234-237 Primera).
+- `_shared/rfevb.ts`. Ids con prefijo para que pasen por lo mismo que lo de la FCVB: equipo `rfevb:<id del escudo>` (el
+  `Id=` de `img_local`), partido `rfevb:<id>`, grupo (torneo) `rfevb:<grupoId>`. `teamMatches`, `standings` y
+  `matchOfficials` de `publico.ts` desvían a rfevb.ts con ese prefijo: Equipos, Clasificación, avisos de resultados
+  (vigilar), iCal y árbitros funcionan sin más. Competición con nombre común (`nombreComp`: "SUPERLIGA 2 FEMENINA",
+  "PRIMERA NACIONAL MASCULINA") para que la web la abrevie y filtre (`compParts`: SL, SL2 y PN "Primera Nacional").
+- Cachés (`pub_cache`): `rfevb-grupos` 7 días, `rfevb-cal:<grupo>` 6 h, `rfevb-j:<jornada>` 20 min (3 días si tiene más de 4
+  días), `rfevb-p:<partido>` 20 min (3 días si ya tiene resultado), `rfevb-equipos` 6 h (el cron `indexar` la mantiene
+  caliente: en frío son ~15 s), `cla:rfevb:<grupo>` 1 h. De 4 en 4 a la vez.
+- Equipos: `buscar` añade los de la RFEVB (`club_id` "rfevb", club "RFEVB · Grupo B"); `seguir` los guarda con su
+  `id_equipo` y sin rol (no hay plantillas). Texto en la (i) de Equipos.
+- Partidos arbitrados (`resultados.ts`, `mirar`): si la competición es estatal y de esta temporada, `buscarDesignacion`
+  busca en los grupos de su nivel y género el partido con la misma fecha y más palabras en común en los nombres (sin
+  CV, CLUB, VOLEIBOL…; +1 si coincide la hora; mínimo 2) y guarda sets (`res_l/res_v`) y, si iSquad no la tiene, el acta
+  (`acta_url` de intranet.esvoley.es; "Ver el acta" la acepta). Comprobado el 2-nov con un partido de Primera (Benidorm–Cartagena).
+- En la web, `crewLabel`: en los partidos `rfevb:` el 2º árbitro es el 2n (en las designaciones de iSquad de Superliga es
+  el juez de línea).
+- Pruebas: `_shared/rfevb_test.ts` (nivel y género, palabras en común).
 
 ## Sin conexión (issue #30, 27-oct-2026)
 
