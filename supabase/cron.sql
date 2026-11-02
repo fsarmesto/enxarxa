@@ -59,3 +59,18 @@ select cron.schedule(
   );
   $$
 );
+
+-- Hora de salida hacia el pabellón (issue #73, función salida): cada 5 minutos; la función no hace nada antes de las 5:00
+-- de Madrid ni entra en iSquad (solo lee la base de datos).
+select cron.schedule(
+  'aviso-salida',
+  '*/5 * * * *',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/salida',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 30000
+  );
+  $$
+);
