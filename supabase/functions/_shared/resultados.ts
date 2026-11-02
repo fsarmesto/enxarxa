@@ -80,7 +80,8 @@ const COLS = "id, date, time, teams, comp, estado, id_partido, eq_l, eq_v, res_l
 // Selecciones, suspendidos y aplazados: no publican resultado ni acta (en la web, estado "Otro"); no se miran.
 const actual = (m: Row) => seasonCode(new Date(`${m.date}T12:00:00Z`)) === seasonCode();
 const needRes = (m: Row) => m.res_l == null && (!ESTATAL.test(m.comp) || actual(m));
-const mirable = (m: Row) => !/SELECCI/i.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "") && (needRes(m) || !m.acta_url);
+// Los arbitrajes de la RFEVB (RFEVB-…) traen su resultado y su acta de allí (rfevb.ts): aquí no.
+const mirable = (m: Row) => !m.id.startsWith("RFEVB-") && !/SELECCI/i.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "") && (needRes(m) || !m.acta_url);
 
 type Cuenta = { n: number; res: number; actas: number; errores: number; fallo: string };
 const cuenta = (): Cuenta => ({ n: 0, res: 0, actas: 0, errores: 0, fallo: "" });

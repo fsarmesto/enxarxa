@@ -650,7 +650,8 @@ I.exact = {
 "¿Qué eres en este equipo?": "Què ets en aquest equip?",
 "Espectador": "Espectador",
 "Cambiar rol": "Canvia el rol",
-"Cancelar": "Cancel·la"
+"Cancelar": "Cancel·la",
+"Designación de la RFEVB": "Designació de la RFEVB"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

@@ -16,17 +16,18 @@ const API = "https://intranet.esvoley.es/api/competiciones", WEB = "https://esvo
 const GRUPOS_2627 = [206, 213, 85, 86, 87, 224, 225, 226, 100, 101, 102, 103, 234, 235, 236, 237];
 
 export type Grupo = { id: number; comp: string; fase: string; nombre: string; nivel: "sl" | "sl2" | "pn"; genero: "M" | "F" };
-type PartidoApi = {
+export type PartidoApi = {
   id: number; fecha?: string | null; hora?: string | null; fecha_hora?: string | null; pabellon?: string | null; pista?: string | null;
   img_local?: string; img_visitante?: string; equipo_local: string; equipo_visitante: string;
   sets_local?: string; sets_visitante?: string; esAplazado?: boolean; esSuspendido?: boolean;
   arb1?: string; arb2?: string; arb3?: string; arb4?: string; imagenActa?: string | null;
+  direccion?: string | null; ubicacion?: string | null;
   [k: string]: unknown;
 };
-type Jornada = { id: number; fecha: string; numero: string; partidos?: PartidoApi[] };
+export type Jornada = { id: number; fecha: string; numero: string; partidos?: PartidoApi[] };
 
 // De n en n a la vez (la API tarda ~3 s por calendario: los 16 grupos en serie eran ~60 s).
-async function enTurnos<T, R>(xs: T[], n: number, f: (x: T) => Promise<R>): Promise<R[]> {
+export async function enTurnos<T, R>(xs: T[], n: number, f: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(xs.length); let i = 0;
   await Promise.all(Array.from({ length: Math.min(n, xs.length) }, async () => { while (i < xs.length) { const k = i++; out[k] = await f(xs[k]); } }));
   return out;
@@ -82,18 +83,18 @@ export function grupos(db: Db): Promise<Grupo[]> {
 // MASCULINA"): así la web la abrevia y filtra igual que las de iSquad (Superliga, Superliga 2, Nacional).
 export const nombreComp = (g: Pick<Grupo, "nivel" | "genero">) =>
   `${{ sl: "SUPERLIGA", sl2: "SUPERLIGA 2", pn: "PRIMERA NACIONAL" }[g.nivel]} ${g.genero === "F" ? "FEMENINA" : "MASCULINA"}`;
-const fechaIso = (f?: string | null) => { const m = (f || "").match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ""; };
-const horaDe = (p: PartidoApi) => (p.hora || p.fecha_hora?.match(/(\d{1,2}:\d{2})\s*$/)?.[1] || "").padStart(5, "0");
+export const fechaIso = (f?: string | null) => { const m = (f || "").match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ""; };
+export const horaDe = (p: PartidoApi) => (p.hora || p.fecha_hora?.match(/(\d{1,2}:\d{2})\s*$/)?.[1] || "").padStart(5, "0");
 const escudo = (url?: string) => url?.match(/[?&]Id=(\d+)/i)?.[1] || "";
-const sets = (p: PartidoApi) => { const l = +(p.sets_local || 0), v = +(p.sets_visitante || 0); return l + v > 0 ? [l, v] as const : null; };
+export const sets = (p: PartidoApi) => { const l = +(p.sets_local || 0), v = +(p.sets_visitante || 0); return l + v > 0 ? [l, v] as const : null; };
 const hoy = () => new Date().toISOString().slice(0, 10);
 
 // Calendario de un grupo sin resultados (caché 6 h).
-function calendario(db: Db, g: number): Promise<Jornada[]> {
+export function calendario(db: Db, g: number): Promise<Jornada[]> {
   return cached(db, `rfevb-cal:${g}`, 6 * H, () => api<Jornada[]>(`getJornadasCalendario?grupoId=${g}`));
 }
 // Partidos de una jornada con resultado: las de hace más de 4 días casi no cambian (3 días); las recientes, 20 min.
-function jornada(db: Db, j: Jornada): Promise<PartidoApi[]> {
+export function jornada(db: Db, j: Jornada): Promise<PartidoApi[]> {
   const vieja = fechaIso(j.fecha) < new Date(Date.now() - 4 * 864e5).toISOString().slice(0, 10);
   return cached(db, `rfevb-j:${j.id}`, vieja ? 72 * H : H / 3, () => api<PartidoApi[]>(`getPartidosByJornada?jornadaId=${j.id}`));
 }

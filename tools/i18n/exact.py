@@ -465,4 +465,5 @@ EXACT = {
 "Primera Nacional": "Primera Nacional", "Nacional": "Nacional",
 # Rol al seguir un equipo (2-nov-2026)
 "¿Qué eres en este equipo?": "Què ets en aquest equip?", "Espectador": "Espectador", "Cambiar rol": "Canvia el rol", "Cancelar": "Cancel·la",
+"Designación de la RFEVB": "Designació de la RFEVB",
 }
