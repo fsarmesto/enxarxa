@@ -1,4 +1,6 @@
 // Web pública de resultados de iSquad (resultadosvoleibol.isquad.es): lectura y caché compartida.
+// Los equipos, grupos y partidos de la RFEVB (ids "rfevb:…") van a rfevb.ts desde teamMatches, standings y matchOfficials.
+import * as rfevb from "./rfevb.ts";
 
 export const PUB = "https://resultadosvoleibol.isquad.es";
 export const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
@@ -178,6 +180,7 @@ export type PartidoEquipo = { id: string; d: string; t: string; conf: boolean; e
 // aparte: el nombre lo manda el navegador sin comprobar (Clasificación → partidos de un equipo): su propia caché, para que
 // un nombre equivocado no deje vacío el calendario de ese equipo para todos (revisión del 2-nov-2026).
 export function teamMatches(db: Db, idEquipo: string, name: string, aparte = false): Promise<PartidoEquipo[]> {
+  if (idEquipo.startsWith("rfevb:")) return rfevb.partidosEquipo(db, idEquipo);
   const key = aparte ? `tm2:${idEquipo}|${name.trim().toUpperCase().replace(/\s+/g, " ").slice(0, 80)}` : `tm2:${idEquipo}`;
   return cached(db, key, 0.5 * H, async () => {
     const out: PartidoEquipo[] = [];
@@ -229,6 +232,7 @@ async function buscarIdPartido(db: Db, local: string, visitante: string, d: stri
 export type FilaClasif = { pos: number; id: string; n: string; esc: string; pt: number; pj: number; pg: number; pp: number;
   sf: number; sc: number; pf: number; pc: number; racha: string };
 export function standings(db: Db, torneo: string): Promise<FilaClasif[]> {
+  if (torneo.startsWith("rfevb:")) return rfevb.clasificacion(db, +torneo.slice(6));
   return cached(db, `cla:${torneo}`, H, async () => {
     const s = await getText(`${PUB}/clasificacion.php?seleccion=0&id=${encodeURIComponent(torneo)}&id_ambito=0&id_territorial=${TERRITORIAL}&id_superficie=1&iframe=0`);
     const i = s.indexOf("table-striped clasificacion"), tb = i < 0 ? "" : s.slice(s.indexOf("<tbody", i), s.indexOf("</table>", i));
@@ -255,6 +259,7 @@ export function standings(db: Db, torneo: string): Promise<FilaClasif[]> {
 export type Oficial = { f: string; n: string };
 // force: leer el Previo otra vez (si iSquad falla, se queda lo de antes).
 export function matchOfficials(db: Db, idPartido: string, jugado: boolean, force = false): Promise<Oficial[]> {
+  if (idPartido.startsWith("rfevb:")) return rfevb.oficiales(db, idPartido, jugado, force);
   return cached(db, `arb:${idPartido}`, force ? 0 : (jugado ? 30 * 24 : 3) * H, async () => {
     const s = await getText(`${PUB}/previo.php?id_partido=${encodeURIComponent(idPartido)}`);
     const out: Oficial[] = [];

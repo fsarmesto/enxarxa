@@ -460,4 +460,7 @@ EXACT = {
 # Revisión del 2-nov-2026
 "Ese rol no existe con ese equipo arbitral": "Aquest rol no existeix amb aquest equip arbitral",
 "Tarifas de la temporada 2025/26": "Tarifes de la temporada 2025/26",
+# RFEVB (2-nov-2026)
+"También puedes seguir equipos de Superliga, Superliga 2 y Primera Nacional: búscalos por su nombre (sus datos son de la RFEVB).": "També pots seguir equips de Superlliga, Superlliga 2 i Primera Nacional: busca'ls pel nom (les dades són de la RFEVB).",
+"Primera Nacional": "Primera Nacional", "Nacional": "Nacional",
 }

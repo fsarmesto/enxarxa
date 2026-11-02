@@ -3,6 +3,7 @@
 // 1) fichas de club caducadas (14 días) → equipos de la temporada en curso a pub_teams;
 // 2) plantillas sin revisar o caducadas (14 días) → huellas de cada persona a roster_idx.
 // De cada persona solo se guarda la huella (HMAC con ROSTER_SALT) de su foto de afiliado y de su nombre, y su perfil.
+import * as rfevb from "../_shared/rfevb.ts";
 import { admin, cors, json } from "../_shared/sync.ts";
 import { todas } from "../_shared/db.ts";
 import { clubs, clubTeams, huella, nameKey, roster } from "../_shared/publico.ts";
@@ -64,5 +65,7 @@ Deno.serve(async (req) => {
 
   const { count: total } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true });
   const { count: done } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true }).not("checked_at", "is", null);
-  return json({ clubs: { total: cl.length, pendientes: staleClubs.length - clubsDone, leidos: clubsDone }, equipos: { total, revisados: done, ahora: teamsDone }, paginas: pages, errores: errors, ms: Date.now() - started });
+  // Equipos de la RFEVB (buscar y seguir en Equipos): la caché de 6 h siempre caliente, para que buscar no tarde ~15 s.
+  const estatales = await rfevb.equipos(db).then((x) => x.length).catch((e) => `error: ${(e as Error).message}`);
+  return json({ clubs: { total: cl.length, pendientes: staleClubs.length - clubsDone, leidos: clubsDone }, equipos: { total, revisados: done, ahora: teamsDone }, rfevb: estatales, paginas: pages, errores: errors, ms: Date.now() - started });
 });

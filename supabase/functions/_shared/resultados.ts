@@ -7,11 +7,13 @@
 // - Acta subida: los botones del partido que pinta json/competicion/buscador_partidos.php (POST id_partidos=, lo usa el
 //   buscador de la web): con acta, "mostrarActaFormal(<id>, &quot;<URL>&quot;)". Es la foto del acta de papel: puede
 //   estar sin resultado y al revés. (json/competicion/acta_escaneada.php, el de antes, da 404 desde el 28/29-oct-2026.)
-// - Competiciones estatales (Superliga, Nacional): su resultado no sale en la web de la FCVB ni en el acta completa; en la
-//   web, resultado "Otro". El acta sí se mira.
+// - Competiciones estatales (Superliga, Superliga 2, Nacional): su resultado no sale en la web de la FCVB ni en el acta
+//   completa. Desde el 2-nov-2026 sale de la RFEVB (rfevb.ts: el partido de su grupo con la misma fecha y equipos),
+//   con la foto del acta si la FCVB no la tiene. Solo la temporada en curso (la RFEVB no da las pasadas).
 // Los ids salen de la tabla de designaciones (parseDesignaciones). Una vez encontrado, no se vuelve a pedir.
 import { actaDeBotones, PUB, seasonCode, teamMatches, UA, type Db } from "./publico.ts";
 import { sendToUser } from "./push.ts";
+import { buscarDesignacion } from "./rfevb.ts";
 import { todas } from "./db.ts";
 
 // Todos los partidos arbitrados tienen que acabar con los 2 estados: se miran los empezados hace más de 1 h, los de los
@@ -76,7 +78,8 @@ type Row = { id: string; date: string; time: string; teams: string; comp: string
   eq_l: string | null; eq_v: string | null; res_l: number | null; acta_url: string | null; pub_checked: string | null };
 const COLS = "id, date, time, teams, comp, estado, id_partido, eq_l, eq_v, res_l, acta_url, pub_checked";
 // Selecciones, suspendidos y aplazados: no publican resultado ni acta (en la web, estado "Otro"); no se miran.
-const needRes = (m: Row) => m.res_l == null && !ESTATAL.test(m.comp);
+const actual = (m: Row) => seasonCode(new Date(`${m.date}T12:00:00Z`)) === seasonCode();
+const needRes = (m: Row) => m.res_l == null && (!ESTATAL.test(m.comp) || actual(m));
 const mirable = (m: Row) => !/SELECCI/i.test(m.comp) && !/SUSPEND|APLAZ|ANULA/.test(m.estado || "") && (needRes(m) || !m.acta_url);
 
 type Cuenta = { n: number; res: number; actas: number; errores: number; fallo: string };
@@ -90,7 +93,11 @@ async function mirar(db: Db, userId: string, m: Row, c: Cuenta, fresh = false) {
   const patch: Record<string, unknown> = { pub_checked: new Date().toISOString() };
   let failed = false;
   try {
-    if (needRes(m)) {
+    if (needRes(m) && ESTATAL.test(m.comp)) {
+      const r = await buscarDesignacion(db, m);
+      if (r?.sets) { patch.res_l = r.sets[0]; patch.res_v = r.sets[1]; patch.res_at = patch.pub_checked; c.res++; }
+      if (r?.acta && !m.acta_url) { patch.acta_url = r.acta; patch.acta_at = patch.pub_checked; m.acta_url = r.acta; c.actas++; }
+    } else if (needRes(m)) {
       let sets: [number, number] | null | undefined;   // undefined = no encontrado en la API
       if (seasonCode(new Date(`${m.date}T12:00:00Z`)) === seasonCode()) {
         const names = m.teams.split(" vs ");

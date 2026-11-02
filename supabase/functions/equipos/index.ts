@@ -11,6 +11,7 @@
 //   plantillas (función indexar) se añaden solos (auto); los que quita no vuelven (oculto).
 // Las páginas públicas pesan ~1 MB cada una (el menú): todo pasa por la caché compartida pub_cache.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
+import * as rfevb from "../_shared/rfevb.ts";
 import { clubs, clubTeams, feed, standings, huella, matchOfficials, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
 
 
@@ -40,6 +41,13 @@ if (import.meta.main) Deno.serve(async (req) => {
         }
       }
       const out = [...teams.values()].sort((a, b) => a.club.localeCompare(b.club) || a.cat.localeCompare(b.cat) || a.team.localeCompare(b.team));
+      // Equipos de las ligas estatales (Superliga, Superliga 2, Primera Nacional), de la RFEVB: club_id "rfevb".
+      const est = (await rfevb.equipos(db).catch(() => [])).filter((e) => norm(e.team).includes(q));
+      const vistos = new Set<string>();
+      for (const e of est) {
+        const k = `${e.id}|${e.cat}`; if (vistos.has(k)) continue; vistos.add(k);
+        out.unshift({ club_id: "rfevb", club: ["RFEVB", e.grupo].filter(Boolean).join(" · "), team: e.team, cat: e.cat });
+      }
       // Clubs que coinciden (para "Búscame en este club").
       const cm = cl.filter((c) => norm(c.name).includes(q)).slice(0, 10);
       return json({ ok: true, equipos: out.slice(0, 60), clubs: cm });
@@ -47,9 +55,9 @@ if (import.meta.main) Deno.serve(async (req) => {
 
     if (body.action === "clasificacion" || body.action === "historial") {
       const b = body as { torneo?: string; id_equipo?: string; team?: string };
-      if (!/^\d+$/.test(b.torneo || "")) return json({ error: "Grupo no válido" }, 400);
+      if (!/^(rfevb:)?\d+$/.test(b.torneo || "")) return json({ error: "Grupo no válido" }, 400);
       if (body.action === "clasificacion") return json({ ok: true, filas: await standings(db, b.torneo!) });
-      if (!/^\d+$/.test(b.id_equipo || "") || !b.team) return json({ error: "Equipo no válido" }, 400);
+      if (!/^(rfevb:)?\d+$/.test(b.id_equipo || "") || !b.team) return json({ error: "Equipo no válido" }, 400);
       // Si lo sigue, con su nombre guardado (la caché de todos); si no, con el que manda la web, en una caché aparte.
       const { data: fav } = await db.from("fav_teams").select("team").eq("user_id", user.id).eq("id_equipo", b.id_equipo!).limit(1).maybeSingle();
       const cal = fav?.team ? await teamMatches(db, b.id_equipo!, fav.team) : await teamMatches(db, b.id_equipo!, b.team, true);
@@ -71,6 +79,14 @@ if (import.meta.main) Deno.serve(async (req) => {
         await db.from("fav_teams").update({ oculto: true }).eq("user_id", user.id).eq("club_id", club_id).eq("team", team).eq("cat", cat).eq("auto", true);
         await db.from("fav_teams").delete().eq("user_id", user.id).eq("club_id", club_id).eq("team", team).eq("cat", cat).eq("auto", false);
         return json({ ok: true });
+      }
+      if (club_id === "rfevb") {
+        // RFEVB: sin plantillas (no se sabe si juega o entrena): lo sigue.
+        const e = (await rfevb.equipos(db)).find((x) => sameTeam(x.team, team) && sameTeam(x.cat, cat));
+        if (!e) return json({ error: "No encuentro ese equipo en la RFEVB" }, 404);
+        const row = { user_id: user.id, club_id, team, cat, club: ["RFEVB", e.grupo].filter(Boolean).join(" · "), id_equipo: e.id, rol: null, oculto: false };
+        const { error } = await db.from("fav_teams").upsert(row);
+        return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true, fav: row });
       }
       const [teamsOfClub, cl] = await Promise.all([clubTeams(db, club_id).catch(() => []), clubs(db).catch(() => [])]);
       const t = teamsOfClub.find((x) => sameTeam(x.name, team) && sameCat(x.cat, cat));
@@ -139,7 +155,7 @@ if (import.meta.main) Deno.serve(async (req) => {
           const cal = await teamMatches(db, f.id_equipo, f.team);
           calendario[f.id_equipo] = cal.map((m) => {
             const fp = partidos.find((p) => p.d.slice(0, 10) === m.d && sameTeam(p.l, m.l) && sameTeam(p.v, m.v));
-            return { ...m, pab: fp?.pab || "", pista: fp?.pista || "" };
+            return { ...m, pab: fp?.pab || (m as { pab?: string }).pab || "", pista: fp?.pista || "" };
           });
         } catch { /* sin calendario: la web usa el listado */ }
       }));
