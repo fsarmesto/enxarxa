@@ -646,7 +646,11 @@ I.exact = {
 "Tarifas de la temporada 2025/26": "Tarifes de la temporada 2025/26",
 "También puedes seguir equipos de Superliga, Superliga 2 y Primera Nacional: búscalos por su nombre (sus datos son de la RFEVB).": "També pots seguir equips de Superlliga, Superlliga 2 i Primera Nacional: busca'ls pel nom (les dades són de la RFEVB).",
 "Primera Nacional": "Primera Nacional",
-"Nacional": "Nacional"
+"Nacional": "Nacional",
+"¿Qué eres en este equipo?": "Què ets en aquest equip?",
+"Espectador": "Espectador",
+"Cambiar rol": "Canvia el rol",
+"Cancelar": "Cancel·la"
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

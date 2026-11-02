@@ -207,6 +207,12 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Función `equipos` (con sesión): buscar, seguir/dejar, buscarme (repasa las plantillas de un club) y mis (favoritos +
   próximos partidos). Caché compartida `pub_cache` (feed 3 h, clubs y equipos de club 7 días). Tabla `fav_teams`
   (migración 013): de la plantilla solo se guarda el rol del propio árbitro, nunca nombres de otros (hay menores).
+- Rol al seguir un equipo (2-nov-2026, Ferran): al pulsar "☆ Seguir" se elige "¿Qué eres en este equipo?" Jugador,
+  Entrenador, Espectador u Otro (`rolPickHtml`, `EQ_PICK`); se cambia después en "⋯" → "Cambiar rol" (`equipos {action:"rol"}`).
+  Con el rol elegido ya no se mira la plantilla al seguir. `fav_teams.rol`: jugador, entrenador, invitado (de la plantilla),
+  espectador, otro o null. `participa()` (web y `publico.ts`): jugador, entrenador e invitado participan (avisos de horario
+  en vigilar, choques con arbitrajes, primero en las listas, "Juegas/Entrenas" en el iCal); espectador, otro y null solo
+  siguen ("Espectador" o "Sigues" en la etiqueta).
 - Pestaña Equipos (#18): título con botón (i) que despliega la explicación; tarjeta `.eqc` por equipo: etiqueta + nombre,
   división · club, filas "Último"/"Próximo" (fecha, rival, casa/fuera, estado), acciones con flex-wrap ([Sí | No] en Mis
   partidos, Clasificación, Calendario (n) que despliega `.calbox`, y "⋯" con No soy yo / Dejar de seguir).

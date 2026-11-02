@@ -3,6 +3,8 @@
 // - {action:"buscar", q}: equipos de la federación por nombre de equipo o de club.
 // - {action:"seguir", club_id, team, cat} / {action:"dejar", ...}: favoritos. Al seguir se mira la plantilla del
 //   equipo y, si sale el árbitro, se guarda si es jugador o entrenador (de la plantilla no se guarda nada más).
+// - {action:"seguir", ..., rol}: con el rol elegido (jugador, entrenador, espectador u otro) no se mira la plantilla.
+//   {action:"rol", club_id, team, cat, rol}: cambiarlo después.
 // - {action:"activar", club_id, team, cat, activo}: un equipo seguido sale o no en "Mis partidos".
 // - {action:"buscarme", club_id}: repasa las plantillas de todos los equipos de un club y sigue los que le incluyen.
 // - {action:"clasificacion", torneo}: clasificación del grupo. {action:"historial", torneo, id_equipo, team}: partidos de
@@ -12,7 +14,7 @@
 // Las páginas públicas pesan ~1 MB cada una (el menú): todo pasa por la caché compartida pub_cache.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
 import * as rfevb from "../_shared/rfevb.ts";
-import { clubs, clubTeams, feed, standings, huella, matchOfficials, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
+import { clubs, clubTeams, feed, ROLES_ELEGIBLES, standings, huella, matchOfficials, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
 
 
 if (import.meta.main) Deno.serve(async (req) => {
@@ -21,7 +23,7 @@ if (import.meta.main) Deno.serve(async (req) => {
   const db = admin();
   const user = await userFromRequest(db, req);
   if (!user) return json({ error: "Inicia sesión de nuevo" }, 401);
-  let body: { action?: string; q?: string; club_id?: string; team?: string; cat?: string } = {};
+  let body: { action?: string; q?: string; club_id?: string; team?: string; cat?: string; rol?: string | null } = {};
   try { body = await req.json(); } catch { /* sin cuerpo */ }
   const { data: prof } = await db.from("profiles").select("nombre, foto").eq("user_id", user.id).maybeSingle();
   const me = words(prof?.nombre || ""), foto = prof?.foto || "";
@@ -71,6 +73,15 @@ if (import.meta.main) Deno.serve(async (req) => {
       return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true });
     }
 
+    // Rol elegido al seguir o cambiado después (2-nov-2026): jugador, entrenador, espectador u otro.
+    const rolElegido = ROLES_ELEGIBLES.includes(body.rol || "") ? body.rol! : null;
+    if (body.action === "rol") {
+      const { club_id, team, cat } = body;
+      if (!club_id || !team || !cat || !rolElegido) return json({ error: "Faltan datos del equipo" }, 400);
+      const { error } = await db.from("fav_teams").update({ rol: rolElegido }).eq("user_id", user.id).eq("club_id", club_id).eq("team", team).eq("cat", cat);
+      return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true, rol: rolElegido });
+    }
+
     if (body.action === "seguir" || body.action === "dejar") {
       const { club_id, team, cat } = body;
       if (!club_id || !team || !cat) return json({ error: "Faltan datos del equipo" }, 400);
@@ -84,13 +95,14 @@ if (import.meta.main) Deno.serve(async (req) => {
         // RFEVB: sin plantillas (no se sabe si juega o entrena): lo sigue.
         const e = (await rfevb.equipos(db)).find((x) => sameTeam(x.team, team) && sameTeam(x.cat, cat));
         if (!e) return json({ error: "No encuentro ese equipo en la RFEVB" }, 404);
-        const row = { user_id: user.id, club_id, team, cat, club: ["RFEVB", e.grupo].filter(Boolean).join(" · "), id_equipo: e.id, rol: null, oculto: false };
+        const row = { user_id: user.id, club_id, team, cat, club: ["RFEVB", e.grupo].filter(Boolean).join(" · "), id_equipo: e.id, rol: rolElegido, oculto: false };
         const { error } = await db.from("fav_teams").upsert(row);
         return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true, fav: row });
       }
       const [teamsOfClub, cl] = await Promise.all([clubTeams(db, club_id).catch(() => []), clubs(db).catch(() => [])]);
       const t = teamsOfClub.find((x) => sameTeam(x.name, team) && sameCat(x.cat, cat));
-      const rol = t ? await roleIn(t.id, me, foto).catch(() => null) : null;
+      // Si ha elegido el rol, manda el suyo; si no (versiones viejas de la web), el de la plantilla.
+      const rol = rolElegido ?? (t ? await roleIn(t.id, me, foto).catch(() => null) : null);
       const row = { user_id: user.id, club_id, team, cat, club: cl.find((c) => c.id === club_id)?.name || null, id_equipo: t?.id || null, rol, oculto: false };
       const { error } = await db.from("fav_teams").upsert(row);
       return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true, fav: row });

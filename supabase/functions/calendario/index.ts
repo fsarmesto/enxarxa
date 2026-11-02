@@ -3,7 +3,7 @@
 //   token secreto es la llave (los calendarios no pueden iniciar sesión).
 // - POST con la sesión {action:"url"} / {action:"nuevo"}: el enlace (lo crea si no existe) / uno nuevo (el viejo deja de valer).
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
-import { feed, norm, teamMatches } from "../_shared/publico.ts";
+import { feed, norm, participa, teamMatches } from "../_shared/publico.ts";
 
 // Texto de iCal (RFC 5545): barra, punto y coma y coma escapados; cualquier salto de línea, como \n.
 const esc = (s: string) => (s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n|\r|\n/g, "\\n");
@@ -68,7 +68,7 @@ async function ics(db: any, userId: string) {
     for (const m of cal) {
       if (m.d < since || seen.has(m.id) || !m.d) continue; seen.add(m.id);
       const fp = list.find((p) => p.d.slice(0, 10) === m.d && norm(p.l) === norm(m.l) && norm(p.v) === norm(m.v));
-      const who = f.rol === "entrenador" ? "Entrenas" : f.rol ? "Juegas" : "Sigues";
+      const who = f.rol === "entrenador" ? "Entrenas" : participa(f.rol) ? "Juegas" : "Sigues";
       const res = /FINALIZ/i.test(m.est) && m.rl != null ? ` (${m.rl}-${m.rv})` : /SUSPEN|APLAZ/i.test(m.est) ? ` (${m.est.toLowerCase()})` : "";
       const start = m.t ? [`DTSTART;TZID=Europe/Madrid:${dt(m.d, m.t)}`, `DTEND;TZID=Europe/Madrid:${dt(...(plus(m.d, m.t, 120).split(" ") as [string, string]))}`]
         : [`DTSTART;VALUE=DATE:${m.d.replace(/-/g, "")}`];

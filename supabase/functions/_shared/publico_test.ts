@@ -16,3 +16,9 @@ Deno.test("acta subida: de los botones del buscador de partidos", () => {
   assertEquals(actaDeBotones(doc), "https://voleibol.isquad.es/partido_documento_publico.php?token=ab12");
   assertEquals(actaDeBotones(`<div class="custom-col-circle disabled"></div>`), null);
 });
+
+Deno.test("rol en un equipo: jugador, entrenador e invitado participan; espectador, otro y sin rol solo lo siguen", async () => {
+  const { participa } = await import("./publico.ts");
+  for (const r of ["jugador", "entrenador", "invitado"]) if (!participa(r)) throw new Error(r);
+  for (const r of ["espectador", "otro", null, ""]) if (participa(r)) throw new Error(String(r));
+});
