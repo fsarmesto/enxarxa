@@ -531,6 +531,6 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     const code = e instanceof IsquadAuthError ? "credenciales" : "conexion";
     if (code === "credenciales") await db.from("isquad_credentials").update({ session: null, session_at: null }).eq("user_id", userId);
     await db.from("profiles").update({ last_error: code }).eq("user_id", userId);
-    return { ok: false, error: code };
+    return { ok: false, error: code, detalle: (e as Error).message };
   }
 }

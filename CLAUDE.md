@@ -93,7 +93,15 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## iSquad (voleibol.misquad.es): lo que no es obvio
 
-- Login: POST `loginarbitros.php` (login, password, qr_login=0, utr). Designaciones en `arbitros_designaciones.php?rol=1`.
+- **Login desde el 3-nov-2026** (ese día, 0 de 18 árbitros sincronizaban): solo el login único de `voleibol.isquad.es`
+  (`loginunico.php`, `csrf_token`, `login`, `password`, `lu_disp`); `loginarbitros.php` da 404, y `login.php` y
+  `loginentrenadores.php` llevan allí. El POST bueno da 302 a una pantalla de áreas con enlaces `loginunico.php?ir=<área>&k=&t=…`
+  (arbitros, deportista, anotadores, delegados_mesa, actividades); el malo, 200 con el formulario. `ir=arbitros` pasa la sesión
+  firmada a `voleibol.misquad.es/loginunico.php?lu_ir=arbitros&…&sig=`, y las páginas de árbitros siguen en misquad.es.
+  **Las cookies van por dominio** (`Jar` con clave `dominio|nombre`): cada dominio tiene su PHPSESSID y, mezcladas, misquad.es
+  devolvía a la pantalla de áreas. `loginDeportista` usa el mismo login con el área deportista (o entrenadores).
+  El cron manual devuelve `errores` con el rastro del login de cada árbitro que falla (sin tokens ni emails).
+- Login de antes: POST `loginarbitros.php` (login, password, qr_login=0, utr). Designaciones en `arbitros_designaciones.php?rol=1`.
 - **Hay que enviar siempre la cookie `TemporadaSelect`** (p. ej. `2627`). Sin ella el desplegable marca la temporada
   en curso pero la tabla llega vacía. Se leen la temporada en curso y la anterior.
 - El texto viene con comillas escapadas (`D\'HEBRON`): se quita la barra al leer.
