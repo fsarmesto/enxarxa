@@ -82,8 +82,13 @@ Deno.test("cobros del domingo: solo a quien le queda algo por pedir, y una vez",
 });
 
 Deno.test("resultados del domingo: R1, otro rol y varios; sin estatales, selecciones ni suspendidos; una vez", async () => {
-  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()), noon = Date.parse(`${today}T12:00:00Z`);
-  const mon = new Date(noon - ((new Date(noon).getUTCDay() + 6) % 7) * 864e5).toISOString().slice(0, 10);
+  // Hora fija (domingo 1-nov-2026, 21:00 de Madrid): con la de verdad, un lunes antes de las 12:30 el partido del lunes a las
+  // 10:00 aún no tocaba y la prueba fallaba.
+  const RealDate = Date, fijo = RealDate.parse("2026-11-01T20:00:00Z");
+  // deno-lint-ignore no-explicit-any
+  globalThis.Date = class extends RealDate { constructor(...a: any[]) { super(...(a.length ? a : [fijo]) as [number]); } static override now() { return fijo; } } as DateConstructor;
+  try {
+  const mon = "2026-10-26";
   const M = (user_id: string, o: object = {}) => ({ user_id, id: user_id + Math.random(), date: mon, time: "10:00", teams: "CV EXEMPLE vs CLUB PROVA", venue: "PAV",
     comp: "TERCERA DIVISION SENIOR", estado: "PENDIENTE", role: "r1", staff_checked: "x", ...o });
   const matches = [M("u1"), M("u2", { role: "r2" }), M("u3"), M("u3", { role: "r2" }), M("u4", { comp: "SUPERLIGA FEMENINA" }),
@@ -95,6 +100,7 @@ Deno.test("resultados del domingo: R1, otro rol y varios; sin estatales, selecci
   assert(/El resultado aún no está subido/.test(msg("u2")));
   assert(/2 partits sense resultat/.test(msg("u3")));
   assertEquals((await avisoResultados(db, Date.now() - 1)).enviados, 0);
+  } finally { globalThis.Date = RealDate; }
 });
 
 Deno.test("aTurnos(): como mucho n a la vez y los resultados en orden", async () => {

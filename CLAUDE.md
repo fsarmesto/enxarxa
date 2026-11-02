@@ -642,8 +642,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   también de fuera. Si se añade otro servidor al que llama la web, añadirlo a `connect-src`.
 - Comprobado: ningún secreto en el historial del repo; altas directas en Supabase desactivadas (`disable_signup`); contraseñas
   con AES-GCM e IV aleatorio; la web escapa lo que viene de iSquad (`esc`). iCal: `;` escapado (antes no).
-- Pendiente (lo tiene que hacer Ferran en el panel de Supabase): Authentication → URL Configuration → Site URL estaba en
-  `http://localhost:3000`; poner `https://fsarmesto.github.io/enxarxa/`.
+- Site URL de Supabase (Authentication → URL Configuration): `https://fsarmesto.github.io/enxarxa/` y redirecciones
+  `https://fsarmesto.github.io/enxarxa/**` (comprobado por la API de gestión el 2-nov-2026; antes estaba en localhost:3000).
 
 ## Pruebas automáticas (27-oct-2026)
 
