@@ -106,6 +106,11 @@ export function textos(l: Lang) {
       body: es ? `Hace casi 6 meses que no abres la app. Si no entras antes del ${f(fin)}, se borrará con todos tus datos.`
         : `Fa gairebé 6 mesos que no obres l'app. Si no hi entres abans del ${f(fin)}, s'esborrarà amb totes les teves dades.`,
     }),
+    // Hora de salida (función salida, issue #73): 15 min antes de salir hacia el pabellón para llegar 1 h antes.
+    salida: (sal: string, pab: string, hora: string, trayecto: number): Aviso => ({
+      title: es ? `Sal a las ${sal} hacia ${pab}` : `Surt a les ${sal} cap a ${pab}`,
+      body: es ? `Partido a las ${hora} · ≈ ${trayecto} min de trayecto` : `Partit a les ${hora} · ≈ ${trayecto} min de trajecte`,
+    }),
     // A todos los árbitros (designadas), una vez por semana: la FCVB ha empezado a designar.
     designan: (): Aviso => ({
       title: es ? "Ep! Han empezado a designar" : "Ep! Han començat a designar",

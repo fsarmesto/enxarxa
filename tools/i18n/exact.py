@@ -453,4 +453,8 @@ EXACT = {
 "La app calcula con el anexo de tarifas y sus reglas de dieta y desplazamiento: es una previsión. Lo más habitual es no haber puesto la dieta en la hoja de gastos o que la FCVB contara otros km. Si crees que es un error, revisa el recibo y pregúntalo a la FCVB.": "L'app calcula amb l'annex de tarifes i les seves regles de dieta i desplaçament: és una previsió. El més habitual és no haver posat la dieta al full de despeses o que la FCVB comptés altres km. Si creus que és un error, revisa el rebut i pregunta-ho a la FCVB.",
 "Ver los recibos en iSquad": "Veure els rebuts a iSquad", "Entendido": "Entesos",
 "Equipo arbitral por leer": "Equip arbitral per llegir",
+# Hora de salida (#73)
+"Es hora de salir": "És hora de sortir", "sal a las": "surt a les",
+"la hora de salir hacia el pabellón, 15 minutos antes, para llegar 1 hora antes del partido;": "l'hora de sortir cap al pavelló, 15 minuts abans, per arribar 1 hora abans del partit;",
+"Avisarme de la hora de salida hacia el pabellón": "Avisa'm de l'hora de sortida cap al pavelló",
 }

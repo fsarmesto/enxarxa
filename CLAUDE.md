@@ -53,14 +53,15 @@ rama `claude/...` con PR. Reglas para esos trabajos:
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/enxarxa/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `salida` (aviso de la hora de salida, cron), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…032). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…033). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
     `aviso-resultados` `0 19,20 * * 0` UTC (notify con `{"tipo":"resultados"}`; solo envía si en Madrid son las 21).
+    `aviso-salida` `*/5 * * * *` (función `salida`; no hace nada antes de las 5:00 de Madrid).
 
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
@@ -79,7 +80,7 @@ export SUPABASE_ACCESS_TOKEN=sbp_...            # no dejarlo en ficheros del rep
 SB="npx -y supabase@2.121.0"
 $SB link --project-ref vevsurxxvjivjizuuqad -p "$DB_PASSWORD"
 $SB db push -p "$DB_PASSWORD"                   # migraciones nuevas
-for f in auth-isquad sync delete-account notify equipos indexar vigilar coche designadas calendario; do
+for f in auth-isquad sync delete-account notify equipos indexar vigilar coche designadas calendario inactivas salida; do
   $SB functions deploy $f --project-ref vevsurxxvjivjizuuqad --no-verify-jwt --use-api
 done
 git push origin main                            # la web se publica sola (Pages)
@@ -566,6 +567,26 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   Ojo (27/28-oct-2026): la ficha responde SIEMPRE con error 500, con partidos y sin ellos ("SIN PARTIDOS"); `getLatin(url, FICHA_VALE)`
   la acepta si trae la tabla o "SIN PARTIDOS" (antes contaba como fallo: vigilar no leía ninguna, `fichas: 0`, y el panel de
   designaciones salía a 0 con las 454 fichas en error). Comprobado con Guillem (2 partidos el viernes 30-oct).
+
+## Hora de salida hacia el pabellón (issue #73, 2-nov-2026)
+
+- Regla (Ferran): llegar **1 h antes** del partido. Salida = inicio − 60 min − trayecto (`venues.min`, sin tráfico, redondeado
+  hacia arriba a 5 min); aviso 15 min antes de la salida (partido a las 16:00 a 1 h → salida 14:00, aviso 13:45). Por día, el
+  primer partido y los que empiezan **más de 3 h después del anterior** (13:00 y 17:00: 2 avisos; 13:00 y 15:30: 1, aunque
+  sea en otro pabellón: no hay tiempos entre pabellones). Sin trayecto o sin población de origen, nada; suspendidos y
+  `missing_since`, fuera. Ubicación del móvil descartada: el aviso sale del servidor con la app cerrada y una PWA no puede
+  leer la ubicación en segundo plano.
+- `_shared/salida.ts` (`salidas`, `claveSalida`, pruebas en `avisos_test.ts`) y la **misma regla copiada en la web**
+  (`salidasDe` en index.html): si cambia una, cambiar la otra.
+- Función `salida` (cron `aviso-salida` cada 5 min, sin iSquad): partidos de hoy de los árbitros con `profiles.aviso_salida`
+  (migración 033, Ajustes → Notificaciones, activado por defecto); envía si la hora del aviso ha llegado y hace menos de 10 min
+  (`VENTANA`): si se conoce más tarde (designación o cambio de última hora), no se manda. push_log
+  `salida:<id>:<fecha>T<hhmm>|<pabellón>`: si cambia la hora o el pabellón, otro aviso. Texto `t.salida` ("Sal a las 15:40 hacia
+  … · Partido a las 17:00 · ≈ 35 min de trayecto"); al tocarlo abre el partido: `./?vista=agenda&partido=<id>` (`OPEN_PARTIDO`,
+  sirve para cualquier aviso).
+- Web: en la tarjeta del arbitraje, "Sal a las 16:45" (amarillo); el mismo día, desde esa hora hasta el inicio, en rojo "Deberías
+  haber salido hace 15 min · sal a las 10:40" (o "Es hora de salir"). No sale en la vista compacta plegada.
+- Más adelante: jugadores y entrenadores (con su antelación) y tiempos entre pabellones.
 
 ## App instalable y recordatorio del domingo (21-oct-2026)
 

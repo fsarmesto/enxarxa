@@ -714,6 +714,8 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .diet{color:#1E7B34;font-weight:600;margin-top:4px}
 .diet b{font-weight:800}
 .agc .car{font-size:12.5px;color:#1E7B34;font-weight:600;margin-top:4px}
+.agc .sal{display:inline-block;font-size:12.5px;font-weight:700;margin-top:5px;padding:2px 8px;border-radius:2px;background:var(--yellow);color:#000}
+.agc .sal.late{background:var(--pend);color:var(--bg)}
 :root[data-theme="dark"] .agc .car{color:#5BD07A}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .agc .car{color:#5BD07A} }
 .agc .cm,.agc .dk{display:none}
@@ -740,7 +742,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .segb.dens button{display:inline-flex;align-items:center;justify-content:center;padding:3px 8px}
 .segb.dens .ico{width:20px;height:20px}
 #agenda.ag-compact .agc:not([open])>summary{grid-template-columns:56px minmax(0,1fr) auto 28px;padding:9px 0;align-items:center}
-#agenda.ag-compact .agc:not([open]) :is(.top,.sub,.ref,.pubt,.pubw,.clash,.car,.diet){display:none}
+#agenda.ag-compact .agc:not([open]) :is(.top,.sub,.ref,.pubt,.pubw,.clash,.car,.diet,.sal){display:none}
 #agenda.ag-compact .agc:not([open]) .tm{font-size:19px}
 #agenda.ag-compact .agc:not([open]) .tm small{display:none}
 #agenda.ag-compact .agc:not([open]) .tt{font-size:14.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -1058,8 +1060,9 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <p class="small" id="pushState"></p>
       <div class="row" id="pushBtns"></div>
       <p class="small muted">Con las notificaciones activadas te aviso al momento (se mira cada 10 minutos, de 7:00 a 24:00) de:</p>
-      <ul class="small muted aj-ul"><li class="arb-only">designaciones nuevas, cambiadas o anuladas;</li><li>partidos de tus equipos (donde juegas o entrenas) cuando ya tienen horario, cambian de fecha u hora o se suspenden;</li><li>resultados de los partidos de tus equipos;</li><li class="arb-only">y los domingos, solo si queda algo pendiente: a las 20:00, los partidos por pedir, y a las 21:00, los resultados por subir.</li></ul>
+      <ul class="small muted aj-ul"><li class="arb-only">designaciones nuevas, cambiadas o anuladas;</li><li class="arb-only">la hora de salir hacia el pabellón, 15 minutos antes, para llegar 1 hora antes del partido;</li><li>partidos de tus equipos (donde juegas o entrenas) cuando ya tienen horario, cambian de fecha u hora o se suspenden;</li><li>resultados de los partidos de tus equipos;</li><li class="arb-only">y los domingos, solo si queda algo pendiente: a las 20:00, los partidos por pedir, y a las 21:00, los resultados por subir.</li></ul>
       <label class="chk small arb-only" style="display:flex;white-space:normal;margin:4px 0 12px"><input type="checkbox" id="avDesignan"> Avisarme cuando la FCVB empiece a designar cada semana</label>
+      <label class="chk small arb-only" style="display:flex;white-space:normal;margin:-6px 0 12px"><input type="checkbox" id="avSalida"> Avisarme de la hora de salida hacia el pabellón</label>
       <p class="small muted">Todos salen también en la campana de Avisos, aunque no actives las notificaciones.</p>
       <p class="small muted">En el iPhone, primero añade la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde el icono.</p>
     </section>
@@ -2073,6 +2076,7 @@ function renderSettings(){
   renderCoche();
   $('origin').value=P.origin; $('rate').value=P.rate; $('minTravel').value=P.min_travel;
   $('avDesignan').checked = P.aviso_designan!==false;
+  $('avSalida').checked = P.aviso_salida!==false;
   const iv=String(+P.irpf||0), preset=[...$('irpf').options].some(o=>o.value===iv);
   $('irpf').value = preset ? iv : 'otro'; $('irpfOtherL').classList.toggle('hidden', preset); if(!preset) $('irpfOther').value=iv;
   $('accountInfo').textContent = GUEST ? `Sin guardar: datos de ${P.isquad_login} leídos de iSquad solo para esta pestaña.` : `Conectada a iSquad como ${P.isquad_login}.`;
@@ -2295,6 +2299,11 @@ $('irpf').addEventListener('change', e=>{
 });
 $('irpfOther').addEventListener('change', e=>{ if(e.target.value!=='') setIrpf(+e.target.value); });
 // Aviso semanal "Han empezado a designar" (función designadas): se puede quitar.
+$('avSalida').addEventListener('change', async e=>{
+  if(blockOffline()){ e.target.checked=!e.target.checked; return; }
+  P.aviso_salida=e.target.checked; const {error}=await store().from('profiles').update({aviso_salida:P.aviso_salida}).eq('user_id',USER.id);
+  if(error) toast('No se ha guardado el cambio. Revisa la conexión.');
+});
 $('avDesignan').addEventListener('change', async e=>{
   if(blockOffline()){ e.target.checked=!e.target.checked; return; }
   P.aviso_designan=e.target.checked; const {error}=await store().from('profiles').update({aviso_designan:P.aviso_designan}).eq('user_id',USER.id);
@@ -2701,7 +2710,8 @@ const itemRole = it => it.m ? 'arbitro' : (it.x.f.rol==='entrenador' ? 'entrenad
 try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
 if(VIEW==='ajustes') VIEW='cobros';   // Ajustes es una página aparte: no se abre sola al entrar
 // Al abrir desde una notificación (?vista=agenda), directamente en esa pestaña.
-let OPEN_AVISOS = new URLSearchParams(location.search).has('avisos');   // desde una notificación: abrir los Avisos
+let OPEN_AVISOS = new URLSearchParams(location.search).has('avisos');
+let OPEN_PARTIDO = new URLSearchParams(location.search).get('partido');   // desde una notificación: abrir ese partido (?partido=<id>)   // desde una notificación: abrir los Avisos
 { const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos','resumen'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); }
   else if(v==='com-calcular-dietes' || v==='calc'){ VIEW='calc'; history.replaceState(null,'',location.pathname); }
   else if(v==='ajustes' || v==='configuracio'){ VIEW='ajustes'; history.replaceState(null,'',location.pathname); }
@@ -2758,6 +2768,30 @@ document.addEventListener('click', e=>{
   window.location.href = a.dataset.gm;
   setTimeout(()=>{ if(!gone && !document.hidden) window.location.href = a.dataset.am; }, 1500);
 });
+// Hora de salida hacia el pabellón (issue #73). La misma regla que supabase/functions/_shared/salida.ts (el aviso push):
+// llegar 1 h antes; trayecto (venues.min) redondeado hacia arriba a 5 min; por día, el primer partido y los que empiezan
+// más de 3 h después del anterior. Devuelve id → minutos del día de la salida.
+const SAL_ANT=60, SAL_HUECO=180, minOf=t=>{ const [h,m]=String(t||'').split(':').map(Number); return h*60+m; };
+function salidasDe(ms){
+  const out=new Map(); let prev=null;
+  const ok=ms.filter(m=>/^\d{1,2}:\d{2}$/.test(m.time||'') && m.time!=='00:00' && !m.missing_since && !/SUSPEND|APLAZ|ANULA/i.test(m.estado||''))
+    .sort((a,b)=>(a.date+a.time.padStart(5,'0')).localeCompare(b.date+b.time.padStart(5,'0')));
+  for(const m of ok){
+    const nuevo = !prev || prev.date!==m.date || minOf(m.time)-minOf(prev.time)>SAL_HUECO; prev=m;
+    const t=VENUES[m.venue_key]?.min;
+    if(nuevo && t>0 && P?.origin) out.set(m.id, minOf(m.time)-SAL_ANT-Math.ceil(t/5)*5);
+  }
+  return out;
+}
+const hhmm = n => `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
+// "Sal a las 15:40"; el mismo día, a partir de esa hora y hasta que empieza: "Es hora de salir" / "Deberías haber salido hace 5 min".
+function salidaHtml(m, sal){
+  if(sal==null || m.date<today()) return '';
+  const nowM = m.date===today() ? new Date().getHours()*60+new Date().getMinutes() : -1;
+  const t = `Para llegar 1 h antes del partido, con el tiempo en coche sin tráfico desde ${capName(P.origin)}`;
+  if(nowM>=sal && nowM<minOf(m.time)) return `<div class="sal late" title="${esc(t)}"><span>${nowM-sal<1?'Es hora de salir':`Deberías haber salido hace ${nowM-sal} min`}</span> · <span>sal a las</span> ${hhmm(sal)}</div>`;
+  return `<div class="sal" title="${esc(t)}">Sal a las ${hhmm(sal)}</div>`;
+}
 function whenLabel(ds){
   const d=Math.round((new Date(ds+'T12:00:00')-new Date(today()+'T12:00:00'))/864e5);
   return d===0?'Hoy': d===1?'Mañana': d===-1?'Ayer': d>1?`En ${d} días`:`Hace ${-d} días`;
@@ -2766,6 +2800,7 @@ function renderAgenda(allMs,res){
   const box=$('agenda'), t=today();
   const pool=allMs.filter(m=>passes(m) && !isTerritorial(m));
   const up=pool.filter(m=>m.date>=t).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const SAL = salidasDe(allMs.filter(m=>m.date>=t && !isTerritorial(m)));   // con todos los partidos, no solo los filtrados
   const past=pool.filter(m=>m.date<t && seasonOf(m.date)===SEASON).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
   // Partidos de mis equipos: los pendientes van a Próximos; los jugados (con resultado), a Jugados.
   const eqAll = teamItems().filter(x=>passes({comp:`${x.f.cat} ${x.m.comp}`, id:'EQ', staff_checked:null}));
@@ -2857,7 +2892,7 @@ function renderAgenda(allMs,res){
         <div><div class="top"><span class="kind arb">Arbitras${myRole?`<small>${esc(myRole)}</small>`:''}</span>${others.length?`<span class="small muted with">con ${others.map(c=>esc(capName(c.n).split(' ')[0])).join(', ')}</span>`:''}</div>
           <div class="tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div>
           <div class="sub">${esc(shortComp(m.comp))}<span class="sv"> · ${esc(venue)}</span></div>${pubTags(m)}
-          ${clashArb}${carLine(m)}${['solicitar','sinrecibo'].includes(payState(m)) && limitOf(m)>=today() ? dietHint(m) : ''}</div>
+          ${salidaHtml(m, SAL.get(m.id))}${clashArb}${carLine(m)}${['solicitar','sinrecibo'].includes(payState(m)) && limitOf(m)>=today() ? dietHint(m) : ''}</div>
         <div class="dk dk-v"><b>${esc(venue)}</b><span>${esc(capName(townOf(m)))}${tripHtml(m, townOf(m)?' · ':'')}</span></div>
         <div class="dk dk-c">${Array.isArray(m.crew)&&m.crew.length ? m.crew.map(c=>`<div${c.me?' class="me"':''}><b>${esc(crewLabel(m,c.f))}</b> ${c.me?'Tú':esc(capName(c.n))}</div>`).join('') : '<div class="muted">Equipo arbitral por leer</div>'}</div>
         <div class="cm">${clashArb||resLate(m)?`<span class="cw" title="${clashArb?'Coincide con un partido tuyo':'Resultado sin subir'}" aria-label="${clashArb?'Coincide con un partido tuyo':'Resultado sin subir'}">⚠</span>`:''}<span class="kind arb">${esc(myRole ? ({'Juez de línea':'JL','Anotador':'Anot.'}[myRole]||myRole) : 'Arbitras')}</span></div>
@@ -3429,7 +3464,8 @@ function started(user){
   // Idioma de la interfaz en el perfil: los avisos push salen en ese idioma (issue #36). Cambiar de idioma recarga y pasa por aquí.
   if(P && P.lang!==LANG){ P.lang=LANG; sb.from('profiles').update({lang:LANG}).eq('user_id',USER.id).then(()=>{}, ()=>{}); }
   show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); loadAvisos();
-  if(needsConsent()) openConsent(); else if(OPEN_AVISOS){ OPEN_AVISOS=false; setTimeout(openAvisos, 800); } else setTimeout(maybeGuide, 600);
+  if(needsConsent()) openConsent(); else if(OPEN_AVISOS){ OPEN_AVISOS=false; setTimeout(openAvisos, 800); }
+  else if(OPEN_PARTIDO){ const id=OPEN_PARTIDO; OPEN_PARTIDO=null; setTimeout(()=>avGo({match:id}), 600); } else setTimeout(maybeGuide, 600);
 }
 function retryLoad(load, user){
   (load || fetchAll()).then(d=>{ applyAll(d); started(user); toast('Conexión recuperada'); },

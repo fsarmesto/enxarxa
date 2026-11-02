@@ -11,6 +11,7 @@ const { textos } = await import("./textos.ts");
 const { todas, porIds } = await import("./db.ts");
 const { avisoCobros, porPedir } = await import("./domingo.ts");
 const { avisoResultados, tocaReciente } = await import("./resultados.ts");
+const { salidas, claveSalida, hhmm } = await import("./salida.ts");
 
 const P = { date: "2026-10-30", time: "18:00", teams: "CV EXEMPLE vs CLUB PROVA", venue: "PAVELLO DE PROVA" };
 // Todos los textos del catálogo con datos inventados.
@@ -20,7 +21,8 @@ function todos(l: "es" | "ca") {
     t.eqEstado("A – B", P.date, "Aplazado"), t.eqHorario("A – B", P.date, "12:00"), t.eqCambioHorario("A – B", P.date, "12:00", "2026-10-29", "11:00"),
     t.eqCambioFecha("A – B", P.date, "2026-10-29"), t.eqResultado("A", 3, 1, "B", true, P.date), t.cobro(23.5, ["mañana", "tarde"], 2), t.cobro(0, [], 1),
     t.resultado1(true, P), t.resultado1(false, P), t.resultadoN(true, [P, P]), t.domingo(1), t.domingo(3), t.prueba(), t.inactiva("2026-11-26"),
-    t.designan(), t.designaciones(["Cadete (1/2)"]), t.designaciones(["A", "B"]), t.salud({ fallan: 9, total: 16 }), t.salud({ horas: 14 })];
+    t.designan(), t.designaciones(["Cadete (1/2)"]), t.designaciones(["A", "B"]), t.salud({ fallan: 9, total: 16 }), t.salud({ horas: 14 }),
+    t.salida("15:40", "Pavello De Prova", "17:00", 35)];
 }
 
 Deno.test("cada aviso tiene título y texto en castellano y en catalán, y son distintos", () => {
@@ -126,4 +128,26 @@ Deno.test("acta y resultado de los recién jugados: desde 30 min después de aca
   assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 60 * 6e4).toISOString() }, "2026-10-31 21:00", ahora), false);
   assertEquals(tocaReciente({ ...m, pub_checked: new Date(ahora - 120 * 6e4).toISOString() }, "2026-10-31 21:00", ahora), true);
   assertEquals(tocaReciente(m, "2026-11-02 14:00", ahora), false);
+});
+
+Deno.test("hora de salida: llegar 1 h antes, aviso 15 min antes; seguidos sin aviso y con más de 3 h, de nuevo", () => {
+  const M = (id: string, time: string, venue_key = "A", o: object = {}) => ({ id, date: "2026-11-07", time, venue_key, estado: "PENDIENTE", missing_since: null, ...o });
+  const tr = (k: string) => ({ A: 60, B: 33, C: null } as Record<string, number | null>)[k];
+  // El ejemplo de Ferran: partido a las 16:00 a 1 h de casa → salir a las 14:00, aviso a las 13:45.
+  const [a] = salidas([M("1", "16:00")], tr);
+  assertEquals([hhmm(a.salida), hhmm(a.aviso), a.trayecto], ["14:00", "13:45", 60]);
+  // Trayecto redondeado hacia arriba a 5 min: 33 → 35; 17:00 − 60 − 35 = 15:25.
+  assertEquals(hhmm(salidas([M("1", "17:00", "B")], tr)[0].salida), "15:25");
+  // 13:00 y 17:00 (más de 3 h): 2 avisos. 13:00 y 15:30 (2 h 30 min): solo el primero, aunque sea en otro pabellón.
+  assertEquals(salidas([M("1", "13:00"), M("2", "17:00")], tr).map((s) => s.id), ["1", "2"]);
+  assertEquals(salidas([M("1", "13:00"), M("2", "15:30", "B")], tr).map((s) => s.id), ["1"]);
+  // El hueco se cuenta desde el partido anterior: 10:00, 12:00 y 16:00 → el de las 16:00 no (4 h desde las 12:00 sí: avisa).
+  assertEquals(salidas([M("1", "10:00"), M("2", "12:00"), M("3", "15:00")], tr).map((s) => s.id), ["1"]);
+  assertEquals(salidas([M("1", "10:00"), M("2", "12:00"), M("3", "16:00")], tr).map((s) => s.id), ["1", "3"]);
+  // Sin tiempo de trayecto, suspendido o que faltó en la última lectura: nada (pero el siguiente no avisa si va seguido).
+  assertEquals(salidas([M("1", "10:00", "C"), M("2", "11:30")], tr).map((s) => s.id), []);
+  assertEquals(salidas([M("1", "10:00", "A", { estado: "SUSPENDIDO" }), M("2", "18:00", "A", { missing_since: "x" })], tr).length, 0);
+  // Cambio de hora o de pabellón: otra clave, otro aviso.
+  assert(claveSalida({ ...a }) !== claveSalida({ ...a, time: "16:30" }) && claveSalida({ ...a }) !== claveSalida({ ...a, venue_key: "B" }));
+  assertEquals(claveSalida(a).split(":")[1], "1");
 });

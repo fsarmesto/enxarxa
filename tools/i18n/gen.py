@@ -38,6 +38,9 @@ RULES = r"""[
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...
   [/^(.+?) \((\d+)\)$/, (m,l,n) => { const t = I.exact[l] || l.replace(/^Jugados /,'Jugats ').replace(/^Calendario de la temporada$/,'Calendari de la temporada'); return t===l && !/^Jugados |^Calendario/.test(l) ? null : `${t} (${n})`; }],
   [/^En (\d+) días?$/, "D'aquí a $1 dies"],
+  [/^Sal a las (\d{1,2}:\d{2})$/, 'Surt a les $1'],
+  [/^Deberías haber salido hace (\d+) min$/, "Hauries d'haver sortit fa $1 min"],
+  [/^Para llegar 1 h antes del partido, con el tiempo en coche sin tráfico desde (.+)$/, "Per arribar 1 h abans del partit, amb el temps en cotxe sense trànsit des de $1"],
   [/^Te han pagado (.+) menos de lo calculado · (\d+) casos?$/, (m,v,n) => `T'han pagat ${v} menys del calculat · ${n} ${n==='1'?'cas':'casos'}`],
   [/^Solo se han comprobado los (\d+) más cercanos de (\d+)\.$/, "Només s'han comprovat els $1 més propers de $2."],
   [/^Hace (\d+) días?$/, "Fa $1 dies"],
