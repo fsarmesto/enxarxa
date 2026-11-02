@@ -466,6 +466,8 @@ details>summary:active{background:var(--surface-2)}
 .alert .body{padding:0 12px 10px;font-size:13.5px;color:var(--ink-2)}
 .alert .body ul{margin:6px 0 10px;padding-left:18px}
 .alert .body li{margin:2px 0}
+.alert .body .btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.menos{color:var(--ink-2);margin-top:4px}
 .alert a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:5px 12px;color:var(--ink);text-decoration:none;white-space:nowrap}
 .score .br{font-size:12.5px;color:var(--board-2);margin-top:4px;line-height:1.35}
 .score .br b{color:var(--board-ink);font-weight:600}
@@ -714,7 +716,26 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .agc .car{font-size:12.5px;color:#1E7B34;font-weight:600;margin-top:4px}
 :root[data-theme="dark"] .agc .car{color:#5BD07A}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .agc .car{color:#5BD07A} }
-.agc .cm{display:none}
+.agc .cm,.agc .dk{display:none}
+/* Mis partidos en escritorio ancho (desde 1024 px): pabellón y equipo arbitral en columnas, sin abrir la ficha. */
+@media (min-width:1024px){
+  body[data-vista="agenda"] :is(#ctrl,#agenda,#alerts,#banner){max-width:1080px}
+  #agenda .agc>summary{grid-template-columns:64px minmax(0,1.5fr) minmax(0,1fr) minmax(0,.9fr) 28px;gap:4px 20px}
+  #agenda .agc .dk{display:block;min-width:0;font-size:13.5px;line-height:1.35;padding-top:2px}
+  #agenda .agc .dk-v b{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #agenda .agc .dk-v span{color:var(--ink-3);font-size:12.5px}
+  #agenda .agc .dk-c div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #agenda .agc .dk-c b{display:inline-block;min-width:2.4em;font-weight:700;color:var(--ink-3);font-size:12px}
+  #agenda .agc .dk-c .me{font-weight:700}
+  #agenda .agc .dk-c .ref{margin:0}
+  #agenda .agc .sv,#agenda .agc .with,#agenda .agc>summary>div:nth-child(2) .ref{display:none}
+  #agenda .agc.arb .more .crew{display:none}
+  #agenda .agc .more{padding-left:84px}
+  body #agenda.ag-compact .agc:not([open])>summary{grid-template-columns:56px minmax(0,1.5fr) minmax(0,1fr) auto 28px;gap:4px 20px}
+  body #agenda.ag-compact .agc:not([open]) .tt{-webkit-line-clamp:1}
+  body #agenda.ag-compact .agc:not([open]) .dk-v span,body #agenda.ag-compact .agc:not([open]) .dk-c{display:none}
+  body #agenda.ag-compact .agc:not([open]) .dk-v b{font-weight:500;color:var(--ink-2)}
+}
 /* Vista compacta de Mis partidos: plegada, solo hora, equipos y una etiqueta corta; al abrir, la ficha entera. */
 .segb.dens button{display:inline-flex;align-items:center;justify-content:center;padding:3px 8px}
 .segb.dens .ico{width:20px;height:20px}
@@ -1742,12 +1763,42 @@ function payTag(m){
   if(st==='sinrecibo' && lim>=today()) return `<div class="muted small">Cuando salga en iSquad, pide el pago antes del ${esc(fmtShort(lim))}</div>${dietHint(m)}`;
   const extra = (paidByFcvb(m) ? `<div class="muted small"><span>Según iSquad</span>: <span>${esc(fcvbPaidTxt(m))}</span></div>` : '')
     + (m.fcvb_campo ? '<div class="muted small">Tarifa cobrada en el pabellón</div>' : '');
-  return (m.fcvb_pago&&!paidByFcvb(m)&&st!=='solicitar' ? `<div class="muted small">${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</div>` : '') + extra;
+  return (m.fcvb_pago&&!paidByFcvb(m)&&st!=='solicitar' ? `<div class="muted small">${esc(m.fcvb_pago.charAt(0)+m.fcvb_pago.slice(1).toLowerCase())}</div>` : '') + extra + menosHint(m);
 }
 // Avisos arriba (de todas las temporadas): pagos por pedir con su plazo y partidos de hoy/ayer aún sin recibo.
 // Plegados por defecto; se recuerda cuál se ha abierto mientras la página está abierta (render() repinta a menudo).
 const ALERT_OPEN = new Set();
 const fmtTiny = ds => new Date(ds+'T12:00:00').toLocaleDateString(LOC(),{weekday:'short',day:'numeric',month:'short'}).replace(/[.,]/g,'');
+// "Te han pagado menos" (2-nov-2026): partidos pagados de los últimos 90 días en los que la FCVB ha pagado menos de lo que
+// calcula la app (r.est, de compute). La tarifa siempre ha coincidido: cualquier diferencia a la baja cuenta. Los gastos
+// (dieta + desplazamiento) la FCVB los reparte entre los partidos de la jornada y franja: se comparan por día y franja y solo
+// con 3 € o más de diferencia (los km por población dan diferencias pequeñas); nunca con km aproximados.
+// Cada aviso se puede dar por visto ("Entendido"; localStorage liq-menos-vistos).
+const MENOS_KEY='liq-menos-vistos', MENOS_MIN=3;
+let PAID_LESS = new Map();   // id del partido → [{k, fcvb, app}]
+function menosVistos(){ try{ return new Set(JSON.parse(localStorage.getItem(MENOS_KEY)||'[]')); }catch(e){ return new Set(); } }
+function paidLess(ms, res){
+  const d90=addDays(today(),-90), out=[], by=new Map();
+  const paid=ms.filter(m=>m.date>=d90 && paidByFcvb(m) && res.get(m.id)?.est && !isTerritorial(m));
+  for(const m of paid){ const r=res.get(m.id);
+    if(r.est.tariff - (+m.fcvb_tarifa) > 0.009) out.push({id:'t|'+m.id, k:'tarifa', ms:[m], fcvb:+m.fcvb_tarifa, app:r.est.tariff});
+    if(r.fcvb){ const g=m.date+franjaOf(m); (by.get(g)||by.set(g,[]).get(g)).push(m); } }
+  for(const [g,list] of by){
+    const all = ms.filter(m=>m.date+franjaOf(m)===g && !isTerritorial(m));
+    if(all.length!==list.length || all.some(m=>res.get(m.id).kmSrc==='aprox' || kmInfo(m).src==='aprox')) continue;   // algo sin pagar o km aproximados
+    const fcvb=list.reduce((t,m)=>t+(+m.fcvb_gastos||0),0), app=list.reduce((t,m)=>t+res.get(m.id).est.gastos,0);
+    if(app-fcvb>=MENOS_MIN) out.push({id:'g|'+g, k:'gastos', ms:list, fcvb:+fcvb.toFixed(2), app:+app.toFixed(2)});
+  }
+  PAID_LESS=new Map(); for(const x of out) for(const m of x.ms) (PAID_LESS.get(m.id)||PAID_LESS.set(m.id,[]).get(m.id)).push(x);
+  return out.sort((a,b)=>b.ms[0].date.localeCompare(a.ms[0].date));
+}
+const menosLine = x => x.k==='tarifa'
+  ? `<span>Tarifa</span>: <span>FCVB</span> ${eur(x.fcvb)} · <span>la app</span> ${eur(x.app)}`
+  : `<span>Dieta y desplazamiento de la jornada</span>: <span>FCVB</span> ${eur(x.fcvb)} · <span>la app</span> ${eur(x.app)}`;
+function menosHint(m){
+  const l=PAID_LESS.get(m.id); if(!l) return '';
+  return l.map(x=>`<div class="small menos">↓ <span>La FCVB te ha pagado</span> ${eur(x.app-x.fcvb)} <span>menos de lo que calcula la app</span>. ${menosLine(x)}</div>`).join('');
+}
 function renderAlerts(ms, res){
   const t=today(), out=[];
   const item = m => `<li>${esc(fmtTiny(m.date))} ${esc(m.time)} · ${esc(capName(m.comp))} · ${eur(res.get(m.id).total)}${dietaOf(m)>0?` · 🍽 dieta ${eur(dietaOf(m))}`:''}</li>`;
@@ -1765,8 +1816,19 @@ function renderAlerts(ms, res){
     out.push(box('soon','info', `Pide el pago antes del ${esc(fmtTiny(lim))} · ${soon.length} partido${soon.length===1?'':'s'} de ${soon.some(m=>m.date===t)?'hoy':'ayer'}`,
       `En cuanto el acta esté cerrada, el partido sale en Hojas de gastos de iSquad: pide allí el pago.<ul>${soon.map(item).join('')}</ul>${dietTotal(soon)}`, 'Abrir iSquad'));
   }
+  const seen=menosVistos(), less=paidLess(ms,res).filter(x=>!seen.has(x.id));
+  if(less.length){
+    const tot=less.reduce((s,x)=>s+x.app-x.fcvb,0);
+    const li = x => `<li><b>${esc(fmtTiny(x.ms[0].date))}</b> · ${x.ms.map(m=>esc(capName(m.teams).replace(/ Vs /,' vs '))).join(' + ')}<br>${menosLine(x)} · <b>−${eur(x.app-x.fcvb)}</b></li>`;
+    out.push(`<details class="alert info" data-alert="menos"${ALERT_OPEN.has('menos')?' open':''}><summary aria-expanded="${ALERT_OPEN.has('menos')}"><span>↓</span><span class="t">Te han pagado ${eur(tot)} menos de lo calculado · ${less.length} ${less.length===1?'caso':'casos'}</span>${chevHtml(ALERT_OPEN.has('menos'))}</summary><div class="body">`
+      + `<ul>${less.map(li).join('')}</ul><p>La app calcula con el anexo de tarifas y sus reglas de dieta y desplazamiento: es una previsión. Lo más habitual es no haber puesto la dieta en la hoja de gastos o que la FCVB contara otros km. Si crees que es un error, revisa el recibo y pregúntalo a la FCVB.</p>`
+      + `<div class="btns"><a class="go" href="${ISQUAD_RECIBOS}" target="_blank" rel="noopener">Ver los recibos en iSquad</a><button type="button" class="ghost" data-menos-ok="${esc(less.map(x=>x.id).join(','))}">Entendido</button></div></div></details>`);
+  }
   $('alerts').innerHTML=out.join('');
 }
+$('alerts').addEventListener('click', e=>{ const b=e.target.closest('[data-menos-ok]'); if(!b) return;
+  const s=menosVistos(); for(const id of b.dataset.menosOk.split(',')) s.add(id);
+  try{ localStorage.setItem(MENOS_KEY, JSON.stringify([...s].slice(-300))); }catch(err){} render(); });
 $('alerts').addEventListener('toggle', e=>{ const d=e.target.closest('details[data-alert]'); if(d) d.open ? ALERT_OPEN.add(d.dataset.alert) : ALERT_OPEN.delete(d.dataset.alert); }, true);
 // Línea de estado de la cabecera (una sola línea en todas las pestañas, así la cabecera no cambia de altura): en Cobros
 // resume lo pendiente y lo cobrado y abre o cierra las cifras grandes (al abrir la app, plegadas); en el resto, la última actualización.
@@ -2769,8 +2831,10 @@ function renderAgenda(allMs,res){
           <div><div class="top">${stChip(p)}</div>
             <div class="tt">${vs(p)}${done&&p.rl!=null?`<span class="res">${p.rl}-${p.rv}</span>`:''}</div>
             ${refLine(p)}
-            <div class="sub">${esc(shortComp(`${f.cat} ${p.comp||''}`))}${!done&&p.pab?` · ${esc(capName(p.pab))}`:''}</div>
+            <div class="sub">${esc(shortComp(`${f.cat} ${p.comp||''}`))}${!done&&p.pab?`<span class="sv"> · ${esc(capName(p.pab))}</span>`:''}</div>
             ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}</div>
+          <div class="dk dk-v">${!done&&p.pab?`<b>${esc(capName(p.pab))}</b>${p.pista?`<span>${esc(capName(p.pista))}</span>`:''}`:`<span>${esc(shortComp(`${f.cat} ${p.comp||''}`))}</span>`}</div>
+          <div class="dk dk-c">${refLine(p)}</div>
           <div class="cm">${cl?'<span class="cw" title="Coincide con un arbitraje" aria-label="Coincide con un arbitraje">⚠</span>':''}${done&&p.rl!=null?stChip(p):`<span class="kind ${rolKind(f.rol)[0]}">${esc(rolKind(f.rol)[1])}</span>`}</div>
           ${chevHtml(AGC_OPEN.has(id))}</summary><div class="more">${more}</div></details>`;
         continue;
@@ -2790,10 +2854,12 @@ function renderAgenda(allMs,res){
         <div class="full">${esc(capName(m.comp))}${est}${km?` · ${km} km`:''}${r?` · ${r.fcvb?'Cobro':'Previsión'} ${eur(r.total)}`:''}${actaLink(m)}</div>`;
       html+=`<details class="agc arb" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary aria-expanded="${AGC_OPEN.has(id)}">
         <div class="tm">${esc(m.time)}</div>
-        <div><div class="top"><span class="kind arb">Arbitras${myRole?`<small>${esc(myRole)}</small>`:''}</span>${others.length?`<span class="small muted">con ${others.map(c=>esc(capName(c.n).split(' ')[0])).join(', ')}</span>`:''}</div>
+        <div><div class="top"><span class="kind arb">Arbitras${myRole?`<small>${esc(myRole)}</small>`:''}</span>${others.length?`<span class="small muted with">con ${others.map(c=>esc(capName(c.n).split(' ')[0])).join(', ')}</span>`:''}</div>
           <div class="tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div>
-          <div class="sub">${esc(shortComp(m.comp))} · ${esc(venue)}</div>${pubTags(m)}
+          <div class="sub">${esc(shortComp(m.comp))}<span class="sv"> · ${esc(venue)}</span></div>${pubTags(m)}
           ${clashArb}${carLine(m)}${['solicitar','sinrecibo'].includes(payState(m)) && limitOf(m)>=today() ? dietHint(m) : ''}</div>
+        <div class="dk dk-v"><b>${esc(venue)}</b><span>${esc(capName(townOf(m)))}${tripHtml(m, townOf(m)?' · ':'')}</span></div>
+        <div class="dk dk-c">${Array.isArray(m.crew)&&m.crew.length ? m.crew.map(c=>`<div${c.me?' class="me"':''}><b>${esc(crewLabel(m,c.f))}</b> ${c.me?'Tú':esc(capName(c.n))}</div>`).join('') : '<div class="muted">Equipo arbitral por leer</div>'}</div>
         <div class="cm">${clashArb||resLate(m)?`<span class="cw" title="${clashArb?'Coincide con un partido tuyo':'Resultado sin subir'}" aria-label="${clashArb?'Coincide con un partido tuyo':'Resultado sin subir'}">⚠</span>`:''}<span class="kind arb">${esc(myRole ? ({'Juez de línea':'JL','Anotador':'Anot.'}[myRole]||myRole) : 'Arbitras')}</span></div>
         ${chevHtml(AGC_OPEN.has(id))}</summary><div class="more">${more}</div></details>`;
     }
