@@ -94,11 +94,11 @@ input[type=checkbox]{accent-color:var(--red);width:16px;height:16px}
 .brand .sub{display:flex;flex-direction:column;gap:1px;margin:5px 0 0;font-size:12.5px;line-height:1.3;color:var(--board-2)}
 .auth .brand .sub{flex-direction:row;align-items:center;gap:12px}
 .board a.gh:hover{color:var(--yellow)}
-.brand .sub .upd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .sub .upd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 a.gh{display:inline-flex;align-items:center;gap:5px;color:inherit;font-weight:600}
 .board .actions{display:flex;gap:8px;align-items:center;flex:none}
 /* Móvil estrecho: 3 botones (Avisos, Ajustes, Actualizar) y el título en una línea; la fecha puede ir en 2 */
-@media (max-width:440px){ .board .actions{gap:4px} .board .actions .iconbtn{width:40px;height:40px} .board .top{gap:10px} .brand{gap:10px!important} .brand .logo{height:34px!important} .board h1{font-size:24px;white-space:nowrap} .brand .sub .upd{white-space:normal} }
+@media (max-width:440px){ .board .actions{gap:4px} .board .actions .iconbtn{width:40px;height:40px} .board .top{gap:10px} .brand{gap:10px!important} .brand .logo{height:34px!important} .board h1{font-size:24px;white-space:nowrap} .board .statline{margin-top:10px} }
 #btnAjustes[aria-current="page"],#mbAjustes[aria-current="page"]{background:var(--yellow);color:#000;border-color:var(--yellow)}
 .board button{border-color:var(--board-ink);color:var(--board-ink)}
 .board button.ghost{border-color:transparent}
@@ -228,9 +228,9 @@ table.m{width:100%;border-collapse:collapse;min-width:940px}
 .tcard b{display:block;font-size:13px;margin-bottom:6px}
 .tcard div{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
 .calc-cta{margin:0 0 12px}
-.calc-cta button{font-weight:700;padding-left:0;display:flex;flex-direction:column;align-items:flex-start;text-align:left;line-height:1.2}
-.calc-cta button b{font-size:16px}
-.calc-cta button small{font-size:13px;font-weight:500;color:var(--ink-2)}
+.calc-cta button{width:100%;min-height:44px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0 6px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);text-align:center;line-height:1.25}
+.calc-cta button b{font-size:15px}
+.calc-cta button small{font-size:14px;font-weight:500;color:var(--ink-2)}
 /* ---------- Cobros en escritorio ancho (#55): lista en columnas y panel lateral. El móvil y las tabletas no cambian. ---------- */
 @media (min-width:1024px){
   body[data-vista="cobros"] :is(#banner,#alerts,#ctrl,#fsum,#ledger,#manualPanel){max-width:1080px}
@@ -438,6 +438,14 @@ body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){displ
 /* Entrar */
 .auth{max-width:440px}
 .auth .board{margin-bottom:24px}
+/* Vista previa bajo el formulario: tres capturas pequeñas (datos inventados) */
+.shots{margin:22px 0 8px}
+.shots h2{font-family:var(--display);font-size:20px;margin:0 0 10px}
+.shots-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.shots figure{margin:0;min-width:0}
+.shots img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:8px}
+.shots figcaption{margin-top:4px;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+@media (min-width:721px){ .auth{max-width:520px} .auth .board::after{display:none} }   /* sin los palos grises a los lados: en la columna estrecha parecían un fallo de dibujo */
 .auth .board p{color:var(--board-2);margin:10px 0 0;font-size:14px}
 .auth label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500;color:var(--ink-2);margin-bottom:14px}
 .auth input[type=text],.auth input[type=password]{padding:10px 12px;font-size:16px}
@@ -455,6 +463,7 @@ body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){displ
 .alert>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 12px;font-weight:700;min-height:38px}
 .alert>summary::-webkit-details-marker{display:none}
 .alert>summary .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert[data-alert="menos"]>summary .t{white-space:normal;overflow:visible}   /* el importe se ve siempre: parte en 2 líneas */
 /* Flecha de desplegar (alertas, tarjetas, semanas): solo el trazo, fino y gris como los iconos del menú de abajo. Solo es un
    indicador (aria-hidden): se toca toda la fila del summary, que mide más de 44 px de alto. */
 summary .chev{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;color:var(--ink-2);transition:transform .15s}
@@ -482,7 +491,7 @@ details>summary:active{background:var(--surface-2)}
 .densslot{display:flex}
 .ctrlbtns{display:flex;align-items:center;gap:8px}
 .ctrlslot:not(:empty)+.ctrlbtns{margin-left:auto}
-.ctrlbtn{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:4px 12px;border-width:2px;font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.02em;color:var(--ink);background:var(--bg)}
+.ctrlbtn{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:4px 12px;border:1px solid var(--line);border-radius:6px;font-family:var(--body,inherit);font-size:15px;font-weight:600;color:var(--ink);background:var(--bg)}
 .ctrlbtn svg{display:block;flex:none}
 .ctrlbtn.on{background:var(--yellow);border-color:var(--yellow);color:#000}
 .ctrlbtn .cnt{display:inline-block;min-width:20px;padding:0 5px;border-radius:10px;background:#000;color:var(--yellow);font-size:14px;line-height:20px;text-align:center}
@@ -558,7 +567,7 @@ body.dep .arb-only{display:none!important}
 .pushcard .btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .pushcard strong{font-weight:700}
 /* Vistas: Cobros / Mis partidos */
-.views{display:flex;gap:0;margin:0 0 22px;border:2px solid var(--ink);border-radius:3px;overflow:hidden;width:max-content;max-width:100%}
+.views{display:flex;gap:0;margin:0 0 22px;border:1px solid var(--ink-3);border-radius:3px;overflow:hidden;width:max-content;max-width:100%}
 .views button{border:0;border-radius:0;padding:10px 22px;font-family:var(--display);font-size:19px;font-weight:600;background:transparent;color:var(--ink)}
 @media (max-width:560px){ .views{width:100%} .views button{flex:1 1 auto;padding:9px 6px;font-size:15px;white-space:nowrap} }
 /* Resumen */
@@ -631,11 +640,15 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
    ya no se ve; la grande no cambia de tamaño, así el contenido no salta. */
 .minibar{display:none}
 @media (max-width:720px){
-  .minibar{display:flex;position:fixed;top:0;left:0;right:0;z-index:45;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top,0px)) 16px 6px;background:var(--board);color:var(--board-ink);border-bottom:3px solid var(--yellow);transform:translateY(-110%);transition:transform .2s ease}
+  .minibar{display:flex;position:fixed;top:0;left:0;right:0;z-index:45;align-items:center;gap:2px;padding:calc(6px + env(safe-area-inset-top,0px)) 8px 6px 14px;background:var(--board);color:var(--board-ink);border-bottom:3px solid var(--yellow);transform:translateY(-110%);transition:transform .2s ease}
   .minibar.on{transform:none}
   .minibar .home{display:flex;align-items:center;gap:10px;flex:0 1 auto;min-width:0;min-height:44px;margin-right:auto}
-  .minibar strong{flex:1;font-family:var(--display);font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .minibar button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 10px;border-color:transparent;color:var(--board-ink);background:transparent}
+  .mbt{display:flex;flex-direction:column;min-width:0;flex:1}
+  .mbt small{font-size:12px;letter-spacing:-.01em;line-height:1.2;color:var(--board-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mbt small:empty{display:none}
+  .mbt small b{color:var(--board-ink)} .mbt small b.p{color:var(--board-pend)}
+  .minibar strong{flex:none;font-family:var(--display);font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .minibar button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 6px;border-color:transparent;color:var(--board-ink);background:transparent}
 }
 @media (prefers-reduced-motion:reduce){ .minibar{transition:none} }
 /* Zonas táctiles de al menos 44 px en pantallas táctiles (#10) */
@@ -647,7 +660,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .ctrlslot .segb{max-width:100%}
 .ctrlslot .segb button{white-space:nowrap;padding:3px 9px;font-size:15px}
 .pmenu button:focus-visible{outline-offset:-3px}
-@media (max-width:420px){ .ctrlbtn{padding:4px 10px;font-size:16px} .ctrlbtns{gap:6px} .ctrlrow{gap:6px} }
+@media (max-width:420px){ .ctrlbtn{padding:4px 10px;font-size:14.5px} .ctrlbtns{gap:6px} .ctrlrow{gap:6px} }
 /* Agenda */
 .ag-day{margin:0 0 22px}
 .ag-day h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0 0 8px;padding-bottom:4px;border-bottom:3px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
@@ -822,10 +835,10 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 .racha i.G{background:#1f9d55} .racha i.P{background:#d64545}
 @media (max-width:560px){ table.clas .hm{display:none} }
 .seg{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
-.segb{display:inline-flex;border:2px solid var(--ink);border-radius:3px;overflow:hidden}
+.segb{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .segb button{border:0;border-radius:0;padding:3px 11px;font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.02em;color:var(--ink);background:transparent}
 .segb button[aria-pressed="true"]{background:var(--yellow);color:#000}
-.segb button+button{border-left:2px solid var(--ink)}
+.segb button+button{border-left:1px solid var(--line)}
 .eq-h{font-family:var(--display);font-size:22px;font-weight:600;margin:6px 0 6px;border-bottom:3px solid var(--rule);padding-bottom:4px}
 .pushcard a.go,#pushBtns a.go{display:inline-block;font-weight:700;border:2px solid var(--ink);border-radius:3px;padding:6px 14px;color:var(--ink);text-decoration:none;white-space:nowrap}
 #pepper-loader{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
@@ -964,12 +977,22 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
     </form>
   </section>
   <p class="muted small">Entras con los mismos datos que en iSquad. La primera vez tarda unos segundos porque trae tus partidos.</p>
+  <p class="muted small">Tu contraseña se guarda cifrada y solo sirve para leer tus partidos. Si lo prefieres, marca «Entrar sin guardar nada».</p>
+  <section class="shots" aria-labelledby="shotsT">
+    <h2 id="shotsT">Así se verá</h2>
+    <div class="shots-row">
+      <figure><img src="preview-cobros.png" width="390" height="560" alt="" loading="lazy"><figcaption>Cobros</figcaption></figure>
+      <figure><img src="preview-agenda.png" width="390" height="560" alt="" loading="lazy"><figcaption>Mis partidos</figcaption></figure>
+      <figure><img src="preview-equipos.png" width="390" height="560" alt="" loading="lazy"><figcaption>Equipos</figcaption></figure>
+    </div>
+    <p class="muted small">Ejemplos con datos inventados.</p>
+  </section>
   <p class="small hidden" id="apkLogin"><a href="app/enxarxa.apk" download style="color:inherit;font-weight:700">Descarga la app para Android</a> · gratis, con recordatorio del domingo.</p>
   <p class="small muted legal-links"><a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
 </main>
 
 <!-- ============ App ============ -->
-<div class="minibar" id="miniBar" inert><a class="home" href="./" data-home aria-label="Vòlei EnXarxa, inicio"><img src="icon.svg" width="28" height="28" alt=""><strong>Vòlei EnXarxa</strong></a><button type="button" id="mbAvisos" aria-label="Avisos"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="mbBdg"></span></button><button type="button" id="mbAjustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M18.88 9.87L21.39 10L21.39 14L18.88 14.13L18.37 15.36L20.05 17.22L17.22 20.05L15.36 18.37L14.13 18.88L14 21.39L10 21.39L9.87 18.88L8.64 18.37L6.78 20.05L3.95 17.22L5.63 15.36L5.12 14.13L2.61 14L2.61 10L5.12 9.87L5.63 8.64L3.95 6.78L6.78 3.95L8.64 5.63L9.87 5.12L10 2.61L14 2.61L14.13 5.12L15.36 5.63L17.22 3.95L20.05 6.78L18.37 8.64Z"/><circle cx="12" cy="12" r="3.2"/></g></svg></button><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+<div class="minibar" id="miniBar" inert><a class="home" href="./" data-home aria-label="Vòlei EnXarxa, inicio"><img src="icon.svg" width="28" height="28" alt=""><span class="mbt"><strong>Vòlei EnXarxa</strong><small id="mbStat"></small></span></a><button type="button" id="mbAvisos" aria-label="Avisos"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bdg hidden" id="mbBdg"></span></button><button type="button" id="mbAjustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M18.88 9.87L21.39 10L21.39 14L18.88 14.13L18.37 15.36L20.05 17.22L17.22 20.05L15.36 18.37L14.13 18.88L14 21.39L10 21.39L9.87 18.88L8.64 18.37L6.78 20.05L3.95 17.22L5.63 15.36L5.12 14.13L2.61 14L2.61 10L5.12 9.87L5.63 8.64L3.95 6.78L6.78 3.95L8.64 5.63L9.87 5.12L10 2.61L14 2.61L14.13 5.12L15.36 5.63L17.22 3.95L20.05 6.78L18.37 8.64Z"/><circle cx="12" cy="12" r="3.2"/></g></svg></button><button type="button" class="arb-only" id="mbSync" aria-label="Actualizar ahora"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
 <main id="appView" class="hidden">
   <div class="board">
     <div class="top">
@@ -1631,7 +1654,7 @@ function weeksCompact(items, dateOf, row){
 function weekRange(ws){ const mon=new Date(ws+'T12:00:00'); const sun=new Date(mon); sun.setDate(mon.getDate()+6); const f=x=>x.toLocaleDateString(LOC(),{day:'numeric',month:'short'}); return `${f(mon)} – ${f(sun)}`; }
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sel = (f,id,opts,cur) => `<select data-f="${f}" data-id="${esc(id)}">`+Object.entries(opts).map(([k,v])=>`<option value="${k}"${k===cur?' selected':''}>${esc(v)}</option>`).join('')+'</select>';
-function ago(ts){ if(!ts) return 'nunca'; const d=new Date(ts); return d.toLocaleString(LOC(),{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
+function ago(ts, short){ if(!ts) return 'nunca'; const d=new Date(ts); return d.toLocaleString(LOC(),short?{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}:{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
 
 // Dieta y desplazamiento: previsión de la app (editable) o lo que ha liquidado la FCVB (juntos, como en iSquad).
 const estCells = (m,r,km) => `<td class="n" data-l="Dieta"><input type="number" step="0.5" min="0" data-f="dieta" data-id="${esc(m.id)}" value="${r.dieta||''}" placeholder="0" aria-label="Dieta">${m.dieta_override!=null?`<button type="button" class="ghost reset" data-dieta-auto="${esc(m.id)}" title="Volver a la dieta automática (${eur(r.dietaAuto)})">auto</button>`:(r.dietaShared&&r.dieta?'<span class="shared">jornada</span>':'')}</td>
@@ -1842,8 +1865,10 @@ function renderStatLine(pend, paid){
   const cobros = VIEW==='cobros' && !DEP, open = cobros && SCORE_OPEN, line=$('statLine');
   $('statTxt').innerHTML = cobros && STAT_LAST ? `Pendiente <b class="p">${eur(STAT_LAST.pend)}</b> · Cobrado <b>${eur(STAT_LAST.paid)}</b>` : '';
   // La fecha de la última actualización, pequeña bajo el título (en todas las pestañas).
+  const corto = innerWidth<=440;   // en el móvil estrecho, sin el día de la semana: la fecha no se parte nunca
   $('updTxt').textContent = DEP ? 'Tus equipos: horarios, árbitros y resultados'
-    : GUEST ? `Sin guardar · leído de iSquad: ${ago(P.last_sync)}` : `Actualizado: ${ago(P.last_sync)}`;
+    : GUEST ? `Sin guardar · leído de iSquad: ${ago(P.last_sync, corto)}` : `Actualizado: ${ago(P.last_sync, corto)}`;
+  $('mbStat').innerHTML = $('statTxt').innerHTML;
   line.disabled = !cobros; line.setAttribute('aria-expanded', String(open));
   $('scoreWrap').classList.toggle('open', open);
 }
@@ -1872,7 +1897,7 @@ function deskRow(m,r,km,gone,manual,cols){
   // Aplazado, suspendido o anulado ya sale en pubTags.
   const warn = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && !/^(FINALIZADO|PENDIENTE)$|SUSPEND|APLAZ|ANULA/.test(m.estado) ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
   const lbl=VENUES[m.venue_key]?.label, city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
-  const venue=(lbl||capName(m.venue))+(city&&!(lbl||'').includes('(')?' · '+capName(city[1]):'');
+  const venue=capVenue(lbl||capName(m.venue))+(city&&!(lbl||'').includes('(')?' · '+capName(city[1]):'');
   const kmNote = km ? `${km} km${r.kmSrc==='fcvb'?' · km FCVB':r.kmSrc==='min'?' · mínimo FCVB':r.kmSrc==='aprox'?' · km aprox.':''}` : '';
   const role = m.staff_checked||manual ? ROLE_OPTS[m.role] : 'Rol por leer de iSquad';
   const cat = esc(CATS[catOf(m)].label)+(isHoliday(m.date)||m.holiday?' · festivo':'');
@@ -1881,7 +1906,7 @@ function deskRow(m,r,km,gone,manual,cols){
   const despl = r.fcvb ? eur(r.travel)+sm('gastos FCVB') : (r.travel?eur(r.travel):(km?'—':'<span class="tag warn">km?</span>'))+sm(kmNote);
   let h = `<tr class="${paid?'paid':''}${open?' open':''}">
     <td class="dt"><span>${esc(day)}</span><b>${esc(m.time)}</b></td>
-    <td class="match"><div class="teams">${esc(capName(m.teams).replace(/ Vs /,' vs '))}${warn}</div><div class="venue">${esc(shortComp(m.comp))} · ${esc(venue)}${tripHtml(m, ' · ')}</div><div class="rl">${role} · ${cat}</div>${pubTags(m)}</td>
+    <td class="match"><div class="teams">${esc(capName(m.teams).replace(/ Vs /,' vs '))}${warn}</div><div class="venue">${esc(shortComp(m.comp))} · ${esc(venue)}${tripHtml(m, ' · ')}</div><div class="rl">${role} · ${cat}</div>${pubTags(m,false)}</td>
     <td class="n">${eur(r.tariff)}${sm(r.fcvb||r.fcvbTarifa?'FCVB':'')}</td><td class="n">${dieta}</td><td class="n">${despl}</td><td class="n">${eur(+m.tolls||0)}</td>
     ${+P.irpf?`<td class="n">${r.irpf?'−'+eur(r.irpf):'—'}</td>`:''}<td class="n total">${eur(r.total)}</td>
     <td class="pst">${deskStTag(m)}</td>
@@ -1924,10 +1949,10 @@ function pubState(m){
   return { acta: m.acta_url ? {st:'Subida',cls:'ok'} : pend,
     res: !sc ? pend : RES_OK.has(sc) ? {st:'Subido',cls:'ok',sc} : {st:'Irregular',cls:'warn',sc} };
 }
-function pubTags(m){
+function pubTags(m, etiquetas=true){   // etiquetas Resultado/Acta solo en Mis partidos; en Cobros, solo el aviso de irregular
   const s=pubState(m);
   const tag=(lb,x)=>`<span class="tag ${x.cls}"><span>${lb}</span> <span>${x.st}</span>${x.sc?` ${x.sc}`:''}</span>`;
-  return `<div class="pubt">${tag('Resultado:',s.res)}${tag('Acta:',s.acta)}${s.otro?`<span class="small muted">${esc(s.otro)}</span>`:''}</div>`
+  return (etiquetas ? `<div class="pubt">${tag('Resultado:',s.res)}${tag('Acta:',s.acta)}${s.otro?`<span class="small muted">${esc(s.otro)}</span>`:''}</div>` : '')
     + (s.res.st==='Irregular' ? `<div class="pubw">⚠ <span>Resultado irregular:</span> ${s.res.sc}. <span>Al mejor de 5 solo valen 3-0, 3-1, 3-2 y al revés: revisa el resultado en iSquad.</span></div>` : '');
 }
 const actaLink = m => m.acta_url && /^https:\/\/voleibol\.isquad\.es\//.test(m.acta_url.replace(/^http:/,'https:')) ? ` · <a href="${esc(m.acta_url.replace(/^http:/,'https:'))}" target="_blank" rel="noopener">Ver el acta</a>` : '';
@@ -1940,7 +1965,7 @@ function cardHtml(m,r,km,gone,manual){
   const id=esc(m.id), open=MC_OPEN.has(m.id), edit=MC_EDIT.has(m.id), paid=isPaid(m);
   const warn = gone ? '<span class="tag warn">ya no aparece en iSquad</span>' : (m.estado && !/^(FINALIZADO|PENDIENTE)$/.test(m.estado) ? `<span class="tag">${esc(m.estado.toLowerCase())}</span>` : '');
   const lbl=VENUES[m.venue_key]?.label, city=(m.addr||'').match(/\d{5}\s+([^,]+)/);
-  const venue=(lbl||capName(m.venue))+(city&&!(lbl||'').includes('(')?' · '+capName(city[1]):'');
+  const venue=capVenue(lbl||capName(m.venue))+(city&&!(lbl||'').includes('(')?' · '+capName(city[1]):'');
   const row=(l,v,note,cls='')=>`<div class="r${cls}"><dt>${l}${note?`<small>${note}</small>`:''}</dt><dd>${v}</dd></div>`;
   const kmNote = km ? `${km} km${r.kmSrc==='fcvb'?' · km FCVB':r.kmSrc==='min'?' · mínimo FCVB':r.kmSrc==='aprox'?' · km aprox.':''}${r.travelShared&&r.travel?' · mismo pabellón':''}` : '';
   const rows = row('Tarifa', eur(r.tariff), r.fcvb||r.fcvbTarifa?'FCVB':'')
@@ -1951,7 +1976,7 @@ function cardHtml(m,r,km,gone,manual){
   const editor = edit ? editorHtml(m,r,km) : '';
   const pay = `<span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${paid}">Cobrado</button></span>`;
   return `<details class="mc${paid?' paid':''}" data-mc="${id}"${open?' open':''}><summary aria-expanded="${open}">
-    <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}${tripHtml(m, ' · ')}</div>${pubTags(m)}</div>
+    <div class="mc-l"><div class="mc-1"><b class="tm">${esc(m.time)}</b><span>${esc(shortComp(m.comp))}</span>${warn}</div><div class="mc-tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="mc-vn">${esc(venue)}${tripHtml(m, ' · ')}</div>${pubTags(m,false)}</div>
     <div class="mc-r"><b>${eur(r.total)}</b>${paid?'<span class="tag ok">cobrado</span>':'<span class="tag pend">pendiente</span>'}</div>${chevHtml(open)}</summary>
     <div class="mc-more"><div class="mc-role">${[m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad', m.staff_checked&&m.team!=='t1'&&m.role!=='jl'&&TEAM_OPTS[m.team], esc(CATS[catOf(m)].label), (isHoliday(m.date)||m.holiday)&&'festivo'].filter(Boolean).map(x=>`<span>${x}</span>`).join(' · ')}</div>
     <dl class="mc-dl">${rows}</dl>
@@ -2030,7 +2055,7 @@ function render(){
     let html='';
         html+=`<tr class="${isPaid(m)?'paid':''}">
           <td class="time">${esc(m.time)}</td>
-          <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div>${pubTags(m)}<div class="venue">${esc(VENUES[m.venue_key]?.label || m.venue)}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}${tripHtml(m, ' · ')}</div></td>
+          <td class="match"><div class="comp">${esc(m.comp)}${tag}</div><div class="teams">${esc(m.teams)}</div>${pubTags(m,false)}<div class="venue">${esc(capVenue(VENUES[m.venue_key]?.label || m.venue))}${city&&!(VENUES[m.venue_key]?.label||'').includes('(')?' · '+esc(city[1]):''}${tripHtml(m, ' · ')}</div></td>
           <td class="ctrl"><div class="desig"><strong>${m.staff_checked||manual?ROLE_OPTS[m.role]:'Rol por leer de iSquad'}</strong>${m.staff_checked&&m.team!=='t1'&&m.role!=='jl'?' · '+TEAM_OPTS[m.team]:''}<br>${esc(CATS[catOf(m)].label)}${isHoliday(m.date)||m.holiday?' · festivo':''}</div>
             <label class="chk small">km <input type="number" step="1" data-f="km" data-id="${esc(m.id)}" value="${km||''}" placeholder="?" title="Km solo ida. Cambia el valor del pabellón para todos sus partidos."></label></td>
           <td class="n" data-l="Tarifa">${eur(r.tariff)}${r.fcvb||r.fcvbTarifa?`<span class="shared" title="Importes de la FCVB (recibos de iSquad)">FCVB</span>`:''}${r.fcvb&&Math.abs(r.est.tariff-r.tariff)>0.009?`<span class="shared" title="La app calculaba ${eur(r.est.tariff)}">app ${eur(r.est.tariff)}</span>`:''}</td>
@@ -2068,7 +2093,7 @@ function render(){
       + weeksHtml(shown, m=>m.date, {head:dHead, body:dBody, openPrev, foldCur:true, cls:(w,list)=>list.every(isPaid)?'w-ok':'w-pend'}) + `</div>${cobAside(ms.length, pend, paid)}</div>`;
     renderSettings(); return;
   }
-  led.innerHTML = '<div class="calc-cta"><button type="button" class="ghost" data-calc=""><b>Cómo calcular</b><small>Calculadora de dietas</small></button></div>'
+  led.innerHTML = '<div class="calc-cta"><button type="button" data-calc=""><b>Cómo calcular</b><span aria-hidden="true">·</span><small>Calculadora de dietas</small></button></div>'
     + weeksHtml(shown, m=>m.date, {head, body, openPrev, foldCur:true});
   renderSettings();
 }
@@ -2082,7 +2107,7 @@ function renderSettings(){
   $('accountInfo').textContent = GUEST ? `Sin guardar: datos de ${P.isquad_login} leídos de iSquad solo para esta pestaña.` : `Conectada a iSquad como ${P.isquad_login}.`;
   $('btnDelete').classList.toggle('hidden', GUEST);
   const keys=Object.keys(VENUES).sort((a,b)=>(VENUES[a].label||a).localeCompare(VENUES[b].label||b));
-  $('venueTable').innerHTML = keys.map(k=>`<tr><td>${esc(VENUES[k].label||k)}<div class="muted small">${esc(k)}${VENUES[k].km_source==='poblacion'?' · km aproximados al centro de la población':''}</div></td><td><input type="number" step="1" data-venue="${esc(k)}" value="${VENUES[k].km??''}" placeholder="?"> km</td></tr>`).join('') || '<tr><td class="muted">Sin pabellones todavía.</td></tr>';
+  $('venueTable').innerHTML = keys.map(k=>`<tr><td>${esc(capVenue(VENUES[k].label||k))}<div class="muted small">${esc(k)}${VENUES[k].km_source==='poblacion'?' · km aproximados al centro de la población':''}</div></td><td><input type="number" step="1" data-venue="${esc(k)}" value="${VENUES[k].km??''}" placeholder="?"> km</td></tr>`).join('') || '<tr><td class="muted">Sin pabellones todavía.</td></tr>';
 }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400); }
 
@@ -2881,7 +2906,7 @@ function renderAgenda(allMs,res){
       const crew = Array.isArray(m.crew) && m.crew.length
         ? `<div class="crew">${m.crew.map(c=>`<span class="${c.me?'me':''}"><b>${esc(crewLabel(m,c.f))}</b>${c.me?'Tú':esc(capName(c.n))}</span>`).join('')}</div>`
         : `<div class="crew"><span class="muted">El equipo arbitral se leerá de iSquad en la próxima actualización</span></div>`;
-      const venue = VENUES[m.venue_key]?.label || m.venue || 'Pabellón sin indicar';
+      const venue = capVenue(VENUES[m.venue_key]?.label || m.venue) || 'Pabellón sin indicar';
       const est = m.estado && !/FINALIZ/.test(m.estado) ? ` · ${esc(m.estado.toLowerCase())}` : '';
       const clashArb = (clashes.get(m.id)||[]).length ? `<div class="clash">⚠ Ese día ${(clashes.get(m.id)).map(x=>`${rolKind(x.f.rol)[1].toLowerCase()} con ${esc(capName(x.f.team))}${x.m.t?' a las '+x.m.t+(x.m.conf?'':' (sin confirmar)'):' (sin horario)'}`).join(' y ')}</div>` : '';
       const more = `${crew}
@@ -3273,7 +3298,12 @@ async function shareApp(){
 }
 
 /* ---------- Administración (solo ADMIN_LOGINS, una lista fija en el servidor; lo comprueba en cada petición) ---------- */
-const capName = s => (s||'').toLowerCase().replace(/(^|[\s'-])\S/g, c=>c.toUpperCase());
+// Siglas de club que se quedan en mayúsculas ("CV Sant Cugat", no "Cv Sant Cugat"); también "V.C." y similares.
+const SIGLAS = new Set(['CV','CE','UE','CB','VC','AE','CD','SD','UD','CVB','AD','CF','CN','CP','EC','UC','GE','CEM','UEC','FCVB']);
+const capName = s => (s||'').toLowerCase().replace(/(^|[\s'(-])\S/g, c=>c.toUpperCase())
+  .replace(/[^\s'(),-]+/g, w => SIGLAS.has(w.toUpperCase()) || /^(?:[A-Za-z]\.){2,}[A-Za-z]?\.?$/.test(w) ? w.toUpperCase() : w);
+// Pabellón: el nombre que viene todo en mayúsculas pasa por capName; el que ya lleva minúsculas (puesto a mano) se respeta.
+const capVenue = s => s && s===s.toUpperCase() ? capName(s) : (s||'');
 let ADMIN = null, ADM_LOADED = false;   // ADMIN null: aún no se sabe
 // Como callFn, pero un fallo de red (fetch rechazado) es una respuesta con error: nada se queda en "Cargando…".
 const admFn = body => callFn('designadas', body).catch(()=>({ok:false, error:'No se ha podido conectar. Inténtalo de nuevo.'}));
