@@ -255,7 +255,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `liq-agenda-vista` = lista | fichas). Compacta = clase `ag-compact` en `#agenda`: las tarjetas plegadas solo enseñan hora,
   equipos y `.cm` (R1/R2/JL/Anot., Juegas/Entrenas o el resultado; ⚠ si choca o el resultado va tarde); abiertas, la ficha entera.
 - Escritorio ancho (desde 1024 px, 2-nov-2026): máximo 1080 px; en cada tarjeta, columnas `.dk-v` (pabellón, población, ≈ min) y
-  `.dk-c` (equipo arbitral; en equipos, los árbitros del Previo) sin abrirla; la compacta es una fila hora · partido · pabellón · rol.
+  `.dk-c` (equipo arbitral; en equipos, los árbitros del Previo o de la RFEVB con `refRows`: uno por línea, sin cortar con
+  "…", 2-nov-2026: se perdía el R2) sin abrirla; la compacta es una fila hora · partido · pabellón · rol.
   Las reglas de escritorio de la compacta llevan `body` delante para ganar a las del móvil, que van después.
 
 ## Guía, resumen y compartir coche (21-oct-2026)

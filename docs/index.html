@@ -727,7 +727,9 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
   #agenda .agc .dk{display:block;min-width:0;font-size:13.5px;line-height:1.35;padding-top:2px}
   #agenda .agc .dk-v b{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #agenda .agc .dk-v span{color:var(--ink-3);font-size:12.5px}
-  #agenda .agc .dk-c div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* Una persona por línea; un nombre largo pasa a la línea siguiente (antes se cortaba con "…" y se perdía el R2). */
+  #agenda .agc .dk-c div{display:grid;grid-template-columns:minmax(2.4em,auto) minmax(0,1fr);column-gap:6px;overflow-wrap:anywhere}
+  #agenda .agc .dk-c div.muted,#agenda .agc .dk-c .ref{display:block}
   #agenda .agc .dk-c b{display:inline-block;min-width:2.4em;font-weight:700;color:var(--ink-3);font-size:12px}
   #agenda .agc .dk-c .me{font-weight:700}
   #agenda .agc .dk-c .ref{margin:0}
@@ -2650,6 +2652,11 @@ function refLine(m){
   if(Array.isArray(m.arb) && !isDone(m) && m.d<=addDays(today(),14)) return '<div class="ref none">Árbitros: sin designar</div>';
   return '';
 }
+// Escritorio ancho (columna de Mis partidos): un árbitro por línea, como en los arbitrajes propios.
+function refRows(m){
+  if(Array.isArray(m.arb) && m.arb.length) return m.arb.map(o=>`<div${isMe(o.n)?' class="me"':''}><b>${esc(crewLabel(m,o.f))}</b> ${isMe(o.n)?'Tú':esc(capName(o.n))}</div>`).join('');
+  return refLine(m);
+}
 const vs = m => `${m.mineLocal?`<b>${esc(capName(m.l))}</b>`:esc(capName(m.l))} – ${!m.mineLocal?`<b>${esc(capName(m.v))}</b>`:esc(capName(m.v))}`;
 function renderEquipos(){
   const favs=[...EQ.favs].sort((a,b)=>(a.activo===false?1:0)-(b.activo===false?1:0) || (participa(a.rol)?0:1)-(participa(b.rol)?0:1) || a.team.localeCompare(b.team));
@@ -2930,7 +2937,7 @@ function renderAgenda(allMs,res){
             <div class="sub">${esc(shortComp(`${f.cat} ${p.comp||''}`))}${!done&&p.pab?`<span class="sv"> · ${esc(capName(p.pab))}</span>`:''}</div>
             ${cl?`<div class="clash">⚠ Coincide con tu arbitraje de las ${esc(cl)}</div>`:''}</div>
           <div class="dk dk-v">${!done&&p.pab?`<b>${esc(capName(p.pab))}</b>${p.pista?`<span>${esc(capName(p.pista))}</span>`:''}`:`<span>${esc(shortComp(`${f.cat} ${p.comp||''}`))}</span>`}</div>
-          <div class="dk dk-c">${refLine(p)}</div>
+          <div class="dk dk-c">${refRows(p)}</div>
           <div class="cm">${cl?'<span class="cw" title="Coincide con un arbitraje" aria-label="Coincide con un arbitraje">⚠</span>':''}${done&&p.rl!=null?stChip(p):`<span class="kind ${rolKind(f.rol)[0]}">${esc(rolKind(f.rol)[1])}</span>`}</div>
           ${chevHtml(AGC_OPEN.has(id))}</summary><div class="more">${more}</div></details>`;
         continue;
