@@ -17,7 +17,7 @@ const P = { date: "2026-10-30", time: "18:00", teams: "CV EXEMPLE vs CLUB PROVA"
 // Todos los textos del catálogo con datos inventados.
 function todos(l: "es" | "ca") {
   const t = textos(l);
-  return [t.nueva(P, "r2"), t.cambio(P, { ...P, time: "17:00" }), t.estadoDesig(P, "SUSPENDIDO"), t.quitada(P),
+  return [t.nueva(P, "r2"), t.cambio(P, { ...P, time: "17:00" }), t.estadoDesig(P, "SUSPENDIDO"), t.quitada(P), t.estadoDesig(P, "SUSPENDIDO", "la RFEVB"), t.quitada(P, "la RFEVB"),
     t.eqEstado("A – B", P.date, "Aplazado"), t.eqHorario("A – B", P.date, "12:00"), t.eqCambioHorario("A – B", P.date, "12:00", "2026-10-29", "11:00"),
     t.eqCambioFecha("A – B", P.date, "2026-10-29"), t.eqResultado("A", 3, 1, "B", true, P.date), t.cobro(23.5, ["mañana", "tarde"], 2), t.cobro(0, [], 1), t.cobro(10, ["tarde"], 1, true),
     t.resultado1(true, P), t.resultado1(false, P), t.resultadoN(true, [P, P]), t.domingo(1), t.domingo(3), t.prueba(), t.inactiva("2026-11-26"),
@@ -74,9 +74,9 @@ Deno.test("cobros del domingo: solo a quien le queda algo por pedir, y una vez",
   const M = (user_id: string, o: object = {}) => ({ user_id, comp: "TERCERA", paid: false, fcvb_pago: null, fcvb_accion: null, fcvb_tarifa: null, fcvb_gastos: null, ...o });
   const matches = [M("u1"), M("u1", { fcvb_pago: "NO SOLICITADO", fcvb_tarifa: "30", fcvb_gastos: "10" }), M("u2", { fcvb_pago: "SOLICITADO" }),
     M("u3", { fcvb_pago: "PAGADO - 20/10/2026" }), M("u4", { paid: true }), M("u5", { comp: "SELECCION CATALANA" }),
-    M("u6", { fcvb_pago: "PLAZO SOLICITUD PAGO TERMINADO" }), M("u7", { fcvb_tarifa: "0", fcvb_gastos: "0" }), M("jugador")];
+    M("u6", { fcvb_pago: "PLAZO SOLICITUD PAGO TERMINADO" }), M("u7", { fcvb_tarifa: "0", fcvb_gastos: "0" }), M("u8", { id: "RFEVB-1629", comp: "SUPERLIGA MASCULINO" }), M("jugador")];
   assertEquals(matches.filter(porPedir).length, 3);
-  const { db, log } = fakeDb({ matches, profiles: ["u1", "u2", "u3", "u4", "u5", "u6", "u7"].map((user_id) => ({ user_id })) });
+  const { db, log } = fakeDb({ matches, profiles: ["u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8"].map((user_id) => ({ user_id })) });
   assertEquals((await avisoCobros(db)).enviados, 1);
   assertEquals([...log.keys()].map((x) => x.split("|")[0]), ["u1"]);
   assert(/Et queden 2 partits/.test(JSON.stringify([...log.values()][0])));

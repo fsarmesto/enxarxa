@@ -44,15 +44,16 @@ export function textos(l: Lang) {
         : p.time !== m.time ? `${antes} ${aLas} ${p.time}` : `${es ? "antes en" : "abans a"} ${cap(p.venue)}`;
       return { title: `${es ? "Cambio en tu designación" : "Canvi a la teva designació"} · ${line(m)}`, body: `${vs(m.teams)} · ${cap(m.venue)} (${what})` };
     },
-    estadoDesig: (m: Partido, est: string): Aviso => ({
+    // fuente: de dónde sale la designación ("iSquad" o "la RFEVB", 2-nov-2026: arbitrajes de competiciones estatales).
+    estadoDesig: (m: Partido, est: string, fuente = "iSquad"): Aviso => ({
       title: `${es ? "Partido" : "Partit"} ${estado(l, est)} · ${line(m)}`,
-      body: es ? `${vs(m.teams)}: iSquad lo marca como ${estado(l, est)}. Sigue en tu lista.`
-        : `${vs(m.teams)}: iSquad el marca com a ${estado(l, est)}. Continua a la teva llista.`,
+      body: es ? `${vs(m.teams)}: ${fuente} lo marca como ${estado(l, est)}. Sigue en tu lista.`
+        : `${vs(m.teams)}: ${fuente} el marca com a ${estado(l, est)}. Continua a la teva llista.`,
     }),
-    quitada: (m: Partido): Aviso => ({
+    quitada: (m: Partido, fuente = "iSquad"): Aviso => ({
       title: `${es ? "Ya no estás designado" : "Ja no estàs designat"} · ${line(m)}`,
-      body: es ? `${vs(m.teams)}: ya no sale en tus designaciones de iSquad. Lo he quitado de tus partidos.`
-        : `${vs(m.teams)}: ja no surt a les teves designacions d'iSquad. L'he tret dels teus partits.`,
+      body: es ? `${vs(m.teams)}: ya no sale en tus designaciones de ${fuente}. Lo he quitado de tus partidos.`
+        : `${vs(m.teams)}: ja no surt a les teves designacions ${fuente === "iSquad" ? "d'iSquad" : "de la RFEVB"}. L'he tret dels teus partits.`,
     }),
     // Partidos de tus equipos (vigilar: teamChanges). eq = "Local – Visitante".
     eqEstado: (eq: string, d: string, est: string): Aviso => ({ title: `${es ? "Partido" : "Partit"} ${estado(l, est)} · ${f(d)}`, body: eq }),

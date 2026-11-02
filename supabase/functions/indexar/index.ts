@@ -4,6 +4,7 @@
 // 2) plantillas sin revisar o caducadas (14 días) → huellas de cada persona a roster_idx.
 // De cada persona solo se guarda la huella (HMAC con ROSTER_SALT) de su foto de afiliado y de su nombre, y su perfil.
 import * as rfevb from "../_shared/rfevb.ts";
+import { aplicarArbitrajes } from "../_shared/arbitrajes_rfevb.ts";
 import { admin, cors, json } from "../_shared/sync.ts";
 import { todas } from "../_shared/db.ts";
 import { clubs, clubTeams, huella, nameKey, roster } from "../_shared/publico.ts";
@@ -67,5 +68,7 @@ Deno.serve(async (req) => {
   const { count: done } = await db.from("pub_teams").select("id_equipo", { count: "exact", head: true }).not("checked_at", "is", null);
   // Equipos de la RFEVB (buscar y seguir en Equipos): la caché de 6 h siempre caliente, para que buscar no tarde ~15 s.
   const estatales = await rfevb.equipos(db).then((x) => x.length).catch((e) => `error: ${(e as Error).message}`);
-  return json({ clubs: { total: cl.length, pendientes: staleClubs.length - clubsDone, leidos: clubsDone }, equipos: { total, revisados: done, ahora: teamsDone }, rfevb: estatales, paginas: pages, errores: errors, ms: Date.now() - started });
+  // Arbitrajes de Superliga, Superliga 2 y Primera Nacional de los árbitros de la app, por su nombre (arbitrajes_rfevb.ts).
+  const arbitrajes = await aplicarArbitrajes(db, started + 110_000).catch((e) => `error: ${(e as Error).message}`);
+  return json({ clubs: { total: cl.length, pendientes: staleClubs.length - clubsDone, leidos: clubsDone }, equipos: { total, revisados: done, ahora: teamsDone }, rfevb: estatales, arbitrajes, paginas: pages, errores: errors, ms: Date.now() - started });
 });

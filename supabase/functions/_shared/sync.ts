@@ -399,8 +399,11 @@ export type Prev = { id: string; date: string; time: string; venue: string; comp
 // Cada cambio con su clave de push_log y el texto en el idioma de quien lo recibe.
 type Change = { key: string; tag: string; url: string; aviso: (t: Textos) => Aviso };
 const MANUAL = ["paid", "not_received", "km_override", "dieta_override", "tolls", "holiday", "no_dieta"] as const;
-async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], now: WithStaff[]) {
-  const { msgs, missing, gone, renamed } = designChanges(prev, now);
+// fuente: "iSquad" o "la RFEVB" (arbitrajes de competiciones estatales, rfevb.ts). silencio: se apuntan en push_log
+// sin enviar (la primera pasada de una fuente nueva no avisa de todo lo que ya había).
+// siempre: buscar quitadas aunque "now" venga vacío (la RFEVB: prev ya viene filtrado a lo que se ha podido leer).
+export async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], now: WithStaff[], fuente = "iSquad", silencio = false, siempre = false) {
+  const { msgs, missing, gone, renamed } = designChanges(prev, now, fuente, siempre);
   // Las marcas y borrados se hacen antes de enviar: si el envío falla, el bucle no vuelve.
   const ts = new Date().toISOString();
   for (const id of missing) await db.from("matches").update({ missing_since: ts }).eq("user_id", userId).eq("id", id);
@@ -417,13 +420,13 @@ async function notifyChanges(db: SupabaseClient, userId: string, prev: Prev[], n
   const { data: fresh } = await db.from("push_log").upsert(msgs.map((m) => ({ user_id: userId, key: m.key })),
     { onConflict: "user_id,key", ignoreDuplicates: true }).select("key");
   const ok = new Set((fresh || []).map((r) => r.key));
-  const send = msgs.filter((m) => ok.has(m.key));
+  const send = silencio ? [] : msgs.filter((m) => ok.has(m.key));
   // Como mucho 5 notificaciones por pasada; el resto se guardan igual en la campana (antes se quedaban sin texto y no
   // salían en ninguna parte; revisión del 2-nov-2026).
   for (const [i, m] of send.entries()) await sendToUser(db, userId, (t) => ({ ...m.aviso(t), tag: m.tag, url: m.url }), m.key, i >= 5);
   return send.length;
 }
-export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[]; missing: string[]; gone: string[]; renamed: { from: string; to: string }[] } {
+export function designChanges(prev: Prev[], now: WithStaff[], fuente = "iSquad", siempre = false): { msgs: Change[]; missing: string[]; gone: string[]; renamed: { from: string; to: string }[] } {
   const today = new Date().toISOString().slice(0, 10);
   const before = new Map(prev.map((m) => [m.id, m]));
   const after = new Map(now.filter((m) => m.date >= today).map((m) => [m.id, m]));
@@ -445,15 +448,15 @@ export function designChanges(prev: Prev[], now: WithStaff[]): { msgs: Change[];
       msgs.push({ key: `cambio:${id}:${m.date}|${m.time}|${m.venue}`, aviso: (t) => t.cambio(m, before), tag: `desig-${id}`, url: "./?vista=agenda" });
     }
     if (p && m.estado !== p.estado && /SUSPEND|APLAZ|ANULA/.test(m.estado || "")) {
-      msgs.push({ key: `estado:${id}:${m.estado}`, aviso: (t) => t.estadoDesig(m, m.estado || ""), tag: `desig-${id}`, url: "./?vista=agenda" });
+      msgs.push({ key: `estado:${id}:${m.estado}`, aviso: (t) => t.estadoDesig(m, m.estado || "", fuente), tag: `desig-${id}`, url: "./?vista=agenda" });
     }
   }
   // Quitadas: solo si iSquad ha devuelto la temporada (si viniera vacía por un fallo, no se avisa de nada).
-  if (now.length) for (const p of vanished) {
+  if (now.length || siempre) for (const p of vanished) {
     if (used.has(p.id)) continue;
     if (!p.missing_since) { missing.push(p.id); continue; }
     gone.push(p.id);
-    msgs.push({ key: `quitada:${p.id}:${p.missing_since}`, aviso: (t) => t.quitada(p), tag: `desig-${p.id}`, url: "./?vista=agenda" });
+    msgs.push({ key: `quitada:${p.id}:${p.missing_since}`, aviso: (t) => t.quitada(p, fuente), tag: `desig-${p.id}`, url: "./?vista=agenda" });
   }
   return { msgs, missing, gone, renamed };
 }
@@ -501,7 +504,7 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     // Designaciones próximas guardadas, para avisar de lo nuevo o cambiado.
     const today = new Date().toISOString().slice(0, 10);
     const { data: prev } = opts.notify
-      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked, missing_since, estado").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%")
+      ? await db.from("matches").select("id, date, time, venue, comp, teams, role, staff_checked, missing_since, estado").eq("user_id", userId).gte("date", today).not("id", "like", "MAN-%").not("id", "like", "RFEVB-%")
       : { data: null };
     // Sesión de iSquad de la última entrada (hasta SESSION_TTL): si iSquad aún la acepta, no hace falta login.
     const session = cred.session && cred.session_at && Date.now() - Date.parse(cred.session_at) < SESSION_TTL

@@ -7,9 +7,10 @@ import { todas } from "./db.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
-type M = { user_id: string; comp: string; paid: boolean | null; fcvb_pago: string | null; fcvb_accion: string | null; fcvb_tarifa: string | null; fcvb_gastos: string | null };
+type M = { user_id: string; id?: string; comp: string; paid: boolean | null; fcvb_pago: string | null; fcvb_accion: string | null; fcvb_tarifa: string | null; fcvb_gastos: string | null };
 
-export const porPedir = (m: M) => !/SELECCI/i.test(m.comp || "") && !m.paid
+// Sin selecciones ni arbitrajes de la RFEVB (RFEVB-…: los paga la RFEVB, no se piden en iSquad).
+export const porPedir = (m: M) => !/SELECCI/i.test(m.comp || "") && !String(m.id || "").startsWith("RFEVB-") && !m.paid
   && !/^(SOLICITADO|PAGADO)/.test(m.fcvb_pago || "") && !/PLAZO SOLICITUD PAGO TERMINADO/.test(m.fcvb_pago || "")
   && !["procesando", "factura"].includes(m.fcvb_accion || "")
   && (m.fcvb_tarifa == null || (+m.fcvb_tarifa + +(m.fcvb_gastos || 0)) > 0);

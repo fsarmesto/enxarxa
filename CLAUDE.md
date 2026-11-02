@@ -555,6 +555,29 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - En la web, `crewLabel`: en los partidos `rfevb:` el 2º árbitro es el 2n (en las designaciones de iSquad de Superliga es
   el juez de línea).
 - Pruebas: `_shared/rfevb_test.ts` (nivel y género, palabras en común).
+- Cobros FCVB | RFEVB (2-nov-2026, Ferran: "dos pestañas de cobros, que se puedan alternar, no quiero que se combinen"):
+  interruptor `[FCVB | RFEVB]` en `#ctrlSlot` de Cobros (`renderFedToggle`, `COB_FED`, localStorage `liq-cobros-fed`), solo si
+  hay algún partido que paga la RFEVB (`fedOn`). `pagaRfevb(m)`: filas RFEVB- y las de iSquad de competición estatal con
+  tarifa 0 para ese rol en el anexo (1r de Superliga…) y sin recibo de la FCVB con importe (Ferran: "según quién paga").
+  Esas no entran en `compute()` (ni en dietas ni desplazamientos de la FCVB) y sí en Mis partidos. Vista de la RFEVB
+  (`cobRfevbHtml`, `body[data-fed="rfevb"]` oculta cifras, avisos de pago y partido a mano): partidos, cobrados y
+  pendientes, por semanas, con Pendiente/Cobrado (`paid`) y SIN importes: la RFEVB no publica sus tarifas (buscado el
+  2-nov-2026; solo hay una normativa de ayudas con 60 €/día para competiciones sin tarifa oficial, que no aplica a liga).
+  Resumen de la temporada: lo de la FCVB con título "FCVB" y, al final, "RFEVB" (partidos, cobrados, por competición y por
+  designación, sin importes); en "Año · renta", solo la FCVB.
+- Arbitrajes de la RFEVB (2-nov-2026, Ferran: "si coinciden los nombres, que les salgan sus designaciones"):
+  `_shared/arbitrajes_rfevb.ts`, desde el cron `indexar` (cada 15 min). Lee el equipo arbitral (arb1 = 1r, arb2 = 2n, arb3 y
+  arb4 = anotador) de todas las jornadas desde agosto hasta dentro de 4 semanas (en frío ~90 s y ~860 partidos: lo que no
+  cabe, en la pasada siguiente) y busca a cada árbitro de la app por `profiles.nombre` (`claveNombre`: las mismas palabras
+  en cualquier orden, sin acentos, partículas ni "TP-"; si 2 cuentas tienen el mismo nombre, a ninguna). Filas
+  `RFEVB-<id>` en matches (comp "SUPERLIGA MASCULINO", "SUPERLIGA 2 FEMENINO", "PRIMERA DIVISION NACIONAL SENIOR …"; rol,
+  equipo arbitral, crew, pabellón con población de getPartido, resultado y acta). Si iSquad ya tiene ese partido (misma
+  fecha, competición estatal y hora o equipos), no se duplica y se borra la fila RFEVB-. Avisos con `notifyChanges(…, "la
+  RFEVB", silencio, siempre)`; la primera pasada completa no avisa (`pub_cache rfevb-arb-inicio`).
+  Fuera de los Cobros de la FCVB, su Resumen y el Excel (`isHidden`, los paga la RFEVB), "pide el pago" (vigilar), domingo (`porPedir`),
+  resultados de iSquad (`mirable`) y el sync de iSquad (`prev` sin RFEVB-). Dentro de: Mis partidos ("Designación de la
+  RFEVB"), hora de salida, iCal, compartir coche y campana. Comprobado el 2-nov: 285 árbitros distintos en la RFEVB; uno
+  de prueba con 9 partidos en Superliga, Liga Iberdrola, Superliga 2 y Primera.
 
 ## Sin conexión (issue #30, 27-oct-2026)
 

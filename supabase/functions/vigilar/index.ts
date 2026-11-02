@@ -53,7 +53,8 @@ async function avisoCobro(db: any, users: string[]) {
   const ms = await porIds<any>(users, (g) => db.from("matches")
     .select("user_id, id, date, time, comp, phase, cat, holiday, no_dieta, dieta_override, fcvb_pago, fcvb_accion").in("user_id", g).in("date", [ayer, today]).order("user_id").order("id"));
   const byUser = new Map<string, typeof ms>();
-  for (const m of ms || []) if (!/SELECCI/i.test(m.comp || "")) { const k = `${m.user_id}|${m.date}`; (byUser.get(k) || byUser.set(k, []).get(k)!).push(m); }
+  // Sin selecciones ni arbitrajes de la RFEVB (RFEVB-…: los paga la RFEVB, no se piden en iSquad).
+  for (const m of ms || []) if (!/SELECCI/i.test(m.comp || "") && !String(m.id).startsWith("RFEVB-")) { const k = `${m.user_id}|${m.date}`; (byUser.get(k) || byUser.set(k, []).get(k)!).push(m); }
   let sent = 0;
   for (const [k, list] of byUser) {
     const [u, dia] = k.split("|");
