@@ -14,7 +14,7 @@ FRAGS = [
  ("No tienes partidos designados próximamente","No tens partits designats properament"),
  ("En cuanto la FCVB publique tus designaciones en iSquad aparecerán aquí, con el equipo arbitral y el pabellón.","Quan la FCVB publiqui les teves designacions a iSquad apareixeran aquí, amb l'equip arbitral i el pavelló."),
  ("No hay partidos jugados en esta temporada","No hi ha partits jugats en aquesta temporada"),
- ("No hay partidos en esta temporada","No hi ha partits en aquesta temporada"),
+ ("No hay partidos de la RFEVB en esta temporada","No hi ha partits de la RFEVB en aquesta temporada"), ("No hay partidos en esta temporada","No hi ha partits en aquesta temporada"), ("pendientes","pendents"),
  ("⚠ Coincide con tu arbitraje de las","⚠ Coincideix amb el teu arbitratge de les"),
  ("km aproximados al centro de la población","km aproximats al centre de la població"),
  ("encontrado en su plantilla","trobat a la seva plantilla"),

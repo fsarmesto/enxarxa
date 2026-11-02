@@ -466,4 +466,9 @@ EXACT = {
 # Rol al seguir un equipo (2-nov-2026)
 "¿Qué eres en este equipo?": "Què ets en aquest equip?", "Espectador": "Espectador", "Cambiar rol": "Canvia el rol", "Cancelar": "Cancel·la",
 "Designación de la RFEVB": "Designació de la RFEVB",
+# Cobros FCVB | RFEVB (2-nov-2026)
+"Pendientes": "Pendents", "Cobrados": "Cobrats",
+"Lo que paga la RFEVB: Superliga, Superliga 2 y Primera Nacional cuando la FCVB no paga tu rol. La RFEVB no publica sus tarifas, así que aquí no hay importes: marca cada partido cuando lo cobres.": "El que paga la RFEVB: Superlliga, Superlliga 2 i Primera Nacional quan la FCVB no paga el teu rol. La RFEVB no publica les seves tarifes, així que aquí no hi ha imports: marca cada partit quan el cobris.",
+"Partidos de la RFEVB": "Partits de la RFEVB", "sin importes: no publica tarifas": "sense imports: no publica tarifes",
+"Por competición": "Per competició", "Rol sin leer": "Rol sense llegir", "Quién paga": "Qui paga",
 }

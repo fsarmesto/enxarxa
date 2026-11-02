@@ -587,6 +587,8 @@ body.dep .arb-only{display:none!important}
 .bars-x span{flex:1;text-align:center;font-size:11px;color:var(--ink-3);padding-top:4px}
 .rs-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 28px}
 @media (max-width:700px){ .rs-list{grid-template-columns:1fr} }
+.rs-sub{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:14px 0 2px}
+.rs-h.rs-fed{margin-top:4px}
 .rs-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
 .rs-row .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rs-row .c{color:var(--ink-3);font-size:13px}
@@ -830,6 +832,19 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 .segb button[aria-pressed="true"]{background:var(--yellow);color:#000}
 .segb button+button{border-left:2px solid var(--ink)}
 /* Rol al seguir un equipo (2-nov-2026): 4 opciones en 2 columnas */
+/* Cobros de la RFEVB (2-nov-2026) */
+body[data-vista="cobros"][data-fed="rfevb"] :is(#statLine,#scoreWrap,#alerts,#manualPanel){display:none!important}
+.rf-sum{display:flex;gap:10px;margin:6px 0 4px}
+.rf-sum>div{flex:1;border:2px solid var(--ink);border-radius:3px;padding:8px 10px}
+.rf-sum .l{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+.rf-sum b{font-family:var(--display);font-size:26px}
+.rf-note{margin:6px 0 12px}
+.rf-row{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.rf-row .rf-d b{display:block;font-family:var(--display);font-size:16px}
+.rf-row .rf-d span{font-size:12.5px;color:var(--ink-3)}
+.rf-row .tt{font-weight:600}
+.rf-row .segb button{min-height:40px}
+@media (max-width:440px){ .rf-row{grid-template-columns:56px minmax(0,1fr)} .rf-row .segb{grid-column:1/-1;justify-self:start} }
 .rolpick{flex:1 0 100%;margin:8px 0 4px;padding:10px 12px;border:2px solid var(--ink);border-radius:3px}
 .rolpick .q{font-weight:700;margin:0 0 8px}
 .rolpick .opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -1258,7 +1273,14 @@ const isTerritorial = m => /SELECCION/.test(norm(m.comp));
 // Arbitrajes de competiciones estatales sacados de la RFEVB (RFEVB-…, arbitrajes_rfevb.ts): salen en Mis partidos pero no en
 // Cobros (los paga la RFEVB, no la FCVB) ni cuentan para las dietas y desplazamientos del día.
 const isRfevb = m => String(m.id||'').startsWith('RFEVB-');
-const isHidden = m => (isTerritorial(m) && !(+m.fcvb_gastos>0)) || isRfevb(m);
+// Cobros por quién paga (2-nov-2026, Ferran): a la RFEVB van los arbitrajes sacados de la RFEVB y los de iSquad de
+// competiciones estatales en los que la FCVB no paga ese rol (tarifa 0 en el anexo: el 1r de Superliga, por ejemplo) y no
+// hay recibo de la FCVB con importe. Pestañas separadas en Cobros (COB_FED), sin mezclar; la de la RFEVB, sin importes
+// (no publica sus tarifas).
+const pagaRfevb = m => isRfevb(m) || (!isTerritorial(m) && /SUPERLIGA|NACIONAL/i.test(m.comp||'') && tariff(m)===0
+  && !((+m.fcvb_tarifa||0) + (+m.fcvb_gastos||0) > 0));
+const isHidden = m => (isTerritorial(m) && !(+m.fcvb_gastos>0)) || pagaRfevb(m);
+let COB_FED = 'fcvb'; try{ if(localStorage.getItem('liq-cobros-fed')==='rfevb') COB_FED='rfevb'; }catch(e){}
 
 function dietaFor(dateStr, mins, holiday){
   const wd = new Date(dateStr+'T12:00:00').getDay(); const m = mins;
@@ -1574,6 +1596,31 @@ function periodOptions(){
   const o = seasonsAvailable().reverse().map(s=>({k:'s'+s, t:`Temporada ${seasonLabel(s)}`}));
   if(VIEW==='resumen') o.push({k:'anio', t:`Año ${new Date().getFullYear()} · renta`});
   return o;
+}
+/* ---------- Cobros: FCVB | RFEVB ---------- */
+// Solo si hay algún partido que paga la RFEVB. Cada pestaña con lo suyo; el resto de Cobros (cifras, avisos de pedir el
+// pago, Excel, partido a mano) es de la FCVB y se oculta en la de la RFEVB (body[data-fed="rfevb"]).
+const fedOn = () => !DEP && !GUEST && MATCHES.some(pagaRfevb);
+function renderFedToggle(){
+  const on = VIEW==='cobros' && fedOn();
+  document.body.dataset.fed = on ? COB_FED : '';
+  if(!on) return;
+  $('ctrlSlot').innerHTML = `<span class="segb fedsw" role="group" aria-label="Quién paga">${[['fcvb','FCVB'],['rfevb','RFEVB']].map(([k,v])=>`<button type="button" data-fed="${k}" aria-pressed="${COB_FED===k}">${v}</button>`).join('')}</span>`;
+}
+document.addEventListener('click', e=>{ const b=e.target.closest('button[data-fed]'); if(!b) return;
+  COB_FED=b.dataset.fed; try{ localStorage.setItem('liq-cobros-fed', COB_FED); }catch(e){} render(); });
+function cobRfevbHtml(){
+  const ms = MATCHES.filter(m=>pagaRfevb(m) && seasonOf(m.date)===SEASON && passes(m));
+  const cob = ms.filter(m=>m.paid).length;
+  const head = `<div class="rf-sum"><div><span class="l">Partidos</span><b>${ms.length}</b></div><div><span class="l">Cobrados</span><b>${cob}</b></div><div><span class="l">Pendientes</span><b>${ms.length-cob}</b></div></div>
+    <p class="small muted rf-note">Lo que paga la RFEVB: Superliga, Superliga 2 y Primera Nacional cuando la FCVB no paga tu rol. La RFEVB no publica sus tarifas, así que aquí no hay importes: marca cada partido cuando lo cobres.</p>`;
+  if(!ms.length) return head + `<div class="empty">No hay partidos de la RFEVB en esta temporada${filtering()?' con estos filtros':''}.</div>`;
+  const row = m => { const id=esc(m.id), paid=!!m.paid, me=(m.crew||[]).find(c=>c.me);
+    const rol = me ? crewLabel(m,me.f) : (m.staff_checked ? crewLabel(m,m.role) : '');
+    return `<div class="rf-row${paid?' paid':''}"><div class="rf-d"><b>${esc(fmtTiny(m.date))}</b><span>${esc(m.time||'')}</span></div>
+      <div class="rf-m"><div class="tt">${esc(capName(m.teams).replace(/ Vs /,' vs '))}</div><div class="small muted">${esc(shortComp(m.comp))}${rol?` · ${esc(rol)}`:''}${isRfevb(m)?' · <span>Designación de la RFEVB</span>':''}</div></div>
+      <span class="segb" role="group" aria-label="Estado del cobro"><button type="button" data-pay="${id}" data-v="0" aria-pressed="${!paid}">Pendiente</button><button type="button" data-pay="${id}" data-v="1" aria-pressed="${paid}">Cobrado</button></span></div>`; };
+  return head + weeksHtml(ms, m=>m.date, {scope:'rf-', head:(w,l)=>wkHead(w,l.length), body:(w,l)=>[...l].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(row).join(''), openPrev:()=>false, foldCur:true, cls:(w,l)=>l.every(m=>m.paid)?'w-ok':'w-pend'});
 }
 function renderPeriod(){
   const opts = periodOptions(), show = (VIEW==='cobros' || VIEW==='resumen') && !DEP && opts.length>=2;
@@ -2029,13 +2076,14 @@ function render(){
   const noCtrl = ['equipos','calc','ajustes','admin'].includes(VIEW);
   $('ctrl').classList.toggle('hidden', noCtrl); if(noCtrl) $('fsum').classList.add('hidden');
   if(VIEW!=='agenda'){ $('ctrlSlot').innerHTML=''; $('densSlot').innerHTML=''; AG_INFO=null; }
-  renderFilters(ms,res); renderPeriod();
-  if(VIEW==='agenda'){ renderAgenda(allMs.concat(MATCHES.filter(isRfevb)),res); renderSettings(); return; }
+  renderFilters(ms,res); renderPeriod(); renderFedToggle();
+  if(VIEW==='agenda'){ renderAgenda(allMs.concat(MATCHES.filter(pagaRfevb)),res); renderSettings(); return; }
   if(VIEW==='equipos'){ renderEquipos(); renderSettings(); return; }
   if(VIEW==='resumen'){ renderResumen(allMs,res); renderSettings(); return; }
   if(VIEW==='calc'){ renderCalc(); renderSettings(); return; }
   if(VIEW==='ajustes'){ renderSettings(); return; }
   if(VIEW==='admin'){ renderAdmin(); return; }
+  if(fedOn() && COB_FED==='rfevb'){ led.innerHTML=cobRfevbHtml(); renderSettings(); return; }
   if(!ms.length){ led.innerHTML='<div class="empty">No hay partidos en esta temporada. Cuando tengas designaciones en iSquad aparecerán aquí solas.</div>'; renderSettings(); return; }
   const shown = ms.filter(m=>passes(m));
   if(!shown.length){ led.innerHTML='<div class="empty">Ningún partido de esta temporada cumple los filtros.</div>'; renderSettings(); return; }
@@ -3111,11 +3159,18 @@ function renderResumen(allMs,res){
   // Km aproximados: una ida y vuelta por pabellón y franja.
   const trips=new Map(); for(const m of ms){ const k=m.date+franjaOf(m)+'|'+m.venue_key; trips.set(k, Math.max(trips.get(k)||0, kmFor(m))); }
   const km=[...trips.values()].reduce((a,b)=>a+b*2,0);
-  if(!ms.length){ box.innerHTML = `<div class="empty">${RS_MODE==='anio'?`Aún no hay cobros con fecha de ${year}.`:'No hay partidos en esta temporada.'}${filtering()?' (con estos filtros)':''}</div>`; return; }
+  // RFEVB (2-nov-2026): en la temporada, sus partidos aparte y sin importes (no publica tarifas); en "Año · renta", nada.
+  const rf = RS_MODE==='temporada' ? MATCHES.filter(m=>pagaRfevb(m) && seasonOf(m.date)===SEASON && passes(m)) : [];
+  const cuenta = keyOf => { const g=new Map(); for(const m of rf){ const k=keyOf(m); if(k) g.set(k,(g.get(k)||0)+1); } return [...g].sort((a,b)=>b[1]-a[1]); };
+  const rfRol = m => { const me=(m.crew||[]).find(c=>c.me); return me ? crewLabel(m,me.f) : m.staff_checked ? crewLabel(m,m.role) : 'Rol sin leer'; };
+  const rfHtml = !rf.length ? '' : `<div class="rs-h">RFEVB</div><div class="rs-hero">${[['Partidos de la RFEVB',rf.length,'sin importes: no publica tarifas'],['Cobrados',rf.filter(m=>m.paid).length,`${rf.filter(m=>!m.paid).length} pendientes`]].map(([l,v,x])=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="s">${x}</div></div>`).join('')}</div>`
+    + [['Por competición', cuenta(m=>shortComp(m.comp))], ['Por designación', cuenta(rfRol)]].map(([t,l])=>`<div class="rs-sub">${t}</div>${l.map(([k,n])=>`<div class="rs-row"><span class="n">${esc(k)}</span><span class="v">${n} partido${n===1?'':'s'}</span></div>`).join('')}`).join('');
+  if(!ms.length){ box.innerHTML = `<div class="empty">${RS_MODE==='anio'?`Aún no hay cobros con fecha de ${year}.`:'No hay partidos en esta temporada.'}${filtering()?' (con estos filtros)':''}</div>` + rfHtml; return; }
   const hero = RS_MODE==='temporada'
     ? [['Neto de la temporada',eur(neto),`${eur(cobrado)} ya cobrado`],['Partidos',ms.length,`${jornadas} jornadas`],['Tarifas',eur(tarifas),`IRPF retenido ${eur(irpf)}`],['Dietas y desplazamiento',eur(gastos),`≈ ${Math.round(km).toLocaleString(LOC())} km`]]
     : [['Rendimientos (tarifas)',eur(tarifas),'lo que tributa'],['IRPF retenido',eur(irpf),'lo retiene la FCVB'],['Dietas y desplazamiento',eur(gastos),'exentos'],['Neto cobrado',eur(neto),`${ms.length} partidos`]];
-  let html = `<div class="rs-hero">${hero.map(([l,v,s])=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>`;
+  // Con partidos de la RFEVB, lo de la FCVB con su título (y lo de la RFEVB, al final, aparte).
+  let html = (rf.length?'<div class="rs-h rs-fed">FCVB</div>':'') + `<div class="rs-hero">${hero.map(([l,v,s])=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>`;
   // Neto por mes (temporada: de agosto a julio; año: de enero a diciembre). Gris = previsión aún no cobrada.
   const months = RS_MODE==='temporada' ? [7,8,9,10,11,0,1,2,3,4,5,6].map(mo=>({mo, y: mo>=7 ? +SEASON : +SEASON+1})) : [...Array(12)].map((_,mo)=>({mo, y:+year}));
   const byM = months.map(({mo,y})=>{ const list=ms.filter(m=>{ const d=RS_MODE==='anio'?(paidDate(m)||m.date):m.date; return +d.slice(0,4)===y && +d.slice(5,7)-1===mo; });
@@ -3134,6 +3189,7 @@ function renderResumen(allMs,res){
   const venues = group(m=>VENUES[m.venue_key]?.label || capName(m.venue||''));
   html += `<div class="rs-list"><div><div class="rs-h">Por categoría</div>${rows(cats)}</div><div><div class="rs-h">Por designación</div>${rows(roles)}</div>
     <div><div class="rs-h">Con quién has arbitrado más</div>${rows(mates,false,'Con quien más') || '<p class="small muted">Los equipos arbitrales se guardan desde la temporada 26/27.</p>'}</div><div><div class="rs-h">Pabellones donde más has ido</div>${rows(venues,true,'Donde más has ido')}</div></div>`;
+  html += rfHtml;
   html += `<p class="rs-note">${RS_MODE==='anio'?`Año ${year} por fecha de pago de la FCVB. Orientativo: para la declaración, el documento válido es el certificado de retenciones que emite la FCVB. `:''}Importes netos de IRPF${filtering()?', con los filtros puestos':''}.</p><p class="rs-note">Importes orientativos: manda el recibo de la FCVB.</p>
     <div class="row no-print" style="margin-top:12px"><button id="rsPrint">Guardar como PDF / imprimir</button></div>`;
   box.innerHTML=html;
