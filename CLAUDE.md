@@ -451,8 +451,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Cabecera con red de vóley (CSS puro: `.board::after` = palos hasta la línea amarilla; `.board .top::before` = cintas
   y malla solo detrás de la fila del título). Icono (2-nov-2026, logo de Ferran "Puru"): solo amarillo y negro: fondo
   amarillo, una P cuyo palo negro es el poste de la red y cuya panza es el balón negro con costuras amarillas, montado
-  un poco sobre el palo; la red negra sale del poste hacia la derecha por detrás del balón (cuadros grandes). El
-  mismo día se publicó por error la versión de fondo negro (APK 7): la buena es la amarilla (APK 8). `docs/icon.svg` a sangre (el sistema pone las
+  un poco sobre el palo; la red sale del poste hacia la derecha por detrás del balón, discreta: cuadros grandes y
+  cinta del mismo tono oscuro (#8f7a00) que la malla (opción 4, APK 9). Antes, el mismo día: fondo negro (APK 7) y
+  amarilla con cinta negra (APK 8). `docs/icon.svg` a sangre (el sistema pone las
   esquinas); `icon-maskable.png` con el dibujo al 78 % para la zona segura de Android. PNG renderizados con Chrome
   headless (ImageMagick no pinta los trazos). Antes: red con `</>`.
 - Login: el usuario de iSquad es el email (placeholder y aviso; los 15 usuarios entran con email).
