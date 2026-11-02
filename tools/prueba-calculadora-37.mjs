@@ -12,7 +12,7 @@ const DOCS = path.resolve('docs');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MOCK = `window.supabase = { createClient(){
   const profile = { user_id:'u-demo', isquad_login:'demo@example.com', nombre:'ARBITRE DE PROVA', origin:'Manresa', rate:'0.26', min_travel:'4', irpf:'2',
-    tipo:'arbitro', last_sync:new Date().toISOString(), policy_version:'2026-10-22.2', consent_at:new Date().toISOString() };
+    tipo:'arbitro', last_sync:new Date().toISOString(), policy_version:'2026-11-02', consent_at:new Date().toISOString() };
   const q = (t) => { const o = { select(){return o}, order(){return o}, eq(){return o}, not(){return o}, gte(){return o}, limit(){return o}, update(){return o}, upsert(){return o},
     range(){ return Promise.resolve({data:[], error:null}) }, single(){ return Promise.resolve({data:t==='profiles'?profile:null, error:null}) },
     then(a,b){ return Promise.resolve({data:[], error:null}).then(a,b) } }; return o; };

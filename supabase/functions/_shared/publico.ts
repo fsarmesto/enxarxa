@@ -175,8 +175,11 @@ async function apiSearch(_db: Db, params: Record<string, string>) {
 // Suspendido, Aplazado... "conf" = horario confirmado (si no, la hora es provisional o falta).
 export type PartidoEquipo = { id: string; d: string; t: string; conf: boolean; est: string; l: string; v: string; idl: string; idv: string;
   rl: number | null; rv: number | null; j: string; g: string; comp: string; tor: string; fase: string };
-export function teamMatches(db: Db, idEquipo: string, name: string): Promise<PartidoEquipo[]> {
-  return cached(db, `tm2:${idEquipo}`, 0.5 * H, async () => {
+// aparte: el nombre lo manda el navegador sin comprobar (Clasificación → partidos de un equipo): su propia caché, para que
+// un nombre equivocado no deje vacío el calendario de ese equipo para todos (revisión del 2-nov-2026).
+export function teamMatches(db: Db, idEquipo: string, name: string, aparte = false): Promise<PartidoEquipo[]> {
+  const key = aparte ? `tm2:${idEquipo}|${name.trim().toUpperCase().replace(/\s+/g, " ").slice(0, 80)}` : `tm2:${idEquipo}`;
+  return cached(db, key, 0.5 * H, async () => {
     const out: PartidoEquipo[] = [];
     for (let page = 1; page <= 6; page++) {
       const res = await apiSearch(db, { q: name, id_temporada: seasonCode(), id_superficie: "1", seleccion: "0", limit: "20", categoria: "partidos", page: String(page) });

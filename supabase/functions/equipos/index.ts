@@ -50,7 +50,9 @@ if (import.meta.main) Deno.serve(async (req) => {
       if (!/^\d+$/.test(b.torneo || "")) return json({ error: "Grupo no válido" }, 400);
       if (body.action === "clasificacion") return json({ ok: true, filas: await standings(db, b.torneo!) });
       if (!/^\d+$/.test(b.id_equipo || "") || !b.team) return json({ error: "Equipo no válido" }, 400);
-      const cal = await teamMatches(db, b.id_equipo!, b.team);
+      // Si lo sigue, con su nombre guardado (la caché de todos); si no, con el que manda la web, en una caché aparte.
+      const { data: fav } = await db.from("fav_teams").select("team").eq("user_id", user.id).eq("id_equipo", b.id_equipo!).limit(1).maybeSingle();
+      const cal = fav?.team ? await teamMatches(db, b.id_equipo!, fav.team) : await teamMatches(db, b.id_equipo!, b.team, true);
       return json({ ok: true, partidos: cal.filter((m) => m.tor === b.torneo) });
     }
 
@@ -158,7 +160,8 @@ if (import.meta.main) Deno.serve(async (req) => {
       return json({ ok: true, favs, partidos, calendario, indice });
     }
   } catch (e) {
-    return json({ error: "No se ha podido leer iSquad. Prueba en unos minutos.", detail: (e as Error).message }, 502);
+    console.error("equipos", (e as Error).message);   // el detalle, en los registros: al navegador no
+    return json({ error: "No se ha podido leer iSquad. Prueba en unos minutos." }, 502);
   }
   return json({ error: "Acción no válida" }, 400);
 });

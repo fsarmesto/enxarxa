@@ -23,7 +23,7 @@ window.supabase = { createClient(){
     M(d(5),2,'12:00',0,'SEGONA DIVISIO SENIOR FEMENINO','CV EXEMPLE - CV PROVA','PAVELLO DEMO SUD','CARRER EXEMPLE 7, 08201 SABADELL','r2'),
     M(d(-3),3,'17:00',0,'CADET MASCULI','CV PROVA - CV DEMO C','PAVELLO DEMO NORD','CARRER DEMO 1, 08001 BARCELONA','r1') ];
   const venues=[{venue_key:'pavello demo nord',label:'PAVELLÓ DEMO NORD',km:12,km_source:'manual'},{venue_key:'pavello demo sud',label:'PAVELLÓ DEMO SUD',km:30,km_source:'manual'}];
-  const profile={ user_id:'u-demo', isquad_login:'demo@example.com', nombre:'ÁRBITRO DEMO', origin:'Barcelona', rate:'0.26', min_travel:'4', irpf:'2', tipo:'arbitro', last_sync:new Date().toISOString(), last_error:null, policy_version:'2026-10-22.2', consent_at:new Date().toISOString(), cal_token:'x' };
+  const profile={ user_id:'u-demo', isquad_login:'demo@example.com', nombre:'ÁRBITRO DEMO', origin:'Barcelona', rate:'0.26', min_travel:'4', irpf:'2', tipo:'arbitro', last_sync:new Date().toISOString(), last_error:null, policy_version:'2026-11-02', consent_at:new Date().toISOString(), cal_token:'x' };
   const q = (table) => { const o={ select(){return o}, order(){return o}, eq(){return o}, in(){return o}, update(){return o}, upsert(){return o}, insert(){return o}, delete(){return o}, filter(){return o},
     range(){ return wait(online() ? {data: table==='matches'?matches:[], error:null} : fail) },
     single(){ return wait(online() ? {data: table==='profiles'?profile:null, error:null} : fail) },

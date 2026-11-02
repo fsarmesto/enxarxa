@@ -2,7 +2,8 @@
 // - {action:"estado"} / {action:"activar", activo}: si participa.
 // - {action:"sugerencias"}: para cada designación suya de los próximos 30 días, otros árbitros que participan y ese
 //   mismo día van al mismo pabellón o a la misma población. Solo se ve entre quienes lo tienen activado, y solo
-//   nombre, hora, pabellón y población de salida.
+//   nombre, hora, pabellón y población de salida. Solo árbitros y solo designaciones leídas de iSquad (no las añadidas a
+//   mano: con ellas cualquiera podría inventarse partidos para ver dónde van los demás).
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
 import { porIds } from "../_shared/db.ts";
 
@@ -20,23 +21,25 @@ Deno.serve(async (req) => {
   let body: { action?: string; activo?: boolean } = {};
   try { body = await req.json(); } catch { /* sin cuerpo */ }
 
+  // Solo árbitros (revisión del 2-nov-2026): un jugador no tiene designaciones y no debe ver la agenda de los árbitros.
+  const { data: me } = await db.from("profiles").select("coche, tipo").eq("user_id", user.id).maybeSingle();
+  if (me?.tipo === "deportista") return body.action === "activar" ? json({ error: "Solo para árbitros" }, 403) : json({ ok: true, activo: false, sugerencias: {} });
   if (body.action === "activar") {
     const { error } = await db.from("profiles").update({ coche: body.activo === true }).eq("user_id", user.id);
     return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true, activo: body.activo === true });
   }
-  const { data: me } = await db.from("profiles").select("coche").eq("user_id", user.id).maybeSingle();
   if (body.action === "estado") return json({ ok: true, activo: !!me?.coche });
   if (body.action !== "sugerencias") return json({ error: "Acción no válida" }, 400);
   if (!me?.coche) return json({ ok: true, activo: false, sugerencias: {} });
 
   const today = new Date().toISOString().slice(0, 10), until = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
-  const { data: others } = await db.from("profiles").select("user_id, nombre, origin").eq("coche", true).neq("user_id", user.id);
+  const { data: others } = await db.from("profiles").select("user_id, nombre, origin").eq("coche", true).neq("tipo", "deportista").neq("user_id", user.id);
   if (!others?.length) return json({ ok: true, activo: true, sugerencias: {}, participantes: 1 });
   const cols = "id, user_id, date, time, venue, venue_key, addr, crew, teams";
-  const { data: mine } = await db.from("matches").select(cols).eq("user_id", user.id).gte("date", today).lte("date", until);
+  const { data: mine } = await db.from("matches").select(cols).eq("user_id", user.id).not("id", "like", "MAN-%").gte("date", today).lte("date", until);
   if (!mine?.length) return json({ ok: true, activo: true, sugerencias: {}, participantes: others.length + 1 });
   const dates = [...new Set((mine as M[]).map((m) => m.date))];
-  const theirs = await porIds<M>(others.map((o) => o.user_id), (g) => db.from("matches").select(cols).in("user_id", g).in("date", dates).order("user_id").order("id"));
+  const theirs = await porIds<M>(others.map((o) => o.user_id), (g) => db.from("matches").select(cols).in("user_id", g).in("date", dates).not("id", "like", "MAN-%").order("user_id").order("id"));
   const who = new Map(others.map((o) => [o.user_id, o]));
   // Nombre "Nombre Apellido" tal como sale en sus designaciones (la cabecera de iSquad lo da al revés).
   const displayName = (m: M) => cap((m.crew || []).find((c) => c.me)?.n || who.get(m.user_id)?.nombre || "");

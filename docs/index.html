@@ -1045,6 +1045,8 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <label>Equipos<input type="text" id="mTeams" placeholder="LOCAL vs VISITANTE"></label>
       <label>Pabellón<input type="text" id="mVenue"></label>
       <label>Dirección (con código postal)<input type="text" id="mAddr"></label>
+      <label>Equipo arbitral<select id="mTeam"></select></label>
+      <label>Tu rol<select id="mRole"></select></label>
     </div>
     <div class="row" style="margin-top:10px"><button class="primary" id="btnAddManual">Añadir partido</button></div>
   </details>
@@ -1201,6 +1203,8 @@ const CATS_2526 = {
 const CAT_OPTS = Object.fromEntries(Object.entries(CATS).map(([k,v])=>[k,v.label]));
 const TEAM_OPTS = {t1:'1 árbitro', t2a:'2 árbitros (1r–2n)', t2b:'2 árbitros (1r–An)', t3:'3 árbitros'};
 const ROLE_OPTS = {r1:'1r árbitro', r2:'2n árbitro', an:'Anotador', jl:'Juez de línea'};
+// Desplegables del partido a mano (mismas opciones que la calculadora).
+for(const [id,o,cur] of [['mTeam',TEAM_OPTS,'t1'],['mRole',ROLE_OPTS,'r1']]){ const el=document.getElementById(id); if(el) el.innerHTML=Object.entries(o).map(([k,v])=>`<option value="${k}"${k===cur?' selected':''}>${v}</option>`).join(''); }
 
 function norm(s){ return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim(); }
 function guessCat(comp){
@@ -2092,11 +2096,12 @@ function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('sho
 // lo mismo que compute() para un partido con esos datos (prueba: tools/prueba-calculadora-37.mjs).
 const CALC_DAYS = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
 const CALC_WEEK = '2026-10-19';   // un lunes de una semana sin festivos: de aquí sale el día de la semana
+const CALC_WEEK_2526 = '2025-10-20';   // igual en la temporada 25/26: un partido de entonces se calcula con sus tarifas
 const CALC_ROLES = {t1:['r1'], t2a:['r1','r2'], t2b:['r1','an'], t3:['r1','r2','an']};
 let CALC = null, CALC_TCAT = null;
 function calcFrom(m){
   const wd = m ? (new Date(m.date+'T12:00:00').getDay()+6)%7 : 5;
-  return { wd, fest: !!m && wd<6 && !!(m.holiday||isHoliday(m.date)), hora: m?.time || '16:00', cat: m ? catOf(m) : 's3',
+  return { week: m && seasonOf(m.date)==='2025' ? CALC_WEEK_2526 : CALC_WEEK, wd, fest: !!m && wd<6 && !!(m.holiday||isHoliday(m.date)), hora: m?.time || '16:00', cat: m ? catOf(m) : 's3',
     team: m?.team || 't3', role: m?.role || 'r1', km: m && kmFor(m) ? String(kmFor(m)) : '' };
 }
 // Por defecto, el próximo partido; si no hay, el último.
@@ -2110,7 +2115,7 @@ function openCalc(id){
   VIEW='calc'; render(); scrollTo(0,0);
 }
 // Partido de mentira con los datos de la calculadora: pasa por las mismas funciones que uno de verdad.
-const calcMatch = c => ({id:'CALC', date:addDays(CALC_WEEK, c.wd), time:c.hora, comp:'', phase:'', cat:c.cat, team:c.team, role:c.role,
+const calcMatch = c => ({id:'CALC', date:addDays(c.week||CALC_WEEK, c.wd), time:c.hora, comp:'', phase:'', cat:c.cat, team:c.team, role:c.role,
   holiday:c.fest, no_dieta:null, km_override: c.km==='' ? null : +c.km, tolls:0});
 function calcResult(c){
   const m=calcMatch(c), tar=tariff(m), sinDieta=noDietaOf(m);
@@ -2137,7 +2142,7 @@ function renderCalc(){
     const opt=(o,cur)=>Object.entries(o).map(([k,v])=>`<option value="${k}"${k===cur?' selected':''}>${esc(v)}</option>`).join('');
     box.innerHTML = `<button type="button" class="ghost back" data-calc-back>← Cobros</button>
       <h2>Cómo calcular dietas</h2>
-      <p class="small muted"><span>Anexo FCVB 2026/27</span> · <span>Importes orientativos: manda el recibo de la FCVB.</span></p>
+      <p class="small muted"><span>${c.week===CALC_WEEK_2526?'Tarifas de la temporada 2025/26':'Anexo FCVB 2026/27'}</span> · <span>Importes orientativos: manda el recibo de la FCVB.</span></p>
       <div class="calc-warn">⏱ <strong>Cuenta la hora de INICIO del partido, no la de llegada ni la de final.</strong></div>
       <div class="calc-f">
         <label>Día del partido<select data-c="wd">${CALC_DAYS.map((d,i)=>`<option value="${i}"${i===c.wd?' selected':''}>${capName(d)}</option>`).join('')}</select></label>
@@ -2184,7 +2189,7 @@ function renderCalcOut(){
   }).join('') + '<div class="daxis"><span></span><div><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div></div>'
     + (c.fest&&c.wd<6 ? '<p class="small muted">Festivo entre semana: 18 € en las franjas de festivo; fuera de ellas, la dieta normal de ese día.</p>' : '');
   // Tarifas de la categoría elegida, con tariff() para cada equipo arbitral y rol.
-  const tk=CALC_TCAT||c.cat, tc=CATS[tk]||CATS.none, val=(team,role)=>{ const v=tariff({cat:tk, team, role, date:CALC_WEEK}); return v ? eur(v) : '—'; };
+  const tk=CALC_TCAT||c.cat, tc=CATS[tk]||CATS.none, val=(team,role)=>{ const v=tariff({cat:tk, team, role, date:c.week||CALC_WEEK}); return v ? eur(v) : '—'; };
   const card=(team,list)=>`<div class="tcard"><b>${TEAM_OPTS[team]}</b>${list.map(rl=>`<div><span>${ROLE_OPTS[rl]}</span><span>${val(team,rl)}</span></div>`).join('')}</div>`;
   $('calcCards').innerHTML = `<div class="tcards">${card('t3',['r1','r2','an'])}${card('t2a',['r1','r2'])}${card('t2b',['r1','an'])}${card('t1',['r1'])}${tc.jl?`<div class="tcard"><b>Superliga</b><div><span>Juez de línea</span><span>${eur(tc.jl)}</span></div></div>`:''}</div>`
     + (/^sl/.test(tk) ? '<p class="small muted">Superliga y Superliga 2: a los árbitros los liquida la RFEVB. Aquí sale lo que paga la FCVB.</p>' : '');
@@ -2321,7 +2326,10 @@ $('btnAddManual').addEventListener('click', async ()=>{
   const g=id=>$(id).value.trim();
   if(!g('mDate')||!g('mTime')||!g('mComp')){ toast('Fecha, hora y competición son obligatorias'); return; }
   if(blockOffline()) return;
-  const row={user_id:USER.id, id:'MAN-'+Date.now(), comp:g('mComp'), phase:'', teams:g('mTeams'), estado:'', date:g('mDate'), time:g('mTime'), venue:g('mVenue'), addr:g('mAddr')};
+  // Equipo arbitral y función: sin ellos se pagaba siempre como 1 árbitro (revisión del 2-nov-2026).
+  const team=$('mTeam').value||'t1', role=$('mRole').value||'r1';
+  if(role!=='jl' && !CALC_ROLES[team].includes(role)){ toast('Ese rol no existe con ese equipo arbitral'); return; }
+  const row={user_id:USER.id, id:'MAN-'+Date.now(), comp:g('mComp'), phase:'', teams:g('mTeams'), estado:'', date:g('mDate'), time:g('mTime'), venue:g('mVenue'), addr:g('mAddr'), team, role};
   row.venue_key = venueKey(row.venue,row.addr);
   const {data,error}=await store().from('matches').insert(row).select().single();
   if(error){ toast('No se ha podido añadir'); return; }
@@ -2411,9 +2419,17 @@ $('btnDelete').addEventListener('click', async ()=>{
   if(!confirm(tr('Se borrará tu contraseña de iSquad guardada y todos tus partidos y ajustes. No se puede deshacer.'))) return;
   const r = await callFn('delete-account');
   if(!r.ok){ toast(r.error||'No se ha podido borrar'); return; }
-  await snapClear(); await sb.auth.signOut(); location.reload();
+  await pushDrop(false); await snapClear(); await sb.auth.signOut(); location.reload();
 });
-async function logout(){ if(GUEST){ location.reload(); return; } await snapClear(); await sb.auth.signOut(); location.reload(); }   // recargar: no queda nada de la sesión (p. ej. Administración) en la página
+// Al salir, este dispositivo deja de recibir los avisos de la cuenta (en un móvil o PC compartido le seguirían llegando
+// sus partidos y cobros, y el siguiente que entrara heredaría la suscripción). Revisión del 2-nov-2026.
+async function pushDrop(server=true){
+  if(!PUSH_SUB) return;
+  const ep=PUSH_SUB.endpoint; PUSH_SUB=null;
+  try{ await (await navigator.serviceWorker.ready).pushManager.getSubscription().then(s=>s&&s.unsubscribe()); }catch(e){}
+  if(server) try{ await callFn('notify',{action:'unsubscribe', endpoint:ep}); }catch(e){}
+}
+async function logout(){ if(GUEST){ location.reload(); return; } await pushDrop(); await snapClear(); await sb.auth.signOut(); location.reload(); }   // recargar: no queda nada de la sesión (p. ej. Administración) en la página
 $('btnLogout').addEventListener('click', logout);
 
 /* ---------- Entrar ---------- */
@@ -2471,6 +2487,8 @@ const offerApk = () => isAndroid && !inAndroidApp() && !isStandalone();
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const b64u = s => { const p='='.repeat((4-s.length%4)%4), b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c=>c.charCodeAt(0)); };
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); INSTALL_EVT=e; renderPush(); });
+// De qué cuenta es la suscripción de este navegador (liq-push-user).
+function pushOwner(id){ try{ if(id===undefined) return localStorage.getItem('liq-push-user'); localStorage.setItem('liq-push-user', id); }catch(e){ return null; } }
 async function initPush(){
   if(!('serviceWorker' in navigator)) return;
   try{ const reg=await navigator.serviceWorker.register('sw.js'); PUSH_SUB = pushSupported() ? await reg.pushManager.getSubscription() : null; }catch(e){}
@@ -2488,8 +2506,13 @@ async function initPush(){
       await old.unregister();
     }
   }catch(e){}
-  // Si este navegador ya estaba suscrito, se vuelve a asociar al árbitro que ha entrado (por si ha cambiado de cuenta).
-  if(PUSH_SUB && !GUEST && USER) callFn('notify',{action:'subscribe', sub:PUSH_SUB.toJSON()});
+  // Si este navegador ya estaba suscrito con esta misma cuenta, se vuelve a asociar (por si la suscripción ha cambiado).
+  // Si era de otra cuenta, se quita: quien entra no ha pedido los avisos (revisión del 2-nov-2026; antes los heredaba).
+  if(PUSH_SUB && !GUEST && USER){
+    const prev = pushOwner();
+    if(prev && prev!==USER.id){ try{ await PUSH_SUB.unsubscribe(); }catch(e){} PUSH_SUB=null; }
+    else { pushOwner(USER.id); callFn('notify',{action:'subscribe', sub:PUSH_SUB.toJSON()}); }
+  }
   renderPush();
 }
 async function pushOn(){
@@ -2501,6 +2524,7 @@ async function pushOn(){
     PUSH_SUB = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64u(window.APP_CONFIG.VAPID_PUBLIC)});
     const r = await callFn('notify',{action:'subscribe', sub:PUSH_SUB.toJSON()});
     if(!r.ok) throw new Error(r.error);
+    pushOwner(USER.id);
     toast('Notificaciones activadas');
   }catch(e){ PUSH_SUB=null; toast('No se ha podido activar el recordatorio. Prueba de nuevo.'); }
   renderPush();
@@ -2949,7 +2973,10 @@ function avisos(){
   // Los de resultado sin subir, cobro y resultados de equipos ya salen arriba o abajo calculados aquí.
   for(const x of AV_LOG){
     if(/^(eqr-|resultado-|cobro-|domingo|prueba)/.test(x.msg?.tag||'')) continue;
-    const mid=x.key.split(':')[1];
+    // El id del partido puede llevar ":" (los renombrados: 3JFGH041@2026-10-25T12:00): se quita solo el prefijo y se busca
+    // el partido cuyo id es todo lo que queda o va seguido de ":" (revisión del 2-nov-2026).
+    const rest=x.key.slice(x.key.indexOf(':')+1);
+    const mid=(MATCHES.filter(m=>rest===m.id || rest.startsWith(m.id+':')).sort((a,b)=>b.id.length-a.id.length)[0]||{}).id;
     out.push({id:'log:'+x.key, log:true, ic:'🔔', t:x.msg.title||'', s:x.msg.body||'',
       go: MATCHES.some(m=>m.id===mid) ? {match:mid} : {view:((x.msg.url||'').match(/vista=(\w+)/)||[])[1]||'agenda'}});
   }
@@ -3195,7 +3222,7 @@ function openGuide(){
 function closeGuide(){ if(CONSENT_OPEN) return; $('guide').classList.add('hidden'); try{ localStorage.setItem(GUIDE_KEY,'1'); }catch(e){} }
 // Edad mínima y política: las cuentas sin aceptar la versión vigente ven este aviso (no se puede cerrar) antes que nada.
 // POLICY_VERSION tiene que coincidir con supabase/functions/_shared/politica.ts.
-const POLICY_VERSION = '2026-10-22.2';
+const POLICY_VERSION = '2026-11-02';
 const LEGAL_LINKS = '<a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a>';
 const UNDER14 = 'Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.';
 let CONSENT_OPEN = false;

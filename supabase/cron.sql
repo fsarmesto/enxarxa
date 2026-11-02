@@ -74,3 +74,48 @@ select cron.schedule(
   );
   $$
 );
+
+-- Las 3 que siguen ya estaban programadas en el proyecto pero faltaban en este fichero (revisión del 2-nov-2026).
+
+-- Avisos al momento (función vigilar): cada 10 minutos; la función no hace nada antes de las 7:00 de Madrid.
+select cron.schedule(
+  'vigilar',
+  '*/10 * * * *',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/vigilar',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $$
+);
+
+-- Índice de plantillas de la web pública (función indexar): cada 15 minutos; solo trabaja con lo caducado (14 días).
+select cron.schedule(
+  'indexar-plantillas',
+  '*/15 * * * *',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/indexar',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $$
+);
+
+-- Designaciones publicadas y salud de la app (función designadas, avisos a los admins y "Han empezado a designar"):
+-- cada hora a y 5; la función solo trabaja de 8 a 22 h de Madrid.
+select cron.schedule(
+  'designadas-hora',
+  '5 * * * *',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/designadas',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $$
+);

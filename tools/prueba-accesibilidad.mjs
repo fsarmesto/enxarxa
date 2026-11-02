@@ -25,7 +25,7 @@ const MOCK = `(() => {
       { estado: 'FINALIZADO', res_l: 3, res_v: 1, acta_url: 'https://voleibol.isquad.es/uploads/actas/0/0.pdf', fcvb_tarifa: '25.93', fcvb_gastos: '12.48', fcvb_pago: 'PAGADO - 01/01/2026', fcvb_accion: 'factura' })];
   const venues = [{ venue_key: 'PAVELLO DE PROVA', label: null, km: 12, km_source: 'ruta', min: 14 }, { venue_key: 'PAVELLO DE MOSTRA', label: null, km: 31, km_source: 'ruta', min: 28 }];
   const profile = { user_id: 'u-demo', isquad_login: 'demo@example.com', nombre: 'ARBITRE DE PROVA', origin: 'Manresa', rate: '0.26', min_travel: '4', irpf: '2',
-    tipo: 'arbitro', last_sync: new Date().toISOString(), policy_version: '2026-10-22.2', consent_at: new Date().toISOString(), lang: 'es' };
+    tipo: 'arbitro', last_sync: new Date().toISOString(), policy_version: '2026-11-02', consent_at: new Date().toISOString(), lang: 'es' };
   const avisos = [{ key: 'nueva:DEMO1', sent_at: new Date().toISOString(), msg: { title: 'Nueva designación', body: 'Cv Exemple – Club Prova', tag: 'desig-DEMO1', url: './?vista=agenda' } }];
   const data = t => t === 'matches' ? matches : t === 'venues' ? venues : t === 'push_log' ? avisos : [];
   const q = t => { const o = { select() { return o }, order() { return o }, eq() { return o }, not() { return o }, gte() { return o }, limit() { return o }, update() { return o }, upsert() { return o },

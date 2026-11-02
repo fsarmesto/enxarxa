@@ -35,9 +35,11 @@ export async function langOf(db: Db, userId: string): Promise<Lang> {
 
 // A todos los dispositivos de un usuario, en su idioma. Siempre queda en push_log con su texto: la sección de Avisos de
 // la web lo enseña aunque no tenga las notificaciones activadas (issue #31). key = la de deduplicación, si la hay.
-export async function sendToUser(db: Db, userId: string, msg: Msg | MsgFn, key?: string) {
+// soloGuardar: queda en la sección de Avisos de la web, sin notificación (p. ej. a partir del 5º cambio de una pasada).
+export async function sendToUser(db: Db, userId: string, msg: Msg | MsgFn, key?: string, soloGuardar = false) {
   const m = typeof msg === "function" ? msg(textos(await langOf(db, userId))) : msg, at = new Date().toISOString();
   await db.from("push_log").upsert({ user_id: userId, key: key ?? `${m.tag || "aviso"}:${at}`, msg: m, sent_at: at });
+  if (soloGuardar) return { ok: 0, gone: 0, fail: 0 };
   const { data } = await db.from("push_subs").select("endpoint, p256dh, auth").eq("user_id", userId);
   return data?.length ? await send(db, data, m) : { ok: 0, gone: 0, fail: 0 };
 }

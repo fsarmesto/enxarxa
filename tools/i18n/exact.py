@@ -457,4 +457,7 @@ EXACT = {
 "Es hora de salir": "És hora de sortir", "sal a las": "surt a les",
 "la hora de salir hacia el pabellón, 15 minutos antes, para llegar 1 hora antes del partido;": "l'hora de sortir cap al pavelló, 15 minuts abans, per arribar 1 hora abans del partit;",
 "Avisarme de la hora de salida hacia el pabellón": "Avisa'm de l'hora de sortida cap al pavelló",
+# Revisión del 2-nov-2026
+"Ese rol no existe con ese equipo arbitral": "Aquest rol no existeix amb aquest equip arbitral",
+"Tarifas de la temporada 2025/26": "Tarifes de la temporada 2025/26",
 }

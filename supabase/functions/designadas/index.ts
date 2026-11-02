@@ -95,7 +95,8 @@ async function revisarSalud(db: Db, admins: string[]) {
   const ultimo = Math.max(0, ...(ps || []).map((p: { last_sync: string | null }) => p.last_sync ? Date.parse(p.last_sync) : 0));
   const problemas: ({ fallan: number; total: number } | { horas: number })[] = [];
   if (total >= 3 && conError * 2 >= total) problemas.push({ fallan: conError, total });
-  if (ultimo && Date.now() - ultimo > 13 * 3600_000) problemas.push({ horas: Math.round((Date.now() - ultimo) / 3600_000) });
+  // El sync va a las 7 y 15 UTC: de las 15 a las 7 hay 16 h sin él (antes, con 13 h, avisaba cada mañana en verano).
+  if (ultimo && Date.now() - ultimo > 18 * 3600_000) problemas.push({ horas: Math.round((Date.now() - ultimo) / 3600_000) });
   for (const p of problemas) {
     const key = `salud-aviso:${"fallan" in p ? "login" : "sync"}`;
     const { data: last } = await db.from("pub_cache").select("fetched_at").eq("key", key).maybeSingle();
