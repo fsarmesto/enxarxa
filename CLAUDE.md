@@ -245,6 +245,9 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Vista compacta o detallada (2-nov-2026, Ferran): 2 iconos junto a Filtros (`#densSlot`, `AGDENS`, localStorage
   `liq-agenda-vista` = lista | fichas). Compacta = clase `ag-compact` en `#agenda`: las tarjetas plegadas solo enseñan hora,
   equipos y `.cm` (R1/R2/JL/Anot., Juegas/Entrenas o el resultado; ⚠ si choca o el resultado va tarde); abiertas, la ficha entera.
+- Escritorio ancho (desde 1024 px, 2-nov-2026): máximo 1080 px; en cada tarjeta, columnas `.dk-v` (pabellón, población, ≈ min) y
+  `.dk-c` (equipo arbitral; en equipos, los árbitros del Previo) sin abrirla; la compacta es una fila hora · partido · pabellón · rol.
+  Las reglas de escritorio de la compacta llevan `body` delante para ganar a las del móvil, que van después.
 
 ## Guía, resumen y compartir coche (21-oct-2026)
 
@@ -334,6 +337,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   auth.users en cascada (perfil con cal_token, credenciales y sesión, partidos, pabellones, push_subs, fav_teams,
   push_log) y se borran aparte las claves de `pub_cache` con su user_id (ficha:, aviso-cobro:, aviso-inactiva:).
 - En Cobros, bajo las cifras: "Importes orientativos: manda el recibo de la FCVB."
+- "Te han pagado menos" (2-nov-2026, `paidLess` en index.html, solo web): partidos pagados de los últimos 90 días donde la
+  FCVB pagó menos que la previsión de la app (`r.est` de `compute`). Tarifa: cualquier diferencia a la baja. Dieta + desplazamiento:
+  por día y franja (la FCVB los reparte), solo si faltan 3 € o más (`MENOS_MIN`), todo el grupo pagado y sin km aproximados.
+  Aviso plegado en Cobros con lista, explicación y "Entendido" (localStorage `liq-menos-vistos`) y una línea en el desglose del
+  partido (`menosHint`, dentro de `payTag`). Sin notificación push (habría que llevar el cálculo de km y desplazamiento al servidor).
 - Licencia: todos los derechos reservados (`LICENSE`): el código se puede consultar, no reutilizar sin permiso escrito
   de Ferran (con permiso, citándole y enlazando el repo). El repo tiene que seguir público para GitHub Pages gratis.
 - iPhone: `apple-mobile-web-app-title` era "Liquidación" (por eso los avisos salían con ese nombre); ahora "EnXarxa".

@@ -447,4 +447,10 @@ EXACT = {
 "Vista de la lista": "Vista de la llista", "Vista compacta": "Vista compacta", "Vista detallada": "Vista detallada",
 "Coincide con un arbitraje": "Coincideix amb un arbitratge", "Coincide con un partido tuyo": "Coincideix amb un partit teu",
 "Resultado sin subir": "Resultat sense pujar", "Anot.": "Anot.", "JL": "JL",
+# Te han pagado menos (Cobros)
+"FCVB": "FCVB", "la app": "l'app", "Dieta y desplazamiento de la jornada": "Dieta i desplaçament de la jornada",
+"La FCVB te ha pagado": "La FCVB t'ha pagat", "menos de lo que calcula la app": "menys del que calcula l'app",
+"La app calcula con el anexo de tarifas y sus reglas de dieta y desplazamiento: es una previsión. Lo más habitual es no haber puesto la dieta en la hoja de gastos o que la FCVB contara otros km. Si crees que es un error, revisa el recibo y pregúntalo a la FCVB.": "L'app calcula amb l'annex de tarifes i les seves regles de dieta i desplaçament: és una previsió. El més habitual és no haver posat la dieta al full de despeses o que la FCVB comptés altres km. Si creus que és un error, revisa el rebut i pregunta-ho a la FCVB.",
+"Ver los recibos en iSquad": "Veure els rebuts a iSquad", "Entendido": "Entesos",
+"Equipo arbitral por leer": "Equip arbitral per llegir",
 }
