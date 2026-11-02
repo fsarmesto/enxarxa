@@ -66,13 +66,15 @@ export function textos(l: Lang) {
       body: `${eq} (${antes} ${f(pd)}), ${es ? "hora por confirmar" : "hora per confirmar"}`,
     }),
     // Pedir el pago el día que arbitra (vigilar: avisoCobro). franjas: "mañana" | "tarde".
-    cobro: (total: number, franjas: string[], n: number): Aviso => ({
-      title: es ? "Pide el pago de hoy antes de mañana" : "Demana el pagament d'avui abans de demà",
+    // ayer: el último partido empezó a las 22:00 o más tarde y el aviso sale al día siguiente (el plazo es hoy).
+    cobro: (total: number, franjas: string[], n: number, ayer = false): Aviso => ({
+      title: ayer ? (es ? "Pide hoy el pago de ayer" : "Demana avui el pagament d'ahir")
+        : es ? "Pide el pago de hoy antes de mañana" : "Demana el pagament d'avui abans de demà",
       body: total > 0
         ? es ? `Te corresponde dieta: ${eur(l, total)} (${lista(l, franjas)}). Ponla en la hoja de gastos de iSquad junto con el desplazamiento.`
           : `Et correspon dieta: ${eur(l, total)} (${lista(l, franjas.map((x) => (x === "mañana" ? "matí" : "tarda")))}). Posa-la al full de despeses d'iSquad juntament amb el desplaçament.`
-        : es ? `Pide la tarifa y el desplazamiento de ${n === 1 ? "tu partido" : `tus ${n} partidos`} de hoy en la hoja de gastos de iSquad.`
-          : `Demana la tarifa i el desplaçament ${n === 1 ? "del teu partit" : `dels teus ${n} partits`} d'avui al full de despeses d'iSquad.`,
+        : es ? `Pide la tarifa y el desplazamiento de ${n === 1 ? "tu partido" : `tus ${n} partidos`} de ${ayer ? "ayer" : "hoy"} en la hoja de gastos de iSquad.`
+          : `Demana la tarifa i el desplaçament ${n === 1 ? "del teu partit" : `dels teus ${n} partits`} d'${ayer ? "ahir" : "avui"} al full de despeses d'iSquad.`,
     }),
     // Resultado de un partido de tus equipos (vigilar). gana: true/false desde tu equipo (null si no se sabe).
     eqResultado: (l_: string, rl: number, rv: number, v_: string, gana: boolean | null, d: string): Aviso => ({

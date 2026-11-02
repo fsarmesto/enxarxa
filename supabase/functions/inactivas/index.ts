@@ -18,6 +18,8 @@ Deno.serve(async (req) => {
   const viejas = await todas<{ user_id: string }>(() => db.from("profiles").select("user_id").lt("last_active", limite.toISOString()).order("user_id"));
   let borradas = 0;
   for (const p of viejas || []) if (await borrarCuenta(db, p.user_id)) borradas++;
+  // Contadores de intentos de entrar (auth-isquad) de hace más de un día: ya no sirven (política de privacidad).
+  await db.from("pub_cache").delete().like("key", "intentos:%").lt("fetched_at", new Date(now.getTime() - 864e5).toISOString());
 
   const casi = await todas<{ user_id: string; last_active: string }>(() => db.from("profiles").select("user_id, last_active")
     .lt("last_active", avisoDesde.toISOString()).gte("last_active", limite.toISOString()).order("user_id"));

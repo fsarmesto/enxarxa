@@ -53,15 +53,16 @@ rama `claude/...` con PR. Reglas para esos trabajos:
 - Web: `docs/index.html` (todo en un fichero: HTML, CSS y JS), publicada con GitHub Pages desde `main` → `/docs`.
   URL: https://fsarmesto.github.io/enxarxa/
 - Backend: Supabase, proyecto `vevsurxxvjivjizuuqad` (región eu-west-3, plan gratuito).
-  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `salida` (aviso de la hora de salida, cron), `sync` (cron y botón
+  - Funciones (`supabase/functions`): `auth-isquad` (login con usuario de iSquad; `save:false` = sin guardar), `notify` (notificaciones), `equipos` (equipos favoritos), `indexar` (índice de plantillas, cron), `vigilar` (avisos al momento, cron), `coche` (compartir coche), `designadas` (panel de designaciones, admin), `calendario` (feed iCal), `salida` (aviso de la hora de salida, cron), `inactivas` (cuentas sin usar, cron), `sync` (cron y botón
     "Actualizar ahora"), `delete-account`. Código compartido en `_shared/` (`isquad.ts` lector, `sync.ts`
     guardado y km, `crypto.ts` cifrado AES-GCM de la contraseña de iSquad).
-  - Migraciones en `supabase/migrations` (001…033). Se aplican con `db push`, en orden.
+  - Migraciones en `supabase/migrations` (001…034). Se aplican con `db push`, en orden.
   - Cron (pg_cron + pg_net, `supabase/cron.sql`): `sync-isquad` `0 7,15 * * *` UTC (9:00 y 17:00 en verano) y
     `recordatorio-domingo` `0 18,19 * * 0` UTC (la función solo envía si en Madrid son las 20) e
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
     `aviso-resultados` `0 19,20 * * 0` UTC (notify con `{"tipo":"resultados"}`; solo envía si en Madrid son las 21).
-    `aviso-salida` `*/5 * * * *` (función `salida`; no hace nada antes de las 5:00 de Madrid).
+    `aviso-salida` `*/5 * * * *` (función `salida`; no hace nada antes de las 5:00 de Madrid). `inactivas` `0 10 * * *` y
+    `designadas-hora` `5 * * * *`. Todas en `cron.sql` (vigilar, indexar-plantillas y designadas-hora faltaban hasta el 2-nov-2026).
 
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
@@ -266,6 +267,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Compartir coche (`profiles.coche`, migración 017, función `coche`): opcional; para cada designación de los próximos
   30 días, otros árbitros con la opción activada que ese día van al mismo pabellón o a la misma población (nombre
   como sale en sus designaciones, hora, pabellón, población de salida). Línea 🚗 en la tarjeta del arbitraje.
+  Solo árbitros (no `deportista`) y solo designaciones de iSquad, nunca partidos `MAN-` (2-nov-2026: con partidos inventados
+  se podía ver la agenda de los demás).
 
 ## Jugadores y entrenadores sin licencia de árbitro (21-oct-2026)
 
@@ -321,7 +324,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `docs/eliminar-cuenta.html` (cómo borrar la cuenta; Google Play pide un enlace así), con `legal.css` y `legal.js`: castellano y catalán
   en la misma página, se ve el de `liq-lang` o el del móvil; selector ES/CA. Enlazadas desde la pantalla de entrar,
   la guía, Ajustes y el aviso de aceptación. Contacto: fsarmesto@gmail.com. Si cambia su contenido: actualizar la
-  fecha de las 2 versiones y subir `POLICY_VERSION` (vigente `2026-10-22.2`, condiciones y política), que vuelve a
+  fecha de las 2 versiones y subir `POLICY_VERSION` (vigente `2026-11-02`: copia local sin conexión y contador de intentos en la política), que vuelve a
   pedir la aceptación a todos.
 - Documentación interna en `legal/`: registro de actividades, análisis de riesgos (hace de evaluación de impacto
   simplificada), encargados (Supabase: su DPA va incluido en sus condiciones, no hay que firmar nada) y brechas.
@@ -389,7 +392,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Cron `designadas-hora` (`5 * * * *`, la función solo trabaja de 8 a 22 h de Madrid): recalcula, compara con la foto
   `desig-snap:<domingo>` y avisa a los admins de las categorías que pasan de 0 a tener designaciones (sin Alevín ni
   Amateur/Máster). Además `revisarSalud`: si la mitad o más de los árbitros tiene `last_error` o el último sync tiene
-  más de 13 h, aviso a los admins (como mucho uno cada 6 h por motivo, `pub_cache salud-aviso:`).
+  más de 18 h (el sync va a las 7 y 15 UTC: de noche hay 16 h sin él), aviso a los admins (como mucho uno cada 6 h por motivo, `pub_cache salud-aviso:`).
 - Aviso para todos los árbitros (28-oct-2026, idea de Ferran): "Ep! Han empezado a designar · A ver si toca algo interesante."
   (`t.designan`). En el mismo cron, `avisoDesignan`: cuando la semana pasa de menos de 3 a 3 o más partidos designados en
   categorías de liga (sin pasada anterior, la semana empieza en 0), una vez por semana (push_log `designan:<lunes>`). Campana para
@@ -512,7 +515,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## Sin conexión (issue #30, 27-oct-2026)
 
-- `sw.js` guarda la app (lo propio, mismo origen, GET; `CACHE = enxarxa-app-v1`): red primero y caché si falla o si
+- `sw.js` guarda la app (lo propio, mismo origen, GET; `CACHE = enxarxa-app-v2`): red primero y caché si falla o si
   tarda más de 4 s (cobertura débil); tras un fallo así, 30 s de caché primero para el resto de ficheros. `vendor/`
   (versionado), caché primero. Supabase y lo externo no pasan por él. Sigue con los avisos push igual.
 - Copia local en IndexedDB `enxarxa-offline` (`last`, `snap:<user>` = perfil, partidos y pabellones; `eq:<user>` =
@@ -537,6 +540,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   3. el día que arbitra, 2 h después del último partido, "Pide el pago de hoy antes de mañana" con la dieta que le
      corresponde (`_shared/dieta.ts`, mismas reglas que la web: franja, día, festivos, sin dieta en alevín/amateur y
      finales/concentraciones). Una vez al día (`pub_cache aviso-cobro:<user>:<fecha>`); no si ya está solicitado.
+     Si el último empieza a las 22:00 o más tarde, sale a la mañana siguiente (desde las 7:00) como "Pide hoy el pago de ayer".
 - Partido suspendido o anulado ≠ designación quitada (lo decidió Ferran el 21-oct). Suspendido/anulado: iSquad lo deja
   en las designaciones con `estado` SUSPENDIDO (la FCVB lo paga igual): se queda, la web lo etiqueta y se avisa
   "Partido suspendido". Quitada (ya no estás designado): desaparece de la lista y se quita del perfil.
@@ -550,6 +554,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   sin avisos, borra la fila vieja y pasa a la nueva lo puesto a mano (cobrado, km, dieta, peajes, festivo).
 - Tope contra bucles: `push_log` (user_id, key): cada aviso de cambio de designación sale una sola vez (claves
   `nueva:id`, `cambio:id:fecha|hora|pabellón`, `estado:id:ESTADO`, `quitada:id:missing_since`).
+  Como mucho 5 notificaciones por pasada; el resto se guardan en la campana sin notificación (`sendToUser(..., soloGuardar)`).
+  En la campana, el id del partido es lo que va tras el primer ":" de la clave (puede llevar ":" dentro).
 - En la web, la dieta que corresponde (`dietaOf`, de `compute()` vía `LAST_RES`) sale en el aviso de cobro, junto al
   estado de cada partido por pedir y en la tarjeta de la agenda: "🍽 Te corresponde dieta: … · ponla al pedir el pago".
 - Un partido aún no jugado puede tener ya su recibo vacío en iSquad: `payState` lo trata como futuro hasta su día.
@@ -663,10 +669,19 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 ## Seguridad (revisión del 27-oct-2026)
 
 - RLS en todas las tablas. Permisos de tabla mínimos (migración 031): `anon` nada; `authenticated` solo matches y venues
-  (CRUD de los suyos), leer su perfil y actualizar origin/rate/min_travel/irpf/lang, leer push_log y fav_teams. **Una tabla
+  (los suyos), leer su perfil y actualizar origin/rate/min_travel/irpf/lang/aviso_designan/aviso_salida, leer push_log y fav_teams.
+  Partidos (migración 034, 2-nov-2026): la web solo crea filas `MAN-…` (política de insert) y solo cambia `tolls`,
+  `dieta_override`, `paid` y `not_received` (permisos por columna); lo de iSquad lo escriben las funciones. Si la web
+  necesita cambiar otra columna, añadirla al `grant update`. **Una tabla
   nueva no da permisos a nadie** (default privileges): si la web la necesita, `grant` explícito y su política.
 - `auth-isquad` limita los fallos de login: 5 por usuario en 15 min y 20 por conexión en 1 h (pub_cache `intentos:<huella>`),
   para que no se use para probar contraseñas de iSquad. Mensaje "Demasiados intentos…" (429).
+  Contador atómico (`sumar_intento`, migración 034): cada intento suma ANTES de llamar a iSquad y se devuelve si sale bien
+  o si iSquad no responde. `inactivas` borra cada día los `intentos:` de más de un día.
+- Al salir de la cuenta (`logout`, `pushDrop`) se da de baja la suscripción de avisos de ese navegador; `liq-push-user`
+  guarda de quién es: si entra otra cuenta, la quita en vez de pasársela.
+- Un árbitro con cuenta nunca pasa a `deportista` por un fallo de iSquad (ni "ilegible" ni "login"): si entra como
+  jugador con la misma contraseña, "No se ha podido leer iSquad".
 - Web con Content-Security-Policy (meta en index.html): scripts y datos propios y `vevsurxxvjivjizuuqad.supabase.co`; imágenes
   también de fuera. Si se añade otro servidor al que llama la web, añadirlo a `connect-src`.
 - Comprobado: ningún secreto en el historial del repo; altas directas en Supabase desactivadas (`disable_signup`); contraseñas
@@ -704,7 +719,8 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - Sin logo de la FCVB (quitado el 21-oct-2026, tarea legal): en la cabecera va el icono de la app y siempre "App no oficial".
   A la FCVB solo se la nombra de forma descriptiva ("para árbitros, jugadores y entrenadores de la FCVB").
 - Selecciones territoriales: solo se muestran y cuentan las que la FCVB ha pagado con gastos (tarifa 0).
-- Rol y categoría no son editables: salen de iSquad. Lo editable a mano: dieta por partido, km por pabellón,
+- Rol y categoría no son editables: salen de iSquad. En los partidos añadidos a mano se eligen equipo arbitral y rol al
+  crearlos (antes se pagaban siempre como 1 árbitro). Lo editable a mano: dieta por partido, km por pabellón,
   peajes, "cobrado" y el IRPF del árbitro.
 - Exportación a Excel (SheetJS 0.18.5 cargado al pulsar): temporada seleccionada, importes como números.
 

@@ -46,21 +46,25 @@ async function avisoCobro(db: any, users: string[]) {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
     .formatToParts(new Date()).map((x) => [x.type, x.value]));
   const today = `${p.year}-${p.month}-${p.day}`, now = (+p.hour % 24) * 60 + +p.minute;
+  // También los de ayer: si el último empezó a las 22:00 o más tarde, las 2 h se cumplen pasada la medianoche
+  // (revisión del 2-nov-2026: antes ese día no había aviso). El plazo de la FCVB es el día siguiente: aún hay tiempo.
+  const ayer = new Date(Date.parse(`${today}T12:00:00Z`) - 864e5).toISOString().slice(0, 10);
   // deno-lint-ignore no-explicit-any
   const ms = await porIds<any>(users, (g) => db.from("matches")
-    .select("user_id, id, date, time, comp, phase, cat, holiday, no_dieta, dieta_override, fcvb_pago, fcvb_accion").in("user_id", g).eq("date", today).order("user_id").order("id"));
+    .select("user_id, id, date, time, comp, phase, cat, holiday, no_dieta, dieta_override, fcvb_pago, fcvb_accion").in("user_id", g).in("date", [ayer, today]).order("user_id").order("id"));
   const byUser = new Map<string, typeof ms>();
-  for (const m of ms || []) if (!/SELECCI/i.test(m.comp || "")) (byUser.get(m.user_id) || byUser.set(m.user_id, []).get(m.user_id)!).push(m);
+  for (const m of ms || []) if (!/SELECCI/i.test(m.comp || "")) { const k = `${m.user_id}|${m.date}`; (byUser.get(k) || byUser.set(k, []).get(k)!).push(m); }
   let sent = 0;
-  for (const [u, list] of byUser) {
+  for (const [k, list] of byUser) {
+    const [u, dia] = k.split("|");
     const last = Math.max(...list.map((m: { time: string }) => { const [h, mi] = m.time.split(":").map(Number); return h * 60 + mi; }));
-    if (now < last + 120) continue;                                                     // aún jugando
+    if (dia === today ? now < last + 120 : last + 120 < 1440 || now < last + 120 - 1440) continue;   // aún jugando (o ayer ya se avisó en su día)
     if (list.every((m: { fcvb_pago: string | null; fcvb_accion: string | null }) => /^(SOLICITADO|PAGADO)/.test(m.fcvb_pago || "") || m.fcvb_accion === "procesando")) continue;
-    const key = `aviso-cobro:${u}:${today}`;
+    const key = `aviso-cobro:${u}:${dia}`;
     const { data: done } = await db.from("pub_cache").select("key").eq("key", key).maybeSingle();
     if (done) continue;
     const dietas = dietasDelDia(list), total = dietas.reduce((a, d) => a + d.importe, 0), n = list.length;
-    await sendToUser(db, u, (t) => ({ ...t.cobro(total, dietas.map((d) => d.franja), n), tag: `cobro-${today}`, url: "./?vista=cobros" }));
+    await sendToUser(db, u, (t) => ({ ...t.cobro(total, dietas.map((d) => d.franja), n, dia !== today), tag: `cobro-${dia}`, url: "./?vista=cobros" }));
     await db.from("pub_cache").upsert({ key, data: { total, n }, fetched_at: new Date().toISOString() });
     sent++;
   }

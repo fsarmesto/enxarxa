@@ -98,5 +98,5 @@ js = "// Traducción al catalán (la usa index.html: exact = texto entero; rules
      f"I.rules = {RULES};\n" \
      f"I.frags = {json.dumps(FRAGS, ensure_ascii=False)};\n" \
      "})();\n"
-open(sys.argv[2],'w').write(js)
+open(sys.argv[2],'w',encoding='utf-8',newline='').write(js)   # utf-8 y saltos \n también en Windows
 print(len(EXACT),'exactas,',len(FRAGS),'fragmentos')

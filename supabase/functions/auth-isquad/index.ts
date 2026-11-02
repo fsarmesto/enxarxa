@@ -7,25 +7,18 @@ import { admin, background, cors, json, storeMatches, syncUser } from "../_share
 
 // Tope de intentos (revisión de seguridad, 27-oct-2026): sin él, cualquiera podría usar esta función para probar
 // contraseñas de iSquad sin límite desde nuestros servidores. Cuenta los fallos por usuario (5 en 15 min) y por conexión
-// (20 en 1 h) en pub_cache, con una huella (no se guarda ni el usuario ni la IP). La ventana empieza en el primer fallo.
+// (20 en 1 h; un intento que sale bien no cuenta) en pub_cache, con una huella (no se guarda ni el usuario ni la IP). La ventana empieza en el primer fallo.
 // deno-lint-ignore no-explicit-any
 type Db = any;
 type Tope = { k: string; max: number; ms: number };
 const huella = async (s: string) =>
   [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
-async function leerTope(db: Db, t: Tope) {
-  const { data } = await db.from("pub_cache").select("data, fetched_at").eq("key", t.k).maybeSingle();
-  return data && Date.now() - Date.parse(data.fetched_at) < t.ms ? { n: +(data.data?.n || 0), desde: data.fetched_at as string } : null;
-}
-async function bloqueado(db: Db, topes: Tope[]) {
-  for (const t of topes) if (((await leerTope(db, t))?.n || 0) >= t.max) return true;
-  return false;
-}
-async function fallo(db: Db, topes: Tope[]) {
-  for (const t of topes) {
-    const v = await leerTope(db, t);
-    await db.from("pub_cache").upsert({ key: t.k, data: { n: (v?.n || 0) + 1 }, fetched_at: v?.desde || new Date().toISOString() });
-  }
+// Suma (o resta) en una sola operación de la base de datos (sumar_intento, migración 034): antes se leía, se sumaba y se
+// escribía por separado, y muchas peticiones a la vez pasaban todas el tope. Se reserva el intento ANTES de llamar a iSquad.
+async function sumar(db: Db, t: Tope, delta: number): Promise<number> {
+  const { data, error } = await db.rpc("sumar_intento", { k: t.k, ventana_ms: t.ms, delta });
+  if (error) { console.error("sumar_intento", error.message); return 0; }   // sin contador, se entra igual (mejor que nadie pueda)
+  return +(data ?? 0);
 }
 
 // Cuenta nueva: hace falta el consentimiento y la casilla "Tengo 14 años o más" (por debajo, consentimiento de los padres).
@@ -62,8 +55,13 @@ Deno.serve(async (req) => {
   const key = login.toLowerCase();
   const db0 = admin(), ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "?";
   const topes: Tope[] = [{ k: `intentos:${await huella("u:" + key)}`, max: 5, ms: 15 * 60_000 }, { k: `intentos:${await huella("ip:" + ip)}`, max: 20, ms: 3600_000 }];
-  if (await bloqueado(db0, topes)) return json({ error: "Demasiados intentos. Prueba de nuevo dentro de un rato." }, 429);
-  const malas = async () => { await fallo(db0, topes); return json({ error: "iSquad no acepta ese usuario y contraseña" }, 401); };
+  // Cada intento cuenta al empezar; si sale bien, se devuelve (el del usuario se borra y el de la conexión resta uno).
+  const n = await Promise.all(topes.map((t) => sumar(db0, t, 1)));
+  if (n.some((v, i) => v > topes[i].max)) return json({ error: "Demasiados intentos. Prueba de nuevo dentro de un rato." }, 429);
+  const malas = () => json({ error: "iSquad no acepta ese usuario y contraseña" }, 401);
+  const devolver = async () => { await db0.from("pub_cache").delete().eq("key", topes[0].k); await sumar(db0, topes[1], -1).catch(() => 0); };
+  // Lo que no es un fallo de contraseña (iSquad caído, petición incompleta) tampoco cuenta.
+  const noCuenta = async (r: Response) => { await sumar(db0, topes[0], -1).catch(() => 0); await sumar(db0, topes[1], -1).catch(() => 0); return r; };
 
   const allow = (Deno.env.get("ALLOWED_LOGINS") || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   if (allow.length && !allow.includes(key)) return json({ error: "Esta cuenta no tiene acceso. Pide a quien gestiona la app que te añada." }, 403);
@@ -77,37 +75,38 @@ Deno.serve(async (req) => {
         needStaff: () => true, deadline: started + 120_000, onName: (n) => { nombre = n; },
       });
       const now = new Date().toISOString();
+      await devolver();
       return json({
         guest: true, nombre,
         matches: list.map(({ staff, ...m }) => ({ ...m, ...(staff ?? {}), staff_checked: staff ? now : null, last_seen: now })),
       });
     } catch (e) {
-      if (e instanceof IsquadAuthError) return await malas();
-      return json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502);
+      if (e instanceof IsquadAuthError) return malas();
+      return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
     }
   }
 
   let matches: ScrapedMatch[];
   try { matches = await fetchDesignaciones(login, password); }
   catch (e) {
-    if (!(e instanceof IsquadAuthError)) return json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502);
-    // Un árbitro que ya tiene cuenta y cuya página de designaciones no se puede leer (iSquad en mantenimiento o con otro
-    // diseño) NO pasa a jugador: perdería Cobros, su población y la contraseña guardada, y no volvería a ser árbitro.
-    if (e.message === "ilegible") {
-      const { data: prev } = await db0.from("profiles").select("tipo").eq("login_key", key).maybeSingle();
-      if (prev && prev.tipo !== "deportista") return json({ error: "No se ha podido leer iSquad. Prueba en unos minutos." }, 502);
-    }
+    if (!(e instanceof IsquadAuthError)) return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
     // No es árbitro (o no entra en esa área): ¿jugador o entrenador? Misma cuenta de iSquad.
     let dep;
     try { dep = await loginDeportista(login, password); }
     catch (e2) {
-      if (e2 instanceof IsquadAuthError) return await malas();
-      return json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502);
+      if (e2 instanceof IsquadAuthError) return malas();
+      return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
     }
-    await db0.from("pub_cache").delete().eq("key", topes[0].k);
+    await devolver();
+    // Un árbitro que ya tiene cuenta NO pasa a jugador porque su área de árbitro falle (iSquad en mantenimiento, con otro
+    // diseño o cambiando de formulario de login, como el 20/21-oct): perdería Cobros, su población y la contraseña
+    // guardada. La contraseña es buena (ha entrado como jugador): es iSquad. Revisión del 2-nov-2026: antes solo se
+    // protegía el caso "ilegible" y no el de "login".
+    const { data: prev } = await db0.from("profiles").select("tipo").eq("login_key", key).maybeSingle();
+    if (prev && prev.tipo !== "deportista") return json({ error: "No se ha podido leer iSquad. Prueba en unos minutos." }, 502);
     return await entrarDeportista(key, login, dep, body);
   }
-  await db0.from("pub_cache").delete().eq("key", topes[0].k);
+  await devolver();
 
   const db = admin();
   const { data: existing } = await db.from("profiles").select("user_id, origin").eq("login_key", key).maybeSingle();

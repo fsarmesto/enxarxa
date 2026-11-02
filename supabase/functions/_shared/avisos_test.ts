@@ -19,7 +19,7 @@ function todos(l: "es" | "ca") {
   const t = textos(l);
   return [t.nueva(P, "r2"), t.cambio(P, { ...P, time: "17:00" }), t.estadoDesig(P, "SUSPENDIDO"), t.quitada(P),
     t.eqEstado("A – B", P.date, "Aplazado"), t.eqHorario("A – B", P.date, "12:00"), t.eqCambioHorario("A – B", P.date, "12:00", "2026-10-29", "11:00"),
-    t.eqCambioFecha("A – B", P.date, "2026-10-29"), t.eqResultado("A", 3, 1, "B", true, P.date), t.cobro(23.5, ["mañana", "tarde"], 2), t.cobro(0, [], 1),
+    t.eqCambioFecha("A – B", P.date, "2026-10-29"), t.eqResultado("A", 3, 1, "B", true, P.date), t.cobro(23.5, ["mañana", "tarde"], 2), t.cobro(0, [], 1), t.cobro(10, ["tarde"], 1, true),
     t.resultado1(true, P), t.resultado1(false, P), t.resultadoN(true, [P, P]), t.domingo(1), t.domingo(3), t.prueba(), t.inactiva("2026-11-26"),
     t.designan(), t.designaciones(["Cadete (1/2)"]), t.designaciones(["A", "B"]), t.salud({ fallan: 9, total: 16 }), t.salud({ horas: 14 }),
     t.salida("15:40", "Pavello De Prova", "17:00", 35)];
