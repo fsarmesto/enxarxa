@@ -212,7 +212,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   Con el rol elegido ya no se mira la plantilla al seguir. `fav_teams.rol`: jugador, entrenador, invitado (de la plantilla),
   espectador, otro o null. `participa()` (web y `publico.ts`): jugador, entrenador e invitado participan (avisos de horario
   en vigilar, choques con arbitrajes, primero en las listas, "Juegas/Entrenas" en el iCal); espectador, otro y null solo
-  siguen ("Espectador" o "Sigues" en la etiqueta).
+  siguen. Etiqueta (`rolKind`, clase `.kind`) en la tarjeta de Equipos y delante del estado en cada partido de equipo de
+  Mis partidos: Juegas (verde, `jug`), Entrenas (azul, `ent`), Espectador (morado #6B3FA0, `esp`), Sigues (gris, `sig`).
 - Pestaña Equipos (#18): título con botón (i) que despliega la explicación; tarjeta `.eqc` por equipo: etiqueta + nombre,
   división · club, filas "Último"/"Próximo" (fecha, rival, casa/fuera, estado), acciones con flex-wrap ([Sí | No] en Mis
   partidos, Clasificación, Calendario (n) que despliega `.calbox`, y "⋯" con No soy yo / Dejar de seguir).

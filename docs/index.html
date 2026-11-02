@@ -678,6 +678,7 @@ body[data-vista="cobros"]:not(.dep) .board .statline .chev{display:block}
 .kind.jug{background:#1E7B34;color:#fff}
 .kind.ent{background:#1F5FAD;color:#fff}
 .kind.sig{background:var(--surface-2);color:var(--ink-2)}
+.kind.esp{background:#6B3FA0;color:#fff}
 .clash{margin:8px 0 0;font-size:13.5px;font-weight:700;color:var(--pend)}
 /* Estado de un partido de equipo */
 .st{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:2px;white-space:nowrap;vertical-align:middle}
@@ -2586,7 +2587,7 @@ function renderPush(){
 
 /* ---------- Equipos (web pública de resultados de iSquad) ---------- */
 let EQ = {favs:[], partidos:[], calendario:{}, indice:null}, EQ_RES=null, EQ_BUSY=false;
-const ROL_TXT = {jugador:['jug','Juegas'], entrenador:['ent','Entrenas'], invitado:['jug','Invitado'], espectador:['sig','Espectador'], otro:['sig','Sigues']};
+const ROL_TXT = {jugador:['jug','Juegas'], entrenador:['ent','Entrenas'], invitado:['jug','Invitado'], espectador:['esp','Espectador'], otro:['sig','Sigues']};
 // Rol elegido al seguir un equipo. Jugador y entrenador (e invitado, de la plantilla) participan en sus partidos: avisos de
 // horario, choques con arbitrajes, primero en las listas. Espectador y otro solo lo siguen (participa() en publico.ts).
 const ROL_OPTS = {jugador:'Jugador', entrenador:'Entrenador', espectador:'Espectador', otro:'Otro'};
@@ -2923,7 +2924,7 @@ function renderAgenda(allMs,res){
         ].filter(Boolean).join('');
         html+=`<details class="agc eq${done?' done':''}" data-agc="${esc(id)}"${AGC_OPEN.has(id)?' open':''}><summary aria-expanded="${AGC_OPEN.has(id)}">
           <div class="tm">${tm}</div>
-          <div><div class="top">${stChip(p)}</div>
+          <div><div class="top"><span class="kind ${rolKind(f.rol)[0]}">${esc(rolKind(f.rol)[1])}</span>${stChip(p)}</div>
             <div class="tt">${vs(p)}${done&&p.rl!=null?`<span class="res">${p.rl}-${p.rv}</span>`:''}</div>
             ${refLine(p)}
             <div class="sub">${esc(shortComp(`${f.cat} ${p.comp||''}`))}${!done&&p.pab?`<span class="sv"> · ${esc(capName(p.pab))}</span>`:''}</div>
