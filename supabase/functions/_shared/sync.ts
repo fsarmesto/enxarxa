@@ -60,7 +60,7 @@ async function photon(text: string, town: boolean): Promise<GeoHit | null | "err
   } catch (e) { lastServiceError = `Photon: ${(e as Error).message}`; console.warn(`km: ${lastServiceError}`); return "error"; }
 }
 
-async function geocode(db: SupabaseClient, text: string, town: boolean, accept?: (h: GeoHit) => boolean): Promise<Place | null | "error"> {
+export async function geocode(db: SupabaseClient, text: string, town: boolean, accept?: (h: GeoHit) => boolean): Promise<Place | null | "error"> {
   const query = (town ? "town:" : "addr:") + norm(text);
   const { data: c } = await db.from("geo_cache").select("lon, lat, exact, found, created_at").eq("query", query).maybeSingle();
   if (c && (c.found || Date.now() - new Date(c.created_at).getTime() < NOT_FOUND_TTL_MS)) {

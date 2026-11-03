@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://vevsurxxvjivjizuuqad.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<title>Disponibilidad · Vòlei EnXarxa</title>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="../designa.css">
+<style>
+.cuenta{display:flex;gap:10px;align-items:flex-start}
+.cuenta .ic{flex:none;width:36px;height:36px;border-radius:50%;background:var(--yellow);color:#000;display:flex;align-items:center;justify-content:center;font-weight:700}
+.dia{border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.resumen dt{font-weight:600;margin-top:8px} .resumen dd{margin:2px 0 0}
+.findes{display:flex;gap:8px;margin:0 0 12px}
+</style>
+</head>
+<body>
+<header class="board"><div class="in">
+  <a class="back" href="../" data-t="volver">← Vòlei EnXarxa</a>
+  <div class="lang" role="group" aria-label="Idioma"><button type="button" data-set="es">ES</button><button type="button" data-set="ca">CA</button></div>
+  <h1 data-t="titulo">Disponibilidad para arbitrar</h1>
+  <p class="sub" id="sub">&nbsp;</p>
+</div></header>
+<main>
+  <div id="msg" role="status" aria-live="polite"></div>
+  <p id="cargando" class="muted" data-t="cargando">Cargando…</p>
+
+  <div class="findes hidden opts" id="findes" role="radiogroup" aria-label="Fin de semana"></div>
+
+  <!-- Sin cuenta: entrar con iSquad o rellenar a mano -->
+  <section class="card hidden" id="elige">
+    <h2 data-t="comoTitulo">¿Cómo quieres rellenarla?</h2>
+    <p class="small muted" data-t="comoTexto">Con tu cuenta de iSquad en Vòlei EnXarxa, tu nombre y tu población se ponen solos. Si no, escríbelos tú.</p>
+    <div class="row"><a class="btn primary" href="../?vista=disponibilidad" data-t="entrar">Entrar con iSquad</a><button type="button" id="aMano" data-t="aMano">Rellenar a mano</button></div>
+  </section>
+
+  <!-- Ya enviada -->
+  <section class="card hidden" id="hecha">
+    <h2 data-t="hechaTitulo">Disponibilidad enviada</h2>
+    <dl class="resumen small" id="resumen"></dl>
+    <div class="row" style="margin-top:12px"><button type="button" class="primary" id="cambiar" data-t="cambiar">Cambiarla</button><button type="button" id="retirar" data-t="retirar">Retirarla</button></div>
+  </section>
+
+  <form class="card hidden" id="form" novalidate>
+    <div class="cuenta hidden" id="conCuenta"><span class="ic" aria-hidden="true">✓</span><p class="small muted" style="margin:0" data-t="conCuenta">Con tu cuenta de Vòlei EnXarxa: nombre y población de tu ficha de iSquad. Puedes cambiarlos si este fin de semana sales de otro sitio.</p></div>
+    <label class="f"><span data-t="nombre">Nombre y apellidos</span><input type="text" id="nombre" autocomplete="name" maxlength="80" required></label>
+    <label class="f"><span data-t="poblacion">Población</span><input type="text" id="poblacion" autocomplete="address-level2" maxlength="80" required><span class="h" data-t="poblacionH">Desde donde sales. Se usa para proponerte los partidos más cercanos.</span></label>
+    <fieldset><legend data-t="coche">¿Tienes coche?</legend><div class="opts">
+      <label><input type="radio" name="coche" value="1"><span data-t="si">Sí</span></label>
+      <label><input type="radio" name="coche" value="0"><span data-t="no">No</span></label></div></fieldset>
+    <div class="dia">
+      <fieldset><legend id="lSab" data-t="sabado">Sábado</legend><div class="opts">
+        <label><input type="radio" name="sab" value="manana"><span data-t="manana">Mañana</span></label>
+        <label><input type="radio" name="sab" value="tarde"><span data-t="tarde">Tarde</span></label>
+        <label><input type="radio" name="sab" value="ambas"><span data-t="ambas">Mañana y tarde</span></label>
+        <label><input type="radio" name="sab" value="no"><span data-t="noPuedo">No puedo</span></label></div></fieldset>
+      <label class="f"><span data-t="obs">Observaciones</span><textarea id="sab_obs" maxlength="300" data-tp="obsPh" placeholder="Por ejemplo: a partir de las 17:00"></textarea></label>
+    </div>
+    <div class="dia">
+      <fieldset><legend id="lDom" data-t="domingo">Domingo</legend><div class="opts">
+        <label><input type="radio" name="dom" value="manana"><span data-t="manana">Mañana</span></label>
+        <label><input type="radio" name="dom" value="tarde"><span data-t="tarde">Tarde</span></label>
+        <label><input type="radio" name="dom" value="ambas"><span data-t="ambas">Mañana y tarde</span></label>
+        <label><input type="radio" name="dom" value="no"><span data-t="noPuedo">No puedo</span></label></div></fieldset>
+      <label class="f"><span data-t="obs">Observaciones</span><textarea id="dom_obs" maxlength="300" data-tp="obsPh" placeholder="Por ejemplo: a partir de las 17:00"></textarea></label>
+    </div>
+    <p class="small muted" data-t="franjas">Mañana: partidos que empiezan antes de las 15:00. Tarde: desde las 15:00.</p>
+    <div class="row"><button type="submit" class="primary" id="enviar" data-t="enviar">Enviar disponibilidad</button><button type="button" class="ghost hidden" id="cancelar" data-t="cancelar">Cancelar</button></div>
+    <p class="small muted" style="margin-top:14px" data-t="privacidad">Tus respuestas solo las ve quien designa en la FCVB, para repartir los partidos. Se borran 4 semanas después del fin de semana.</p>
+  </form>
+</main>
+<script src="../config.js"></script>
+<script src="../vendor/supabase-2.45.4.js"></script>
+<script>
+const T = {
+  es: { volver:'← Vòlei EnXarxa', titulo:'Disponibilidad para arbitrar', cargando:'Cargando…', comoTitulo:'¿Cómo quieres rellenarla?',
+    comoTexto:'Con tu cuenta de iSquad en Vòlei EnXarxa, tu nombre y tu población se ponen solos. Si no, escríbelos tú.', entrar:'Entrar con iSquad', aMano:'Rellenar a mano',
+    hechaTitulo:'Disponibilidad enviada', cambiar:'Cambiarla', retirar:'Retirarla',
+    conCuenta:'Con tu cuenta de Vòlei EnXarxa: nombre y población de tu ficha de iSquad. Puedes cambiarlos si este fin de semana sales de otro sitio.',
+    nombre:'Nombre y apellidos', poblacion:'Población', poblacionH:'Desde donde sales. Se usa para proponerte los partidos más cercanos.',
+    coche:'¿Tienes coche?', si:'Sí', no:'No', sabado:'Sábado', domingo:'Domingo', manana:'Mañana', tarde:'Tarde', ambas:'Mañana y tarde', noPuedo:'No puedo',
+    obs:'Observaciones', obsPh:'Por ejemplo: a partir de las 17:00', franjas:'Mañana: partidos que empiezan antes de las 15:00. Tarde: desde las 15:00.',
+    enviar:'Enviar disponibilidad', cancelar:'Cancelar', guardar:'Guardar cambios', enviando:'Enviando…',
+    privacidad:'Tus respuestas solo las ve quien designa en la FCVB, para repartir los partidos. Se borran 4 semanas después del fin de semana.',
+    ok:'Enviada. Puedes cambiarla o retirarla desde esta página.', retirada:'Disponibilidad retirada.', falta:'Rellena lo que falta:', fNombre:'nombre', fPob:'población', fCoche:'coche', fSab:'sábado', fDom:'domingo',
+    red:'Sin conexión. Inténtalo de nuevo.', finde:(a,b)=>`Fin de semana del ${a} y ${b}`, sabD:d=>`Sábado ${d}`, domD:d=>`Domingo ${d}`, esteFinde:'Este finde', siguiente:'El siguiente',
+    dCoche:'Coche', dPob:'Población', dNombre:'Nombre', obsCorta:'obs.', confirmar:'¿Seguro que quieres retirarla?' },
+  ca: { volver:'← Vòlei EnXarxa', titulo:'Disponibilitat per arbitrar', cargando:'Carregant…', comoTitulo:'Com la vols omplir?',
+    comoTexto:'Amb el teu compte d\'iSquad a Vòlei EnXarxa, el teu nom i la teva població es posen sols. Si no, escriu-los tu.', entrar:'Entra amb iSquad', aMano:'Omple-la a mà',
+    hechaTitulo:'Disponibilitat enviada', cambiar:'Canvia-la', retirar:'Retira-la',
+    conCuenta:'Amb el teu compte de Vòlei EnXarxa: nom i població de la teva fitxa d\'iSquad. Els pots canviar si aquest cap de setmana surts d\'un altre lloc.',
+    nombre:'Nom i cognoms', poblacion:'Població', poblacionH:'D\'on surts. Serveix per proposar-te els partits més propers.',
+    coche:'Tens cotxe?', si:'Sí', no:'No', sabado:'Dissabte', domingo:'Diumenge', manana:'Matí', tarde:'Tarda', ambas:'Matí i tarda', noPuedo:'No puc',
+    obs:'Observacions', obsPh:'Per exemple: a partir de les 17:00', franjas:'Matí: partits que comencen abans de les 15:00. Tarda: des de les 15:00.',
+    enviar:'Envia la disponibilitat', cancelar:'Cancel·la', guardar:'Desa els canvis', enviando:'Enviant…',
+    privacidad:'Les teves respostes només les veu qui designa a la FCVB, per repartir els partits. S\'esborren 4 setmanes després del cap de setmana.',
+    ok:'Enviada. La pots canviar o retirar des d\'aquesta pàgina.', retirada:'Disponibilitat retirada.', falta:'Omple el que falta:', fNombre:'nom', fPob:'població', fCoche:'cotxe', fSab:'dissabte', fDom:'diumenge',
+    red:'Sense connexió. Torna-ho a provar.', finde:(a,b)=>`Cap de setmana del ${a} i ${b}`, sabD:d=>`Dissabte ${d}`, domD:d=>`Diumenge ${d}`, esteFinde:'Aquest cap de setmana', siguiente:'El següent',
+    dCoche:'Cotxe', dPob:'Població', dNombre:'Nom', obsCorta:'obs.', confirmar:'Segur que la vols retirar?' }
+};
+let LANG='es'; try{ LANG = localStorage.getItem('liq-lang') || ((navigator.language||'').toLowerCase().startsWith('ca')?'ca':'es'); }catch(e){}
+const t = k => T[LANG][k] ?? T.es[k];
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-t]').forEach(e=>{ const v=t(e.dataset.t); if(typeof v==='string') e.textContent=v; });
+  document.querySelectorAll('[data-tp]').forEach(e=>e.placeholder=t(e.dataset.tp));
+  document.querySelectorAll('[data-set]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.set===LANG)));
+  if(S.finde) pintarFinde();
+}
+document.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{ LANG=b.dataset.set; try{localStorage.setItem('liq-lang',LANG);}catch(e){} applyLang(); if(S.mia && !$('hecha').classList.contains('hidden')) pintarHecha(); }));
+
+const sb = supabase.createClient(window.APP_CONFIG.SUPABASE_URL, window.APP_CONFIG.SUPABASE_ANON_KEY);
+const FN = window.APP_CONFIG.SUPABASE_URL + '/functions/v1/designa';
+async function api(body){
+  let r; try{
+    const {data:{session}} = await sb.auth.getSession();
+    r = await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':window.APP_CONFIG.SUPABASE_ANON_KEY,...(session?{Authorization:'Bearer '+session.access_token}:{})},body:JSON.stringify(body)});
+  }catch(e){ return {ok:false,error:t('red')}; }
+  let j={}; try{ j=await r.json(); }catch(e){}
+  return {...j, ok:r.ok && j.ok!==false};
+}
+const S = { finde:null, findes:[], cuenta:null, mia:null };
+const codigoKey = f => 'designa-codigo:'+f;
+const codigoDe = f => { try{ return f && localStorage.getItem(codigoKey(f)) || ''; }catch(e){ return ''; } };
+const codigo = () => codigoDe(S.finde);
+const fecha = (d, n) => new Intl.DateTimeFormat(LANG==='ca'?'ca-ES':'es-ES',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(Date.parse(d+'T12:00:00Z')+n*864e5));
+// Mismo mes: "7 y 8 de noviembre"; si cambia de mes, las dos fechas enteras.
+const diaSolo = f => f.slice(5,7)===new Date(Date.parse(f+'T12:00:00Z')+864e5).toISOString().slice(5,7) ? String(+f.slice(8,10)) : fecha(f,0);
+function pintarFinde(){
+  $('sub').textContent = t('finde')(diaSolo(S.finde), fecha(S.finde,1));
+  $('lSab').textContent = t('sabD')(fecha(S.finde,0)); $('lDom').textContent = t('domD')(fecha(S.finde,1));
+  $('findes').innerHTML = S.findes.map((f,i)=>`<label><input type="radio" name="finde" value="${f}"${f===S.finde?' checked':''}><span>${esc(i?t('siguiente'):t('esteFinde'))} · ${esc(new Intl.DateTimeFormat(LANG==='ca'?'ca-ES':'es-ES',{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(f+'T12:00:00Z')))}</span></label>`).join('');
+}
+$('findes').addEventListener('change', e=>{ if(e.target.name==='finde'){ cargar(e.target.value); } });
+function msg(text, kind){ $('msg').innerHTML = text ? `<p class="msg ${kind}">${esc(text)}</p>` : ''; }
+const radio = n => document.querySelector(`input[name="${n}"]:checked`)?.value;
+const setRadio = (n,v) => document.querySelectorAll(`input[name="${n}"]`).forEach(i=>i.checked = i.value===v);
+function rellenar(d){
+  $('nombre').value = d?.nombre || ''; $('poblacion').value = d?.poblacion || '';
+  setRadio('coche', d?.coche===true?'1':d?.coche===false?'0':''); setRadio('sab', d?.sab||''); setRadio('dom', d?.dom||'');
+  $('sab_obs').value = d?.sab_obs || ''; $('dom_obs').value = d?.dom_obs || '';
+}
+const franja = v => ({manana:t('manana'),tarde:t('tarde'),ambas:t('ambas'),no:t('noPuedo')}[v]||v);
+function pintarHecha(){
+  const d=S.mia;
+  $('resumen').innerHTML = `<dt>${esc(t('dNombre'))}</dt><dd>${esc(d.nombre)}</dd><dt>${esc(t('dPob'))}</dt><dd>${esc(d.poblacion)}</dd><dt>${esc(t('dCoche'))}</dt><dd>${esc(d.coche?t('si'):t('no'))}</dd>`
+    + `<dt>${esc(t('sabD')(fecha(S.finde,0)))}</dt><dd>${esc(franja(d.sab))}${d.sab_obs?' · '+esc(d.sab_obs):''}</dd><dt>${esc(t('domD')(fecha(S.finde,1)))}</dt><dd>${esc(franja(d.dom))}${d.dom_obs?' · '+esc(d.dom_obs):''}</dd>`;
+}
+function ver(que){
+  $('cargando').classList.add('hidden'); $('findes').classList.remove('hidden');
+  for(const id of ['elige','hecha','form']) $(id).classList.toggle('hidden', id!==que);
+  if(que==='hecha') pintarHecha();
+  if(que==='form'){ $('conCuenta').classList.toggle('hidden', !S.cuenta); $('enviar').textContent = S.mia ? t('guardar') : t('enviar'); $('cancelar').classList.toggle('hidden', !S.mia); }
+}
+async function cargar(f){
+  msg('');
+  let r = await api({action:'form', finde:f||undefined, codigo:codigoDe(f)||undefined});
+  // Sin saber aún qué fin de semana toca no se sabe qué código mandar: si hay uno guardado para el que toca, otra vez con él.
+  if(r.ok && !r.mia && !r.cuenta && !f && codigoDe(r.finde)) r = await api({action:'form', finde:r.finde, codigo:codigoDe(r.finde)});
+  if(!r.ok){ $('cargando').textContent = r.error || t('red'); return; }
+  S.finde=r.finde; S.findes=r.findes; S.cuenta=r.cuenta; S.mia=r.mia;
+  pintarFinde();
+  if(S.mia){ rellenar(S.mia); ver('hecha'); }
+  else if(S.cuenta){ rellenar({nombre:S.cuenta.nombre, poblacion:S.cuenta.poblacion}); ver('form'); }
+  else { rellenar(null); ver('elige'); }
+}
+// Con ?finde=AAAA-MM-DD se abre ese fin de semana (si es uno de los dos que se pueden rellenar).
+$('aMano').addEventListener('click', ()=>{ ver('form'); $('nombre').focus(); });
+$('cambiar').addEventListener('click', ()=>{ rellenar(S.mia); ver('form'); $('nombre').focus(); });
+$('cancelar').addEventListener('click', ()=>ver('hecha'));
+$('retirar').addEventListener('click', async ()=>{
+  if(!confirm(t('confirmar'))) return;
+  const r = await api({action:'retirar', finde:S.finde, codigo:codigo()||undefined});
+  if(!r.ok){ msg(r.error||t('red'),'err'); return; }
+  S.mia=null; msg(t('retirada'),'ok');
+  if(S.cuenta){ rellenar({nombre:S.cuenta.nombre, poblacion:S.cuenta.poblacion}); ver('form'); } else { rellenar(null); ver('elige'); }
+});
+$('form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const body = { action:'enviar', finde:S.finde, codigo:codigo()||undefined, nombre:$('nombre').value.trim(), poblacion:$('poblacion').value.trim(),
+    coche: radio('coche')==='1' ? true : radio('coche')==='0' ? false : undefined, sab:radio('sab'), dom:radio('dom'), sab_obs:$('sab_obs').value.trim(), dom_obs:$('dom_obs').value.trim() };
+  const falta = [body.nombre.length<3&&t('fNombre'), body.poblacion.length<2&&t('fPob'), body.coche===undefined&&t('fCoche'), !body.sab&&t('fSab'), !body.dom&&t('fDom')].filter(Boolean);
+  if(falta.length){ msg(t('falta')+' '+falta.join(', ')+'.','err'); $('msg').scrollIntoView({block:'nearest'}); return; }
+  const b=$('enviar'); b.disabled=true; b.textContent=t('enviando');
+  const r = await api(body);
+  b.disabled=false; b.textContent = S.mia ? t('guardar') : t('enviar');
+  if(!r.ok){ msg(r.error||t('red'),'err'); $('msg').scrollIntoView({block:'nearest'}); return; }
+  if(r.codigo){ try{ localStorage.setItem(codigoKey(S.finde), r.codigo); }catch(e){} }
+  S.mia = {...body, updated_at:new Date().toISOString()};
+  ver('hecha'); msg(t('ok'),'ok'); scrollTo(0,0);
+});
+applyLang();
+cargar(new URLSearchParams(location.search).get('finde') || undefined);
+</script>
+</body>
+</html>
