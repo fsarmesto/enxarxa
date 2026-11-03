@@ -842,6 +842,11 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   club) y la plantilla pública (`roster`, sin las bajas). **iSquad no da dorsales**: se ponen en el acta y se recuerdan por
   nombre en `acta-plantilla:<equipo>` (dorsal, capitán, líbero) para la siguiente. Entrenador y 2º por el cargo. Fila con
   nombre y sin dorsal = aviso (antes se ignoraba). 3-nov: 59 de 60 equipos de 30 partidos encontrados.
+  Corregido el mismo día (`plantillasPartido` en publico.ts): **la categoría manda** (se manda la de la designación,
+  `matches.comp`), porque los clubes repiten nombre de equipo en varias categorías y un partido ya jugado no sale en el
+  listado (antes cogía, p. ej., el CN Terrassa A femenino para un partido masculino); y el club se busca también por nombre
+  parecido ("CITYNET TARRAGONA SPS" en el listado / "…SPSP" en la designación). 10 de 10 equipos de los partidos de Ferran
+  del 30-oct al 1-nov y 58 de 60 del sábado 7-nov, ninguno de otra categoría.
 - Pruebas: `node --test tools/prueba-acta-motor.mjs` (12 casos de reglas). Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
 - Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,

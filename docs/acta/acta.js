@@ -97,7 +97,7 @@ function pInicio() {
   $('app').querySelectorAll('[data-desde]').forEach((b) => (b.onclick = () => {
     const m = MIOS.find((x) => x.id === b.dataset.desde), [l, v] = (m.teams || '').split(' vs ');
     const crew = (f) => titulo((m.crew || []).find((c) => c.f === f)?.n || '');
-    A_ORIGEN = { local: l, visitante: v, fecha: m.date };
+    A_ORIGEN = { local: l, visitante: v, fecha: m.date, cat: m.comp };   // la categoría decide el equipo (los clubes repiten nombres)
     crear({ competicion: titulo(m.comp), partido: m.id, fecha: m.date, hora: m.time, pabellon: titulo(m.venue), ciudad: titulo((m.addr || '').match(/\d{5}\s+([^,]+)/)?.[1] || ''),
       local: titulo(l), visitante: titulo(v), r1: crew('r1'), r2: crew('r2'), an: crew('an') });
   }));

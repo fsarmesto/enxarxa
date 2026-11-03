@@ -135,6 +135,38 @@ export async function roster(idEquipo: string): Promise<{ name: string; foto: st
   }
   return out;
 }
+// Plantillas de los 2 equipos de un partido, para el acta electrónica. Del listado de partidos sale el club de cada equipo
+// (por el nombre exacto; si no, uno que empiece igual, como "CITYNET TARRAGONA SPS" / "...SPSP"; si no, por las 2 primeras
+// palabras, como los demás equipos del club), y de la ficha del club, el equipo: mismo nombre y categoría; si no, el único
+// del club en esa categoría (la ficha a veces pone el nombre del club). La categoría manda: los clubes repiten nombre de
+// equipo en varias categorías y un partido ya jugado no sale en el listado. Sin bajas; iSquad no da dorsales.
+export type PlantillaEquipo = { id_equipo: string; equipo: string; cat: string; personas: { nombre: string; perfil: string; cargo: string }[] };
+export async function plantillasPartido(db: Db, local: string, visitante: string, fecha?: string, cat?: string): Promise<{ L: PlantillaEquipo | null; V: PlantillaEquipo | null }> {
+  const list = await feed(db);
+  const p = list.find((x) => x.d.slice(0, 10) === fecha && sameTeam(x.l, local) && sameTeam(x.v, visitante));
+  const categoria = cat || p?.cat || "";
+  const nombres: [string, string][] = list.flatMap((x) => [[x.l, x.cl], [x.v, x.cv]] as [string, string][]);
+  const clubesDe = (name: string) => {
+    const n = norm(name), ids = new Set<string>();
+    for (const [t, c] of nombres) if (c && norm(t) === n) ids.add(c);
+    if (!ids.size) for (const [t, c] of nombres) { const m = norm(t); if (c && m.length > 5 && (m.startsWith(n) || n.startsWith(m))) ids.add(c); }
+    if (!ids.size) { const pre = n.split(" ").slice(0, 2).join(" "); if (pre.length > 5) for (const [t, c] of nombres) if (c && norm(t).startsWith(pre + " ")) ids.add(c); }
+    return [...ids].slice(0, 3);
+  };
+  const una = async (name: string): Promise<PlantillaEquipo | null> => {
+    for (const club of clubesDe(name)) {
+      const teams = await clubTeams(db, club);
+      const enCat = categoria ? teams.filter((x) => sameCat(x.cat, categoria)) : teams;
+      const t = enCat.find((x) => sameTeam(x.name, name)) || (categoria && enCat.length === 1 ? enCat[0] : undefined);
+      if (!t) continue;
+      const gente = (await roster(t.id)).filter((x) => !x.baja);
+      return { id_equipo: t.id, equipo: t.name, cat: t.cat, personas: gente.map((x) => ({ nombre: x.name, perfil: perfilOf(x.perfil), cargo: x.perfil })) };
+    }
+    return null;
+  };
+  const [L, V] = await Promise.all([una(local), una(visitante)]);
+  return { L, V };
+}
 // ¿Sale el árbitro en la plantilla? Por foto de afiliado (inequívoca) o, si no, por nombre (todas sus palabras).
 export async function roleIn(idEquipo: string, me: string[], foto = ""): Promise<string | null> {
   if (!me.length && !foto) return null;
