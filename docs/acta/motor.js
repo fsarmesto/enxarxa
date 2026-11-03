@@ -7,8 +7,24 @@
 (function (root) {
   'use strict';
   const OTRO = (e) => (e === 'L' ? 'V' : 'L');
-  const CONFIG = { mejorDe: 5, puntosSet: 25, puntosDecisivo: 15, tiempos: 2, sustituciones: 6, cambioDecisivo: 8 };
+  // liberos: si la categoría juega con líbero (en infantil se puede quitar). setObligatorio: cada jugador del acta tiene que
+  // jugar al menos un set completo (FCVB, Circular 011: infantil y, a veces, alevín).
+  const CONFIG = { mejorDe: 5, puntosSet: 25, puntosDecisivo: 15, tiempos: 2, sustituciones: 6, cambioDecisivo: 8, liberos: true, setObligatorio: false };
   const ROLES_OFICIALES = { E: 'Entrenador', E2: 'Segundo entrenador', F: 'Fisioterapeuta', M: 'Médico' };
+
+  // Dorsales: de 0 a 99 y además el 00 (distinto del 0). Se guardan como texto: "7", "0", "00" ("07" pasa a "7").
+  const DORSAL = /^\d{1,2}$/;
+  const dorsalValido = (x) => DORSAL.test(String(x ?? '').trim());
+  const D = (x) => { if (x === null || x === undefined || x === '') return x; const t = String(x).trim(); return t === '00' ? '00' : DORSAL.test(t) ? String(+t) : t; };
+  const esDorsal = (x) => typeof x === 'string' && DORSAL.test(x);
+  // Normaliza los dorsales de un suceso (las actas guardadas antes los tenían como número).
+  function normalizar(ev) {
+    const e = { ...ev };
+    for (const k of ['sale', 'entra', 'libero', 'num', 'nuevo']) if (k in e) e[k] = D(e[k]);
+    if ('quien' in e && (typeof e.quien === 'number' || DORSAL.test(String(e.quien)))) e.quien = D(e.quien);
+    if (e.t === 'alineacion' && Array.isArray(e.jugadores)) e.jugadores = e.jugadores.map(D);
+    return e;
+  }
 
   class ErrorActa extends Error {}
   const no = (msg) => { throw new ErrorActa(msg); };
@@ -29,7 +45,7 @@
       tiempos: { L: [], V: [] },              // { a, b }
       liberos: { L: [], V: [] },              // cambios de líbero, para el acta: { entra, sale, a, b }
       progreso: [],                            // cada punto: { eq, a, b, motivo }
-      rallies: 0, ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
+      rallies: 0, repeticiones: [], ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
     };
   }
 
@@ -42,6 +58,8 @@
       avisoConducta: { L: false, V: false }, avisoRetraso: { L: false, V: false }, impropias: { L: 0, V: 0 },
       descalificados: { L: new Set(), V: new Set() }, fueraPartido: { L: new Set(), V: new Set() },
       observaciones: [], firmas: {}, fase: 'preparacion', auto: [],
+      marcasSet: { L: {}, V: {} },
+      liberosFuera: { L: [], V: [] },          // líberos que no pueden seguir y por quién se han redesignado             // set completo marcado a mano: marcasSet[eq][dorsal][set] = true/false
     };
   }
 
@@ -73,7 +91,7 @@
   // Un suplente saca en la columna (posición inicial) del titular por el que entró.
   function colDeSuplente(s, eq, num) {
     const tit = Object.keys(s.parejas[eq]).find((t) => s.parejas[eq][t] === num);
-    return tit != null ? s.alineacion[eq].indexOf(+tit) : -1;
+    return tit != null ? s.alineacion[eq].indexOf(tit) : -1;
   }
   function cerrarTurno(s, eq) { const t = s.turnos[eq][s.turnos[eq].length - 1]; if (t && t.hasta == null) t.hasta = s.puntos[eq]; }
 
@@ -131,7 +149,7 @@
     }
     const tit = Object.keys(parejas).find((t) => parejas[t] === sale);   // sale un suplente
     if (tit == null) return `El ${sale} no puede salir con una sustitución normal.`;
-    if (+tit !== entra) return `Por el ${sale} solo puede volver el ${tit}, el titular por el que entró.`;
+    if (tit !== entra) return `Por el ${sale} solo puede volver el ${tit}, el titular por el que entró.`;
     return null;
   }
 
@@ -160,6 +178,7 @@
   // ---------- Líbero ----------
   function liberoEntra(st, eq, libero, sale, h) {
     const s = setActual(st);
+    if (!st.cfg.liberos) no('En este partido no hay líbero.');
     if (st.fase !== 'juego') no('El líbero entra con el set en marcha.');
     if (!esLibero(st, eq, libero)) no(`El ${libero} no está inscrito como líbero.`);
     if (st.descalificados[eq].has(libero) || s.expulsados[eq].has(libero) || st.fueraPartido[eq].has(libero)) no(`El líbero ${libero} no puede jugar.`);
@@ -195,7 +214,7 @@
   function sancionar(st, eq, quien, tipo, h) {
     const s = setActual(st);
     if (!['juego', 'entreSets'].includes(st.fase)) no('Las sanciones se ponen durante el partido.');
-    const esJug = typeof quien === 'number';
+    const esJug = esDorsal(quien);
     if (esJug && !jugador(st, eq, quien)) no(`El ${quien} no está en el acta.`);
     if (!esJug && quien !== 'equipo' && !ROLES_OFICIALES[quien]) no('¿A quién es la sanción?');
     if (tipo === 'amonestacion' && st.avisoConducta[eq]) no('Este equipo ya ha tenido su amonestación: la siguiente conducta incorrecta es castigo.');
@@ -214,17 +233,20 @@
   }
 
   // ---------- Reproducir ----------
-  function aplicar(st, ev) {
-    const h = ev.h || null, s = setActual(st);
+  function aplicar(st, ev0) {
+    const ev = normalizar(ev0), h = ev.h || null, s = setActual(st);
     switch (ev.t) {
       case 'equipo': {   // { eq, nombre, jugadores:[{num,nombre,cap,lib}], oficiales:[{rol,nombre}] }
         if (st.fase !== 'preparacion') no('Las plantillas se cierran al empezar el partido.');
-        const nums = ev.jugadores.map((j) => j.num);
+        const mal = ev.jugadores.find((j) => !dorsalValido(j.num));
+        if (mal) no(`Dorsal no válido: "${mal.num ?? ''}"${mal.nombre ? ' (' + mal.nombre + ')' : ''}. Tiene que ser de 0 a 99, o 00.`);
+        const nums = ev.jugadores.map((j) => D(j.num));
         if (new Set(nums).size !== nums.length) no('Hay dorsales repetidos.');
         if (ev.jugadores.filter((j) => j.cap).length > 1) no('Solo puede haber un capitán.');
         if (ev.jugadores.some((j) => j.cap && j.lib)) no('El líbero no puede ser el capitán.');
         if (ev.jugadores.filter((j) => j.lib).length > 2) no('Como mucho 2 líberos.');
-        st.equipos[ev.eq] = { nombre: ev.nombre || st.equipos[ev.eq].nombre, jugadores: ev.jugadores.map((j) => ({ ...j })), oficiales: (ev.oficiales || []).map((o) => ({ ...o })) };
+        if (!st.cfg.liberos && ev.jugadores.some((j) => j.lib)) no('En este partido no hay líbero (está desactivado en el formato).');
+        st.equipos[ev.eq] = { nombre: ev.nombre || st.equipos[ev.eq].nombre, jugadores: ev.jugadores.map((j) => ({ ...j, num: D(j.num) })), oficiales: (ev.oficiales || []).map((o) => ({ ...o })) };
         return;
       }
       case 'sorteo': {   // { saca, izq }: antes del 1er set y antes del decisivo
@@ -271,6 +293,47 @@
       case 'impropia': st.impropias[ev.eq]++; st.sanciones.push({ eq: ev.eq, quien: 'equipo', tipo: 'impropia', set: s.n, ...marcador(s, ev.eq), h }); return;
       case 'obs': st.observaciones.push({ texto: String(ev.texto || '').slice(0, 1000), set: s.n, h }); return;
       case 'firma': st.firmas[ev.rol] = { nombre: ev.nombre || '', img: ev.img, h }; return;
+      case 'repeticion': {   // la jugada se repite (p. ej. doble falta o interferencia externa): sin punto para nadie
+        if (st.fase !== 'juego') no('Las repeticiones se anotan con el set en marcha.');
+        s.repeticiones.push({ a: s.puntos.L, b: s.puntos.V, h });
+        return;
+      }
+      case 'liberoNoPuede': {   // { eq, libero, nuevo? } FIVB 19.4: líbero lesionado, enfermo, expulsado o descalificado
+        if (!st.cfg.liberos) no('En este partido no hay líbero.');
+        if (!['juego', 'entreSets'].includes(st.fase)) no('Se hace con el partido en marcha.');
+        const lib = jugador(st, ev.eq, ev.libero);
+        if (!lib?.lib) no(`El ${ev.libero} no es líbero.`);
+        if (st.fueraPartido[ev.eq].has(ev.libero)) no(`El ${ev.libero} ya no juega.`);
+        const enPistaAhora = s.libero[ev.eq]?.num === ev.libero;
+        let nuevo = null;
+        if (ev.nuevo != null) {
+          // Redesignación: un jugador que no esté en pista pasa a ser líbero el resto del partido.
+          const j = jugador(st, ev.eq, ev.nuevo);
+          if (!j) no(`El ${ev.nuevo} no está en el acta.`);
+          if (j.lib) no(`El ${ev.nuevo} ya es líbero: no hace falta redesignarlo.`);
+          if ((s.rot[ev.eq] || []).includes(ev.nuevo)) no(`El ${ev.nuevo} está en pista: solo se puede redesignar a quien no esté en pista.`);
+          if (st.descalificados[ev.eq].has(ev.nuevo) || st.fueraPartido[ev.eq].has(ev.nuevo)) no(`El ${ev.nuevo} no puede jugar.`);
+          if (st.equipos[ev.eq].jugadores.some((x) => x.cap && x.num === ev.nuevo)) no('El capitán no puede ser líbero.');
+          j.lib = true; j.redesignado = true; nuevo = j.num;
+        }
+        st.fueraPartido[ev.eq].add(ev.libero);
+        st.liberosFuera[ev.eq].push({ libero: ev.libero, nuevo, set: s.n, a: s.puntos[ev.eq], b: s.puntos[OTRO(ev.eq)], h });
+        if (enPistaAhora) {
+          // Estaba en pista: le sustituye directamente el nuevo líbero (o el otro líbero); si no hay, vuelve el jugador.
+          const otro = nuevo || st.equipos[ev.eq].jugadores.find((x) => x.lib && x.num !== ev.libero && !st.fueraPartido[ev.eq].has(x.num))?.num;
+          if (otro) { s.liberos[ev.eq].push({ entra: otro, sale: ev.libero, ...marcador(s, ev.eq), h }); s.libero[ev.eq] = { ...s.libero[ev.eq], num: otro }; }
+          else { s.liberos[ev.eq].push({ entra: s.libero[ev.eq].por, sale: ev.libero, ...marcador(s, ev.eq), h }); s.libero[ev.eq] = null; }
+          s.ultLibero[ev.eq] = s.rallies;
+        }
+        return;
+      }
+      case 'setCompleto': {   // { eq, num, set, si }: corrección a mano del anotador (p. ej. un cambio especial que no cuenta)
+        const set = st.sets.find((x) => x.n === ev.set);
+        if (!set || !set.inicio) no('Ese set no se ha jugado.');
+        if (!jugador(st, ev.eq, ev.num)) no(`El ${ev.num} no está en el acta.`);
+        ((st.marcasSet[ev.eq][ev.num] ??= {})[ev.set] = !!ev.si);
+        return;
+      }
       default: no('Suceso desconocido: ' + ev.t);
     }
   }
@@ -283,6 +346,25 @@
   // ¿Es legal? Devuelve null o el motivo, sin tocar el estado de fuera.
   function validar(config, datos, sucesos, ev) {
     try { const st = reproducir(config, datos, sucesos); aplicar(st, ev); return null; } catch (e) { if (e instanceof ErrorActa) return e.message; throw e; }
+  }
+
+  // Set completo (FCVB, Circular 011): cuenta para los titulares de ese set que no han sido cambiados durante el set. Un set
+  // en juego todavía no cuenta. Lo marcado a mano manda. Devuelve, por equipo y jugador, los sets completos y si cumple.
+  function setsCompletos(st) {
+    const out = { L: {}, V: {} };
+    for (const eq of ['L', 'V']) {
+      for (const j of st.equipos[eq].jugadores) {
+        const sets = [];
+        for (const s of st.sets) {
+          if (!s.inicio) continue;
+          const auto = !!s.fin && (s.alineacion[eq] || []).includes(j.num) && !s.sust[eq].some((x) => x.sale === j.num);
+          const mano = st.marcasSet[eq][j.num]?.[s.n];
+          sets.push({ set: s.n, auto, mano: mano ?? null, completo: mano ?? auto, enJuego: !s.fin });
+        }
+        out[eq][j.num] = { num: j.num, nombre: j.nombre, lib: !!j.lib, sets, cumple: sets.some((x) => x.completo) };
+      }
+    }
+    return out;
   }
 
   // Cuadro de resultados del acta.
@@ -303,6 +385,6 @@
     };
   }
 
-  const api = { CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
+  const api = { D, dorsalValido, esDorsal, setsCompletos, CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.ActaMotor = api;
 })(typeof self !== 'undefined' ? self : this);

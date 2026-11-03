@@ -25,6 +25,7 @@ main.wide{max-width:1180px}
 .lista .chk{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;white-space:nowrap}
 .lista .chk input{width:18px;height:18px}
 .x{min-height:36px;padding:0 10px;border-width:1px}
+.lista input[aria-invalid="true"]{border-color:var(--red);background:var(--warn-bg);color:var(--warn)}
 /* Marcador y mitades */
 .marcador{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;background:#000;color:#fff;border-radius:10px;padding:10px 12px;margin:0 0 10px}
 .marcador .eq{font-weight:700;font-size:15px;line-height:1.15;overflow:hidden}
@@ -48,6 +49,110 @@ main.wide{max-width:1180px}
 .barra{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
 .registro{font-size:13px;color:var(--ink-2);max-height:180px;overflow:auto;border-top:1px solid var(--line);padding-top:6px}
 .registro div{padding:2px 0}
+/* Pantalla de juego: en móvil y tablet, marcador arriba y dos mitades; en PC (desde 1100 px), 3 columnas con la pista real
+   en el centro y el panel de cada equipo a su lado. */
+.juego{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"marc marc" "izq der" "barra barra" "reg reg";gap:10px}
+.j-marc{grid-area:marc;min-width:0}.j-izq{grid-area:izq;min-width:0}.j-der{grid-area:der;min-width:0}.j-cancha{grid-area:cancha;display:none;min-width:0}.j-barra{grid-area:barra}.j-reg{grid-area:reg}
+.juego .marcador{margin:0;border:1px solid #2E2E2E}   /* que se vea en el tema oscuro */
+.marcador .pts .p-g{opacity:.5;margin:0 .12em}
+.marcador .historial{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;border-top:1px solid #2E2E2E;padding-top:8px;margin-top:2px}
+.marcador .historial span{font:600 13px/1 Barlow,sans-serif;color:#A6A6A6;border:1px solid #2E2E2E;border-radius:12px;padding:4px 9px}
+.marcador .historial .gi{border-left:4px solid var(--yellow)} .marcador .historial .gd{border-right:4px solid var(--yellow)}
+.solo-pc{display:none}
+kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font:600 12px/18px Barlow,sans-serif;color:var(--ink);background:var(--surface)}
+.registro .h{color:var(--ink-3);font-variant-numeric:tabular-nums;margin-right:8px}
+.dots{display:inline-flex;gap:5px;vertical-align:middle}
+.dots i{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink-3)}
+.dots i.on{background:var(--ink);border-color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:30px;padding:0 6px;border-radius:15px;border:1px solid var(--line);font:700 15px/1 var(--display);background:var(--surface)}
+.chip.lib{background:var(--yellow);border-color:var(--yellow);color:#000}
+.chip.fuera{text-decoration:line-through;opacity:.5}
+.sancs{list-style:none;margin:0;padding:0;font-size:13px}
+.sancs li{display:flex;align-items:center;gap:6px;padding:2px 0}
+.tarjeta{display:inline-block;width:10px;height:14px;border-radius:2px;background:var(--yellow);flex:none}
+.tarjeta.t-castigo,.tarjeta.t-castigoRetraso{background:var(--red)}
+.tarjeta.t-expulsion{background:linear-gradient(90deg,var(--yellow) 50%,var(--red) 50%)}
+.tarjeta.t-descalificacion{background:var(--red);box-shadow:3px 0 0 var(--yellow)}
+.tarjeta.t-impropia{background:transparent;border:2px solid var(--ink-3)}
+/* Pista grande */
+.cancha{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.c-nom{display:flex;justify-content:space-between;font:700 18px/1.1 var(--display);margin:0 4px 8px}
+.c-nom span:last-child{text-align:right}
+.c-pista{display:grid;grid-template-columns:1fr 10px 1fr;background:#E9893B;border:4px solid #fff;outline:2px solid #C96F25;border-radius:4px;aspect-ratio:2/1.05}
+.campo{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);position:relative}
+.campo:first-child{background:linear-gradient(90deg,transparent calc(66.6% - 2px),rgba(255,255,255,.9) calc(66.6% - 2px),rgba(255,255,255,.9) 66.6%,transparent 66.6%)}
+.campo:last-child{background:linear-gradient(90deg,transparent 33.3%,rgba(255,255,255,.9) 33.3%,rgba(255,255,255,.9) calc(33.3% + 2px),transparent calc(33.3% + 2px))}
+.c-pista .red{background:repeating-linear-gradient(0deg,#111 0 3px,#eee 3px 6px);border-left:2px solid #111;border-right:2px solid #111;margin:-10px 0;border-radius:2px}
+.jug{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.jug .n{display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:#fff;color:#000;font:700 30px/1 var(--display);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.jug.lib .n{background:var(--yellow)}
+.jug.saca .n{outline:4px solid var(--red);outline-offset:2px}
+.jug .cap{position:absolute;top:calc(50% - 44px);right:calc(50% - 40px);background:#000;color:#fff;font:700 11px/18px Barlow,sans-serif;width:18px;height:18px;border-radius:50%;text-align:center}
+.jug .pelota{position:absolute;top:calc(50% - 46px);left:calc(50% - 44px);width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 30%,var(--yellow) 31%);border:2px solid #000}
+.jug .pos{font:600 11px/1 Barlow,sans-serif;color:#fff;margin-top:5px;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.c-mesa{text-align:center;font-size:12px;color:var(--ink-3);margin-top:8px;letter-spacing:.04em;text-transform:uppercase}
+.solo-movil-i{display:inline}
+@media (min-width:1100px){
+  main.wide{max-width:1440px}
+  .board .in{max-width:1408px}   /* la cabecera, tan ancha como el contenido */
+  .juego{grid-template-columns:290px minmax(0,1fr) 290px;grid-template-areas:"izq marc der" "izq cancha der" "izq barra der" "izq reg der";gap:14px 18px;align-items:start}
+  .j-cancha{display:block}
+  .solo-pc{display:block} .solo-movil{display:none} .solo-movil-i{display:none}
+  .mitad{padding:14px;position:sticky;top:10px}
+  .m-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px}
+  .m-nom{font:700 24px/1.05 var(--display);min-width:0}
+  .m-sets{flex:none;width:46px;height:46px;border-radius:8px;background:#000;color:var(--yellow);display:flex;align-items:center;justify-content:center;font:700 30px/1 var(--display)}
+  .btnPunto{min-height:120px;font-size:34px;letter-spacing:.02em}
+  .acts button{min-height:48px}
+  .m-info{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+  .m-info h4{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:12px 0 6px}
+  .m-fila{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;padding:3px 0}
+  .marcador{padding:14px 20px;border-radius:12px}
+  .marcador .eq{font:700 24px/1.1 var(--display)}
+  .marcador .sets{font-size:30px;margin-top:4px}
+  .marcador .pts{font-size:92px}
+  .marcador .pts small{font-size:15px}
+  .j-barra .barra{margin:0;justify-content:center}
+  .teclas{text-align:center;margin:6px 0 0}
+  .j-reg h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:0 0 6px}
+  .registro{max-height:none;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--surface);columns:2;column-gap:24px}
+  .registro div{break-inside:avoid;border-bottom:1px solid var(--line);padding:5px 0}
+  .dos{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .dos .card{margin:0}
+}
+@media (min-width:1100px) and (max-width:1279px){ .jug .n{width:54px;height:54px;font-size:26px} .marcador .pts{font-size:76px} }
+.opcion{display:flex!important;align-items:flex-start;gap:10px;margin:10px 0;font-weight:400;cursor:pointer}
+.opcion input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--ink)}
+.chip.falta{border-color:var(--red);color:var(--warn)}
+.setob .nocumple td{background:var(--warn-bg)}
+.setob .chk input{width:22px;height:22px;accent-color:var(--ink)}
+.ok-t{color:var(--ok);font-weight:700} .no-t{color:var(--warn);font-weight:700}
+.lj{list-style:none;margin:0;padding:0;font-size:14px}
+.lj li{display:grid;grid-template-columns:16px 30px minmax(0,1fr) auto auto;align-items:center;gap:4px;padding:3px 4px;border-bottom:1px solid var(--line)}
+.lj li .cap{font:700 11px/1 Barlow,sans-serif;color:var(--ok)}
+.lj li b{font:700 17px/1 var(--display);text-align:right;padding-right:4px}
+.lj li .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lj li .nota{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.lj li.lib{background:var(--yellow);color:#000;border-radius:4px}
+.lj li.lib .nota,.lj li.lib .cap{color:#000}
+.lj li.fuera{opacity:.5;text-decoration:line-through}
+.jug .nmb{font:600 12px/1 Barlow,sans-serif;color:#fff;margin-top:5px;max-width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.jug .pos{opacity:.75;margin-top:2px}
+.c-ultimo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 0;padding:8px 8px 8px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-weight:600}
+.c-ultimo .deshacer{background:var(--red);border-color:var(--red);color:#fff;flex:none}
+.c-ultimo .deshacer:disabled{background:transparent;color:var(--ink-3);border-color:var(--line)}
+.c-puntos{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0 0}
+.c-puntos .btnPunto{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:104px;margin:0}
+.c-puntos .btnPunto span{font:700 34px/1 var(--display)}
+.c-puntos .btnPunto small{font:600 14px/1.2 Barlow,sans-serif;opacity:.85}
+.c-puntos kbd{background:transparent;color:inherit;border-color:currentColor}
+.c-resumen{width:100%;max-width:520px;margin:12px auto 0;border-collapse:collapse;font-size:14px;text-align:center;font-variant-numeric:tabular-nums}
+.c-resumen th{font-size:12px;color:var(--ink-3);font-weight:700;padding:3px;border-bottom:1px solid var(--line)}
+.c-resumen td{padding:4px;border-bottom:1px solid var(--line)}
+.c-resumen td.set{background:var(--ink);color:var(--bg);font-weight:700}
+.c-resumen tr.actual td{background:var(--surface-2)} .c-resumen tr.actual td.set{background:var(--yellow);color:#000}
+button.en-directo{background:var(--red);border-color:var(--red);color:#fff}
 /* Hoja de diálogo */
 #hoja{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:20;padding:12px}
 #hoja .card{width:100%;max-width:560px;max-height:88vh;overflow:auto;margin:0}

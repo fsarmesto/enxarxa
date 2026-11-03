@@ -61,8 +61,14 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(res);
 }).listen(8126);
 
+// Un solo perfil, que se vacía al empezar: Chrome deja procesos escribiendo un momento después de cerrarse y borrarlo al
+// acabar no siempre funcionaba (cada perfil ~180 MB llegó a llenar /tmp).
+const PERFIL = path.join(os.tmpdir(), 'a11y-perfil');
+fs.rmSync(PERFIL, { recursive: true, force: true }); fs.mkdirSync(PERFIL, { recursive: true });
 const chrome = spawn(process.env.CHROME || 'google-chrome', ['--headless=new', '--no-sandbox', '--remote-debugging-port=9338',
-  '--user-data-dir=' + fs.mkdtempSync(path.join(os.tmpdir(), 'a11y-')), 'about:blank'], { stdio: 'ignore' });
+  '--user-data-dir=' + PERFIL, 'about:blank'], { stdio: 'ignore' });
+// El perfil de Chrome ocupa ~180 MB: se borra al acabar.
+process.on('exit', () => { try { chrome.kill('SIGKILL'); } catch (e) {} try { fs.rmSync(PERFIL, { recursive: true, force: true, maxRetries: 5 }); } catch (e) {} });
 let targets; for (let i = 0; i < 50; i++) { try { targets = await (await fetch('http://127.0.0.1:9338/json')).json(); if (targets.length) break; } catch (e) {} await sleep(200); }
 const ws = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
 let id = 0; const pend = new Map();

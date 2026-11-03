@@ -847,7 +847,41 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   listado (antes cogía, p. ej., el CN Terrassa A femenino para un partido masculino); y el club se busca también por nombre
   parecido ("CITYNET TARRAGONA SPS" en el listado / "…SPSP" en la designación). 10 de 10 equipos de los partidos de Ferran
   del 30-oct al 1-nov y 58 de 60 del sábado 7-nov, ninguno de otra categoría.
-- Pruebas: `node --test tools/prueba-acta-motor.mjs` (12 casos de reglas). Partido completo con clics reales y axe: banco de la
+- **Dorsales (3-nov-2026, Ferran):** de 0 a 99 y el 00 (distinto del 0). Se guardan como texto ("7", "0", "00"; "07" = "7"):
+  `D()` y `normalizar()` en el motor, que también pasa a texto los dorsales numéricos de las actas guardadas antes. El motor
+  rechaza la plantilla con un dorsal no válido; en pantalla, campo de 2 caracteres en rojo al escribirlo y aviso al guardar.
+- **Alineación (3-nov-2026, Ferran):** un jugador elegido en una posición desaparece de los desplegables de las otras y vuelve
+  si se cambia (`enlazarAlineacion`, rehace las opciones: en el iPhone las opciones escondidas se siguen viendo).
+- **PC (3-nov-2026, Ferran: "más bonita para PC"):** desde 1100 px, la pantalla de juego va en 3 columnas (`.juego` con
+  áreas de grid): panel de cada equipo a su lado (nombre y sets, punto grande, acciones, tiempos y cambios con puntos, banquillo
+  con el líbero en amarillo y los que no pueden jugar tachados, sanciones con su tarjeta) y en el centro marcador con historial
+  de sets, **pista vista desde la mesa** (`pistaGrande`: red en medio; el de la izquierda tiene la I abajo a la izquierda y el
+  de la derecha arriba a la derecha; el que saca con anillo rojo y balón), botones, teclas y registro a 2 columnas. En móvil y
+  tablet, como antes (`.solo-pc` / `.solo-movil`). Plantillas lado a lado en PC (`.dos`).
+  Ideas del e-Scoresheet de la RFEVB (captura de Ferran, 3-nov): en los paneles, listas "En pista" y "Banquillo" con dorsal y
+  nombre (`listaJugadores`: C del capitán, "(3)" = entró por el 3, "salió 3-6", líberos en fila amarilla, tarjetas de
+  sanción, tachados los que no pueden jugar); bajo la pista, último suceso con Deshacer en rojo, los 2 botones de punto
+  grandes (en PC no están en los paneles) y cuadro por set (cambios, tiempos, puntos, minutos); nombre bajo el dorsal en la
+  pista; reloj del set en el marcador (`RELOJ`).
+- **Infantil (3-nov-2026, Ferran):** en Datos, "Hay líbero" (`cfg.liberos`) y "Set obligatorio por jugador"
+  (`cfg.setObligatorio`); con "INFANTIL" en competición o categoría, al crear el acta salen sin líbero y con set obligatorio.
+  Sin líbero: no hay columna de líbero ni botón, el motor rechaza inscribirlo o usarlo, y al desactivarlo se quita la marca de
+  las plantillas guardadas. Set obligatorio (FCVB, Circular 011: "tots els jugadors anotats en acta tenen l'obligació de
+  jugar un set complert"; se marca a los titulares no cambiados durante el set): `setsCompletos(st)` (un set en juego no
+  cuenta) + suceso `setCompleto {eq, num, set, si}` para corregir a mano (manda; ✎ en pantalla, * en el acta). Panel de PC:
+  "Les falta un set completo"; final: tabla por jugador y set con aviso de quién no cumple; acta impresa con su tabla.
+  **Pendiente de confirmar con la FCVB:** el texto entero de la circular (el "canvi especial" que no rompe el set completo:
+  de momento se corrige a mano) y si en infantil hay líbero (no se ha encontrado ninguna norma catalana que lo prohíba).
+- **"Mete todo" del e-Scoresheet (3-nov-2026):** `repeticion` (jugada repetida: sin punto ni cambio de saque; registro y
+  observaciones del acta); `liberoNoPuede {eq, libero, nuevo?}` (FIVB 19.4: si queda otro líbero juega ese; si no, se puede
+  redesignar a un jugador que no esté en pista, nunca el capitán; el que no puede seguir no vuelve en el partido; si estaba en
+  pista le sustituye directamente). **Directo:** botón "Directo" (hace falta sesión de la app): `acta_directo` (migración
+  036; lectura pública por id aleatorio, escritura solo su anotador, `limpiar_directos()` borra los de más de 2 días al abrir
+  uno nuevo) con `resumenDirecto()` = equipos, competición, marcador, sets, saque y tiempos, **ningún nombre de jugador**;
+  se publica tras cada suceso. Página `docs/acta/directo/?id=` (negra, para móvil o TV; pregunta cada 4 s).
+- Pruebas: `node --test tools/prueba-acta-motor.mjs` (17 casos de reglas). Banco de pruebas con Chrome: un solo perfil
+  fijo en /tmp que se vacía al empezar (`tools/prueba-accesibilidad.mjs` igual): los perfiles temporales sin borrar, de
+  ~180 MB cada uno, llenaron /tmp (tmpfs de 7,4 GB) el 3-nov. Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
 - Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,
   equipo incompleto/incomparecencia, sanciones entre sets aplicadas al empezar el siguiente.

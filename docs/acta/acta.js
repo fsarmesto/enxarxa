@@ -30,7 +30,7 @@ function hacer(ev, silencio) {
   ev = { ...ev, h: ev.h || new Date().toISOString() };
   const m = M.validar(A.cfg, A.datos, A.ev, ev);
   if (m) { if (!silencio) toast(m); return m; }
-  A.ev.push(ev); guardar(); pintar(); return null;
+  A.ev.push(ev); guardar(); pintar(); publicarDirecto(); return null;
 }
 function toast(msg, ok) { const t = $('toast'); t.textContent = msg; t.className = ok ? 'ok' : ''; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), 3200); }
 
@@ -105,8 +105,11 @@ function pInicio() {
   $('app').querySelectorAll('[data-borrar]').forEach((b) => (b.onclick = () => { if (confirm('¿Borrar esta acta de este dispositivo?')) { localStorage.removeItem(clave(b.dataset.borrar)); pintar(); } }));
 }
 let A_ORIGEN = null;
+// Infantil: sin líbero y con set obligatorio por jugador (se puede cambiar en Datos).
+const esInfantil = (d) => /INFANTIL/i.test(`${d.competicion || ''} ${d.categoria || ''}`);
 function crear(datos) {
-  A = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cfg: { ...M.CONFIG }, datos, ev: [], paso: 'datos', creada: new Date().toISOString(),
+  const inf = esInfantil(datos);
+  A = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cfg: { ...M.CONFIG, ...(inf ? { liberos: false, setObligatorio: true } : {}) }, datos, ev: [], paso: 'datos', creada: new Date().toISOString(),
     ...(A_ORIGEN ? { origen: A_ORIGEN } : {}) };
   A_ORIGEN = null; reiniciar();
   guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
@@ -127,13 +130,20 @@ function pDatos() {
       <label class="f"><span>Partido al mejor de</span><select id="mejorDe"><option value="5"${c.mejorDe === 5 ? ' selected' : ''}>5 sets (gana quien llega a 3)</option><option value="3"${c.mejorDe === 3 ? ' selected' : ''}>3 sets (gana quien llega a 2)</option></select></label>
       <label class="f"><span>Puntos por set</span><input type="number" id="puntosSet" min="5" max="50" value="${c.puntosSet}"></label>
       <label class="f"><span>Puntos del set decisivo</span><input type="number" id="puntosDecisivo" min="5" max="50" value="${c.puntosDecisivo}"></label></div>
+    <label class="chk opcion"><input type="checkbox" id="cfgLib"${c.liberos ? ' checked' : ''}> <span><b>Hay líbero</b><br><span class="small muted">Desactívalo en las categorías que juegan sin líbero.</span></span></label>
+    <label class="chk opcion"><input type="checkbox" id="cfgSet"${c.setObligatorio ? ' checked' : ''}> <span><b>Set obligatorio por jugador</b><br><span class="small muted">Infantil (FCVB, Circular 011): cada jugador del acta tiene que jugar al menos un set completo. Al final se revisa y se puede corregir a mano.</span></span></label>
     <div class="row"><button type="button" class="ghost" id="volver">Mis actas</button><button class="primary">Siguiente: equipos</button></div></form>`;
   $('volver').onclick = salir;
   $('f').onsubmit = (e) => {
     e.preventDefault();
     $('f').querySelectorAll('[data-d]').forEach((i) => (A.datos[i.dataset.d] = i.value.trim()));
     if (!A.datos.local || !A.datos.visitante) { toast('Escribe el nombre de los 2 equipos.'); return; }
-    A.cfg = { ...A.cfg, mejorDe: +$('mejorDe').value, puntosSet: +$('puntosSet').value || 25, puntosDecisivo: +$('puntosDecisivo').value || 15 };
+    A.cfg = { ...A.cfg, mejorDe: +$('mejorDe').value, puntosSet: +$('puntosSet').value || 25, puntosDecisivo: +$('puntosDecisivo').value || 15, liberos: $('cfgLib').checked, setObligatorio: $('cfgSet').checked };
+    // Sin líbero: se quita la marca de líbero de las plantillas ya guardadas y de las que se están escribiendo.
+    if (!A.cfg.liberos) {
+      A.ev = A.ev.map((e) => (e.t === 'equipo' ? { ...e, jugadores: e.jugadores.map(({ lib, ...j }) => j) } : e));
+      for (const eq of ['L', 'V']) BORR[eq]?.jugadores.forEach((j) => delete j.lib);
+    }
     A.paso = 'equipos'; guardar(); pintar(); scrollTo(0, 0);
   };
 }
@@ -160,8 +170,8 @@ async function cargarIsquad(forzar) {
     const nombre = eqNombre(eq); let prev = null;
     try { prev = JSON.parse(localStorage.getItem(clavePlantilla(nombre)) || 'null'); } catch (x) {}
     const mem = new Map((prev?.jugadores || []).filter((j) => j.nombre).map((j) => [nombreKey(j.nombre), j]));
-    const jug = t.personas.filter((x) => x.perfil === 'jugador').map((x) => { const m = mem.get(nombreKey(x.nombre)) || {}; return { num: m.num || '', nombre: titulo(x.nombre), cap: !!m.cap, lib: !!m.lib, isq: true }; })
-      .sort((a, b) => (+a.num || 999) - (+b.num || 999) || a.nombre.localeCompare(b.nombre));
+    const jug = t.personas.filter((x) => x.perfil === 'jugador').map((x) => { const m = mem.get(nombreKey(x.nombre)) || {}; return { num: m.num || '', nombre: titulo(x.nombre), cap: !!m.cap, lib: A.cfg.liberos && !!m.lib, isq: true }; })
+      .sort((a, b) => (a.num === '' ? 999 : a.num === '00' ? 0.5 : +a.num) - (b.num === '' ? 999 : b.num === '00' ? 0.5 : +b.num) || a.nombre.localeCompare(b.nombre));
     const ent = t.personas.filter((x) => x.perfil === 'entrenador');
     const segundo = (x) => /2|SEGON|SEGUN|AYUD|AJUD|AUX/i.test(x.cargo);
     const E = ent.find((x) => !segundo(x)), E2 = ent.find((x) => segundo(x)) || ent.filter((x) => x !== E)[0];
@@ -185,11 +195,11 @@ function tablaEquipo(eq) {
   const b = borrador(eq), nombre = eq === 'L' ? A.datos.local : A.datos.visitante;
   const deIsq = b.isq ? `<p class="small muted">Plantilla de iSquad: ${b.isq} jugadores (sin las bajas). La web no da los dorsales: ponlos y quita con ✕ a quien no esté convocado.</p>` : '';
   return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deIsq}
-    <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th><th>Líbero</th><th></th></tr></thead><tbody>
-    ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="number" min="1" max="99" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal"></td>
+    <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th>${A.cfg.liberos ? '<th>Líbero</th>' : ''}<th></th></tr></thead><tbody>
+    ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="text" inputmode="numeric" maxlength="2" autocomplete="off" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal (0 a 99, o 00)"${j.num !== '' && j.num != null && !M.dorsalValido(j.num) ? ' aria-invalid="true"' : ''}></td>
       <td><input type="text" data-i="${i}" data-k="nombre" value="${esc(j.nombre || '')}" aria-label="Nombre"></td>
       <td><label class="chk"><input type="radio" name="cap${eq}" data-i="${i}" data-k="cap"${j.cap ? ' checked' : ''} aria-label="Capitán"></label></td>
-      <td><label class="chk"><input type="checkbox" data-i="${i}" data-k="lib"${j.lib ? ' checked' : ''} aria-label="Líbero"></label></td>
+      ${A.cfg.liberos ? `<td><label class="chk"><input type="checkbox" data-i="${i}" data-k="lib"${j.lib ? ' checked' : ''} aria-label="Líbero"></label></td>` : ''}
       <td><button type="button" class="x ghost" data-quitar="${i}" aria-label="Quitar">✕</button></td></tr>`).join('')}
     </tbody></table><div class="row" style="margin:8px 0 12px"><button type="button" data-mas>+ Jugador</button></div>
     <div class="grid2">${b.oficiales.map((o, i) => `<label class="f"><span>${esc(M.ROLES_OFICIALES[o.rol])}</span><input type="text" data-o="${i}" value="${esc(o.nombre)}"></label>`).join('')}</div></section>`;
@@ -204,8 +214,8 @@ function pEquipos() {
   const aviso = ISQ.estado === 'cargando' ? '<p class="msg ok">Cargando las plantillas de iSquad…</p>'
     : ISQ.estado === 'error' ? `<p class="msg err">${esc(ISQ.msg)}</p>`
     : ISQ.estado === 'ok' && ISQ.msg ? `<p class="msg err">No he encontrado en iSquad la plantilla de ${esc(ISQ.msg)}: escríbela a mano.</p>` : '';
-  $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán y los líberos (como mucho 2).${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
-    ${tablaEquipo('L')}${tablaEquipo('V')}
+  $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán${A.cfg.liberos ? ' y los líberos (como mucho 2)' : ' (en este partido no hay líbero)'}.${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
+    <div class="dos">${tablaEquipo('L')}${tablaEquipo('V')}</div>
     <section class="card"><h2>Firmas antes del partido</h2><p class="small muted">Capitanes y entrenadores firman la plantilla.</p>${firmasHtml(FIRMAS_PRE)}</section>
     <div class="row"><button type="button" class="ghost" id="atras">Atrás</button><button class="primary" id="sig">Siguiente: sorteo y alineación</button></div>`;
   for (const eq of ['L', 'V']) {
@@ -213,6 +223,8 @@ function pEquipos() {
     sec.querySelector('[data-mas]').onclick = () => { leerEquipo('L'); leerEquipo('V'); borrador(eq).jugadores.push({ num: '', nombre: '' }); pEquipos(); };
     sec.querySelectorAll('[data-quitar]').forEach((b) => (b.onclick = () => { leerEquipo('L'); leerEquipo('V'); borrador(eq).jugadores.splice(+b.dataset.quitar, 1); pEquipos(); }));
   }
+  // Dorsal no válido: en rojo al escribirlo (y no deja seguir al guardar).
+  $('app').querySelectorAll('[data-k=num]').forEach((i) => i.addEventListener('input', () => { const v = i.value.trim(); if (v && !M.dorsalValido(v)) i.setAttribute('aria-invalid', 'true'); else i.removeAttribute('aria-invalid'); }));
   enlazarFirmas(() => { leerEquipo('L'); leerEquipo('V'); });   // que firmar no borre lo escrito sin guardar
   $('recargar')?.addEventListener('click', () => { if (confirm('¿Volver a cargar las plantillas de iSquad? Se pierden los cambios de esta pantalla.')) { delete BORR.L; delete BORR.V; cargarIsquad(true); } });
   $('atras').onclick = () => { leerEquipo('L'); leerEquipo('V'); A.paso = 'datos'; guardar(); pintar(); };
@@ -222,7 +234,9 @@ function pEquipos() {
       const b = borrador(eq), nombre = eq === 'L' ? A.datos.local : A.datos.visitante;
       const sinDorsal = b.jugadores.filter((j) => String(j.num).trim() === '' && String(j.nombre || '').trim());
       if (sinDorsal.length) { toast(`${nombre}: falta el dorsal de ${sinDorsal.slice(0, 3).map((j) => j.nombre).join(', ')}${sinDorsal.length > 3 ? '…' : ''} (o quítalo con ✕).`); return; }
-      const jugadores = b.jugadores.filter((j) => String(j.num).trim() !== '').map((j) => ({ num: +j.num, nombre: titulo(String(j.nombre || '').trim()), ...(j.cap ? { cap: true } : {}), ...(j.lib ? { lib: true } : {}) }));
+      const malos = b.jugadores.filter((j) => String(j.num ?? '').trim() !== '' && !M.dorsalValido(j.num));
+      if (malos.length) { toast(`${nombre}: dorsal no válido ${malos.map((j) => '"' + String(j.num).trim() + '"').join(', ')}. Tiene que ser de 0 a 99, o 00.`); $('app').querySelector(`[data-eq="${eq}"] [data-k=num][aria-invalid="true"]`)?.focus(); return; }
+      const jugadores = b.jugadores.filter((j) => String(j.num).trim() !== '').map((j) => ({ num: M.D(j.num), nombre: titulo(String(j.nombre || '').trim()), ...(j.cap ? { cap: true } : {}), ...(j.lib ? { lib: true } : {}) }));
       const ev = { t: 'equipo', eq, nombre, jugadores, oficiales: b.oficiales.filter((o) => o.nombre) };
       if (jugadores.filter((j) => !j.lib).length < 6) { toast(`${nombre}: hacen falta al menos 6 jugadores que no sean líberos.`); return; }
       if (!jugadores.some((j) => j.cap)) { toast(`${nombre}: marca quién es el capitán.`); return; }
@@ -267,13 +281,31 @@ function firmar(rol, t) {
 }
 
 /* ---------- 3. Sorteo y alineaciones ---------- */
+const alineables = (eq) => ST.equipos[eq].jugadores.filter((j) => !j.lib && !ST.descalificados[eq].has(j.num) && !ST.fueraPartido[eq].has(j.num));
+const opcionJugador = (j, sel) => `<option value="${esc(j.num)}"${sel ? ' selected' : ''}>${esc(j.num)}${j.cap ? ' (C)' : ''} ${esc(j.nombre.split(' ')[0] || '')}</option>`;
 function selectorAlineacion(eq, previa) {
-  const js = ST.equipos[eq].jugadores.filter((j) => !j.lib && !ST.descalificados[eq].has(j.num) && !ST.fueraPartido[eq].has(j.num));
   const orden = [3, 2, 1, 4, 5, 0];   // como en la pista: delanteros IV III II, zagueros V VI I
-  return `<div class="alinea" data-al="${eq}">${orden.map((i) => `<label>${POS[i]}<select data-pos="${i}"><option value=""></option>${js.map((j) => `<option value="${j.num}"${previa?.[i] === j.num ? ' selected' : ''}>${j.num}${j.cap ? ' (C)' : ''} ${esc(j.nombre.split(' ')[0] || '')}</option>`).join('')}</select></label>`).join('')}</div>
+  // Las opciones las pone enlazarAlineacion(): cada jugador solo sale en el desplegable donde está elegido o en los libres.
+  return `<div class="alinea" data-al="${eq}">${orden.map((i) => `<label>${POS[i]}<select data-pos="${i}" data-previa="${esc(previa?.[i] || '')}"></select></label>`).join('')}</div>
     <p class="small muted" style="margin:4px 0 0">Red arriba. I = zaguero derecho, el que saca.</p>`;
 }
-function leerAlineacion(eq) { const a = []; $('app').querySelectorAll(`[data-al="${eq}"] select`).forEach((s) => (a[+s.dataset.pos] = s.value ? +s.value : null)); return a; }
+// Un jugador elegido en una posición desaparece de los desplegables de las otras (y vuelve si se cambia). Se rehace la
+// lista entera: las opciones escondidas siguen saliendo en el desplegable del iPhone.
+function enlazarAlineacion() {
+  $('app').querySelectorAll('[data-al]').forEach((box) => {
+    const js = alineables(box.dataset.al), sels = [...box.querySelectorAll('select')];
+    const pintar = () => {
+      const usados = sels.map((x) => x.value || x.dataset.previa).filter(Boolean);
+      for (const x of sels) {
+        const v = x.value || x.dataset.previa; x.dataset.previa = '';
+        x.innerHTML = '<option value=""></option>' + js.filter((j) => j.num === v || !usados.includes(j.num)).map((j) => opcionJugador(j, j.num === v)).join('');
+      }
+    };
+    box.addEventListener('change', pintar);
+    pintar();
+  });
+}
+function leerAlineacion(eq) { const a = []; $('app').querySelectorAll(`[data-al="${eq}"] select`).forEach((s) => (a[+s.dataset.pos] = s.value || null)); return a; }
 function eqNombre(eq) { return eq === 'L' ? A.datos.local : A.datos.visitante; }
 function opcionesEq(name, sel) { return `<div class="opts" role="radiogroup">${['L', 'V'].map((eq) => `<label><input type="radio" name="${name}" value="${eq}"${sel === eq ? ' checked' : ''}><span>${esc(eqNombre(eq))}</span></label>`).join('')}</div>`; }
 function pSorteo() {
@@ -283,6 +315,7 @@ function pSorteo() {
       <fieldset><legend>A la izquierda del anotador (equipo A)</legend>${opcionesEq('izq', s.izq)}</fieldset></section>
     <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2>${selectorAlineacion('L', s.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2>${selectorAlineacion('V', s.alineacion.V)}</section></div>
     <div class="row"><button class="ghost" id="atras">Atrás</button><button class="primary" id="empezar">Empezar el set 1</button></div>`;
+  enlazarAlineacion();
   $('atras').onclick = () => { A.paso = 'equipos'; guardar(); pintar(); };
   $('empezar').onclick = () => empezarSet(true);
 }
@@ -295,7 +328,7 @@ function empezarSet(conSorteo) {
   // Todo o nada: se valida la secuencia entera antes de guardarla.
   const prueba = [...A.ev], h = new Date().toISOString();
   for (const e of evs) { const m = M.validar(A.cfg, A.datos, prueba, { ...e, h }); if (m) { toast(m); return; } prueba.push({ ...e, h }); }
-  A.ev = prueba; guardar(); pintar(); scrollTo(0, 0);
+  A.ev = prueba; guardar(); pintar(); publicarDirecto(); scrollTo(0, 0);
 }
 
 /* ---------- 4. Partido ---------- */
@@ -304,18 +337,74 @@ function pista(s, eq) {
   const celda = (i) => { const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n); return `<div class="p${l && l.pos === i ? ' lib' : ''}${saca && i === 0 ? ' saca' : ''}" title="Posición ${POS[i]}">${esc(n)}${j?.cap ? '<small>C</small>' : `<small>${POS[i]}</small>`}</div>`; };
   return `<div class="pista" aria-label="Posiciones de ${esc(eqNombre(eq))}"><div class="red" aria-hidden="true"></div>${[3, 2, 1, 4, 5, 0].map(celda).join('')}</div>`;
 }
+// Puntos que se van gastando (tiempos y cambios).
+const gastados = (n, max, t) => `<span class="dots" role="img" aria-label="${esc(t)}: ${n} de ${max}">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
 function mitad(s, eq) {
-  const pend = s.pendienteSust[eq];
+  const pend = s.pendienteSust[eq], e = ST.equipos[eq], l = s.libero[eq];
+  const enP = new Set(M.enPista(s, eq));
+  const banco = e.jugadores.filter((j) => !enP.has(j.num));
+  const fuera = (j) => ST.descalificados[eq].has(j.num) || ST.fueraPartido[eq].has(j.num) || s.expulsados[eq].has(j.num);
+  const sanc = ST.sanciones.filter((x) => x.eq === eq);
+  const quien = (q) => (M.esDorsal(q) ? q : q === 'equipo' ? 'Equipo' : q);
   return `<div class="mitad" data-mitad="${eq}">
+    <div class="m-cab solo-pc"><div class="m-nom">${s.saque === eq ? '<span class="balon" role="img" aria-label="Saca"></span>' : ''}${esc(eqNombre(eq))}</div><div class="m-sets" title="Sets ganados">${ST.ganados[eq]}</div></div>
     ${pend.length ? `<p class="msg err small" style="margin:0 0 8px">Hay que sustituir al ${pend.join(', ')}</p>` : ''}
-    ${pista(s, eq)}
-    <button class="btnPunto" data-punto="${eq}">Punto ${esc(eqNombre(eq).split(' ').slice(0, 2).join(' '))}</button>
+    <div class="solo-movil">${pista(s, eq)}</div>
+    <button class="btnPunto solo-movil" data-punto="${eq}">Punto <span class="solo-movil-i">${esc(eqNombre(eq).split(' ').slice(0, 2).join(' '))}</span></button>
     <div class="acts">
       <button data-acc="tiempo" data-eq="${eq}">Tiempo<b>${s.tiempos[eq].length}/${ST.cfg.tiempos}</b></button>
       <button data-acc="sust" data-eq="${eq}">Cambio<b>${s.nSust[eq]}/${ST.cfg.sustituciones}</b></button>
-      <button data-acc="libero" data-eq="${eq}">Líbero${s.libero[eq] ? '<b>en pista</b>' : ''}</button>
+      ${ST.cfg.liberos ? `<button data-acc="libero" data-eq="${eq}">Líbero${l ? '<b>en pista</b>' : ''}</button>` : ''}
       <button data-acc="sancion" data-eq="${eq}">Sanción</button>
+    </div>
+    <div class="m-info solo-pc">
+      <div class="m-fila"><span>Tiempos</span>${gastados(s.tiempos[eq].length, ST.cfg.tiempos, 'Tiempos')}</div>
+      <div class="m-fila"><span>Cambios</span>${gastados(s.nSust[eq], ST.cfg.sustituciones, 'Cambios')}</div>
+      <h4>En pista</h4>${listaJugadores(s, eq, [...enP], true)}
+      <h4>Banquillo</h4>${listaJugadores(s, eq, banco.map((j) => j.num), false)}
+      ${ST.cfg.setObligatorio ? (() => { const sc = Object.values(M.setsCompletos(ST)[eq]).filter((x) => !x.cumple); return `<h4>Les falta un set completo</h4><div class="chips">${sc.map((x) => `<span class="chip falta" title="${esc(x.nombre)}">${esc(x.num)}</span>`).join('') || '<span class="small muted">A nadie ✓</span>'}</div>`; })() : ''}
+      ${sanc.length ? `<h4>Sanciones</h4><ul class="sancs">${sanc.map((x) => `<li><span class="tarjeta t-${x.tipo}" aria-hidden="true"></span>${esc(SANC[x.tipo])} · ${esc(quien(x.quien))} <span class="muted">set ${x.set}, ${x.a}:${x.b}</span></li>`).join('')}</ul>` : ''}
     </div></div>`;
+}
+// Listas de jugadores del panel (PC), como el e-Scoresheet: capitán, dorsal y nombre; quién ha entrado por quién; sanciones
+// del jugador; líberos en amarillo; los que ya no pueden jugar, tachados.
+const MARCA = { amonestacion: 'A', castigo: 'C', expulsion: 'E', descalificacion: 'D' };
+function listaJugadores(s, eq, nums, enPista) {
+  const e = ST.equipos[eq], l = s.libero[eq], parejas = s.parejas[eq];
+  const porQuien = (n) => Object.keys(parejas).find((t) => parejas[t] === n);
+  const filas = nums.map((n) => e.jugadores.find((j) => j.num === n)).filter(Boolean).map((j) => {
+    const sanc = ST.sanciones.filter((x) => x.eq === eq && x.quien === j.num && MARCA[x.tipo]);
+    const fuera = ST.descalificados[eq].has(j.num) || ST.fueraPartido[eq].has(j.num) || s.expulsados[eq].has(j.num);
+    let nota = '';
+    if (enPista && l && l.num === j.num) nota = `por ${l.por}`;
+    else if (enPista && porQuien(j.num)) nota = `(${porQuien(j.num)})`;
+    else if (!enPista && parejas[j.num] != null) { const c = s.sust[eq].find((x) => x.sale === j.num); nota = c ? `salió ${c.a}-${c.b}` : ''; }
+    else if (!enPista && s.jugados[eq].has(j.num)) nota = 'ya jugó';
+    if (!enPista && l && l.por === j.num) nota = `por el líbero ${l.num}`;
+    return `<li class="${j.lib ? 'lib' : ''}${fuera ? ' fuera' : ''}"><span class="cap">${j.cap ? 'C' : j.lib ? 'L' : ''}</span><b>${esc(j.num)}</b><span class="nm">${esc(j.nombre || '')}</span><span class="nota">${esc(nota)}</span>${sanc.map((x) => `<span class="tarjeta t-${x.tipo}" title="${esc(SANC[x.tipo])}"></span>`).join('')}</li>`;
+  });
+  return filas.length ? `<ul class="lj">${filas.join('')}</ul>` : '<p class="small muted">—</p>';
+}
+const corto2 = (nombre) => { const w = String(nombre || '').split(' ').filter(Boolean); return (w[0] || '').slice(0, 11); };
+// Pista vista desde la mesa del anotador (PC): la red en medio; cada equipo mira hacia la red, así que el de la izquierda
+// tiene la I abajo a la izquierda y el de la derecha, arriba a la derecha.
+function pistaGrande(s) {
+  const izq = s.izq, der = OTRO(izq), ultimo = [...A.ev].reverse().find((e) => !['equipo', 'firma'].includes(e.t));
+  const campo = (eq, orden) => {
+    const r = M.enPista(s, eq), l = s.libero[eq];
+    return `<div class="campo" aria-label="${esc(eqNombre(eq))}">${orden.map((i) => {
+      const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n), saca = s.saque === eq && i === 0;
+      return `<div class="jug${l && l.pos === i ? ' lib' : ''}${saca ? ' saca' : ''}" title="Posición ${POS[i]}${j ? ' · ' + esc(j.nombre) : ''}"><span class="n">${esc(n)}</span>${j?.cap ? '<span class="cap">C</span>' : ''}${saca ? '<span class="pelota" aria-hidden="true"></span>' : ''}<span class="nmb">${esc(corto2(j?.nombre))}</span><span class="pos">${POS[i]}</span></div>`;
+    }).join('')}</div>`;
+  };
+  return `<div class="cancha"><div class="c-nom"><span>${esc(eqNombre(izq))}</span><span>${esc(eqNombre(der))}</span></div>
+    <div class="c-pista">${campo(izq, [4, 3, 5, 2, 0, 1])}<div class="red" aria-hidden="true"></div>${campo(der, [1, 0, 2, 5, 3, 4])}</div>
+    <div class="c-mesa">Mesa del anotador</div></div>
+    <div class="c-ultimo"><span>${ultimo ? `<span class="muted">Último:</span> ${esc(describir(ultimo, ST))}` : '<span class="muted">Todavía no hay nada que deshacer.</span>'}</span><button id="deshacer2" class="deshacer"${ultimo ? '' : ' disabled'}>Deshacer</button></div>
+    <div class="c-puntos">${[izq, der].map((eq, k) => `<button class="btnPunto" data-punto="${eq}"><span>Punto</span><small>${esc(eqNombre(eq))} <kbd>${k ? '→' : '←'}</kbd></small></button>`).join('')}</div>
+    <table class="c-resumen"><thead><tr><th>C</th><th>T</th><th>Pt</th><th>Set</th><th>Min</th><th>Pt</th><th>T</th><th>C</th></tr></thead><tbody>
+      ${M.resultados(ST).filas.map((f) => `<tr${f.set === s.n && !s.fin ? ' class="actual"' : ''}><td>${f[izq].sust}</td><td>${f[izq].tiempos}</td><td><b>${f[izq].puntos}</b></td><td class="set">${f.set}</td><td>${f.duracion ?? (f.set === s.n ? '<span id="relojMin">…</span>' : '')}</td><td><b>${f[der].puntos}</b></td><td>${f[der].tiempos}</td><td>${f[der].sust}</td></tr>`).join('')}
+    </tbody></table>`;
 }
 function describir(ev, st) {
   const n = (eq) => eqNombre(eq);
@@ -325,36 +414,52 @@ function describir(ev, st) {
     case 'sust': return `${ev.tipo === 'excepcional' ? 'Sustitución excepcional' : 'Cambio'} ${n(ev.eq)}: sale ${ev.sale}, entra ${ev.entra}`;
     case 'liberoEntra': return `Líbero ${n(ev.eq)}: entra ${ev.libero} por ${ev.sale}`;
     case 'liberoSale': return `Líbero ${n(ev.eq)}: sale`;
-    case 'sancion': return `${SANC[ev.tipo]} a ${typeof ev.quien === 'number' ? 'el ' + ev.quien : ev.quien === 'equipo' ? 'el equipo' : M.ROLES_OFICIALES[ev.quien]} (${n(ev.eq)})`;
+    case 'sancion': return `${SANC[ev.tipo]} a ${M.esDorsal(ev.quien) ? 'el ' + ev.quien : ev.quien === 'equipo' ? 'el equipo' : M.ROLES_OFICIALES[ev.quien]} (${n(ev.eq)})`;
     case 'impropia': return `Petición improcedente (${n(ev.eq)})`;
     case 'inicioSet': return 'Empieza el set';
     case 'sorteo': return 'Sorteo';
     case 'alineacion': return `Alineación ${n(ev.eq)}`;
     case 'obs': return 'Observación';
     case 'firma': return 'Firma';
+    case 'repeticion': return 'Repetición de la jugada';
+    case 'liberoNoPuede': return `Líbero ${ev.libero} de ${n(ev.eq)} no puede seguir${ev.nuevo ? ` · nuevo líbero: ${ev.nuevo}` : ''}`;
+    case 'setCompleto': return `Set ${ev.set} del ${ev.num} (${n(ev.eq)}) ${ev.si ? 'marcado' : 'desmarcado'} como completo`;
     case 'equipo': return `Plantilla ${n(ev.eq)}`;
     default: return ev.t;
   }
 }
 function pJuego() {
   const s = M.setActual(ST), izq = s.izq, der = OTRO(izq);
-  const ultimos = A.ev.slice(-8).reverse().filter((e) => !['equipo', 'firma'].includes(e.t));
-  $('app').innerHTML = pasos('juego') + `
-    <div class="marcador" aria-live="polite">
+  const ultimos = A.ev.slice(-10).reverse().filter((e) => !['equipo', 'firma'].includes(e.t));
+  const jugados = ST.sets.filter((x) => x.ganador);
+  $('app').innerHTML = pasos('juego') + `<div class="juego">
+    <div class="j-marc"><div class="marcador" aria-live="polite">
       <div class="eq">${s.saque === izq ? '<span class="balon" role="img" aria-label="Saca"></span>' : ''}${esc(eqNombre(izq))}<div class="sets">${ST.ganados[izq]}</div></div>
-      <div class="pts">${s.puntos[izq]} – ${s.puntos[der]}<small>Set ${s.n}${s.decisivo ? ' · decisivo' : ''}</small></div>
+      <div class="pts"><span class="p-i">${s.puntos[izq]}</span><span class="p-g">–</span><span class="p-d">${s.puntos[der]}</span><small>Set ${s.n}${s.decisivo ? ' · decisivo' : ''} · <span id="reloj" aria-label="Tiempo del set">0:00</span></small></div>
       <div class="eq d">${esc(eqNombre(der))}${s.saque === der ? '<span class="balon" role="img" aria-label="Saca"></span>' : ''}<div class="sets">${ST.ganados[der]}</div></div>
-    </div>
-    <div class="mitades">${mitad(s, izq)}${mitad(s, der)}</div>
-    <div class="barra"><button id="deshacer">Deshacer</button><button id="obs">Observación</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
-    <p class="small muted">En el portátil: ← y → dan el punto al equipo de la izquierda o de la derecha; Ctrl+Z deshace.</p>
-    <div class="registro" aria-label="Últimos sucesos">${ultimos.map((e) => `<div>${hora(e.h)} · ${esc(describir(e, ST))}</div>`).join('')}</div>`;
+      ${jugados.length ? `<div class="historial">${jugados.map((x) => `<span class="${x.ganador === izq ? 'gi' : 'gd'}">Set ${x.n} · ${x.puntos[izq]}-${x.puntos[der]}</span>`).join('')}</div>` : ''}
+    </div></div>
+    <div class="j-izq">${mitad(s, izq)}</div>
+    <div class="j-cancha">${pistaGrande(s)}</div>
+    <div class="j-der">${mitad(s, der)}</div>
+    <div class="j-barra"><div class="barra"><button id="deshacer" class="solo-movil">Deshacer</button><button id="repe">Repetición</button><button id="obs">Observación</button><button id="directo"${A.directo ? ' class="en-directo"' : ''}>${A.directo ? '● En directo' : 'Directo'}</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
+      <p class="small muted teclas">Teclado: <kbd>←</kbd> punto a ${esc(eqNombre(izq))} · <kbd>→</kbd> punto a ${esc(eqNombre(der))} · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer</p></div>
+    <div class="j-reg"><h3 class="solo-pc">Últimos sucesos</h3><div class="registro" aria-label="Últimos sucesos">${ultimos.map((e) => `<div><span class="h">${hora(e.h)}</span>${esc(describir(e, ST))}</div>`).join('')}</div></div>
+  </div>`;
   $('app').querySelectorAll('[data-punto]').forEach((b) => (b.onclick = () => hacer({ t: 'punto', eq: b.dataset.punto })));
   $('app').querySelectorAll('[data-acc]').forEach((b) => (b.onclick = () => ({ tiempo: () => hacer({ t: 'tiempo', eq: b.dataset.eq }), sust: () => hojaSust(b.dataset.eq), libero: () => hojaLibero(b.dataset.eq), sancion: () => hojaSancion(b.dataset.eq) })[b.dataset.acc]()));
+  $('deshacer2')?.addEventListener('click', deshacer);
+  // Reloj del set (desde el silbato del primer saque).
+  clearInterval(RELOJ);
+  const tic = () => { const r = $('reloj'); if (!r) { clearInterval(RELOJ); return; } const seg = Math.max(0, Math.floor((Date.now() - Date.parse(s.inicio)) / 1000)); r.textContent = `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`; const m = $('relojMin'); if (m) m.textContent = String(Math.floor(seg / 60)); };
+  tic(); RELOJ = setInterval(tic, 1000);
   barraComun();
 }
+let RELOJ = null;
 function barraComun() {
   $('deshacer')?.addEventListener('click', deshacer);
+  $('repe')?.addEventListener('click', () => { if (!hacer({ t: 'repeticion' })) toast('Repetición anotada: sin punto para nadie.', true); });
+  $('directo')?.addEventListener('click', hojaDirecto);
   $('obs')?.addEventListener('click', hojaObs);
   $('ver')?.addEventListener('click', () => { VER = true; pintar(); scrollTo(0, 0); });
   $('mis')?.addEventListener('click', salir);
@@ -367,7 +472,7 @@ function deshacer() {
   let desde = i;
   if (ult.t === 'inicioSet') while (desde > 0 && ['alineacion', 'sorteo'].includes(A.ev[desde - 1].t)) desde--;
   if (!confirm(`¿Deshacer "${describir(ult, ST)}"?`)) return;
-  A.ev.splice(desde, i - desde + 1); guardar(); pintar(); toast('Deshecho: ' + describir(ult, ST), true);
+  A.ev.splice(desde, i - desde + 1); guardar(); pintar(); publicarDirecto(); toast('Deshecho: ' + describir(ult, ST), true);
 }
 
 function hojaSust(eq) {
@@ -384,8 +489,8 @@ function hojaSust(eq) {
       ${sale != null && !exc && banco.every((j) => motivo(j.num)) ? `<p class="motivo">Nadie puede entrar por el ${sale} con un cambio normal.</p>` : ''}
       <label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="exc"${exc ? ' checked' : ''}> Sustitución excepcional (lesión, o expulsado sin cambio legal posible)</label>
       <div class="row"><button class="primary" id="ok"${sale == null || entra == null ? ' disabled' : ''}>Hacer el cambio</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
-    $('hojaC').querySelectorAll('[data-sale]').forEach((b) => (b.onclick = () => { sale = +b.dataset.sale; entra = null; dibujar(); }));
-    $('hojaC').querySelectorAll('[data-entra]').forEach((b) => (b.onclick = () => { entra = +b.dataset.entra; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-sale]').forEach((b) => (b.onclick = () => { sale = b.dataset.sale; entra = null; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-entra]').forEach((b) => (b.onclick = () => { entra = b.dataset.entra; dibujar(); }));
     $('exc').onchange = (e) => { exc = e.target.checked; entra = null; dibujar(); };
     $('ok').onclick = () => { if (!hacer({ t: 'sust', eq, sale, entra, ...(exc ? { tipo: 'excepcional' } : {}) })) cerrarHoja(); };
   };
@@ -393,11 +498,12 @@ function hojaSust(eq) {
 }
 function hojaLibero(eq) {
   const s = M.setActual(ST), libs = ST.equipos[eq].jugadores.filter((j) => j.lib), l = s.libero[eq];
-  if (!libs.length) { toast(`${eqNombre(eq)} no tiene líbero inscrito.`); return; }
+  if (!libs.filter((j) => !ST.fueraPartido[eq].has(j.num)).length) { toast(`${eqNombre(eq)} no tiene líbero que pueda jugar.`); return; }
   if (l) {
     const otro = libs.find((j) => j.num !== l.num);
     hoja(`<h2 id="hojaT">Líbero · ${esc(eqNombre(eq))}</h2><p>En pista: el ${l.num}, por el ${l.por}.</p>
-      <div class="row"><button class="primary" id="sale">Sale el líbero (vuelve el ${l.por})</button>${otro ? `<button id="cambia">Cambiar por el ${otro.num}</button>` : ''}<button class="ghost" data-cerrar>Cancelar</button></div>`);
+      <div class="row"><button class="primary" id="sale">Sale el líbero (vuelve el ${l.por})</button>${otro ? `<button id="cambia">Cambiar por el ${otro.num}</button>` : ''}<button id="noPuede">No puede seguir…</button><button class="ghost" data-cerrar>Cancelar</button></div>`);
+    $('noPuede').onclick = () => hojaLiberoNoPuede(eq);
     $('sale').onclick = () => { if (!hacer({ t: 'liberoSale', eq })) cerrarHoja(); };
     if (otro) $('cambia').onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: otro.num, sale: l.num })) cerrarHoja(); };
     return;
@@ -408,12 +514,71 @@ function hojaLibero(eq) {
     $('hojaC').innerHTML = `<h2 id="hojaT">Líbero · ${esc(eqNombre(eq))}</h2>
       ${libs.length > 1 ? `<b>Líbero</b><div class="botones">${libs.map((j) => `<button data-lib="${j.num}" aria-pressed="${lib === j.num}">${j.num}</button>`).join('')}</div>` : ''}
       <b>Entra por (solo zagueros)</b><div class="botones">${zagueros.map(({ i, n }) => { const m = M.validar(A.cfg, A.datos, A.ev, { t: 'liberoEntra', eq, libero: lib, sale: n, h: new Date().toISOString() }); return `<button data-por="${n}"${m ? ` disabled title="${esc(m)}"` : ''}>${n} <small>(${POS[i]})</small></button>`; }).join('')}</div>
-      <div class="row"><button class="ghost" data-cerrar>Cancelar</button></div>`;
-    $('hojaC').querySelectorAll('[data-lib]').forEach((b) => (b.onclick = () => { lib = +b.dataset.lib; dibujar(); }));
-    $('hojaC').querySelectorAll('[data-por]').forEach((b) => (b.onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: lib, sale: +b.dataset.por })) cerrarHoja(); }));
+      <div class="row"><button id="noPuede">Un líbero no puede seguir…</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
+    $('noPuede').onclick = () => hojaLiberoNoPuede(eq);
+    $('hojaC').querySelectorAll('[data-lib]').forEach((b) => (b.onclick = () => { lib = b.dataset.lib; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-por]').forEach((b) => (b.onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: lib, sale: b.dataset.por })) cerrarHoja(); }));
   };
   hoja('', () => { dibujar(); $('hojaC').querySelector('button')?.focus(); });
 }
+// FIVB 19.4: líbero lesionado, enfermo, expulsado o descalificado. Si queda otro líbero, juega ese; si no, el entrenador
+// puede redesignar como líbero a un jugador que no esté en pista. El que no puede seguir ya no vuelve en el partido.
+function hojaLiberoNoPuede(eq) {
+  const s = M.setActual(ST), libs = ST.equipos[eq].jugadores.filter((j) => j.lib && !ST.fueraPartido[eq].has(j.num));
+  let cual = s.libero[eq]?.num || libs[0]?.num, nuevo = null;
+  const dibujar = () => {
+    const quedan = libs.filter((j) => j.num !== cual);
+    const candidatos = ST.equipos[eq].jugadores.filter((j) => !j.lib && !j.cap && !s.rot[eq].includes(j.num) && !ST.fueraPartido[eq].has(j.num) && !ST.descalificados[eq].has(j.num));
+    $('hojaC').innerHTML = `<h2 id="hojaT">Líbero que no puede seguir · ${esc(eqNombre(eq))}</h2>
+      <p class="small muted">Lesión, enfermedad, expulsión o descalificación. El líbero que no puede seguir ya no vuelve en el partido.</p>
+      <b>Líbero</b><div class="botones">${libs.map((j) => `<button data-cual="${esc(j.num)}" aria-pressed="${cual === j.num}">${esc(j.num)}</button>`).join('')}</div>
+      ${quedan.length ? `<p class="msg ok small">Sigue jugando el otro líbero, el ${esc(quedan[0].num)}.</p>` : `<b>Redesignar como líbero a</b> <span class="small muted">(un jugador que no esté en pista; o ninguno y se sigue sin líbero)</span>
+        <div class="botones"><button data-nuevo="" aria-pressed="${nuevo === null}" style="font-size:15px">Ninguno</button>${candidatos.map((j) => `<button data-nuevo="${esc(j.num)}" aria-pressed="${nuevo === j.num}">${esc(j.num)}</button>`).join('')}</div>`}
+      <div class="row"><button class="primary" id="ok">Confirmar</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
+    $('hojaC').querySelectorAll('[data-cual]').forEach((b) => (b.onclick = () => { cual = b.dataset.cual; nuevo = null; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-nuevo]').forEach((b) => (b.onclick = () => { nuevo = b.dataset.nuevo || null; dibujar(); }));
+    $('ok').onclick = () => { if (!hacer({ t: 'liberoNoPuede', eq, libero: cual, ...(nuevo ? { nuevo } : {}) })) { cerrarHoja(); toast(nuevo ? `El ${nuevo} es ahora líbero.` : 'Anotado.', true); } };
+  };
+  hoja('', () => { dibujar(); $('hojaC').querySelector('button')?.focus(); });
+}
+
+/* ---------- Directo: marcador público para quien tenga el enlace (sin nombres de jugadores) ---------- */
+function resumenDirecto() {
+  const s = M.setActual(ST), r = M.resultados(ST);
+  return { local: A.datos.local || '', visitante: A.datos.visitante || '', competicion: A.datos.competicion || '', categoria: A.datos.categoria || '', pabellon: A.datos.pabellon || '', fecha: A.datos.fecha || '',
+    fase: ST.fase, set: s.n, decisivo: s.decisivo, puntos: s.puntos, ganados: ST.ganados, saque: s.saque, izq: s.izq || 'L', tiempos: { L: s.tiempos.L.length, V: s.tiempos.V.length },
+    sets: ST.sets.filter((x) => x.ganador).map((x) => ({ n: x.n, L: x.puntos.L, V: x.puntos.V })), ganador: r.ganador, actualizado: new Date().toISOString() };
+}
+let DIR_T = null;
+function publicarDirecto(ahora) {
+  if (!A?.directo) return;
+  clearTimeout(DIR_T);
+  DIR_T = setTimeout(async () => {
+    try { const { error } = await sbc().from('acta_directo').upsert({ id: A.directo, estado: resumenDirecto(), updated_at: new Date().toISOString() }); if (error) throw error; }
+    catch (e) { toast('No se ha podido actualizar el directo (¿sin conexión?). Se reintenta con el siguiente punto.'); }
+  }, ahora ? 0 : 800);
+}
+const enlaceDirecto = () => new URL('directo/?id=' + A.directo, location.href).href;
+async function hojaDirecto() {
+  let session = null; try { ({ data: { session } } = await sbc().auth.getSession()); } catch (e) {}
+  if (!session) { hoja(`<h2 id="hojaT">Directo</h2><p>Para emitir el marcador en directo tienes que haber entrado con tu cuenta de Vòlei EnXarxa en este navegador.</p><div class="row"><a class="btn primary" href="../">Entrar</a><button class="ghost" data-cerrar>Cerrar</button></div>`); return; }
+  if (!A.directo) {
+    hoja(`<h2 id="hojaT">Emitir en directo</h2><p class="small">Quien tenga el enlace verá el marcador en tiempo real: equipos, sets, puntos y quién saca. <b>No se publica ningún nombre de jugador.</b> Se borra a los 2 días.</p>
+      <div class="row"><button class="primary" id="empezarDir">Empezar el directo</button><button class="ghost" data-cerrar>Cancelar</button></div>`);
+    $('empezarDir').onclick = async () => {
+      A.directo = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => (b % 36).toString(36)).join('') + Date.now().toString(36);
+      guardar(); sbc().rpc('limpiar_directos').then(() => {}, () => {});
+      publicarDirecto(true); pintar(); hojaDirecto();
+    };
+    return;
+  }
+  hoja(`<h2 id="hojaT">En directo</h2><p class="small muted">Pásalo por WhatsApp o ábrelo en una TV.</p>
+    <label class="f"><span>Enlace</span><input type="text" id="dirUrl" readonly value="${esc(enlaceDirecto())}"></label>
+    <div class="row"><button class="primary" id="copiarDir">Copiar el enlace</button><a class="btn" href="${esc(enlaceDirecto())}" target="_blank" rel="noopener">Abrir</a><button id="pararDir">Dejar de emitir</button><button class="ghost" data-cerrar>Cerrar</button></div>`);
+  $('copiarDir').onclick = async () => { try { await navigator.clipboard.writeText(enlaceDirecto()); toast('Enlace copiado.', true); } catch (e) { $('dirUrl').select(); } };
+  $('pararDir').onclick = async () => { const id = A.directo; A.directo = null; guardar(); try { await sbc().from('acta_directo').delete().eq('id', id); } catch (e) {} cerrarHoja(); pintar(); toast('Directo terminado.', true); };
+}
+
 function hojaSancion(eq) {
   let tipo = null, quien = null;
   const dibujar = () => {
@@ -425,7 +590,7 @@ function hojaSancion(eq) {
       <p class="motivo">${tipo === 'castigo' || tipo === 'castigoRetraso' ? 'Da un punto y el saque al rival.' : tipo === 'expulsion' ? 'Fuera el resto del set: hay que sustituirlo.' : tipo === 'descalificacion' ? 'Fuera el resto del partido: hay que sustituirlo.' : tipo === 'impropia' ? 'Se anota sin sanción; si se repite en el partido, es retraso.' : ''}</p>
       <div class="row"><button class="primary" id="ok"${!tipo || quien == null ? ' disabled' : ''}>Anotar</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
     $('hojaC').querySelectorAll('[data-tipo]').forEach((b) => (b.onclick = () => { tipo = b.dataset.tipo; quien = ['avisoRetraso', 'castigoRetraso', 'impropia'].includes(tipo) ? 'equipo' : null; dibujar(); }));
-    $('hojaC').querySelectorAll('[data-quien]').forEach((b) => (b.onclick = () => { quien = /^\d+$/.test(b.dataset.quien) ? +b.dataset.quien : b.dataset.quien; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-quien]').forEach((b) => (b.onclick = () => { quien = b.dataset.quien; dibujar(); }));
     $('ok').onclick = () => {
       const err = tipo === 'impropia' ? hacer({ t: 'impropia', eq }) : hacer({ t: 'sancion', eq, quien, tipo });
       if (!err) { cerrarHoja(); const s = M.setActual(ST); if (s.pendienteSust[eq]?.length) setTimeout(() => hojaSust(eq), 200); }
@@ -448,6 +613,7 @@ function pEntre() {
     ${s.decisivo ? `<section class="card"><h2>Sorteo del set decisivo</h2><fieldset><legend>Saca primero</legend>${opcionesEq('saca', s.saqueInicial)}</fieldset><fieldset><legend>A la izquierda del anotador</legend>${opcionesEq('izq', s.izq)}</fieldset></section>` : ''}
     <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2>${selectorAlineacion('L', s.alineacion.L || prev.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2>${selectorAlineacion('V', s.alineacion.V || prev.alineacion.V)}</section></div>
     <div class="barra"><button class="primary" id="empezar">Empezar el set ${s.n}</button><button id="deshacer">Deshacer el último punto</button><button id="obs">Observación</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>`;
+  enlazarAlineacion();
   $('empezar').onclick = () => empezarSet(s.decisivo);
   barraComun();
 }
@@ -463,11 +629,25 @@ function tablaResultados() {
 function pFinal() {
   const r = M.resultados(ST);
   $('app').innerHTML = pasos('final') + `<section class="card"><h2>Gana ${esc(eqNombre(r.ganador))} ${Math.max(r.total.L.gana, r.total.V.gana)}-${Math.min(r.total.L.gana, r.total.V.gana)}</h2>${tablaResultados()}</section>
+    ${ST.cfg.setObligatorio ? setObligatorioHtml() : ''}
     <section class="card"><h2>Observaciones</h2>${ST.observaciones.length ? ST.observaciones.map((o) => `<p class="small">Set ${o.set} · ${hora(o.h)}: ${esc(o.texto)}</p>`).join('') : '<p class="small muted">Ninguna.</p>'}<button id="obs">Añadir observación</button></section>
     <section class="card"><h2>Firmas</h2><p class="small muted">Por este orden: capitanes, anotador ayudante, anotador, 2º árbitro y 1er árbitro.</p>${firmasHtml(FIRMAS)}</section>
     <div class="barra"><button class="primary" id="ver">Ver e imprimir el acta</button><button id="json">Descargar los datos (JSON)</button><button id="deshacer">Deshacer el último punto</button><button class="ghost" id="mis">Mis actas</button></div>`;
   enlazarFirmas(); barraComun();
+  $('app').querySelectorAll('[data-sc]').forEach((c) => (c.onchange = () => { const [eq, num, set] = c.dataset.sc.split('|'); hacer({ t: 'setCompleto', eq, num, set: +set, si: c.checked }); }));
   $('json').onclick = () => { const b = new Blob([JSON.stringify(A, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `acta-${(A.datos.fecha || '')}-${(A.datos.local || '').replace(/\W+/g, '-')}.json`; a.click(); };
+}
+
+/* ---------- Set obligatorio (infantil) ---------- */
+function setObligatorioHtml() {
+  const sc = M.setsCompletos(ST), jugados = ST.sets.filter((x) => x.inicio);
+  const faltan = ['L', 'V'].map((eq) => [eq, Object.values(sc[eq]).filter((x) => !x.cumple)]);
+  const tabla = (eq) => `<div><h3 style="font-size:16px;margin:8px 0">${esc(eqNombre(eq))}</h3><table class="lista setob"><thead><tr><th>Nº</th><th>Jugador</th>${jugados.map((x) => `<th>Set ${x.n}</th>`).join('')}<th></th></tr></thead><tbody>
+    ${Object.values(sc[eq]).map((j) => `<tr class="${j.cumple ? '' : 'nocumple'}"><td><b>${esc(j.num)}</b></td><td>${esc(j.nombre)}</td>${j.sets.map((x) => `<td><label class="chk"><input type="checkbox" data-sc="${eq}|${esc(j.num)}|${x.set}"${x.completo ? ' checked' : ''} aria-label="${esc(j.num)} set ${x.set} completo">${x.mano !== null ? '<span class="small muted" title="Marcado a mano">✎</span>' : ''}</label></td>`).join('')}<td>${j.cumple ? '<span class="ok-t">✓</span>' : '<span class="no-t">Sin set</span>'}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<section class="card"><h2>Set obligatorio</h2>
+    <p class="small muted">Marcado solo: los titulares de cada set que no han sido cambiados durante el set. Si algún caso no cuenta o sí cuenta (por ejemplo, un cambio especial), corrígelo con la casilla; queda señalado con ✎.</p>
+    ${faltan.some(([, f]) => f.length) ? `<p class="msg err">Sin ningún set completo: ${faltan.filter(([, f]) => f.length).map(([eq, f]) => `${esc(eqNombre(eq))}: ${f.map((x) => esc(x.num)).join(', ')}`).join(' · ')}</p>` : '<p class="msg ok">Todos los jugadores han jugado al menos un set completo.</p>'}
+    <div class="dos">${tabla('L')}${tabla('V')}</div></section>`;
 }
 
 /* ---------- Acta impresa ---------- */
@@ -512,12 +692,16 @@ function actaHtml() {
     <table><tr><th>Sorteos</th><td class="izq">${st.sorteos.map((x) => `Set ${x.set}: saca ${esc(eqNombre(x.saca))}; a la izquierda ${esc(eqNombre(x.izq))}`).join(' · ')}</td></tr></table>
     ${st.sets.map(setBloque).join('')}
     <div class="bloque"><table><tr><th colspan="7">Sanciones</th></tr><tr><th>Tipo</th><th>Equipo</th><th>Quién</th><th>Set</th><th>Marcador</th><th>Hora</th></tr>
-      ${st.sanciones.map((x) => `<tr><td>${esc(SANC[x.tipo])}</td><td>${ab(x.eq)}</td><td>${esc(typeof x.quien === 'number' ? x.quien : x.quien === 'equipo' ? 'Equipo' : x.quien)}</td><td>${x.set}</td><td>${marc(x)}</td><td>${hora(x.h)}</td></tr>`).join('') || '<tr><td colspan="6">—</td></tr>'}</table></div>
+      ${st.sanciones.map((x) => `<tr><td>${esc(SANC[x.tipo])}</td><td>${ab(x.eq)}</td><td>${esc(M.esDorsal(x.quien) ? x.quien : x.quien === 'equipo' ? 'Equipo' : x.quien)}</td><td>${x.set}</td><td>${marc(x)}</td><td>${hora(x.h)}</td></tr>`).join('') || '<tr><td colspan="6">—</td></tr>'}</table></div>
     <div class="bloque"><table><tr><th>Set</th><th>Min.</th><th>A T</th><th>A S</th><th>A G</th><th>A P</th><th>B P</th><th>B G</th><th>B S</th><th>B T</th></tr>
       ${r.filas.map((f) => { const a = f[eqA], b = f[eqB]; return `<tr><td>${f.set}</td><td>${f.duracion ?? ''}</td><td>${a.tiempos}</td><td>${a.sust}</td><td>${a.gana}</td><td>${a.puntos}</td><td>${b.puntos}</td><td>${b.gana}</td><td>${b.sust}</td><td>${b.tiempos}</td></tr>`; }).join('')}
       <tr><th>Total</th><td>${r.total.duracion}</td><td>${r.total[eqA].tiempos}</td><td>${r.total[eqA].sust}</td><td>${r.total[eqA].gana}</td><td>${r.total[eqA].puntos}</td><td>${r.total[eqB].puntos}</td><td>${r.total[eqB].gana}</td><td>${r.total[eqB].sust}</td><td>${r.total[eqB].tiempos}</td></tr></table>
       <table><tr><th>Inicio</th><td>${hora(r.inicio)}</td><th>Fin</th><td>${hora(r.fin)}</td><th>Duración</th><td>${r.duracionPartido ?? ''} min</td><th>Ganador</th><td>${r.ganador ? esc(eqNombre(r.ganador)) + ` ${Math.max(r.total.L.gana, r.total.V.gana)}:${Math.min(r.total.L.gana, r.total.V.gana)}` : ''}</td></tr></table></div>
-    <div class="bloque"><table><tr><th class="izq">Observaciones</th></tr><tr><td class="izq">${st.observaciones.map((o) => `Set ${o.set} ${hora(o.h)}: ${esc(o.texto)}`).join('<br>') || '—'}</td></tr></table></div>
+    ${st.cfg.setObligatorio ? (() => { const sc = M.setsCompletos(st), js = st.sets.filter((x) => x.inicio); const t = (eq) => `<table><tr><th colspan="${js.length + 3}">Set obligatorio · ${ab(eq)} · ${esc(st.equipos[eq].nombre)}</th></tr><tr><th>Nº</th><th>Jugador</th>${js.map((x) => `<th>S${x.n}</th>`).join('')}<th>Cumple</th></tr>${Object.values(sc[eq]).map((j) => `<tr><td>${esc(j.num)}</td><td class="izq">${esc(j.nombre)}</td>${j.sets.map((x) => `<td>${x.completo ? 'X' : ''}${x.mano !== null ? '*' : ''}</td>`).join('')}<td>${j.cumple ? 'Sí' : '<b>NO</b>'}</td></tr>`).join('')}</table>`; return `<div class="bloque cols"><div>${t(eqA)}</div><div>${t(eqB)}</div></div><p style="font-size:9px;margin:-4px 0 6px">X = set completo (titular sin cambio) · * = corregido a mano por el anotador.</p>`; })() : ''}
+    <div class="bloque"><table><tr><th class="izq">Observaciones</th></tr><tr><td class="izq">${[
+      ...st.sets.flatMap((x) => x.repeticiones.map((r) => `Set ${x.n} ${hora(r.h)}: repetición de la jugada (${r.a}:${r.b}).`)),
+      ...['L', 'V'].flatMap((eq) => st.liberosFuera[eq].map((x) => `Set ${x.set} ${hora(x.h)}: el líbero ${esc(x.libero)} de ${esc(st.equipos[eq].nombre)} no puede seguir${x.nuevo ? `; nuevo líbero, el ${esc(x.nuevo)}` : ''} (${x.a}:${x.b}).`)),
+      ...st.observaciones.map((o) => `Set ${o.set} ${hora(o.h)}: ${esc(o.texto)}`)].join('<br>') || '—'}</td></tr></table></div>
     <div class="bloque"><table><tr>${FIRMAS_PRE.map(([k, t]) => firma(k, t + ' (antes)')).join('')}</tr><tr>${FIRMAS.map(([k, t]) => firma(k, t)).join('')}</tr></table></div>
     <p style="font-size:9px">Acta electrónica de Vòlei EnXarxa (prototipo, no oficial). Generada el ${new Date().toLocaleString('es-ES')}.</p>`;
 }
