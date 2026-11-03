@@ -59,7 +59,9 @@
       descalificados: { L: new Set(), V: new Set() }, fueraPartido: { L: new Set(), V: new Set() },
       observaciones: [], firmas: {}, fase: 'preparacion', auto: [],
       marcasSet: { L: {}, V: {} },
-      liberosFuera: { L: [], V: [] },          // líberos que no pueden seguir y por quién se han redesignado             // set completo marcado a mano: marcasSet[eq][dorsal][set] = true/false
+      liberosFuera: { L: [], V: [] },
+      castigosPendientes: [],                  // castigos puestos entre sets (o antes del partido): punto al empezar el set
+      faltasRotacion: [], incompleto: null,          // líberos que no pueden seguir y por quién se han redesignado             // set completo marcado a mano: marcasSet[eq][dorsal][set] = true/false
     };
   }
 
@@ -133,7 +135,7 @@
     const pista = s.rot[eq];
     if (!jugador(st, eq, entra)) return `El ${entra} no está en el acta.`;
     if (esLibero(st, eq, entra)) return 'Un líbero no puede entrar por sustitución: usa el cambio de líbero.';
-    if (s.libero[eq] && s.libero[eq].por === sale) return `El ${sale} está fuera por el líbero: primero tiene que salir el líbero.`;
+    if (s.libero[eq] && s.libero[eq].por === sale && !s.pendienteSust[eq].includes(sale)) return `El ${sale} está fuera por el líbero: primero tiene que salir el líbero.`;
     if (!pista.includes(sale)) return `El ${sale} no está en pista.`;
     if (pista.includes(entra) || s.libero[eq]?.num === entra) return `El ${entra} ya está en pista.`;
     if (st.descalificados[eq].has(entra) || st.fueraPartido[eq].has(entra)) return `El ${entra} no puede volver a jugar en este partido.`;
@@ -160,6 +162,7 @@
       // Sin sustitución legal posible (lesión, o jugador expulsado o descalificado): cualquier jugador que no esté en
       // pista (salvo líberos); no cuenta en las 6 y el que sale no puede volver en el partido.
       if (!s.rot[eq].includes(sale)) no(`El ${sale} no está en pista.`);
+      if (s.libero[eq] && s.libero[eq].por === sale && !s.pendienteSust[eq].includes(sale)) no(`El ${sale} está fuera por el líbero: primero tiene que salir el líbero.`);
       if (!jugador(st, eq, entra) || esLibero(st, eq, entra)) no(`El ${entra} no puede entrar.`);
       if (s.rot[eq].includes(entra) || st.descalificados[eq].has(entra) || st.fueraPartido[eq].has(entra) || s.expulsados[eq].has(entra)) no(`El ${entra} no puede entrar.`);
       st.fueraPartido[eq].add(sale);
@@ -171,6 +174,7 @@
       s.nSust[eq]++;
     }
     s.rot[eq] = s.rot[eq].map((n) => (n === sale ? entra : n));
+    if (s.libero[eq] && s.libero[eq].por === sale) s.libero[eq] = { ...s.libero[eq], por: entra };   // sancionado que estaba fuera por el líbero
     s.sust[eq].push({ sale, entra, ...marcador(s, eq), tipo: tipo || 'normal', h });
     s.pendienteSust[eq] = s.pendienteSust[eq].filter((n) => n !== sale);
   }
@@ -213,7 +217,7 @@
   // descalificacion (fuera el partido), avisoRetraso, castigoRetraso. quien: dorsal, E, E2, F, M o 'equipo'.
   function sancionar(st, eq, quien, tipo, h) {
     const s = setActual(st);
-    if (!['juego', 'entreSets'].includes(st.fase)) no('Las sanciones se ponen durante el partido.');
+    if (!['juego', 'entreSets', 'preparacion'].includes(st.fase)) no('El partido ya ha acabado.');
     const esJug = esDorsal(quien);
     if (esJug && !jugador(st, eq, quien)) no(`El ${quien} no está en el acta.`);
     if (!esJug && quien !== 'equipo' && !ROLES_OFICIALES[quien]) no('¿A quién es la sanción?');
@@ -223,7 +227,8 @@
     st.sanciones.push({ eq, quien, tipo, set: s.n, ...marcador(s, eq), h });
     if (tipo === 'amonestacion' || tipo === 'castigo' || tipo === 'expulsion' || tipo === 'descalificacion') st.avisoConducta[eq] = true;
     if (tipo === 'avisoRetraso') st.avisoRetraso[eq] = true;
-    if (tipo === 'castigo' || tipo === 'castigoRetraso') { if (st.fase === 'juego') punto(st, OTRO(eq), tipo, h); }
+    // Castigo: punto y saque al rival; entre sets o antes del partido, al empezar el set siguiente (FIVB).
+    if (tipo === 'castigo' || tipo === 'castigoRetraso') { if (st.fase === 'juego') punto(st, OTRO(eq), tipo, h); else st.castigosPendientes.push({ eq: OTRO(eq), tipo }); }
     if (esJug && (tipo === 'expulsion' || tipo === 'descalificacion')) {
       if (tipo === 'expulsion') s.expulsados[eq].add(quien); else st.descalificados[eq].add(quien);
       const enP = s.rot[eq]?.includes(quien);
@@ -277,6 +282,7 @@
         s.saque = s.saqueInicial; abrirTurno(s, s.saque);
         // El que recibe empieza con su primer turno "tachado": su primer saque lo hará el jugador de la posición II.
         st.fase = 'juego';
+        for (const c of st.castigosPendientes.splice(0)) if (st.fase === 'juego') punto(st, c.eq, c.tipo, h);
         return;
       }
       case 'punto': if (!['L', 'V'].includes(ev.eq)) no('¿Para qué equipo?'); return punto(st, ev.eq, ev.motivo || 'rally', h);
@@ -293,6 +299,30 @@
       case 'impropia': st.impropias[ev.eq]++; st.sanciones.push({ eq: ev.eq, quien: 'equipo', tipo: 'impropia', set: s.n, ...marcador(s, ev.eq), h }); return;
       case 'obs': st.observaciones.push({ texto: String(ev.texto || '').slice(0, 1000), set: s.n, h }); return;
       case 'firma': st.firmas[ev.rol] = { nombre: ev.nombre || '', img: ev.img, h }; return;
+      case 'faltaRotacion': {   // FIVB 7.7: falta de rotación o sacador incorrecto: punto y saque al rival
+        if (st.fase !== 'juego') no('Se anota con el set en marcha.');
+        if (!['L', 'V'].includes(ev.eq)) no('¿Qué equipo ha cometido la falta?');
+        st.faltasRotacion.push({ eq: ev.eq, set: s.n, a: s.puntos[ev.eq], b: s.puntos[OTRO(ev.eq)], h });
+        punto(st, OTRO(ev.eq), 'rotacion', h);
+        return;
+      }
+      case 'incompleto': {   // { eq, motivo: 'incomparecencia'|'incompleto' } FIVB 6.4: el rival gana lo que falta
+        if (!['L', 'V'].includes(ev.eq)) no('¿Qué equipo?');
+        if (st.fase === 'fin') no('El partido ya ha acabado.');
+        const gana = OTRO(ev.eq);
+        st.incompleto = { eq: ev.eq, motivo: ev.motivo === 'incomparecencia' ? 'incomparecencia' : 'incompleto', set: s.n, a: s.puntos.L, b: s.puntos.V, h };
+        st.castigosPendientes = [];
+        while (st.fase !== 'fin') {
+          const x = setActual(st);
+          if (!x.inicio) { x.inicio = h; if (!st.inicio) st.inicio = h; if (!x.saqueInicial) x.saqueInicial = gana; if (!x.izq) x.izq = 'L'; x.saque = gana; }
+          st.fase = 'juego'; x.pendienteSust = { L: [], V: [] };
+          const obj = objetivo(st, x), hasta = Math.max(obj, x.puntos[ev.eq] + 2);
+          while (x.puntos[gana] < hasta) { x.puntos[gana]++; x.progreso.push({ eq: gana, a: x.puntos.L, b: x.puntos.V, motivo: 'incompleto', h }); }
+          if (x.decisivo && !x.cambioHecho && x.puntos[gana] >= st.cfg.cambioDecisivo) { x.cambioHecho = true; x.izq = OTRO(x.izq); }
+          finSet(st, x, gana, h);
+        }
+        return;
+      }
       case 'repeticion': {   // la jugada se repite (p. ej. doble falta o interferencia externa): sin punto para nadie
         if (st.fase !== 'juego') no('Las repeticiones se anotan con el set en marcha.');
         s.repeticiones.push({ a: s.puntos.L, b: s.puntos.V, h });
@@ -381,7 +411,7 @@
         L: { tiempos: suma('L', 'tiempos'), sust: suma('L', 'sust'), gana: st.ganados.L, puntos: suma('L', 'puntos') },
         V: { tiempos: suma('V', 'tiempos'), sust: suma('V', 'sust'), gana: st.ganados.V, puntos: suma('V', 'puntos') } },
       inicio: st.inicio, fin: st.fin, duracionPartido: minutos(st.inicio, st.fin),
-      ganador: st.fin ? (st.ganados.L > st.ganados.V ? 'L' : 'V') : null,
+      ganador: st.fase === 'fin' ? (st.ganados.L > st.ganados.V ? 'L' : 'V') : null,
     };
   }
 

@@ -888,7 +888,24 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   `reparar(a)` al cargar: en un acta sin empezar, los jugadores con dorsal no válido se quitan de la plantilla guardada y se
   guardan en `a.quitados`, que vuelven a Equipos en rojo con aviso para corregirlos. Vigilancia en `acta/index.html` (10 s,
   independiente de acta.js, `window.ACTA_OK`): enseña el error del navegador y "Recargar sin caché".
-- Pruebas: `node --test tools/prueba-acta-motor.mjs` (17 casos de reglas). Banco de pruebas con Chrome: un solo perfil
+- **"Prototipo final" (3-nov-2026, Ferran: "simula partidos reales y busca todos los errores"):**
+  - **Partidos reales:** `tools/prueba-acta-reales.mjs` reproduce los 115 partidos de la MLV 2026 (acta real exportada +
+    punto a punto, de github.com/awosoga/volleydata): 114 idénticos y el sacador coincide en el 99,5 % de 20.139 puntos; lo
+    demás son incoherencias entre los 2 archivos reales. Un partido real de 5 sets jugado en la pantalla con 292 clics
+    (PC y móvil) deja el acta igual que la realidad en cada acción.
+  - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
+    comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
+    repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución
+    excepcional permitía sacar al jugador que estaba fuera por el líbero, y un sancionado con el líbero en su sitio
+    bloqueaba el partido (arreglados).
+  - **Reglamento añadido:** `faltaRotacion` (FIVB 7.7: punto y saque al rival), `incompleto {motivo}` (FIVB 6.4:
+    incomparecencia 0-3 con 25-0, o el rival gana lo que falta), castigo entre sets o antes del partido = punto al empezar
+    el set (`castigosPendientes`); cambios y tiempos por set configurables (la MLV juega con 8 cambios).
+  - **Mesa real:** doble toque en el punto ignorado (< 0,7 s, `window.ACTA_ANTIRREBOTE`), pantalla siempre encendida
+    durante el partido (Wake Lock), importar un acta (JSON).
+  - **Catalán:** `docs/acta/acta-ca.js` (exact + rules + frags, como `i18n-ca.js`; selector ES/CA en la cabecera, idioma
+    `liq-lang`; también en el directo y en las confirmaciones). Al cambiar textos en acta.js o motor.js, cambiar su clave.
+- Pruebas: `node --test tools/prueba-acta-motor.mjs` (21 casos de reglas). Banco de pruebas con Chrome: un solo perfil
   fijo en /tmp que se vacía al empezar (`tools/prueba-accesibilidad.mjs` igual): los perfiles temporales sin borrar, de
   ~180 MB cada uno, llenaron /tmp (tmpfs de 7,4 GB) el 3-nov. Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
