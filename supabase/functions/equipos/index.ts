@@ -9,15 +9,14 @@
 // - {action:"buscarme", club_id}: repasa las plantillas de todos los equipos de un club y sigue los que le incluyen.
 // - {action:"clasificacion", torneo}: clasificación del grupo. {action:"historial", torneo, id_equipo, team}: partidos de
 //   un equipo en ese grupo (jugados con resultado y por jugar).
-// - {action:"plantillas", local, visitante, fecha}: plantillas públicas de los 2 equipos de un partido, para el acta
-//   electrónica (nombres y cuerpo técnico, sin los de baja; la web no da dorsales). Se buscan en el listado de partidos
-//   de la federación (club y categoría) y luego en la ficha del club.
+// - {action:"plantillas", local, visitante, fecha, cat}: plantillas públicas de los 2 equipos de un partido, para el acta
+//   electrónica (plantillasPartido en publico.ts).
 // - {action:"mis"}: favoritos y sus próximos partidos. Antes, los equipos donde sale el árbitro según el índice de
 //   plantillas (función indexar) se añaden solos (auto); los que quita no vuelven (oculto).
 // Las páginas públicas pesan ~1 MB cada una (el menú): todo pasa por la caché compartida pub_cache.
 import { admin, cors, json, userFromRequest } from "../_shared/sync.ts";
 import * as rfevb from "../_shared/rfevb.ts";
-import { clubs, clubTeams, feed, ROLES_ELEGIBLES, roster, standings, huella, matchOfficials, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
+import { clubs, clubTeams, feed, plantillasPartido, ROLES_ELEGIBLES, standings, huella, matchOfficials, nameKey, norm, perfilOf, roleIn, sameCat, sameTeam, teamMatches, words } from "../_shared/publico.ts";
 
 
 if (import.meta.main) Deno.serve(async (req) => {
@@ -33,30 +32,9 @@ if (import.meta.main) Deno.serve(async (req) => {
 
   try {
     if (body.action === "plantillas") {
-      const b = body as { local?: string; visitante?: string; fecha?: string };
+      const b = body as { local?: string; visitante?: string; fecha?: string; cat?: string };
       if (!b.local || !b.visitante) return json({ error: "Faltan los equipos" }, 400);
-      const list = await feed(db);
-      // El partido (mismo día y equipos) da el club y la categoría de cada uno; si ya no sale (partido pasado), cualquier
-      // otro partido de ese equipo.
-      const p = list.find((x) => x.d.slice(0, 10) === b.fecha && sameTeam(x.l, b.local!) && sameTeam(x.v, b.visitante!));
-      const de = (name: string) => {
-        if (p) return sameTeam(p.l, name) ? { club: p.cl, cat: p.cat } : { club: p.cv, cat: p.cat };
-        const o = list.find((x) => sameTeam(x.l, name) || sameTeam(x.v, name));
-        return o ? { club: sameTeam(o.l, name) ? o.cl : o.cv, cat: o.cat } : null;
-      };
-      const una = async (name: string) => {
-        const w = de(name); if (!w?.club) return null;
-        const teams = await clubTeams(db, w.club);
-        const t = teams.find((x) => sameTeam(x.name, name) && sameCat(x.cat, w.cat)) || teams.find((x) => sameTeam(x.name, name))
-          // La ficha del club a veces pone el nombre del club y no el del equipo: entonces, el único equipo del club en esa
-          // categoría (si hay dos, p. ej. masculino y femenino de la misma división, no se adivina).
-          || (teams.filter((x) => sameCat(x.cat, w.cat)).length === 1 ? teams.find((x) => sameCat(x.cat, w.cat)) : undefined);
-        if (!t) return null;
-        const gente = (await roster(t.id)).filter((x) => !x.baja);
-        return { id_equipo: t.id, cat: t.cat, personas: gente.map((x) => ({ nombre: x.name, perfil: perfilOf(x.perfil), cargo: x.perfil })) };
-      };
-      const [L, V] = await Promise.all([una(b.local), una(b.visitante)]);
-      return json({ ok: true, L, V });
+      return json({ ok: true, ...(await plantillasPartido(db, b.local, b.visitante, b.fecha, b.cat)) });
     }
 
     if (body.action === "buscar") {
