@@ -850,6 +850,8 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - **Dorsales (3-nov-2026, Ferran):** de 0 a 99 y el 00 (distinto del 0). Se guardan como texto ("7", "0", "00"; "07" = "7"):
   `D()` y `normalizar()` en el motor, que también pasa a texto los dorsales numéricos de las actas guardadas antes. El motor
   rechaza la plantilla con un dorsal no válido; en pantalla, campo de 2 caracteres en rojo al escribirlo y aviso al guardar.
+- **Alineación (3-nov-2026, Ferran):** un jugador elegido en una posición desaparece de los desplegables de las otras y vuelve
+  si se cambia (`enlazarAlineacion`, rehace las opciones: en el iPhone las opciones escondidas se siguen viendo).
 - Pruebas: `node --test tools/prueba-acta-motor.mjs` (13 casos de reglas). Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
 - Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,

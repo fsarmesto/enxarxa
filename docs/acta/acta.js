@@ -271,11 +271,29 @@ function firmar(rol, t) {
 }
 
 /* ---------- 3. Sorteo y alineaciones ---------- */
+const alineables = (eq) => ST.equipos[eq].jugadores.filter((j) => !j.lib && !ST.descalificados[eq].has(j.num) && !ST.fueraPartido[eq].has(j.num));
+const opcionJugador = (j, sel) => `<option value="${esc(j.num)}"${sel ? ' selected' : ''}>${esc(j.num)}${j.cap ? ' (C)' : ''} ${esc(j.nombre.split(' ')[0] || '')}</option>`;
 function selectorAlineacion(eq, previa) {
-  const js = ST.equipos[eq].jugadores.filter((j) => !j.lib && !ST.descalificados[eq].has(j.num) && !ST.fueraPartido[eq].has(j.num));
   const orden = [3, 2, 1, 4, 5, 0];   // como en la pista: delanteros IV III II, zagueros V VI I
-  return `<div class="alinea" data-al="${eq}">${orden.map((i) => `<label>${POS[i]}<select data-pos="${i}"><option value=""></option>${js.map((j) => `<option value="${j.num}"${previa?.[i] === j.num ? ' selected' : ''}>${j.num}${j.cap ? ' (C)' : ''} ${esc(j.nombre.split(' ')[0] || '')}</option>`).join('')}</select></label>`).join('')}</div>
+  // Las opciones las pone enlazarAlineacion(): cada jugador solo sale en el desplegable donde está elegido o en los libres.
+  return `<div class="alinea" data-al="${eq}">${orden.map((i) => `<label>${POS[i]}<select data-pos="${i}" data-previa="${esc(previa?.[i] || '')}"></select></label>`).join('')}</div>
     <p class="small muted" style="margin:4px 0 0">Red arriba. I = zaguero derecho, el que saca.</p>`;
+}
+// Un jugador elegido en una posición desaparece de los desplegables de las otras (y vuelve si se cambia). Se rehace la
+// lista entera: las opciones escondidas siguen saliendo en el desplegable del iPhone.
+function enlazarAlineacion() {
+  $('app').querySelectorAll('[data-al]').forEach((box) => {
+    const js = alineables(box.dataset.al), sels = [...box.querySelectorAll('select')];
+    const pintar = () => {
+      const usados = sels.map((x) => x.value || x.dataset.previa).filter(Boolean);
+      for (const x of sels) {
+        const v = x.value || x.dataset.previa; x.dataset.previa = '';
+        x.innerHTML = '<option value=""></option>' + js.filter((j) => j.num === v || !usados.includes(j.num)).map((j) => opcionJugador(j, j.num === v)).join('');
+      }
+    };
+    box.addEventListener('change', pintar);
+    pintar();
+  });
 }
 function leerAlineacion(eq) { const a = []; $('app').querySelectorAll(`[data-al="${eq}"] select`).forEach((s) => (a[+s.dataset.pos] = s.value || null)); return a; }
 function eqNombre(eq) { return eq === 'L' ? A.datos.local : A.datos.visitante; }
@@ -287,6 +305,7 @@ function pSorteo() {
       <fieldset><legend>A la izquierda del anotador (equipo A)</legend>${opcionesEq('izq', s.izq)}</fieldset></section>
     <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2>${selectorAlineacion('L', s.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2>${selectorAlineacion('V', s.alineacion.V)}</section></div>
     <div class="row"><button class="ghost" id="atras">Atrás</button><button class="primary" id="empezar">Empezar el set 1</button></div>`;
+  enlazarAlineacion();
   $('atras').onclick = () => { A.paso = 'equipos'; guardar(); pintar(); };
   $('empezar').onclick = () => empezarSet(true);
 }
@@ -452,6 +471,7 @@ function pEntre() {
     ${s.decisivo ? `<section class="card"><h2>Sorteo del set decisivo</h2><fieldset><legend>Saca primero</legend>${opcionesEq('saca', s.saqueInicial)}</fieldset><fieldset><legend>A la izquierda del anotador</legend>${opcionesEq('izq', s.izq)}</fieldset></section>` : ''}
     <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2>${selectorAlineacion('L', s.alineacion.L || prev.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2>${selectorAlineacion('V', s.alineacion.V || prev.alineacion.V)}</section></div>
     <div class="barra"><button class="primary" id="empezar">Empezar el set ${s.n}</button><button id="deshacer">Deshacer el último punto</button><button id="obs">Observación</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>`;
+  enlazarAlineacion();
   $('empezar').onclick = () => empezarSet(s.decisivo);
   barraComun();
 }
