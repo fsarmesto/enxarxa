@@ -858,6 +858,11 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   de sets, **pista vista desde la mesa** (`pistaGrande`: red en medio; el de la izquierda tiene la I abajo a la izquierda y el
   de la derecha arriba a la derecha; el que saca con anillo rojo y balón), botones, teclas y registro a 2 columnas. En móvil y
   tablet, como antes (`.solo-pc` / `.solo-movil`). Plantillas lado a lado en PC (`.dos`).
+  Ideas del e-Scoresheet de la RFEVB (captura de Ferran, 3-nov): en los paneles, listas "En pista" y "Banquillo" con dorsal y
+  nombre (`listaJugadores`: C del capitán, "(3)" = entró por el 3, "salió 3-6", líberos en fila amarilla, tarjetas de
+  sanción, tachados los que no pueden jugar); bajo la pista, último suceso con Deshacer en rojo, los 2 botones de punto
+  grandes (en PC no están en los paneles) y cuadro por set (cambios, tiempos, puntos, minutos); nombre bajo el dorsal en la
+  pista; reloj del set en el marcador (`RELOJ`).
 - **Infantil (3-nov-2026, Ferran):** en Datos, "Hay líbero" (`cfg.liberos`) y "Set obligatorio por jugador"
   (`cfg.setObligatorio`); con "INFANTIL" en competición o categoría, al crear el acta salen sin líbero y con set obligatorio.
   Sin líbero: no hay columna de líbero ni botón, el motor rechaza inscribirlo o usarlo, y al desactivarlo se quita la marca de
