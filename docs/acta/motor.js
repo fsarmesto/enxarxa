@@ -1,0 +1,308 @@
+// Motor del acta electrónica (prototipo para la FCVB, 3-nov-2026). Reglas oficiales de voleibol FIVB 6x6.
+// El acta es una lista de sucesos (sorteo, alineación, punto, tiempo, sustitución, líbero, sanción…) y el estado se
+// calcula siempre desde el principio: estado = reproducir(config, sucesos). Deshacer = quitar el último suceso.
+// Lo que se deduce de las reglas (rotar, cambiar el saque, salida automática del líbero, fin de set, cambio de campo
+// en el set decisivo) no se guarda: se recalcula. aplicar() lanza un Error con el motivo si el suceso no es legal.
+// Equipos: 'L' (local) y 'V' (visitante). Posiciones: índice 0..5 = I..VI (I = zaguero derecho, el que saca).
+(function (root) {
+  'use strict';
+  const OTRO = (e) => (e === 'L' ? 'V' : 'L');
+  const CONFIG = { mejorDe: 5, puntosSet: 25, puntosDecisivo: 15, tiempos: 2, sustituciones: 6, cambioDecisivo: 8 };
+  const ROLES_OFICIALES = { E: 'Entrenador', E2: 'Segundo entrenador', F: 'Fisioterapeuta', M: 'Médico' };
+
+  class ErrorActa extends Error {}
+  const no = (msg) => { throw new ErrorActa(msg); };
+
+  function nuevoSet(n) {
+    return {
+      n, inicio: null, fin: null, saqueInicial: null, izq: null, decisivo: false,
+      alineacion: { L: null, V: null },       // titulares en I..VI tal como empezaron
+      rot: { L: null, V: null },              // quién ocupa cada posición ahora (sin el líbero)
+      libero: { L: null, V: null },           // { num, por, pos } si hay un líbero en pista
+      puntos: { L: 0, V: 0 }, saque: null,
+      turnos: { L: [], V: [] },               // turnos de saque: { col, num, hasta }
+      sust: { L: [], V: [] },                 // { sale, entra, a, b, tipo }
+      parejas: { L: {}, V: {} },              // titular -> suplente que entró por él
+      cerradas: { L: new Set(), V: new Set() }, // jugadores que ya no pueden volver a cambiar (normalmente)
+      jugados: { L: new Set(), V: new Set() },  // suplentes que ya han entrado en este set
+      expulsados: { L: new Set(), V: new Set() },
+      tiempos: { L: [], V: [] },              // { a, b }
+      liberos: { L: [], V: [] },              // cambios de líbero, para el acta: { entra, sale, a, b }
+      progreso: [],                            // cada punto: { eq, a, b, motivo }
+      rallies: 0, ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
+    };
+  }
+
+  function nuevo(config, datos) {
+    return {
+      cfg: { ...CONFIG, ...(config || {}) }, datos: datos || {},
+      equipos: { L: { nombre: '', jugadores: [], oficiales: [] }, V: { nombre: '', jugadores: [], oficiales: [] } },
+      sorteos: [], sets: [nuevoSet(1)], ganados: { L: 0, V: 0 }, fin: null, inicio: null,
+      sanciones: [],                           // { eq, quien, tipo, set, a, b }
+      avisoConducta: { L: false, V: false }, avisoRetraso: { L: false, V: false }, impropias: { L: 0, V: 0 },
+      descalificados: { L: new Set(), V: new Set() }, fueraPartido: { L: new Set(), V: new Set() },
+      observaciones: [], firmas: {}, fase: 'preparacion', auto: [],
+    };
+  }
+
+  const setActual = (st) => st.sets[st.sets.length - 1];
+  const jugador = (st, eq, num) => st.equipos[eq].jugadores.find((j) => j.num === num);
+  const esLibero = (st, eq, num) => !!jugador(st, eq, num)?.lib;
+  const objetivo = (st, s) => (s.decisivo ? st.cfg.puntosDecisivo : st.cfg.puntosSet);
+  const ganarPartido = (st) => Math.ceil(st.cfg.mejorDe / 2);
+  const marcador = (s, eq) => ({ a: s.puntos[eq], b: s.puntos[OTRO(eq)] });   // a = el del equipo que pide/es sancionado
+  const enPista = (s, eq) => {
+    const r = s.rot[eq] || []; const l = s.libero[eq];
+    return r.map((n, i) => (l && l.pos === i ? l.num : n));
+  };
+
+  // ---------- Rotación y saque ----------
+  function rotar(st, s, eq, h) {
+    const r = s.rot[eq]; s.rot[eq] = [r[1], r[2], r[3], r[4], r[5], r[0]];
+    const l = s.libero[eq];
+    if (l) {
+      l.pos = (l.pos + 5) % 6;
+      // El líbero solo puede estar en la zaga: al pasar a la posición IV (delantera) sale y vuelve el jugador al que sustituía.
+      if (l.pos === 3) { st.auto.push({ t: 'liberoSaleAuto', eq, set: s.n, libero: l.num, vuelve: l.por, h }); s.liberos[eq].push({ entra: l.por, sale: l.num, ...marcador(s, eq), auto: true }); s.libero[eq] = null; s.ultLibero[eq] = s.rallies; }
+    }
+  }
+  function abrirTurno(s, eq) {
+    const num = s.rot[eq][0], col = s.alineacion[eq].indexOf(num);
+    s.turnos[eq].push({ col: col >= 0 ? col : colDeSuplente(s, eq, num), num, hasta: null });
+  }
+  // Un suplente saca en la columna (posición inicial) del titular por el que entró.
+  function colDeSuplente(s, eq, num) {
+    const tit = Object.keys(s.parejas[eq]).find((t) => s.parejas[eq][t] === num);
+    return tit != null ? s.alineacion[eq].indexOf(+tit) : -1;
+  }
+  function cerrarTurno(s, eq) { const t = s.turnos[eq][s.turnos[eq].length - 1]; if (t && t.hasta == null) t.hasta = s.puntos[eq]; }
+
+  // ---------- Punto ----------
+  function punto(st, eq, motivo, h) {
+    const s = setActual(st);
+    if (st.fase !== 'juego') no('El set no está en juego.');
+    if (s.pendienteSust.L.length || s.pendienteSust.V.length) no('Antes hay que sustituir al jugador expulsado o descalificado.');
+    s.puntos[eq]++;
+    if (motivo === 'rally') s.rallies++;
+    s.progreso.push({ eq, a: s.puntos.L, b: s.puntos.V, motivo, h });
+    if (s.saque !== eq) {           // gana el saque el equipo que recibía: rota y saca su jugador de la posición I
+      cerrarTurno(s, s.saque);
+      rotar(st, s, eq, h);
+      s.saque = eq; abrirTurno(s, eq);
+    }
+    // Set decisivo: cambio de campo cuando un equipo llega a 8 (una sola vez).
+    if (s.decisivo && !s.cambioHecho && s.puntos[eq] === st.cfg.cambioDecisivo) { s.cambioHecho = true; s.izq = OTRO(s.izq); st.auto.push({ t: 'cambioCampo', set: s.n, h }); }
+    const obj = objetivo(st, s);
+    if (s.puntos[eq] >= obj && s.puntos[eq] - s.puntos[OTRO(eq)] >= 2) finSet(st, s, eq, h);
+  }
+
+  function finSet(st, s, eq, h) {
+    s.ganador = eq; s.fin = h; cerrarTurno(s, 'L'); cerrarTurno(s, 'V');
+    st.ganados[eq]++;
+    if (st.ganados[eq] === ganarPartido(st)) { st.fase = 'fin'; st.fin = h; return; }
+    const sig = nuevoSet(s.n + 1);
+    sig.decisivo = sig.n === st.cfg.mejorDe;
+    if (!sig.decisivo) {           // cambian de campo y saca primero el que no sacó primero en el set anterior
+      sig.izq = OTRO(s.izq);
+      sig.saqueInicial = OTRO(s.saqueInicial);
+    }
+    st.sets.push(sig); st.fase = 'entreSets';
+  }
+
+  // ---------- Sustituciones ----------
+  // ¿Puede entrar `entra` por `sale` con una sustitución normal? Devuelve el motivo si no.
+  function motivoSust(st, s, eq, sale, entra) {
+    const pista = s.rot[eq];
+    if (!jugador(st, eq, entra)) return `El ${entra} no está en el acta.`;
+    if (esLibero(st, eq, entra)) return 'Un líbero no puede entrar por sustitución: usa el cambio de líbero.';
+    if (s.libero[eq] && s.libero[eq].por === sale) return `El ${sale} está fuera por el líbero: primero tiene que salir el líbero.`;
+    if (!pista.includes(sale)) return `El ${sale} no está en pista.`;
+    if (pista.includes(entra) || s.libero[eq]?.num === entra) return `El ${entra} ya está en pista.`;
+    if (st.descalificados[eq].has(entra) || st.fueraPartido[eq].has(entra)) return `El ${entra} no puede volver a jugar en este partido.`;
+    if (s.expulsados[eq].has(entra)) return `El ${entra} está expulsado en este set.`;
+    if (s.nSust[eq] >= st.cfg.sustituciones) return `Ya ha hecho las ${st.cfg.sustituciones} sustituciones de este set.`;
+    const titulares = s.alineacion[eq];
+    const parejas = s.parejas[eq];
+    if (titulares.includes(sale)) {              // sale un titular
+      if (s.cerradas[eq].has(sale)) return `El ${sale} ya salió y volvió en este set: no puede volver a salir.`;
+      if (titulares.includes(entra)) return `El ${entra} es titular: solo puede volver a pista por el suplente que entró por él.`;
+      if (s.jugados[eq].has(entra)) return `El ${entra} ya ha jugado este set: solo puede volver por el titular por el que entró.`;
+      return null;
+    }
+    const tit = Object.keys(parejas).find((t) => parejas[t] === sale);   // sale un suplente
+    if (tit == null) return `El ${sale} no puede salir con una sustitución normal.`;
+    if (+tit !== entra) return `Por el ${sale} solo puede volver el ${tit}, el titular por el que entró.`;
+    return null;
+  }
+
+  function sustituir(st, eq, sale, entra, tipo, h) {
+    const s = setActual(st);
+    if (st.fase !== 'juego') no('Las sustituciones se hacen con el set en marcha.');
+    if (tipo === 'excepcional') {
+      // Sin sustitución legal posible (lesión, o jugador expulsado o descalificado): cualquier jugador que no esté en
+      // pista (salvo líberos); no cuenta en las 6 y el que sale no puede volver en el partido.
+      if (!s.rot[eq].includes(sale)) no(`El ${sale} no está en pista.`);
+      if (!jugador(st, eq, entra) || esLibero(st, eq, entra)) no(`El ${entra} no puede entrar.`);
+      if (s.rot[eq].includes(entra) || st.descalificados[eq].has(entra) || st.fueraPartido[eq].has(entra) || s.expulsados[eq].has(entra)) no(`El ${entra} no puede entrar.`);
+      st.fueraPartido[eq].add(sale);
+    } else {
+      const m = motivoSust(st, s, eq, sale, entra); if (m) no(m);
+      const tit = s.alineacion[eq].includes(sale);
+      if (tit) { s.parejas[eq][sale] = entra; s.jugados[eq].add(entra); }
+      else { s.cerradas[eq].add(entra); s.cerradas[eq].add(sale); }
+      s.nSust[eq]++;
+    }
+    s.rot[eq] = s.rot[eq].map((n) => (n === sale ? entra : n));
+    s.sust[eq].push({ sale, entra, ...marcador(s, eq), tipo: tipo || 'normal', h });
+    s.pendienteSust[eq] = s.pendienteSust[eq].filter((n) => n !== sale);
+  }
+
+  // ---------- Líbero ----------
+  function liberoEntra(st, eq, libero, sale, h) {
+    const s = setActual(st);
+    if (st.fase !== 'juego') no('El líbero entra con el set en marcha.');
+    if (!esLibero(st, eq, libero)) no(`El ${libero} no está inscrito como líbero.`);
+    if (st.descalificados[eq].has(libero) || s.expulsados[eq].has(libero) || st.fueraPartido[eq].has(libero)) no(`El líbero ${libero} no puede jugar.`);
+    if (s.libero[eq]) {
+      // Cambio de un líbero por el otro: ocupa el mismo sitio.
+      if (sale !== s.libero[eq].num) no('Ya hay un líbero en pista: primero tiene que salir, o cámbialo por el otro líbero.');
+      if (libero === sale) no('Ese líbero ya está en pista.');
+      if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos cambios de líbero tiene que haber un rally completo.');
+      s.liberos[eq].push({ entra: libero, sale, ...marcador(s, eq), h });
+      s.libero[eq] = { ...s.libero[eq], num: libero }; s.ultLibero[eq] = s.rallies;
+      return;
+    }
+    const pos = s.rot[eq].indexOf(sale);
+    if (pos < 0) no(`El ${sale} no está en pista.`);
+    if (![0, 4, 5].includes(pos)) no('El líbero solo puede sustituir a un zaguero (posiciones I, V y VI).');
+    if (pos === 0 && s.saque === eq && st.fase === 'juego') no('El líbero no puede sacar: no puede entrar por el jugador que va a sacar.');
+    if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos cambios de líbero tiene que haber un rally completo.');
+    s.libero[eq] = { num: libero, por: sale, pos };
+    s.liberos[eq].push({ entra: libero, sale, ...marcador(s, eq), h });
+    s.ultLibero[eq] = s.rallies;
+  }
+  function liberoSale(st, eq, h) {
+    const s = setActual(st), l = s.libero[eq];
+    if (!l) no('No hay ningún líbero en pista.');
+    if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos cambios de líbero tiene que haber un rally completo.');
+    s.liberos[eq].push({ entra: l.por, sale: l.num, ...marcador(s, eq), h });
+    s.libero[eq] = null; s.ultLibero[eq] = s.rallies;
+  }
+
+  // ---------- Sanciones ----------
+  // tipo: amonestacion (amarilla), castigo (roja: punto y saque al rival), expulsion (fuera el resto del set),
+  // descalificacion (fuera el partido), avisoRetraso, castigoRetraso. quien: dorsal, E, E2, F, M o 'equipo'.
+  function sancionar(st, eq, quien, tipo, h) {
+    const s = setActual(st);
+    if (!['juego', 'entreSets'].includes(st.fase)) no('Las sanciones se ponen durante el partido.');
+    const esJug = typeof quien === 'number';
+    if (esJug && !jugador(st, eq, quien)) no(`El ${quien} no está en el acta.`);
+    if (!esJug && quien !== 'equipo' && !ROLES_OFICIALES[quien]) no('¿A quién es la sanción?');
+    if (tipo === 'amonestacion' && st.avisoConducta[eq]) no('Este equipo ya ha tenido su amonestación: la siguiente conducta incorrecta es castigo.');
+    if (tipo === 'avisoRetraso' && st.avisoRetraso[eq]) no('Este equipo ya tiene el aviso por retraso: el siguiente retraso es castigo por retraso.');
+    if (tipo === 'castigoRetraso' && !st.avisoRetraso[eq]) no('El primer retraso es un aviso por retraso.');
+    st.sanciones.push({ eq, quien, tipo, set: s.n, ...marcador(s, eq), h });
+    if (tipo === 'amonestacion' || tipo === 'castigo' || tipo === 'expulsion' || tipo === 'descalificacion') st.avisoConducta[eq] = true;
+    if (tipo === 'avisoRetraso') st.avisoRetraso[eq] = true;
+    if (tipo === 'castigo' || tipo === 'castigoRetraso') { if (st.fase === 'juego') punto(st, OTRO(eq), tipo, h); }
+    if (esJug && (tipo === 'expulsion' || tipo === 'descalificacion')) {
+      if (tipo === 'expulsion') s.expulsados[eq].add(quien); else st.descalificados[eq].add(quien);
+      const enP = s.rot[eq]?.includes(quien);
+      if (s.libero[eq]?.num === quien) { s.liberos[eq].push({ entra: s.libero[eq].por, sale: quien, ...marcador(s, eq), h }); s.libero[eq] = null; }
+      else if (enP) s.pendienteSust[eq].push(quien);   // hay que sustituirlo legalmente antes de seguir
+    }
+  }
+
+  // ---------- Reproducir ----------
+  function aplicar(st, ev) {
+    const h = ev.h || null, s = setActual(st);
+    switch (ev.t) {
+      case 'equipo': {   // { eq, nombre, jugadores:[{num,nombre,cap,lib}], oficiales:[{rol,nombre}] }
+        if (st.fase !== 'preparacion') no('Las plantillas se cierran al empezar el partido.');
+        const nums = ev.jugadores.map((j) => j.num);
+        if (new Set(nums).size !== nums.length) no('Hay dorsales repetidos.');
+        if (ev.jugadores.filter((j) => j.cap).length > 1) no('Solo puede haber un capitán.');
+        if (ev.jugadores.some((j) => j.cap && j.lib)) no('El líbero no puede ser el capitán.');
+        if (ev.jugadores.filter((j) => j.lib).length > 2) no('Como mucho 2 líberos.');
+        st.equipos[ev.eq] = { nombre: ev.nombre || st.equipos[ev.eq].nombre, jugadores: ev.jugadores.map((j) => ({ ...j })), oficiales: (ev.oficiales || []).map((o) => ({ ...o })) };
+        return;
+      }
+      case 'sorteo': {   // { saca, izq }: antes del 1er set y antes del decisivo
+        if (!['preparacion', 'entreSets'].includes(st.fase) || s.inicio) no('El sorteo se hace antes del primer set o del decisivo.');
+        if (st.fase === 'entreSets' && !s.decisivo) no('Solo hay sorteo antes del set decisivo.');
+        s.saqueInicial = ev.saca; s.izq = ev.izq; st.sorteos.push({ set: s.n, saca: ev.saca, izq: ev.izq, h });
+        return;
+      }
+      case 'alineacion': {   // { eq, jugadores: [6 dorsales, I..VI] }
+        if (s.inicio) no('El set ya ha empezado.');
+        if (st.fase === 'preparacion') { for (const e of ['L', 'V']) { const j = st.equipos[e].jugadores; if (j.filter((x) => !x.lib).length < 6) no('Cada equipo necesita al menos 6 jugadores que no sean líberos.'); } }
+        const a = ev.jugadores;
+        if (!Array.isArray(a) || a.length !== 6) no('La alineación tiene 6 jugadores.');
+        if (new Set(a).size !== 6) no('Hay dorsales repetidos en la alineación.');
+        for (const n of a) {
+          if (!jugador(st, ev.eq, n)) no(`El ${n} no está en el acta.`);
+          if (esLibero(st, ev.eq, n)) no(`El ${n} es líbero: no puede estar en la alineación inicial.`);
+          if (st.descalificados[ev.eq].has(n) || st.fueraPartido[ev.eq].has(n)) no(`El ${n} no puede jugar.`);
+        }
+        s.alineacion[ev.eq] = [...a]; s.rot[ev.eq] = [...a];
+        return;
+      }
+      case 'inicioSet': {
+        if (!['preparacion', 'entreSets'].includes(st.fase)) no('El set ya está en marcha.');
+        if (!s.alineacion.L || !s.alineacion.V) no('Faltan las alineaciones.');
+        if (!s.saqueInicial || !s.izq) no(s.n === 1 || s.decisivo ? 'Falta el sorteo.' : 'Falta saber quién saca.');
+        s.inicio = h; if (!st.inicio) st.inicio = h;
+        s.saque = s.saqueInicial; abrirTurno(s, s.saque);
+        // El que recibe empieza con su primer turno "tachado": su primer saque lo hará el jugador de la posición II.
+        st.fase = 'juego';
+        return;
+      }
+      case 'punto': if (!['L', 'V'].includes(ev.eq)) no('¿Para qué equipo?'); return punto(st, ev.eq, ev.motivo || 'rally', h);
+      case 'tiempo': {
+        if (st.fase !== 'juego') no('Los tiempos se piden con el set en marcha.');
+        if (s.tiempos[ev.eq].length >= st.cfg.tiempos) no(`Ya ha pedido los ${st.cfg.tiempos} tiempos de este set.`);
+        s.tiempos[ev.eq].push({ ...marcador(s, ev.eq), h });
+        return;
+      }
+      case 'sust': return sustituir(st, ev.eq, ev.sale, ev.entra, ev.tipo, h);
+      case 'liberoEntra': return liberoEntra(st, ev.eq, ev.libero, ev.sale, h);
+      case 'liberoSale': return liberoSale(st, ev.eq, h);
+      case 'sancion': return sancionar(st, ev.eq, ev.quien, ev.tipo, h);
+      case 'impropia': st.impropias[ev.eq]++; st.sanciones.push({ eq: ev.eq, quien: 'equipo', tipo: 'impropia', set: s.n, ...marcador(s, ev.eq), h }); return;
+      case 'obs': st.observaciones.push({ texto: String(ev.texto || '').slice(0, 1000), set: s.n, h }); return;
+      case 'firma': st.firmas[ev.rol] = { nombre: ev.nombre || '', img: ev.img, h }; return;
+      default: no('Suceso desconocido: ' + ev.t);
+    }
+  }
+
+  function reproducir(config, datos, sucesos) {
+    const st = nuevo(config, datos);
+    for (const ev of sucesos || []) aplicar(st, ev);
+    return st;
+  }
+  // ¿Es legal? Devuelve null o el motivo, sin tocar el estado de fuera.
+  function validar(config, datos, sucesos, ev) {
+    try { const st = reproducir(config, datos, sucesos); aplicar(st, ev); return null; } catch (e) { if (e instanceof ErrorActa) return e.message; throw e; }
+  }
+
+  // Cuadro de resultados del acta.
+  const minutos = (a, b) => (a && b ? Math.round((Date.parse(b) - Date.parse(a)) / 60000) : null);
+  function resultados(st) {
+    const filas = st.sets.filter((s) => s.inicio).map((s) => ({
+      set: s.n, duracion: minutos(s.inicio, s.fin),
+      L: { tiempos: s.tiempos.L.length, sust: s.sust.L.filter((x) => x.tipo !== 'excepcional').length, gana: s.ganador === 'L' ? 1 : 0, puntos: s.puntos.L },
+      V: { tiempos: s.tiempos.V.length, sust: s.sust.V.filter((x) => x.tipo !== 'excepcional').length, gana: s.ganador === 'V' ? 1 : 0, puntos: s.puntos.V },
+    }));
+    const suma = (eq, k) => filas.reduce((t, f) => t + f[eq][k], 0);
+    return {
+      filas, total: { duracion: filas.reduce((t, f) => t + (f.duracion || 0), 0),
+        L: { tiempos: suma('L', 'tiempos'), sust: suma('L', 'sust'), gana: st.ganados.L, puntos: suma('L', 'puntos') },
+        V: { tiempos: suma('V', 'tiempos'), sust: suma('V', 'sust'), gana: st.ganados.V, puntos: suma('V', 'puntos') } },
+      inicio: st.inicio, fin: st.fin, duracionPartido: minutos(st.inicio, st.fin),
+      ganador: st.fin ? (st.ganados.L > st.ganados.V ? 'L' : 'V') : null,
+    };
+  }
+
+  const api = { CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
+  if (typeof module === 'object' && module.exports) module.exports = api; else root.ActaMotor = api;
+})(typeof self !== 'undefined' ? self : this);

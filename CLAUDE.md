@@ -810,3 +810,33 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - Datos: `designa_disp` y `designa_asig` (migración 035, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
 - Pruebas: banco con supabase y `designa` simulados en el scratchpad de la sesión del 3-nov (formulario, panel, móvil, axe).
+
+## Acta electrónica (prototipo para la FCVB, 3-nov-2026)
+
+- Objetivo (Ferran): prototipo para enseñarlo a la FCVB; más adelante, una herramienta de anotador aparte. **No es oficial**: el
+  acta en papel sigue mandando. Referencias: e-Scoresheet de Data Project (lo usan RFEVB en Superliga/Superliga 2, FIVB, CEV),
+  guía CTNA de la RFEVB (portátil + impresora + pendrive; "Aprobar y Finalizar" con contraseñas; 3 copias firmadas) y las
+  instrucciones del acta internacional FIVB 6x6.
+- `docs/acta/`: `motor.js` (reglas, sin pantalla; también en Node) + `acta.js` (pantallas) + `index.html`. Para móvil, tablet
+  y portátil (← y → dan el punto, Ctrl+Z deshace). Sin conexión: todo en `localStorage acta:<id>`; en el precache del
+  service worker (v6). Plantillas de cada equipo recordadas por nombre (`acta-plantilla:<nombre>`).
+- **Modelo:** el acta es una lista de sucesos (`equipo`, `sorteo`, `alineacion`, `inicioSet`, `punto`, `tiempo`, `sust`,
+  `liberoEntra`/`liberoSale`, `sancion`, `impropia`, `obs`, `firma`) y el estado se recalcula entero
+  (`reproducir`). Lo automático (rotar, saque, salida del líbero al pasar a delantero, fin de set, cambio de campo a los 8 en
+  el decisivo) no se guarda. Deshacer = quitar el último suceso (empezar un set se deshace junto con sorteo y alineaciones).
+  `validar` devuelve el motivo en castellano y la pantalla lo enseña tal cual.
+- **Reglas** (FIVB): mejor de 5 o de 3 (configurable), 25 / 15 puntos con 2 de ventaja; sorteo antes del 1º y del decisivo; en
+  los demás cambian de campo y saca el que no sacó; 2 tiempos y 6 sustituciones por set; titular ↔ suplente (cada titular sale y
+  vuelve una vez, solo por su suplente); excepcional (lesión o expulsado sin cambio legal: no cuenta y no vuelve en el partido);
+  líbero solo por zagueros, no por el que va a sacar, rally completo entre cambios, cambio de líbero por líbero; amonestación una
+  vez por equipo, castigo = punto y saque al rival, expulsión (set) y descalificación (partido) obligan a sustituir antes del
+  siguiente punto; aviso y castigo por retraso; petición improcedente anotada.
+- Acta impresa (`window.print`, A4 apaisado): cabecera, plantillas, árbitros, sorteos, por set titulares/cambios/turnos de
+  saque/tiempos/líbero/puntos (tachados; los de sanción, en círculo), sanciones, resultados, observaciones y firmas (en pantalla).
+  También "Descargar los datos (JSON)".
+- Entrada: Ajustes → "Acta electrónica (prototipo)", solo para administradores (como Administración); la página es pública por
+  URL. Con sesión, ofrece empezar desde un partido designado (−7 a +30 días): equipos, competición, fecha, pabellón y árbitros.
+- Pruebas: `node --test tools/prueba-acta-motor.mjs` (12 casos de reglas). Partido completo con clics reales y axe: banco de la
+  sesión del 3-nov (scratchpad).
+- Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,
+  equipo incompleto/incomparecencia, sanciones entre sets aplicadas al empezar el siguiente.
