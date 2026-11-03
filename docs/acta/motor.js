@@ -10,6 +10,20 @@
   const CONFIG = { mejorDe: 5, puntosSet: 25, puntosDecisivo: 15, tiempos: 2, sustituciones: 6, cambioDecisivo: 8 };
   const ROLES_OFICIALES = { E: 'Entrenador', E2: 'Segundo entrenador', F: 'Fisioterapeuta', M: 'Médico' };
 
+  // Dorsales: de 0 a 99 y además el 00 (distinto del 0). Se guardan como texto: "7", "0", "00" ("07" pasa a "7").
+  const DORSAL = /^\d{1,2}$/;
+  const dorsalValido = (x) => DORSAL.test(String(x ?? '').trim());
+  const D = (x) => { if (x === null || x === undefined || x === '') return x; const t = String(x).trim(); return t === '00' ? '00' : DORSAL.test(t) ? String(+t) : t; };
+  const esDorsal = (x) => typeof x === 'string' && DORSAL.test(x);
+  // Normaliza los dorsales de un suceso (las actas guardadas antes los tenían como número).
+  function normalizar(ev) {
+    const e = { ...ev };
+    for (const k of ['sale', 'entra', 'libero']) if (k in e) e[k] = D(e[k]);
+    if ('quien' in e && (typeof e.quien === 'number' || DORSAL.test(String(e.quien)))) e.quien = D(e.quien);
+    if (e.t === 'alineacion' && Array.isArray(e.jugadores)) e.jugadores = e.jugadores.map(D);
+    return e;
+  }
+
   class ErrorActa extends Error {}
   const no = (msg) => { throw new ErrorActa(msg); };
 
@@ -73,7 +87,7 @@
   // Un suplente saca en la columna (posición inicial) del titular por el que entró.
   function colDeSuplente(s, eq, num) {
     const tit = Object.keys(s.parejas[eq]).find((t) => s.parejas[eq][t] === num);
-    return tit != null ? s.alineacion[eq].indexOf(+tit) : -1;
+    return tit != null ? s.alineacion[eq].indexOf(tit) : -1;
   }
   function cerrarTurno(s, eq) { const t = s.turnos[eq][s.turnos[eq].length - 1]; if (t && t.hasta == null) t.hasta = s.puntos[eq]; }
 
@@ -131,7 +145,7 @@
     }
     const tit = Object.keys(parejas).find((t) => parejas[t] === sale);   // sale un suplente
     if (tit == null) return `El ${sale} no puede salir con una sustitución normal.`;
-    if (+tit !== entra) return `Por el ${sale} solo puede volver el ${tit}, el titular por el que entró.`;
+    if (tit !== entra) return `Por el ${sale} solo puede volver el ${tit}, el titular por el que entró.`;
     return null;
   }
 
@@ -195,7 +209,7 @@
   function sancionar(st, eq, quien, tipo, h) {
     const s = setActual(st);
     if (!['juego', 'entreSets'].includes(st.fase)) no('Las sanciones se ponen durante el partido.');
-    const esJug = typeof quien === 'number';
+    const esJug = esDorsal(quien);
     if (esJug && !jugador(st, eq, quien)) no(`El ${quien} no está en el acta.`);
     if (!esJug && quien !== 'equipo' && !ROLES_OFICIALES[quien]) no('¿A quién es la sanción?');
     if (tipo === 'amonestacion' && st.avisoConducta[eq]) no('Este equipo ya ha tenido su amonestación: la siguiente conducta incorrecta es castigo.');
@@ -214,17 +228,19 @@
   }
 
   // ---------- Reproducir ----------
-  function aplicar(st, ev) {
-    const h = ev.h || null, s = setActual(st);
+  function aplicar(st, ev0) {
+    const ev = normalizar(ev0), h = ev.h || null, s = setActual(st);
     switch (ev.t) {
       case 'equipo': {   // { eq, nombre, jugadores:[{num,nombre,cap,lib}], oficiales:[{rol,nombre}] }
         if (st.fase !== 'preparacion') no('Las plantillas se cierran al empezar el partido.');
-        const nums = ev.jugadores.map((j) => j.num);
+        const mal = ev.jugadores.find((j) => !dorsalValido(j.num));
+        if (mal) no(`Dorsal no válido: "${mal.num ?? ''}"${mal.nombre ? ' (' + mal.nombre + ')' : ''}. Tiene que ser de 0 a 99, o 00.`);
+        const nums = ev.jugadores.map((j) => D(j.num));
         if (new Set(nums).size !== nums.length) no('Hay dorsales repetidos.');
         if (ev.jugadores.filter((j) => j.cap).length > 1) no('Solo puede haber un capitán.');
         if (ev.jugadores.some((j) => j.cap && j.lib)) no('El líbero no puede ser el capitán.');
         if (ev.jugadores.filter((j) => j.lib).length > 2) no('Como mucho 2 líberos.');
-        st.equipos[ev.eq] = { nombre: ev.nombre || st.equipos[ev.eq].nombre, jugadores: ev.jugadores.map((j) => ({ ...j })), oficiales: (ev.oficiales || []).map((o) => ({ ...o })) };
+        st.equipos[ev.eq] = { nombre: ev.nombre || st.equipos[ev.eq].nombre, jugadores: ev.jugadores.map((j) => ({ ...j, num: D(j.num) })), oficiales: (ev.oficiales || []).map((o) => ({ ...o })) };
         return;
       }
       case 'sorteo': {   // { saca, izq }: antes del 1er set y antes del decisivo
@@ -303,6 +319,6 @@
     };
   }
 
-  const api = { CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
+  const api = { D, dorsalValido, esDorsal, CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.ActaMotor = api;
 })(typeof self !== 'undefined' ? self : this);

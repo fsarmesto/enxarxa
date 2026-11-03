@@ -161,7 +161,7 @@ async function cargarIsquad(forzar) {
     try { prev = JSON.parse(localStorage.getItem(clavePlantilla(nombre)) || 'null'); } catch (x) {}
     const mem = new Map((prev?.jugadores || []).filter((j) => j.nombre).map((j) => [nombreKey(j.nombre), j]));
     const jug = t.personas.filter((x) => x.perfil === 'jugador').map((x) => { const m = mem.get(nombreKey(x.nombre)) || {}; return { num: m.num || '', nombre: titulo(x.nombre), cap: !!m.cap, lib: !!m.lib, isq: true }; })
-      .sort((a, b) => (+a.num || 999) - (+b.num || 999) || a.nombre.localeCompare(b.nombre));
+      .sort((a, b) => (a.num === '' ? 999 : a.num === '00' ? 0.5 : +a.num) - (b.num === '' ? 999 : b.num === '00' ? 0.5 : +b.num) || a.nombre.localeCompare(b.nombre));
     const ent = t.personas.filter((x) => x.perfil === 'entrenador');
     const segundo = (x) => /2|SEGON|SEGUN|AYUD|AJUD|AUX/i.test(x.cargo);
     const E = ent.find((x) => !segundo(x)), E2 = ent.find((x) => segundo(x)) || ent.filter((x) => x !== E)[0];
@@ -186,7 +186,7 @@ function tablaEquipo(eq) {
   const deIsq = b.isq ? `<p class="small muted">Plantilla de iSquad: ${b.isq} jugadores (sin las bajas). La web no da los dorsales: ponlos y quita con ✕ a quien no esté convocado.</p>` : '';
   return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deIsq}
     <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th><th>Líbero</th><th></th></tr></thead><tbody>
-    ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="number" min="1" max="99" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal"></td>
+    ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="text" inputmode="numeric" maxlength="2" autocomplete="off" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal (0 a 99, o 00)"${j.num !== '' && j.num != null && !M.dorsalValido(j.num) ? ' aria-invalid="true"' : ''}></td>
       <td><input type="text" data-i="${i}" data-k="nombre" value="${esc(j.nombre || '')}" aria-label="Nombre"></td>
       <td><label class="chk"><input type="radio" name="cap${eq}" data-i="${i}" data-k="cap"${j.cap ? ' checked' : ''} aria-label="Capitán"></label></td>
       <td><label class="chk"><input type="checkbox" data-i="${i}" data-k="lib"${j.lib ? ' checked' : ''} aria-label="Líbero"></label></td>
@@ -213,6 +213,8 @@ function pEquipos() {
     sec.querySelector('[data-mas]').onclick = () => { leerEquipo('L'); leerEquipo('V'); borrador(eq).jugadores.push({ num: '', nombre: '' }); pEquipos(); };
     sec.querySelectorAll('[data-quitar]').forEach((b) => (b.onclick = () => { leerEquipo('L'); leerEquipo('V'); borrador(eq).jugadores.splice(+b.dataset.quitar, 1); pEquipos(); }));
   }
+  // Dorsal no válido: en rojo al escribirlo (y no deja seguir al guardar).
+  $('app').querySelectorAll('[data-k=num]').forEach((i) => i.addEventListener('input', () => { const v = i.value.trim(); if (v && !M.dorsalValido(v)) i.setAttribute('aria-invalid', 'true'); else i.removeAttribute('aria-invalid'); }));
   enlazarFirmas(() => { leerEquipo('L'); leerEquipo('V'); });   // que firmar no borre lo escrito sin guardar
   $('recargar')?.addEventListener('click', () => { if (confirm('¿Volver a cargar las plantillas de iSquad? Se pierden los cambios de esta pantalla.')) { delete BORR.L; delete BORR.V; cargarIsquad(true); } });
   $('atras').onclick = () => { leerEquipo('L'); leerEquipo('V'); A.paso = 'datos'; guardar(); pintar(); };
@@ -222,7 +224,9 @@ function pEquipos() {
       const b = borrador(eq), nombre = eq === 'L' ? A.datos.local : A.datos.visitante;
       const sinDorsal = b.jugadores.filter((j) => String(j.num).trim() === '' && String(j.nombre || '').trim());
       if (sinDorsal.length) { toast(`${nombre}: falta el dorsal de ${sinDorsal.slice(0, 3).map((j) => j.nombre).join(', ')}${sinDorsal.length > 3 ? '…' : ''} (o quítalo con ✕).`); return; }
-      const jugadores = b.jugadores.filter((j) => String(j.num).trim() !== '').map((j) => ({ num: +j.num, nombre: titulo(String(j.nombre || '').trim()), ...(j.cap ? { cap: true } : {}), ...(j.lib ? { lib: true } : {}) }));
+      const malos = b.jugadores.filter((j) => String(j.num ?? '').trim() !== '' && !M.dorsalValido(j.num));
+      if (malos.length) { toast(`${nombre}: dorsal no válido ${malos.map((j) => '"' + String(j.num).trim() + '"').join(', ')}. Tiene que ser de 0 a 99, o 00.`); $('app').querySelector(`[data-eq="${eq}"] [data-k=num][aria-invalid="true"]`)?.focus(); return; }
+      const jugadores = b.jugadores.filter((j) => String(j.num).trim() !== '').map((j) => ({ num: M.D(j.num), nombre: titulo(String(j.nombre || '').trim()), ...(j.cap ? { cap: true } : {}), ...(j.lib ? { lib: true } : {}) }));
       const ev = { t: 'equipo', eq, nombre, jugadores, oficiales: b.oficiales.filter((o) => o.nombre) };
       if (jugadores.filter((j) => !j.lib).length < 6) { toast(`${nombre}: hacen falta al menos 6 jugadores que no sean líberos.`); return; }
       if (!jugadores.some((j) => j.cap)) { toast(`${nombre}: marca quién es el capitán.`); return; }
@@ -273,7 +277,7 @@ function selectorAlineacion(eq, previa) {
   return `<div class="alinea" data-al="${eq}">${orden.map((i) => `<label>${POS[i]}<select data-pos="${i}"><option value=""></option>${js.map((j) => `<option value="${j.num}"${previa?.[i] === j.num ? ' selected' : ''}>${j.num}${j.cap ? ' (C)' : ''} ${esc(j.nombre.split(' ')[0] || '')}</option>`).join('')}</select></label>`).join('')}</div>
     <p class="small muted" style="margin:4px 0 0">Red arriba. I = zaguero derecho, el que saca.</p>`;
 }
-function leerAlineacion(eq) { const a = []; $('app').querySelectorAll(`[data-al="${eq}"] select`).forEach((s) => (a[+s.dataset.pos] = s.value ? +s.value : null)); return a; }
+function leerAlineacion(eq) { const a = []; $('app').querySelectorAll(`[data-al="${eq}"] select`).forEach((s) => (a[+s.dataset.pos] = s.value || null)); return a; }
 function eqNombre(eq) { return eq === 'L' ? A.datos.local : A.datos.visitante; }
 function opcionesEq(name, sel) { return `<div class="opts" role="radiogroup">${['L', 'V'].map((eq) => `<label><input type="radio" name="${name}" value="${eq}"${sel === eq ? ' checked' : ''}><span>${esc(eqNombre(eq))}</span></label>`).join('')}</div>`; }
 function pSorteo() {
@@ -325,7 +329,7 @@ function describir(ev, st) {
     case 'sust': return `${ev.tipo === 'excepcional' ? 'Sustitución excepcional' : 'Cambio'} ${n(ev.eq)}: sale ${ev.sale}, entra ${ev.entra}`;
     case 'liberoEntra': return `Líbero ${n(ev.eq)}: entra ${ev.libero} por ${ev.sale}`;
     case 'liberoSale': return `Líbero ${n(ev.eq)}: sale`;
-    case 'sancion': return `${SANC[ev.tipo]} a ${typeof ev.quien === 'number' ? 'el ' + ev.quien : ev.quien === 'equipo' ? 'el equipo' : M.ROLES_OFICIALES[ev.quien]} (${n(ev.eq)})`;
+    case 'sancion': return `${SANC[ev.tipo]} a ${M.esDorsal(ev.quien) ? 'el ' + ev.quien : ev.quien === 'equipo' ? 'el equipo' : M.ROLES_OFICIALES[ev.quien]} (${n(ev.eq)})`;
     case 'impropia': return `Petición improcedente (${n(ev.eq)})`;
     case 'inicioSet': return 'Empieza el set';
     case 'sorteo': return 'Sorteo';
@@ -384,8 +388,8 @@ function hojaSust(eq) {
       ${sale != null && !exc && banco.every((j) => motivo(j.num)) ? `<p class="motivo">Nadie puede entrar por el ${sale} con un cambio normal.</p>` : ''}
       <label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="exc"${exc ? ' checked' : ''}> Sustitución excepcional (lesión, o expulsado sin cambio legal posible)</label>
       <div class="row"><button class="primary" id="ok"${sale == null || entra == null ? ' disabled' : ''}>Hacer el cambio</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
-    $('hojaC').querySelectorAll('[data-sale]').forEach((b) => (b.onclick = () => { sale = +b.dataset.sale; entra = null; dibujar(); }));
-    $('hojaC').querySelectorAll('[data-entra]').forEach((b) => (b.onclick = () => { entra = +b.dataset.entra; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-sale]').forEach((b) => (b.onclick = () => { sale = b.dataset.sale; entra = null; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-entra]').forEach((b) => (b.onclick = () => { entra = b.dataset.entra; dibujar(); }));
     $('exc').onchange = (e) => { exc = e.target.checked; entra = null; dibujar(); };
     $('ok').onclick = () => { if (!hacer({ t: 'sust', eq, sale, entra, ...(exc ? { tipo: 'excepcional' } : {}) })) cerrarHoja(); };
   };
@@ -409,8 +413,8 @@ function hojaLibero(eq) {
       ${libs.length > 1 ? `<b>Líbero</b><div class="botones">${libs.map((j) => `<button data-lib="${j.num}" aria-pressed="${lib === j.num}">${j.num}</button>`).join('')}</div>` : ''}
       <b>Entra por (solo zagueros)</b><div class="botones">${zagueros.map(({ i, n }) => { const m = M.validar(A.cfg, A.datos, A.ev, { t: 'liberoEntra', eq, libero: lib, sale: n, h: new Date().toISOString() }); return `<button data-por="${n}"${m ? ` disabled title="${esc(m)}"` : ''}>${n} <small>(${POS[i]})</small></button>`; }).join('')}</div>
       <div class="row"><button class="ghost" data-cerrar>Cancelar</button></div>`;
-    $('hojaC').querySelectorAll('[data-lib]').forEach((b) => (b.onclick = () => { lib = +b.dataset.lib; dibujar(); }));
-    $('hojaC').querySelectorAll('[data-por]').forEach((b) => (b.onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: lib, sale: +b.dataset.por })) cerrarHoja(); }));
+    $('hojaC').querySelectorAll('[data-lib]').forEach((b) => (b.onclick = () => { lib = b.dataset.lib; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-por]').forEach((b) => (b.onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: lib, sale: b.dataset.por })) cerrarHoja(); }));
   };
   hoja('', () => { dibujar(); $('hojaC').querySelector('button')?.focus(); });
 }
@@ -425,7 +429,7 @@ function hojaSancion(eq) {
       <p class="motivo">${tipo === 'castigo' || tipo === 'castigoRetraso' ? 'Da un punto y el saque al rival.' : tipo === 'expulsion' ? 'Fuera el resto del set: hay que sustituirlo.' : tipo === 'descalificacion' ? 'Fuera el resto del partido: hay que sustituirlo.' : tipo === 'impropia' ? 'Se anota sin sanción; si se repite en el partido, es retraso.' : ''}</p>
       <div class="row"><button class="primary" id="ok"${!tipo || quien == null ? ' disabled' : ''}>Anotar</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
     $('hojaC').querySelectorAll('[data-tipo]').forEach((b) => (b.onclick = () => { tipo = b.dataset.tipo; quien = ['avisoRetraso', 'castigoRetraso', 'impropia'].includes(tipo) ? 'equipo' : null; dibujar(); }));
-    $('hojaC').querySelectorAll('[data-quien]').forEach((b) => (b.onclick = () => { quien = /^\d+$/.test(b.dataset.quien) ? +b.dataset.quien : b.dataset.quien; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-quien]').forEach((b) => (b.onclick = () => { quien = b.dataset.quien; dibujar(); }));
     $('ok').onclick = () => {
       const err = tipo === 'impropia' ? hacer({ t: 'impropia', eq }) : hacer({ t: 'sancion', eq, quien, tipo });
       if (!err) { cerrarHoja(); const s = M.setActual(ST); if (s.pendienteSust[eq]?.length) setTimeout(() => hojaSust(eq), 200); }
@@ -512,7 +516,7 @@ function actaHtml() {
     <table><tr><th>Sorteos</th><td class="izq">${st.sorteos.map((x) => `Set ${x.set}: saca ${esc(eqNombre(x.saca))}; a la izquierda ${esc(eqNombre(x.izq))}`).join(' · ')}</td></tr></table>
     ${st.sets.map(setBloque).join('')}
     <div class="bloque"><table><tr><th colspan="7">Sanciones</th></tr><tr><th>Tipo</th><th>Equipo</th><th>Quién</th><th>Set</th><th>Marcador</th><th>Hora</th></tr>
-      ${st.sanciones.map((x) => `<tr><td>${esc(SANC[x.tipo])}</td><td>${ab(x.eq)}</td><td>${esc(typeof x.quien === 'number' ? x.quien : x.quien === 'equipo' ? 'Equipo' : x.quien)}</td><td>${x.set}</td><td>${marc(x)}</td><td>${hora(x.h)}</td></tr>`).join('') || '<tr><td colspan="6">—</td></tr>'}</table></div>
+      ${st.sanciones.map((x) => `<tr><td>${esc(SANC[x.tipo])}</td><td>${ab(x.eq)}</td><td>${esc(M.esDorsal(x.quien) ? x.quien : x.quien === 'equipo' ? 'Equipo' : x.quien)}</td><td>${x.set}</td><td>${marc(x)}</td><td>${hora(x.h)}</td></tr>`).join('') || '<tr><td colspan="6">—</td></tr>'}</table></div>
     <div class="bloque"><table><tr><th>Set</th><th>Min.</th><th>A T</th><th>A S</th><th>A G</th><th>A P</th><th>B P</th><th>B G</th><th>B S</th><th>B T</th></tr>
       ${r.filas.map((f) => { const a = f[eqA], b = f[eqB]; return `<tr><td>${f.set}</td><td>${f.duracion ?? ''}</td><td>${a.tiempos}</td><td>${a.sust}</td><td>${a.gana}</td><td>${a.puntos}</td><td>${b.puntos}</td><td>${b.gana}</td><td>${b.sust}</td><td>${b.tiempos}</td></tr>`; }).join('')}
       <tr><th>Total</th><td>${r.total.duracion}</td><td>${r.total[eqA].tiempos}</td><td>${r.total[eqA].sust}</td><td>${r.total[eqA].gana}</td><td>${r.total[eqA].puntos}</td><td>${r.total[eqB].puntos}</td><td>${r.total[eqB].gana}</td><td>${r.total[eqB].sust}</td><td>${r.total[eqB].tiempos}</td></tr></table>

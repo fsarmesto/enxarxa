@@ -847,7 +847,10 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   listado (antes cogía, p. ej., el CN Terrassa A femenino para un partido masculino); y el club se busca también por nombre
   parecido ("CITYNET TARRAGONA SPS" en el listado / "…SPSP" en la designación). 10 de 10 equipos de los partidos de Ferran
   del 30-oct al 1-nov y 58 de 60 del sábado 7-nov, ninguno de otra categoría.
-- Pruebas: `node --test tools/prueba-acta-motor.mjs` (12 casos de reglas). Partido completo con clics reales y axe: banco de la
+- **Dorsales (3-nov-2026, Ferran):** de 0 a 99 y el 00 (distinto del 0). Se guardan como texto ("7", "0", "00"; "07" = "7"):
+  `D()` y `normalizar()` en el motor, que también pasa a texto los dorsales numéricos de las actas guardadas antes. El motor
+  rechaza la plantilla con un dorsal no válido; en pantalla, campo de 2 caracteres en rojo al escribirlo y aviso al guardar.
+- Pruebas: `node --test tools/prueba-acta-motor.mjs` (13 casos de reglas). Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
 - Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,
   equipo incompleto/incomparecencia, sanciones entre sets aplicadas al empezar el siguiente.

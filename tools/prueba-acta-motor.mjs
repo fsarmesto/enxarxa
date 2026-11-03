@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const M = createRequire(import.meta.url)('../docs/acta/motor.js');
+const S = (a) => a.map(String);   // los dorsales se guardan como texto
 
 let reloj = Date.parse('2026-11-07T17:00:00Z');
 const h = (min = 0.5) => new Date((reloj += min * 60000)).toISOString();
@@ -25,15 +26,15 @@ const set = (p) => M.setActual(p.st());
 test('marcador, saque y rotación', () => {
   const p = preparado();
   let s = set(p);
-  assert.equal(s.saque, 'L'); assert.deepEqual(s.rot.L, [1, 2, 3, 4, 5, 6]);
+  assert.equal(s.saque, 'L'); assert.deepEqual(s.rot.L, S([1, 2, 3, 4, 5, 6]));
   p.add({ t: 'punto', eq: 'L' });                 // L saca y gana: sigue sacando, no rota
-  s = set(p); assert.equal(s.saque, 'L'); assert.deepEqual(s.rot.L, [1, 2, 3, 4, 5, 6]); assert.deepEqual(s.puntos, { L: 1, V: 0 });
+  s = set(p); assert.equal(s.saque, 'L'); assert.deepEqual(s.rot.L, S([1, 2, 3, 4, 5, 6])); assert.deepEqual(s.puntos, { L: 1, V: 0 });
   p.add({ t: 'punto', eq: 'V' });                 // V recupera el saque: rota y saca su jugador 2
-  s = set(p); assert.equal(s.saque, 'V'); assert.deepEqual(s.rot.V, [2, 3, 4, 5, 6, 1]); assert.equal(s.rot.V[0], 2);
+  s = set(p); assert.equal(s.saque, 'V'); assert.deepEqual(s.rot.V, S([2, 3, 4, 5, 6, 1])); assert.equal(s.rot.V[0], '2');
   assert.equal(s.turnos.L[0].hasta, 1, 'el turno del 1 de L acaba con 1 punto');
-  assert.equal(s.turnos.V[0].num, 2); assert.equal(s.turnos.V[0].col, 1, 'saca el de la columna II');
+  assert.equal(s.turnos.V[0].num, '2'); assert.equal(s.turnos.V[0].col, 1, 'saca el de la columna II');
   p.add({ t: 'punto', eq: 'L' });
-  s = set(p); assert.deepEqual(s.rot.L, [2, 3, 4, 5, 6, 1]); assert.equal(s.turnos.L[1].num, 2);
+  s = set(p); assert.deepEqual(s.rot.L, S([2, 3, 4, 5, 6, 1])); assert.equal(s.turnos.L[1].num, '2');
 });
 
 test('fin de set a 25 con 2 de ventaja y set siguiente', () => {
@@ -80,12 +81,12 @@ test('partido al mejor de 3 (configurable): el 3º es el decisivo', () => {
 test('sustituciones: pareja titular-suplente, vuelta y límites', () => {
   const p = preparado();
   p.add({ t: 'sust', eq: 'L', sale: 3, entra: 7 });
-  let s = set(p); assert.deepEqual(s.rot.L, [1, 2, 7, 4, 5, 6]); assert.equal(s.nSust.L, 1);
+  let s = set(p); assert.deepEqual(s.rot.L, S([1, 2, 7, 4, 5, 6])); assert.equal(s.nSust.L, 1);
   assert.match(p.falla({ t: 'sust', eq: 'L', sale: 7, entra: 8 }), /solo puede volver el 3/);
   assert.match(p.falla({ t: 'sust', eq: 'L', sale: 4, entra: 7 }), /ya está en pista/);
   assert.match(p.falla({ t: 'sust', eq: 'L', sale: 4, entra: 3 }), /titular/);
   p.add({ t: 'sust', eq: 'L', sale: 7, entra: 3 });
-  s = set(p); assert.deepEqual(s.rot.L, [1, 2, 3, 4, 5, 6]);
+  s = set(p); assert.deepEqual(s.rot.L, S([1, 2, 3, 4, 5, 6]));
   assert.match(p.falla({ t: 'sust', eq: 'L', sale: 3, entra: 8 }), /ya salió y volvió/);
   assert.match(p.falla({ t: 'sust', eq: 'L', sale: 4, entra: 7 }), /ya ha jugado este set/);
   assert.match(p.falla({ t: 'sust', eq: 'L', sale: 4, entra: 12 }), /líbero/);
@@ -104,7 +105,7 @@ test('sustitución excepcional: no cuenta y el lesionado no vuelve en el partido
   p.add({ t: 'sust', eq: 'V', sale: 2, entra: 7 }); p.add({ t: 'sust', eq: 'V', sale: 7, entra: 2 });
   p.add({ t: 'sust', eq: 'V', sale: 2, entra: 8, tipo: 'excepcional' });
   const st = p.st(), s = M.setActual(st);
-  assert.equal(s.nSust.V, 2); assert.ok(st.fueraPartido.V.has(2));
+  assert.equal(s.nSust.V, 2); assert.ok(st.fueraPartido.V.has('2'));
   assert.equal(M.resultados(st).filas[0].V.sust, 2, 'en el cuadro de resultados no cuenta');
   assert.match(p.falla({ t: 'sust', eq: 'V', sale: 8, entra: 2 }), /no puede volver/);
 });
@@ -115,22 +116,22 @@ test('líbero: solo zagueros, no por el que saca, rally entre cambios, sale al p
   assert.match(p.falla({ t: 'liberoEntra', eq: 'L', libero: 12, sale: 1 }), /no puede sacar/);
   assert.match(p.falla({ t: 'liberoEntra', eq: 'L', libero: 7, sale: 5 }), /no está inscrito como líbero/);
   p.add({ t: 'liberoEntra', eq: 'V', libero: 12, sale: 5 });   // V recibe: su V (posición V) por el líbero
-  assert.deepEqual(M.enPista(set(p), 'V'), [1, 2, 3, 4, 12, 6]);
+  assert.deepEqual(M.enPista(set(p), 'V'), S([1, 2, 3, 4, 12, 6]));
   assert.match(p.falla({ t: 'liberoSale', eq: 'V' }), /rally completo/);
   assert.match(p.falla({ t: 'sust', eq: 'V', sale: 5, entra: 7 }), /primero tiene que salir el líbero/);
   p.add({ t: 'punto', eq: 'V' });   // V gana el saque y rota: el líbero pasa de V a IV y sale solo
   let s = set(p);
   assert.equal(s.libero.V, null, 'el líbero sale al pasar a la delantera');
-  assert.deepEqual(M.enPista(s, 'V'), [2, 3, 4, 5, 6, 1]);
+  assert.deepEqual(M.enPista(s, 'V'), S([2, 3, 4, 5, 6, 1]));
   assert.equal(p.st().auto.filter((a) => a.t === 'liberoSaleAuto').length, 1);
   // Líbero por el zaguero VI de L y cambio de líbero por líbero tras un rally.
   p.add({ t: 'liberoEntra', eq: 'L', libero: 12, sale: 6 });
   assert.match(p.falla({ t: 'liberoEntra', eq: 'L', libero: 13, sale: 12 }), /rally completo/);
   p.add({ t: 'punto', eq: 'V' });
   p.add({ t: 'liberoEntra', eq: 'L', libero: 13, sale: 12 });
-  s = set(p); assert.equal(s.libero.L.num, 13); assert.equal(s.libero.L.por, 6);
+  s = set(p); assert.equal(s.libero.L.num, '13'); assert.equal(s.libero.L.por, '6');
   p.add({ t: 'punto', eq: 'V' }); p.add({ t: 'liberoSale', eq: 'L' });
-  assert.deepEqual(M.enPista(set(p), 'L'), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(M.enPista(set(p), 'L'), S([1, 2, 3, 4, 5, 6]));
 });
 
 test('tiempos: 2 por set', () => {
@@ -176,10 +177,26 @@ test('plantillas y alineaciones: validaciones', () => {
   assert.match(M.validar({}, {}, p.ev.slice(0, 3), { t: 'alineacion', eq: 'L', jugadores: [1, 2, 3, 4, 5] }), /6 jugadores/);
 });
 
+test('dorsales: de 0 a 99 y el 00 (distinto del 0); el resto no vale', () => {
+  const eq = (nums) => M.validar({}, {}, [], { t: 'equipo', eq: 'L', jugadores: nums.map((num) => ({ num, nombre: 'X' + num })) });
+  assert.equal(eq(['0', '00', '1', '99', 7, '08']), null, '0, 00, 1, 99, 7 y "08" valen');
+  for (const mal of ['100', '-1', 'A', '', ' ', '1.5', 120, null]) assert.match(eq(['1', mal]), /Dorsal no válido/, `rechaza ${JSON.stringify(mal)}`);
+  assert.match(eq(['7', '07']), /repetidos/, '"07" es el mismo dorsal que "7"');
+  assert.equal(eq(['0', '00']), null, '0 y 00 son distintos');
+  // Se juega con el 00 y el 0 a la vez
+  const ev = [{ t: 'equipo', eq: 'L', jugadores: ['00', '0', '1', '2', '3', '4', '5'].map((num, i) => ({ num, nombre: 'L' + num, cap: i === 2 })) },
+    { t: 'equipo', eq: 'V', jugadores: [1, 2, 3, 4, 5, 6].map((num) => ({ num, nombre: 'V' + num })) },
+    { t: 'sorteo', saca: 'L', izq: 'L' }, { t: 'alineacion', eq: 'L', jugadores: ['00', '1', '2', '3', '4', '5'] }, { t: 'alineacion', eq: 'V', jugadores: [1, 2, 3, 4, 5, 6] }, { t: 'inicioSet', h: h() }];
+  assert.equal(M.validar({}, {}, ev, { t: 'sust', eq: 'L', sale: '00', entra: '0' }), null, 'sale el 00 y entra el 0');
+  const st = M.reproducir({}, {}, [...ev, { t: 'sust', eq: 'L', sale: '00', entra: '0', h: h() }]);
+  assert.deepEqual(M.setActual(st).rot.L, ['0', '1', '2', '3', '4', '5']);
+  assert.equal(M.validar({}, {}, ev, { t: 'sancion', eq: 'L', quien: '00', tipo: 'amonestacion' }), null, 'sanción al 00');
+});
+
 test('deshacer = reproducir sin el último suceso', () => {
   const p = preparado();
   puntos(p, 'V', 3); p.add({ t: 'sust', eq: 'L', sale: 3, entra: 7 });
   const antes = M.reproducir({}, {}, p.ev.slice(0, -1));
-  assert.deepEqual(M.setActual(antes).rot.L, [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(M.setActual(antes).rot.L, S([1, 2, 3, 4, 5, 6]));
   assert.deepEqual(M.setActual(antes).puntos, { L: 0, V: 3 });
 });
