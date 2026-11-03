@@ -796,7 +796,9 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - **Recomendación** (en la web): disponible en esa franja; no ocupado (otro partido suyo a menos de 1 h 45 min en el mismo
   pabellón o de 2 h 30 min en otro); sin coche y a más de 12 km = no recomendado. Orden: km + 5 por partido ya asignado.
   Km = línea recta × 1,25 entre la población del árbitro y el pabellón (Photon vía `geocode`/`locate`, sin gastar rutas
-  ORS); se enseñan como "≈". Pabellones ubicados en `pub_cache designa-geo:<sábado>`, por tandas de 40 s (la web repite).
+  ORS); se enseñan como "≈". El listado de la federación no trae la calle: la dirección sale de `matches.addr` (designaciones
+  de los árbitros de la app) por el nombre del pabellón sin "- PISTA n" (`sinPista`). 3-nov: 443 de 707 partidos ubicados.
+  Pabellones en `pub_cache designa-geo2:<sábado>`, por tandas de 40 s (la web repite).
 - Datos: `designa_disp` y `designa_asig` (migración 035, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
 - Pruebas: banco con supabase y `designa` simulados en el scratchpad de la sesión del 3-nov (formulario, panel, móvil, axe).

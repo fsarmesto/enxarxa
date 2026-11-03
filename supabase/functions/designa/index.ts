@@ -8,6 +8,7 @@
 // rutas de OpenRouteService; la web las enseña como aproximadas.
 import { admin, cors, geocode, json, locate, userFromRequest } from "../_shared/sync.ts";
 import { feed, norm, type Partido } from "../_shared/publico.ts";
+import { todas } from "../_shared/db.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -148,32 +149,43 @@ async function retirar(db: Db, req: Request, b: { finde?: string; codigo?: strin
 // ---------- Panel del designador ----------
 const matchKey = (p: Partido) => `${p.d}|${norm(p.l)}|${norm(p.v)}`;
 const relevante = (cat: string) => !/ALEVI|AMATEUR|MASTER|VETERA|BENJAMI/.test(norm(cat));
-// Coordenadas de los pabellones del fin de semana, guardadas en pub_cache (designa-geo:<sábado>) para no volver a
-// buscarlas. Photon va a 1 consulta por segundo: si hay muchos nuevos, se ubican por tandas (hasta la hora límite) y
-// la web vuelve a pedir el panel.
+// Coordenadas de los pabellones del fin de semana, guardadas en pub_cache (designa-geo2:<sábado>) para no volver a
+// buscarlas. El listado de la federación no trae la calle (solo "PABELLÓN - PISTA 2"): la dirección sale de las
+// designaciones de los árbitros de la app (matches.addr, la de iSquad), por el nombre sin la pista. Photon va a 1
+// consulta por segundo: si hay muchos nuevos, se ubican por tandas (hasta la hora límite) y la web vuelve a pedir el panel.
+const sinPista = (s: string) => norm(s).replace(/\s*-\s*(PISTA|TERCIO|TERC|CAMP|SALA|ANNEX|PISTA\s*\d).*$/, "").replace(/\s*-\s*$/, "").trim();
+async function direcciones(db: Db): Promise<Map<string, { addr: string; venue: string }>> {
+  const rows = await todas<{ venue: string | null; addr: string | null }>(() => db.from("matches").select("venue, addr").not("addr", "is", null).order("user_id").order("id"));
+  const m = new Map<string, { addr: string; venue: string }>();
+  for (const r of rows) if (r.venue && r.addr && /\d{5}/.test(r.addr)) m.set(sinPista(r.venue), { addr: r.addr, venue: r.venue });
+  return m;
+}
 async function pabellones(db: Db, finde: string, ps: Partido[], hasta: number) {
-  const key = `designa-geo:${finde}`;
+  const key = `designa-geo2:${finde}`;
   const { data } = await db.from("pub_cache").select("data").eq("key", key).maybeSingle();
   const geo: Record<string, [number, number] | null> = data?.data || {};
-  let nuevos = 0;
+  const kOf = (p: Partido) => sinPista(p.pab);
+  let nuevos = 0, dirs: Map<string, { addr: string; venue: string }> | null = null;
   for (const p of ps) {
-    const k = norm(p.pab + "|" + p.pista);
+    const k = kOf(p);
     if (k in geo) continue;
     if (Date.now() > hasta) break;
-    const r = await locate(db, p.pista, p.pab);
+    dirs ??= await direcciones(db);
+    const d = dirs.get(k);
+    const r = d ? await locate(db, d.addr, d.venue) : (/\d{5}/.test(p.pista) ? await locate(db, p.pista, p.pab) : null);
     if (r === "error") break;
     geo[k] = r ? r.at : null; nuevos++;
   }
   if (nuevos) await db.from("pub_cache").upsert({ key, data: geo, fetched_at: new Date().toISOString() });
-  const falta = ps.filter((p) => !(norm(p.pab + "|" + p.pista) in geo)).length;
-  return { geo, falta };
+  const falta = ps.filter((p) => !(kOf(p) in geo)).length;
+  return { geo, falta, kOf };
 }
 
 async function panel(db: Db, b: { finde?: string }, t0: number) {
   const finde = validFinde(b.finde), dom = masDias(finde, 1);
   limpiar(db).then(() => {}, () => {});
   const ps = (await feed(db)).filter((p) => p.d.slice(0, 10) === finde || p.d.slice(0, 10) === dom).sort((a, b) => a.d.localeCompare(b.d) || a.pab.localeCompare(b.pab));
-  const { geo, falta } = await pabellones(db, finde, ps, t0 + 40_000);
+  const { geo, falta, kOf } = await pabellones(db, finde, ps, t0 + 40_000);
   // Si iSquad ya tiene árbitro: cálculo semanal del panel de Administración (desig-global, solo la semana en curso).
   const { data: g } = await db.from("pub_cache").select("data").eq("key", "desig-global").maybeSingle();
   const r = g?.data as { desde?: string; hasta?: string; pendientes?: { d: string; l: string; v: string }[] } | undefined;
@@ -184,7 +196,7 @@ async function panel(db: Db, b: { finde?: string }, t0: number) {
   return {
     ok: true, finde, findes: findes(), falta, estadoIsquad: cubre,
     partidos: ps.map((p) => {
-      const k = matchKey(p), at = geo[norm(p.pab + "|" + p.pista)];
+      const k = matchKey(p), at = geo[kOf(p)];
       return { key: k, d: p.d, conf: p.c, l: p.l, v: p.v, cat: p.cat, comp: p.comp, pab: p.pab, pista: p.pista, lon: at?.[0] ?? null, lat: at?.[1] ?? null,
         liga: relevante(p.cat), isquad: cubre && relevante(p.cat) ? (sinArb.has(k) ? "sin" : "con") : null };
     }),
