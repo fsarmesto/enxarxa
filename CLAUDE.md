@@ -788,6 +788,10 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   entrar, `GO_DISP`) o "Rellenar a mano", que devuelve un código (localStorage `designa-codigo:<sábado>`, en la base solo su
   sha256 `edit_hash`) para cambiarla o retirarla. Se puede rellenar el fin de semana que toca y el siguiente (`?finde=`).
   Tarjeta en Mis partidos (`#dispCard`, solo árbitros con cuenta): "¿Puedes arbitrar…?" o "enviada" con enlace.
+- **Quién puede darla (3-nov-2026, Ferran: de momento solo él):** secret `DISPO_LOGINS`. Sin poner = solo los de
+  `ADMIN_LOGINS`; `todos` = cualquiera, también sin cuenta; si no, logins de iSquad separados por comas. Lo comprueba la
+  función (`puedeDar`) en form/enviar/retirar (403 si no); la página enseña "Todavía no está abierto" y la app no saca la
+  tarjeta. Para abrirlo: `supabase secrets set DISPO_LOGINS=todos --project-ref vevsurxxvjivjizuuqad` (sin desplegar).
 - **Panel** `docs/designa-admin/` (noindex): login propio, no de iSquad. Secret `DESIGNA_USERS` =
   `usuario:sal:pbkdf2` (PBKDF2-SHA256, 100.000 iteraciones, 32 bytes, hex; varios separados por comas) y `DESIGNA_SECRET`
   (firma HMAC de la sesión, 12 h, cabecera `x-designa-token`). Valores en `~/.config/fcvb/secrets.env`; **la contraseña

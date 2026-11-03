@@ -9,6 +9,7 @@
 import { admin, cors, geocode, json, locate, userFromRequest } from "../_shared/sync.ts";
 import { feed, norm, type Partido } from "../_shared/publico.ts";
 import { todas } from "../_shared/db.ts";
+import { adminLogins } from "../_shared/admin.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -91,13 +92,26 @@ const limpiar = (db: Db) => db.from("designa_disp").delete().lt("finde", masDias
 async function perfil(db: Db, req: Request) {
   const user = await userFromRequest(db, req);
   if (!user) return null;
-  const { data } = await db.from("profiles").select("user_id, nombre, origin, origin_lon, origin_lat, tipo").eq("user_id", user.id).maybeSingle();
+  const { data } = await db.from("profiles").select("user_id, login_key, nombre, origin, origin_lon, origin_lat, tipo").eq("user_id", user.id).maybeSingle();
   return data;
 }
 const titulo = (s: string) => (s || "").toLowerCase().replace(/(^|[\s'·-])(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
 
+// Quién puede dar disponibilidad (3-nov-2026, Ferran: de momento solo él, para probarlo). Secret DISPO_LOGINS:
+// sin poner = solo los de ADMIN_LOGINS; "todos" = cualquiera, también sin cuenta; si no, logins de iSquad separados por
+// comas. Se cambia con `supabase secrets set DISPO_LOGINS=todos`, sin desplegar.
+// deno-lint-ignore no-explicit-any
+function puedeDar(p: any): boolean {
+  const v = (Deno.env.get("DISPO_LOGINS") || "").trim().toLowerCase();
+  if (v === "todos") return true;
+  const lista = v ? v.split(",").map((x) => x.trim()).filter(Boolean) : adminLogins();
+  return !!p?.login_key && lista.includes(String(p.login_key).toLowerCase());
+}
+const CERRADO = "De momento el formulario está en pruebas y solo lo pueden usar algunas cuentas.";
+
 async function form(db: Db, req: Request, b: { finde?: string; codigo?: string }) {
   const finde = validFinde(b.finde), p = await perfil(db, req);
+  if (!puedeDar(p)) return { ok: true, finde, findes: findes(), cerrado: true, conCuenta: !!p, cuenta: null, mia: null };
   let mia = null;
   if (p) mia = (await db.from("designa_disp").select("*").eq("finde", finde).eq("user_id", p.user_id).maybeSingle()).data;
   else if (b.codigo) mia = (await db.from("designa_disp").select("*").eq("finde", finde).eq("edit_hash", await sha(String(b.codigo))).maybeSingle()).data;
@@ -106,6 +120,7 @@ async function form(db: Db, req: Request, b: { finde?: string; codigo?: string }
 
 async function enviar(db: Db, req: Request, b: DispIn & { finde?: string; codigo?: string }) {
   const finde = validFinde(b.finde), p = await perfil(db, req);
+  if (!puedeDar(p)) return json({ error: CERRADO }, 403);
   const val = validar(b); if (!val.ok) return json({ error: val.error }, 400);
   // Sin cuenta: como mucho 20 envíos por conexión y hora (que no se pueda llenar la lista de basura).
   if (!p) {
@@ -138,6 +153,7 @@ async function enviar(db: Db, req: Request, b: DispIn & { finde?: string; codigo
 
 async function retirar(db: Db, req: Request, b: { finde?: string; codigo?: string }) {
   const finde = validFinde(b.finde), p = await perfil(db, req);
+  if (!puedeDar(p)) return json({ error: CERRADO }, 403);
   let q = db.from("designa_disp").delete().eq("finde", finde);
   if (p) q = q.eq("user_id", p.user_id);
   else if (b.codigo) q = q.eq("edit_hash", await sha(String(b.codigo)));

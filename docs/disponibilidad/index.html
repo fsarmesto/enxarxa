@@ -36,6 +36,13 @@
     <div class="row"><a class="btn primary" href="../?vista=disponibilidad" data-t="entrar">Entrar con iSquad</a><button type="button" id="aMano" data-t="aMano">Rellenar a mano</button></div>
   </section>
 
+  <!-- En pruebas: solo algunas cuentas (DISPO_LOGINS) -->
+  <section class="card hidden" id="cerrado">
+    <h2 data-t="cerradoTitulo">Todavía no está abierto</h2>
+    <p class="small muted" data-t="cerradoTexto">De momento el formulario está en pruebas y solo lo pueden usar algunas cuentas. Cuando se abra, podrás dar aquí tu disponibilidad.</p>
+    <div class="row hidden" id="cerradoEntrar"><a class="btn primary" href="../?vista=disponibilidad" data-t="entrar">Entrar con iSquad</a></div>
+  </section>
+
   <!-- Ya enviada -->
   <section class="card hidden" id="hecha">
     <h2 data-t="hechaTitulo">Disponibilidad enviada</h2>
@@ -86,7 +93,8 @@ const T = {
     privacidad:'Tus respuestas solo las ve quien designa en la FCVB, para repartir los partidos. Se borran 4 semanas después del fin de semana.', politica:'Política de privacidad',
     ok:'Enviada. Puedes cambiarla o retirarla desde esta página.', retirada:'Disponibilidad retirada.', falta:'Rellena lo que falta:', fNombre:'nombre', fPob:'población', fCoche:'coche', fSab:'sábado', fDom:'domingo',
     red:'Sin conexión. Inténtalo de nuevo.', finde:(a,b)=>`Fin de semana del ${a} y ${b}`, sabD:d=>`Sábado ${d}`, domD:d=>`Domingo ${d}`, esteFinde:'Este finde', siguiente:'El siguiente',
-    dCoche:'Coche', dPob:'Población', dNombre:'Nombre', obsCorta:'obs.', confirmar:'¿Seguro que quieres retirarla?' },
+    dCoche:'Coche', dPob:'Población', dNombre:'Nombre', obsCorta:'obs.', confirmar:'¿Seguro que quieres retirarla?',
+    cerradoTitulo:'Todavía no está abierto', cerradoTexto:'De momento el formulario está en pruebas y solo lo pueden usar algunas cuentas. Cuando se abra, podrás dar aquí tu disponibilidad.' },
   ca: { volver:'← Vòlei EnXarxa', titulo:'Disponibilitat per arbitrar', cargando:'Carregant…', comoTitulo:'Com la vols omplir?',
     comoTexto:'Amb el teu compte d\'iSquad a Vòlei EnXarxa, el teu nom i la teva població es posen sols. Si no, escriu-los tu.', entrar:'Entra amb iSquad', aMano:'Omple-la a mà',
     hechaTitulo:'Disponibilitat enviada', cambiar:'Canvia-la', retirar:'Retira-la',
@@ -98,7 +106,8 @@ const T = {
     privacidad:'Les teves respostes només les veu qui designa a la FCVB, per repartir els partits. S\'esborren 4 setmanes després del cap de setmana.', politica:'Política de privacitat',
     ok:'Enviada. La pots canviar o retirar des d\'aquesta pàgina.', retirada:'Disponibilitat retirada.', falta:'Omple el que falta:', fNombre:'nom', fPob:'població', fCoche:'cotxe', fSab:'dissabte', fDom:'diumenge',
     red:'Sense connexió. Torna-ho a provar.', finde:(a,b)=>`Cap de setmana del ${a} i ${b}`, sabD:d=>`Dissabte ${d}`, domD:d=>`Diumenge ${d}`, esteFinde:'Aquest cap de setmana', siguiente:'El següent',
-    dCoche:'Cotxe', dPob:'Població', dNombre:'Nom', obsCorta:'obs.', confirmar:'Segur que la vols retirar?' }
+    dCoche:'Cotxe', dPob:'Població', dNombre:'Nom', obsCorta:'obs.', confirmar:'Segur que la vols retirar?',
+    cerradoTitulo:'Encara no està obert', cerradoTexto:'De moment el formulari està en proves i només el poden fer servir alguns comptes. Quan s\'obri, podràs donar-hi la teva disponibilitat.' }
 };
 let LANG='es'; try{ LANG = localStorage.getItem('liq-lang') || ((navigator.language||'').toLowerCase().startsWith('ca')?'ca':'es'); }catch(e){}
 const t = k => T[LANG][k] ?? T.es[k];
@@ -152,7 +161,7 @@ function pintarHecha(){
 }
 function ver(que){
   $('cargando').classList.add('hidden'); $('findes').classList.remove('hidden');
-  for(const id of ['elige','hecha','form']) $(id).classList.toggle('hidden', id!==que);
+  for(const id of ['elige','hecha','form','cerrado']) $(id).classList.toggle('hidden', id!==que);
   if(que==='hecha') pintarHecha();
   if(que==='form'){ $('conCuenta').classList.toggle('hidden', !S.cuenta); $('enviar').textContent = S.mia ? t('guardar') : t('enviar'); $('cancelar').classList.toggle('hidden', !S.mia); }
 }
@@ -164,6 +173,7 @@ async function cargar(f){
   if(!r.ok){ $('cargando').textContent = r.error || t('red'); return; }
   S.finde=r.finde; S.findes=r.findes; S.cuenta=r.cuenta; S.mia=r.mia;
   pintarFinde();
+  if(r.cerrado){ $('cerradoEntrar').classList.toggle('hidden', !!r.conCuenta); ver('cerrado'); $('findes').classList.add('hidden'); return; }
   if(S.mia){ rellenar(S.mia); ver('hecha'); }
   else if(S.cuenta){ rellenar({nombre:S.cuenta.nombre, poblacion:S.cuenta.poblacion}); ver('form'); }
   else { rellenar(null); ver('elige'); }

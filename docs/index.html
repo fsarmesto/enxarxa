@@ -3582,7 +3582,7 @@ async function loadDisp(){
   const c=$('dispCard');
   if(DEP || GUEST){ c.classList.add('hidden'); return; }
   const r = await callFn('designa', {action:'form'});
-  if(!r.ok || !r.finde){ c.classList.add('hidden'); return; }
+  if(!r.ok || !r.finde || r.cerrado){ c.classList.add('hidden'); return; }   // cerrado: de momento solo algunas cuentas
   const f = n => new Intl.DateTimeFormat(LANG==='ca'?'ca-ES':'es-ES',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(Date.parse(r.finde+'T12:00:00Z')+n*864e5));
   const ca = LANG==='ca';
   const d0 = r.finde.slice(5,7)===new Date(Date.parse(r.finde+'T12:00:00Z')+864e5).toISOString().slice(5,7) ? String(+r.finde.slice(8,10)) : f(0);
