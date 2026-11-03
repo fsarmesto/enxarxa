@@ -352,7 +352,7 @@ body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){displ
 .aj-nav{display:flex;flex-direction:column;gap:12px;margin:0 0 16px;max-width:560px}
 .aj-nav a{display:flex;align-items:center;gap:12px;min-height:48px;padding:4px 14px;border:1px solid var(--line);border-top-width:0;color:var(--ink);text-decoration:none;font-size:15px;font-weight:600;margin-top:-12px}
 .aj-nav a:first-child{border-top-width:1px;border-radius:8px 8px 0 0;margin-top:0}
-.aj-nav a:nth-last-child(2){border-radius:0 0 8px 8px}
+.aj-nav a:not(.adm):has(+ .adm){border-radius:0 0 8px 8px}   /* última fila del menú (antes de los botones amarillos) */
 .aj-nav a>span{flex:1;min-width:0}
 .aj-nav svg{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .aj-nav .ic{color:var(--ink-2)}
@@ -1097,6 +1097,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <a href="#aj-ayuda"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span>Ayuda</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
       <a href="#aj-cuenta"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg><span>Tu cuenta</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
       <a class="adm hidden" href="./?vista=admin" data-open-admin><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Administración</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a class="adm hidden" href="acta/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg><span>Acta electrónica (prototipo)</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
     </nav>
     <section class="aj-card" id="aj-avisos" aria-labelledby="h-aj-avisos">
       <h3 id="h-aj-avisos">Notificaciones</h3>
