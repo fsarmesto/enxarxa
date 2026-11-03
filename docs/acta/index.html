@@ -9,6 +9,38 @@
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#000000">
 <link rel="stylesheet" href="../designa.css">
+<script>
+/* Vigilancia del arranque, independiente de acta.js: recoge los errores del navegador (un script que no carga, un fallo
+   antes de que acta.js pueda avisar) y, si a los 10 s el acta no ha arrancado, los enseña con un botón para recargar sin
+   caché. acta.js pone window.ACTA_OK = true al pintar por primera vez. */
+(function () {
+  var errores = [];
+  window.addEventListener('error', function (e) {
+    var t = e.target && e.target !== window && (e.target.src || e.target.href);
+    errores.push(t ? 'No se ha podido cargar ' + t : (e.message || 'Error') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : ''));
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) { errores.push('Promesa: ' + ((e.reason && e.reason.message) || e.reason)); });
+  setTimeout(function () {
+    if (window.ACTA_OK) return;
+    var app = document.getElementById('app'); if (!app) return;
+    if (window.pepperLoader) window.pepperLoader.done();
+    var esc = function (x) { return String(x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+    app.innerHTML = '<section class="card" role="alert"><h2>El acta no arranca</h2><p>Tus actas siguen guardadas en este dispositivo.</p>' +
+      '<p class="small muted">' + (errores.length ? 'Detalle: ' + errores.slice(0, 4).map(esc).join(' · ') : 'Detalle: el código del acta no ha llegado a ejecutarse (¿bloqueado por el navegador, una extensión o la VPN?).') + '</p>' +
+      '<p class="small muted">Navegador: ' + esc(navigator.userAgent) + '</p>' +
+      '<div class="row"><button class="primary" id="vigRecargar">Recargar sin caché</button></div></section>';
+    document.getElementById('vigRecargar').onclick = function () {
+      var fin = function () { location.reload(); };
+      try {
+        Promise.all([
+          window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : 0,
+          navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.update(); })); }) : 0
+        ]).then(fin, fin);
+      } catch (x) { fin(); }
+    };
+  }, 10000);
+})();
+</script>
 <style>
 /* Acta electrónica (prototipo para la FCVB). Móvil en vertical, tablet y portátil: dos mitades (equipo de la izquierda y de
    la derecha, como los ve el anotador) con la pista, el botón de punto y las acciones de cada equipo. */
@@ -203,12 +235,13 @@ button.en-directo{background:var(--red);border-color:var(--red);color:#fff}
 </style>
 </head>
 <body>
+<script src="../cargando.js"></script>
 <header class="board"><div class="in">
   <a class="back" href="../">← Vòlei EnXarxa</a>
   <h1>Acta electrónica</h1>
   <p class="sub" id="sub">Prototipo · reglas oficiales FIVB 6x6</p>
 </div></header>
-<main class="wide" id="app"><p class="muted">Cargando…</p></main>
+<main class="wide" id="app"></main>
 <div id="hoja" class="hidden" role="dialog" aria-modal="true" aria-labelledby="hojaT"><div class="card"><div id="hojaC"></div></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <section id="impresa" aria-label="Acta"></section>

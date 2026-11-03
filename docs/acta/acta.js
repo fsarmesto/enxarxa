@@ -3,7 +3,9 @@
 // la cabecera (equipos, competición, fecha, pabellón y árbitros).
 (() => {
 'use strict';
-const M = window.ActaMotor, OTRO = M.OTRO;
+const M = window.ActaMotor;
+if (!M) throw new Error('No se ha cargado el motor del acta (motor.js).');   // lo enseña la vigilancia de index.html
+const OTRO = M.OTRO;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const POS = ['I', 'II', 'III', 'IV', 'V', 'VI'];
@@ -20,9 +22,27 @@ let VER = false;       // viendo el acta para imprimir (no se guarda)
 /* ---------- Guardar en el dispositivo ---------- */
 const clave = (id) => 'acta:' + id;
 function guardar() { A.actualizada = new Date().toISOString(); try { localStorage.setItem(clave(A.id), JSON.stringify(A)); } catch (e) { toast('No se ha podido guardar en el dispositivo.'); } }
+// Actas guardadas con versiones anteriores: lo que ahora no se acepta y se puede arreglar sin tocar lo anotado se arregla
+// al cargarlas. Hoy: jugadores con un dorsal no válido (antes no se comprobaba, p. ej. "544") en un acta que aún no ha
+// empezado: se quitan de la plantilla guardada y se dejan aparte (a.quitados) para que salgan en Equipos y se corrijan.
+function reparar(a) {
+  if (!a || !Array.isArray(a.ev)) return a;
+  const empezada = a.ev.some((e) => e.t === 'inicioSet');
+  let cambios = false;
+  a.ev = a.ev.map((e) => {
+    if (e.t !== 'equipo' || !Array.isArray(e.jugadores)) return e;
+    const malos = e.jugadores.filter((j) => !M.dorsalValido(j.num));
+    if (!malos.length || empezada) return e;
+    cambios = true;
+    ((a.quitados ??= {})[e.eq] ??= []).push(...malos.map((j) => ({ ...j, num: String(j.num ?? '') })));
+    return { ...e, jugadores: e.jugadores.filter((j) => M.dorsalValido(j.num)) };
+  });
+  if (cambios) { a.paso = 'equipos'; try { localStorage.setItem(clave(a.id), JSON.stringify(a)); } catch (x) {} }
+  return a;
+}
 function actas() {
   const out = [];
-  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('acta:')) { try { out.push(JSON.parse(localStorage.getItem(k))); } catch (e) {} } } } catch (e) {}
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('acta:')) { try { out.push(reparar(JSON.parse(localStorage.getItem(k)))); } catch (e) {} } } } catch (e) {}
   return out.sort((a, b) => String(b.actualizada).localeCompare(String(a.actualizada)));
 }
 function calcular() { ST = M.reproducir(A.cfg, A.datos, A.ev); return ST; }
@@ -60,6 +80,26 @@ function pasos(on) {
   return `<div class="pasos">${P.map(([k, t], j) => `<span class="${j === i ? 'on' : j < i ? 'ok' : ''}">${j < i ? '✓ ' : ''}${esc(t)}</span>`).join('')}</div>`;
 }
 function pintar() {
+  try { pintar0(); LISTO = true; window.ACTA_OK = true; window.pepperLoader?.done(); } catch (e) { mostrarError(e); }
+}
+// Si algo falla al pintar (p. ej. un acta guardada que esta versión no puede abrir) no se queda colgado: se explica qué pasa
+// y se puede volver a intentar, ir a Mis actas o descargar los datos de esa acta para no perderlos.
+let LISTO = false;
+function mostrarError(e) {
+  console.error(e);
+  window.pepperLoader?.done(); clearInterval(RELOJ);
+  const msg = (e && e.message) || String(e);
+  window.ACTA_OK = true;   // ya se explica aquí: la vigilancia de index.html no hace falta
+  $('app').innerHTML = `<section class="card" role="alert"><h2>No se ha podido abrir</h2>
+    <p>${A ? 'Esta acta no se puede mostrar con esta versión.' : 'La página no ha arrancado bien.'} Tus datos siguen guardados en este dispositivo.</p>
+    <p class="small muted">Detalle: ${esc(msg)}</p>
+    <div class="row"><button class="primary" id="errReintentar">Volver a intentarlo</button>${A ? '<button id="errJson">Descargar los datos de esta acta</button>' : ''}<button class="ghost" id="errMis">Mis actas</button></div></section>`;
+  $('errReintentar').onclick = () => location.reload();
+  $('errMis').onclick = () => { location.href = location.pathname; };
+  if (A) $('errJson').onclick = () => { const b = new Blob([JSON.stringify(A, null, 1)], { type: 'application/json' }); const x = document.createElement('a'); x.href = URL.createObjectURL(b); x.download = `acta-${A.id}.json`; x.click(); };
+  LISTO = true;
+}
+function pintar0() {
   if (A) calcular();
   const v = vista();
   document.body.classList.toggle('vista', v === 'ver');
@@ -90,7 +130,9 @@ function pInicio() {
       <div class="row">${MIOS.map((m) => `<button data-desde="${esc(m.id)}">${esc(m.date.slice(8, 10) + '/' + m.date.slice(5, 7))} ${esc(m.time || '')} · ${esc(titulo(m.teams).replace(' Vs ', ' – '))}</button>`).join('')}</div>` : ''}
     </section>
     ${lst.length ? `<section class="card"><h2>Actas en este dispositivo</h2>${lst.map((a) => {
-      const st = M.reproducir(a.cfg, a.datos, a.ev), r = M.resultados(st);
+      let st, r;
+      try { st = M.reproducir(a.cfg, a.datos, a.ev); r = M.resultados(st); }
+      catch (e) { return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(a.datos?.local || 'Local')} – ${esc(a.datos?.visitante || 'Visitante')}</b><br><span class="small" style="color:var(--warn)">No se puede abrir con esta versión: ${esc(e.message)}</span></span><span class="row"><button class="ghost" data-borrar="${esc(a.id)}">Borrar</button></span></div>`; }
       return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(a.datos.local || 'Local')} – ${esc(a.datos.visitante || 'Visitante')}</b><br><span class="small muted">${esc(a.datos.fecha || '')} · ${st.fase === 'fin' ? `Final ${r.total.L.gana}-${r.total.V.gana}` : st.fase === 'preparacion' ? 'Sin empezar' : `En juego · sets ${st.ganados.L}-${st.ganados.V}`}</span></span>
         <span class="row"><button data-abrir="${esc(a.id)}">Abrir</button><button class="ghost" data-borrar="${esc(a.id)}">Borrar</button></span></div>`; }).join('')}</section>` : ''}`;
   $('nueva').onclick = () => crear({});
@@ -115,7 +157,7 @@ function crear(datos) {
   guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
 }
 function reiniciar() { delete BORR.L; delete BORR.V; ISQ = { estado: null, msg: '' }; VER = false; }   // nada de un acta pasa a otra
-function abrir(id) { reiniciar(); try { A = JSON.parse(localStorage.getItem(clave(id))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
+function abrir(id) { reiniciar(); try { A = reparar(JSON.parse(localStorage.getItem(clave(id)))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
 function salir() { A = null; ST = null; reiniciar(); history.replaceState(null, '', location.pathname); pintar(); }
 
 /* ---------- 1. Datos del partido ---------- */
@@ -158,12 +200,15 @@ let ISQ = { estado: null, msg: '' };
 async function cargarIsquad(forzar) {
   if (!A.origen || (!forzar && A.isqCargada) || ISQ.estado === 'cargando') return;
   ISQ = { estado: 'cargando', msg: '' }; pEquipos();
+  window.pepperLoader?.show('Leyendo las plantillas de iSquad…');
   let r = {};
+  const corte = new AbortController(), tope = setTimeout(() => corte.abort(), 60000);   // iSquad a veces tarda: como mucho 1 minuto
   try {
     const { data: { session } } = await sbc().auth.getSession();
-    const res = await fetch(window.APP_CONFIG.SUPABASE_URL + '/functions/v1/equipos', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: window.APP_CONFIG.SUPABASE_ANON_KEY, ...(session ? { Authorization: 'Bearer ' + session.access_token } : {}) }, body: JSON.stringify({ action: 'plantillas', ...A.origen }) });
+    const res = await fetch(window.APP_CONFIG.SUPABASE_URL + '/functions/v1/equipos', { method: 'POST', signal: corte.signal, headers: { 'Content-Type': 'application/json', apikey: window.APP_CONFIG.SUPABASE_ANON_KEY, ...(session ? { Authorization: 'Bearer ' + session.access_token } : {}) }, body: JSON.stringify({ action: 'plantillas', ...A.origen }) });
     r = await res.json().catch(() => ({})); if (!res.ok) r = { error: r.error || 'No se ha podido leer iSquad.' };
-  } catch (e) { r = { error: 'Sin conexión: escribe las plantillas a mano.' }; }
+  } catch (e) { r = { error: e.name === 'AbortError' ? 'iSquad no ha respondido a tiempo: escribe las plantillas a mano o vuelve a cargarlas.' : 'Sin conexión: escribe las plantillas a mano.' }; }
+  finally { clearTimeout(tope); window.pepperLoader?.done(); }
   if (r.error) { ISQ = { estado: 'error', msg: r.error }; if (A && vista() === 'equipos') pEquipos(); return; }
   for (const eq of ['L', 'V']) {
     const t = r[eq]; if (!t) continue;
@@ -183,6 +228,11 @@ async function cargarIsquad(forzar) {
   if (A && vista() === 'equipos') pEquipos();
 }
 function borrador(eq) {
+  if (!BORR[eq] && A.quitados?.[eq]?.length) {
+    const e = ST.equipos[eq];
+    BORR[eq] = { jugadores: [...e.jugadores.map((j) => ({ ...j })), ...A.quitados[eq].map((j) => ({ ...j }))],
+      oficiales: ['E', 'E2', 'F', 'M'].map((rol) => ({ rol, nombre: e.oficiales.find((o) => o.rol === rol)?.nombre || '' })) };
+  }
   if (!BORR[eq]) {
     const e = ST.equipos[eq];
     BORR[eq] = { jugadores: e.jugadores.length ? e.jugadores.map((j) => ({ ...j })) : Array.from({ length: 12 }, () => ({ num: '', nombre: '' })),
@@ -193,8 +243,10 @@ function borrador(eq) {
 }
 function tablaEquipo(eq) {
   const b = borrador(eq), nombre = eq === 'L' ? A.datos.local : A.datos.visitante;
+  const q = A.quitados?.[eq] || [];
+  const deQuitados = q.length ? `<p class="msg err small">Dorsal no válido de una versión anterior: ${q.map((j) => `${esc(j.nombre || 'sin nombre')} (${esc(j.num || 'vacío')})`).join(', ')}. Pon un dorsal de 0 a 99, o 00 (o quítalo con ✕).</p>` : '';
   const deIsq = b.isq ? `<p class="small muted">Plantilla de iSquad: ${b.isq} jugadores (sin las bajas). La web no da los dorsales: ponlos y quita con ✕ a quien no esté convocado.</p>` : '';
-  return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deIsq}
+  return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deQuitados}${deIsq}
     <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th>${A.cfg.liberos ? '<th>Líbero</th>' : ''}<th></th></tr></thead><tbody>
     ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="text" inputmode="numeric" maxlength="2" autocomplete="off" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal (0 a 99, o 00)"${j.num !== '' && j.num != null && !M.dorsalValido(j.num) ? ' aria-invalid="true"' : ''}></td>
       <td><input type="text" data-i="${i}" data-k="nombre" value="${esc(j.nombre || '')}" aria-label="Nombre"></td>
@@ -211,7 +263,7 @@ function leerEquipo(eq) {
 }
 function pEquipos() {
   if (A.origen && !A.isqCargada && !ST.equipos.L.jugadores.length && ISQ.estado === null) { cargarIsquad(); return; }
-  const aviso = ISQ.estado === 'cargando' ? '<p class="msg ok">Cargando las plantillas de iSquad…</p>'
+  const aviso = ISQ.estado === 'cargando' ? ''
     : ISQ.estado === 'error' ? `<p class="msg err">${esc(ISQ.msg)}</p>`
     : ISQ.estado === 'ok' && ISQ.msg ? `<p class="msg err">No he encontrado en iSquad la plantilla de ${esc(ISQ.msg)}: escríbela a mano.</p>` : '';
   $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán${A.cfg.liberos ? ' y los líberos (como mucho 2)' : ' (en este partido no hay líbero)'}.${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
@@ -244,7 +296,7 @@ function pEquipos() {
       A.ev = A.ev.filter((e) => !(e.t === 'equipo' && e.eq === eq)); A.ev.push({ ...ev, h: new Date().toISOString() });
       try { localStorage.setItem(clavePlantilla(nombre), JSON.stringify({ jugadores: b.jugadores.filter((j) => j.num || j.nombre), oficiales: b.oficiales })); } catch (x) {}
     }
-    A.paso = 'sorteo'; guardar(); pintar(); scrollTo(0, 0);
+    delete A.quitados; A.paso = 'sorteo'; guardar(); pintar(); scrollTo(0, 0);
   };
 }
 
@@ -713,6 +765,10 @@ function pVer() {
 }
 
 /* ---------- Arranque ---------- */
+window.pepperLoader?.show('Cargando el acta…');
+window.addEventListener('error', (e) => { if (!LISTO) mostrarError(e.error || e.message); });
+window.addEventListener('unhandledrejection', (e) => { if (!LISTO) mostrarError(e.reason); });
+setTimeout(() => { if (!LISTO) mostrarError(new Error('La página está tardando demasiado en arrancar.')); }, 15000);
 const id = new URLSearchParams(location.search).get('acta');
 if (id) abrir(id); else pintar();
 cargarMios();

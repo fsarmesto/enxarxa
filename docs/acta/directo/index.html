@@ -38,8 +38,9 @@ main{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:
 </style>
 </head>
 <body>
+<script src="../../cargando.js"></script>
 <div class="top"><a href="../../">← Vòlei EnXarxa</a><span class="vivo" id="vivo"><i></i><span>En directo</span></span></div>
-<main id="m" aria-live="polite"><p class="aviso">Cargando…</p></main>
+<main id="m" aria-live="polite"></main>
 <p class="pie" id="pie"></p>
 <script src="../../config.js"></script>
 <script src="../../vendor/supabase-2.45.4.js"></script>
@@ -64,14 +65,19 @@ function pintar(e) {
     </div>
     ${e.sets.length ? `<div class="hist">${e.sets.map((x) => `<span>Set ${x.n} · ${x[izq]}-${x[der]}</span>`).join('')}</div>` : ''}`;
 }
+let PRIMERA = true;
 async function cargar() {
+  if (PRIMERA) window.pepperLoader?.show('Conectando con el directo…');
+  try { await cargar0(); } finally { if (PRIMERA) { PRIMERA = false; window.pepperLoader?.done(); } }
+}
+async function cargar0() {
   if (!/^[a-z0-9]{16,40}$/.test(id)) { $('m').innerHTML = '<p class="aviso">Este enlace no es válido.</p>'; return; }
   try {
     const { data, error } = await sb.from('acta_directo').select('estado, updated_at').eq('id', id).maybeSingle();
     if (error) throw error;
     if (!data) { $('m').innerHTML = '<p class="aviso">Este directo ha terminado o ya no existe.</p>'; $('vivo').className = 'vivo fin'; $('vivo').querySelector('span').textContent = 'Sin directo'; return; }
     ULT = data.updated_at; pintar(data.estado);
-  } catch (e) { $('pie').textContent = 'Sin conexión: se reintenta…'; }
+  } catch (e) { $('pie').textContent = 'Sin conexión: se reintenta…'; if (!ULT) $('m').innerHTML = '<p class="aviso">No se puede conectar con el directo. Se reintenta cada pocos segundos…</p>'; }
 }
 setInterval(() => { if (ULT) { const s = Math.round((Date.now() - Date.parse(ULT)) / 1000); $('pie').textContent = `Actualizado hace ${s < 60 ? s + ' s' : Math.round(s / 60) + ' min'} · Acta electrónica de Vòlei EnXarxa`; } }, 1000);
 cargar(); setInterval(cargar, 4000);
