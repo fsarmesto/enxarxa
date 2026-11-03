@@ -200,3 +200,31 @@ test('deshacer = reproducir sin el último suceso', () => {
   assert.deepEqual(M.setActual(antes).rot.L, S([1, 2, 3, 4, 5, 6]));
   assert.deepEqual(M.setActual(antes).puntos, { L: 0, V: 3 });
 });
+
+test('sin líbero (infantil): no se puede inscribir ni usar', () => {
+  const cfg = { liberos: false };
+  assert.match(M.validar(cfg, {}, [], { t: 'equipo', eq: 'L', jugadores: [{ num: 1 }, { num: 12, lib: true }] }), /no hay líbero/);
+  const p = preparado();   // con líbero, para comprobar que el motor lo bloquea también en juego si se desactiva
+  assert.equal(M.validar({ liberos: true }, {}, p.ev, { t: 'liberoEntra', eq: 'V', libero: 12, sale: 5 }), null);
+});
+
+test('set obligatorio: titulares sin cambio cuentan; el set en juego no; marcas a mano mandan', () => {
+  const p = preparado({ setObligatorio: true });
+  p.add({ t: 'sust', eq: 'L', sale: 3, entra: 7 });
+  let c = M.setsCompletos(p.st());
+  assert.equal(c.L['1'].sets[0].completo, false, 'mientras el set está en juego no cuenta');
+  puntos(p, 'L', 25);
+  c = M.setsCompletos(p.st());
+  assert.equal(c.L['1'].cumple, true, 'titular sin cambio: set completo');
+  assert.equal(c.L['3'].cumple, false, 'el titular cambiado no completa el set');
+  assert.equal(c.L['7'].cumple, false, 'el suplente no completa el set');
+  assert.equal(c.L['8'].cumple, false, 'quien no juega no lo cumple');
+  assert.equal(c.V['6'].cumple, true);
+  // Corrección a mano: al 7 se le da por bueno (cambio especial) y al 1 se le quita
+  p.add({ t: 'setCompleto', eq: 'L', num: 7, set: 1, si: true }); p.add({ t: 'setCompleto', eq: 'L', num: 1, set: 1, si: false });
+  c = M.setsCompletos(p.st());
+  assert.equal(c.L['7'].cumple, true); assert.equal(c.L['7'].sets[0].mano, true);
+  assert.equal(c.L['1'].cumple, false);
+  assert.match(p.falla({ t: 'setCompleto', eq: 'L', num: 7, set: 3, si: true }), /no se ha jugado/);
+  assert.match(p.falla({ t: 'setCompleto', eq: 'L', num: 55, set: 1, si: true }), /no está en el acta/);
+});

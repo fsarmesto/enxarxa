@@ -105,8 +105,11 @@ function pInicio() {
   $('app').querySelectorAll('[data-borrar]').forEach((b) => (b.onclick = () => { if (confirm('¿Borrar esta acta de este dispositivo?')) { localStorage.removeItem(clave(b.dataset.borrar)); pintar(); } }));
 }
 let A_ORIGEN = null;
+// Infantil: sin líbero y con set obligatorio por jugador (se puede cambiar en Datos).
+const esInfantil = (d) => /INFANTIL/i.test(`${d.competicion || ''} ${d.categoria || ''}`);
 function crear(datos) {
-  A = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cfg: { ...M.CONFIG }, datos, ev: [], paso: 'datos', creada: new Date().toISOString(),
+  const inf = esInfantil(datos);
+  A = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cfg: { ...M.CONFIG, ...(inf ? { liberos: false, setObligatorio: true } : {}) }, datos, ev: [], paso: 'datos', creada: new Date().toISOString(),
     ...(A_ORIGEN ? { origen: A_ORIGEN } : {}) };
   A_ORIGEN = null; reiniciar();
   guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
@@ -127,13 +130,20 @@ function pDatos() {
       <label class="f"><span>Partido al mejor de</span><select id="mejorDe"><option value="5"${c.mejorDe === 5 ? ' selected' : ''}>5 sets (gana quien llega a 3)</option><option value="3"${c.mejorDe === 3 ? ' selected' : ''}>3 sets (gana quien llega a 2)</option></select></label>
       <label class="f"><span>Puntos por set</span><input type="number" id="puntosSet" min="5" max="50" value="${c.puntosSet}"></label>
       <label class="f"><span>Puntos del set decisivo</span><input type="number" id="puntosDecisivo" min="5" max="50" value="${c.puntosDecisivo}"></label></div>
+    <label class="chk opcion"><input type="checkbox" id="cfgLib"${c.liberos ? ' checked' : ''}> <span><b>Hay líbero</b><br><span class="small muted">Desactívalo en las categorías que juegan sin líbero.</span></span></label>
+    <label class="chk opcion"><input type="checkbox" id="cfgSet"${c.setObligatorio ? ' checked' : ''}> <span><b>Set obligatorio por jugador</b><br><span class="small muted">Infantil (FCVB, Circular 011): cada jugador del acta tiene que jugar al menos un set completo. Al final se revisa y se puede corregir a mano.</span></span></label>
     <div class="row"><button type="button" class="ghost" id="volver">Mis actas</button><button class="primary">Siguiente: equipos</button></div></form>`;
   $('volver').onclick = salir;
   $('f').onsubmit = (e) => {
     e.preventDefault();
     $('f').querySelectorAll('[data-d]').forEach((i) => (A.datos[i.dataset.d] = i.value.trim()));
     if (!A.datos.local || !A.datos.visitante) { toast('Escribe el nombre de los 2 equipos.'); return; }
-    A.cfg = { ...A.cfg, mejorDe: +$('mejorDe').value, puntosSet: +$('puntosSet').value || 25, puntosDecisivo: +$('puntosDecisivo').value || 15 };
+    A.cfg = { ...A.cfg, mejorDe: +$('mejorDe').value, puntosSet: +$('puntosSet').value || 25, puntosDecisivo: +$('puntosDecisivo').value || 15, liberos: $('cfgLib').checked, setObligatorio: $('cfgSet').checked };
+    // Sin líbero: se quita la marca de líbero de las plantillas ya guardadas y de las que se están escribiendo.
+    if (!A.cfg.liberos) {
+      A.ev = A.ev.map((e) => (e.t === 'equipo' ? { ...e, jugadores: e.jugadores.map(({ lib, ...j }) => j) } : e));
+      for (const eq of ['L', 'V']) BORR[eq]?.jugadores.forEach((j) => delete j.lib);
+    }
     A.paso = 'equipos'; guardar(); pintar(); scrollTo(0, 0);
   };
 }
@@ -160,7 +170,7 @@ async function cargarIsquad(forzar) {
     const nombre = eqNombre(eq); let prev = null;
     try { prev = JSON.parse(localStorage.getItem(clavePlantilla(nombre)) || 'null'); } catch (x) {}
     const mem = new Map((prev?.jugadores || []).filter((j) => j.nombre).map((j) => [nombreKey(j.nombre), j]));
-    const jug = t.personas.filter((x) => x.perfil === 'jugador').map((x) => { const m = mem.get(nombreKey(x.nombre)) || {}; return { num: m.num || '', nombre: titulo(x.nombre), cap: !!m.cap, lib: !!m.lib, isq: true }; })
+    const jug = t.personas.filter((x) => x.perfil === 'jugador').map((x) => { const m = mem.get(nombreKey(x.nombre)) || {}; return { num: m.num || '', nombre: titulo(x.nombre), cap: !!m.cap, lib: A.cfg.liberos && !!m.lib, isq: true }; })
       .sort((a, b) => (a.num === '' ? 999 : a.num === '00' ? 0.5 : +a.num) - (b.num === '' ? 999 : b.num === '00' ? 0.5 : +b.num) || a.nombre.localeCompare(b.nombre));
     const ent = t.personas.filter((x) => x.perfil === 'entrenador');
     const segundo = (x) => /2|SEGON|SEGUN|AYUD|AJUD|AUX/i.test(x.cargo);
@@ -185,11 +195,11 @@ function tablaEquipo(eq) {
   const b = borrador(eq), nombre = eq === 'L' ? A.datos.local : A.datos.visitante;
   const deIsq = b.isq ? `<p class="small muted">Plantilla de iSquad: ${b.isq} jugadores (sin las bajas). La web no da los dorsales: ponlos y quita con ✕ a quien no esté convocado.</p>` : '';
   return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deIsq}
-    <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th><th>Líbero</th><th></th></tr></thead><tbody>
+    <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th>${A.cfg.liberos ? '<th>Líbero</th>' : ''}<th></th></tr></thead><tbody>
     ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="text" inputmode="numeric" maxlength="2" autocomplete="off" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal (0 a 99, o 00)"${j.num !== '' && j.num != null && !M.dorsalValido(j.num) ? ' aria-invalid="true"' : ''}></td>
       <td><input type="text" data-i="${i}" data-k="nombre" value="${esc(j.nombre || '')}" aria-label="Nombre"></td>
       <td><label class="chk"><input type="radio" name="cap${eq}" data-i="${i}" data-k="cap"${j.cap ? ' checked' : ''} aria-label="Capitán"></label></td>
-      <td><label class="chk"><input type="checkbox" data-i="${i}" data-k="lib"${j.lib ? ' checked' : ''} aria-label="Líbero"></label></td>
+      ${A.cfg.liberos ? `<td><label class="chk"><input type="checkbox" data-i="${i}" data-k="lib"${j.lib ? ' checked' : ''} aria-label="Líbero"></label></td>` : ''}
       <td><button type="button" class="x ghost" data-quitar="${i}" aria-label="Quitar">✕</button></td></tr>`).join('')}
     </tbody></table><div class="row" style="margin:8px 0 12px"><button type="button" data-mas>+ Jugador</button></div>
     <div class="grid2">${b.oficiales.map((o, i) => `<label class="f"><span>${esc(M.ROLES_OFICIALES[o.rol])}</span><input type="text" data-o="${i}" value="${esc(o.nombre)}"></label>`).join('')}</div></section>`;
@@ -204,7 +214,7 @@ function pEquipos() {
   const aviso = ISQ.estado === 'cargando' ? '<p class="msg ok">Cargando las plantillas de iSquad…</p>'
     : ISQ.estado === 'error' ? `<p class="msg err">${esc(ISQ.msg)}</p>`
     : ISQ.estado === 'ok' && ISQ.msg ? `<p class="msg err">No he encontrado en iSquad la plantilla de ${esc(ISQ.msg)}: escríbela a mano.</p>` : '';
-  $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán y los líberos (como mucho 2).${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
+  $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán${A.cfg.liberos ? ' y los líberos (como mucho 2)' : ' (en este partido no hay líbero)'}.${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
     <div class="dos">${tablaEquipo('L')}${tablaEquipo('V')}</div>
     <section class="card"><h2>Firmas antes del partido</h2><p class="small muted">Capitanes y entrenadores firman la plantilla.</p>${firmasHtml(FIRMAS_PRE)}</section>
     <div class="row"><button type="button" class="ghost" id="atras">Atrás</button><button class="primary" id="sig">Siguiente: sorteo y alineación</button></div>`;
@@ -344,7 +354,7 @@ function mitad(s, eq) {
     <div class="acts">
       <button data-acc="tiempo" data-eq="${eq}">Tiempo<b>${s.tiempos[eq].length}/${ST.cfg.tiempos}</b></button>
       <button data-acc="sust" data-eq="${eq}">Cambio<b>${s.nSust[eq]}/${ST.cfg.sustituciones}</b></button>
-      <button data-acc="libero" data-eq="${eq}">Líbero${l ? '<b>en pista</b>' : ''}</button>
+      ${ST.cfg.liberos ? `<button data-acc="libero" data-eq="${eq}">Líbero${l ? '<b>en pista</b>' : ''}</button>` : ''}
       <button data-acc="sancion" data-eq="${eq}">Sanción</button>
     </div>
     <div class="m-info solo-pc">
@@ -353,6 +363,7 @@ function mitad(s, eq) {
       <h4>Banquillo</h4>
       <div class="chips">${banco.map((j) => `<span class="chip${j.lib ? ' lib' : ''}${fuera(j) ? ' fuera' : ''}" title="${esc(j.nombre)}${j.lib ? ' · líbero' : ''}${fuera(j) ? ' · no puede jugar' : ''}">${esc(j.num)}</span>`).join('') || '<span class="small muted">—</span>'}</div>
       ${l ? `<p class="small" style="margin:8px 0 0"><span class="chip lib">${esc(l.num)}</span> en pista por el ${esc(l.por)}</p>` : ''}
+      ${ST.cfg.setObligatorio ? (() => { const sc = Object.values(M.setsCompletos(ST)[eq]).filter((x) => !x.cumple); return `<h4>Les falta un set completo</h4><div class="chips">${sc.map((x) => `<span class="chip falta" title="${esc(x.nombre)}">${esc(x.num)}</span>`).join('') || '<span class="small muted">A nadie ✓</span>'}</div>`; })() : ''}
       ${sanc.length ? `<h4>Sanciones</h4><ul class="sancs">${sanc.map((x) => `<li><span class="tarjeta t-${x.tipo}" aria-hidden="true"></span>${esc(SANC[x.tipo])} · ${esc(quien(x.quien))} <span class="muted">set ${x.set}, ${x.a}:${x.b}</span></li>`).join('')}</ul>` : ''}
     </div></div>`;
 }
@@ -386,6 +397,7 @@ function describir(ev, st) {
     case 'alineacion': return `Alineación ${n(ev.eq)}`;
     case 'obs': return 'Observación';
     case 'firma': return 'Firma';
+    case 'setCompleto': return `Set ${ev.set} del ${ev.num} (${n(ev.eq)}) ${ev.si ? 'marcado' : 'desmarcado'} como completo`;
     case 'equipo': return `Plantilla ${n(ev.eq)}`;
     default: return ev.t;
   }
@@ -523,11 +535,25 @@ function tablaResultados() {
 function pFinal() {
   const r = M.resultados(ST);
   $('app').innerHTML = pasos('final') + `<section class="card"><h2>Gana ${esc(eqNombre(r.ganador))} ${Math.max(r.total.L.gana, r.total.V.gana)}-${Math.min(r.total.L.gana, r.total.V.gana)}</h2>${tablaResultados()}</section>
+    ${ST.cfg.setObligatorio ? setObligatorioHtml() : ''}
     <section class="card"><h2>Observaciones</h2>${ST.observaciones.length ? ST.observaciones.map((o) => `<p class="small">Set ${o.set} · ${hora(o.h)}: ${esc(o.texto)}</p>`).join('') : '<p class="small muted">Ninguna.</p>'}<button id="obs">Añadir observación</button></section>
     <section class="card"><h2>Firmas</h2><p class="small muted">Por este orden: capitanes, anotador ayudante, anotador, 2º árbitro y 1er árbitro.</p>${firmasHtml(FIRMAS)}</section>
     <div class="barra"><button class="primary" id="ver">Ver e imprimir el acta</button><button id="json">Descargar los datos (JSON)</button><button id="deshacer">Deshacer el último punto</button><button class="ghost" id="mis">Mis actas</button></div>`;
   enlazarFirmas(); barraComun();
+  $('app').querySelectorAll('[data-sc]').forEach((c) => (c.onchange = () => { const [eq, num, set] = c.dataset.sc.split('|'); hacer({ t: 'setCompleto', eq, num, set: +set, si: c.checked }); }));
   $('json').onclick = () => { const b = new Blob([JSON.stringify(A, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `acta-${(A.datos.fecha || '')}-${(A.datos.local || '').replace(/\W+/g, '-')}.json`; a.click(); };
+}
+
+/* ---------- Set obligatorio (infantil) ---------- */
+function setObligatorioHtml() {
+  const sc = M.setsCompletos(ST), jugados = ST.sets.filter((x) => x.inicio);
+  const faltan = ['L', 'V'].map((eq) => [eq, Object.values(sc[eq]).filter((x) => !x.cumple)]);
+  const tabla = (eq) => `<div><h3 style="font-size:16px;margin:8px 0">${esc(eqNombre(eq))}</h3><table class="lista setob"><thead><tr><th>Nº</th><th>Jugador</th>${jugados.map((x) => `<th>Set ${x.n}</th>`).join('')}<th></th></tr></thead><tbody>
+    ${Object.values(sc[eq]).map((j) => `<tr class="${j.cumple ? '' : 'nocumple'}"><td><b>${esc(j.num)}</b></td><td>${esc(j.nombre)}</td>${j.sets.map((x) => `<td><label class="chk"><input type="checkbox" data-sc="${eq}|${esc(j.num)}|${x.set}"${x.completo ? ' checked' : ''} aria-label="${esc(j.num)} set ${x.set} completo">${x.mano !== null ? '<span class="small muted" title="Marcado a mano">✎</span>' : ''}</label></td>`).join('')}<td>${j.cumple ? '<span class="ok-t">✓</span>' : '<span class="no-t">Sin set</span>'}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<section class="card"><h2>Set obligatorio</h2>
+    <p class="small muted">Marcado solo: los titulares de cada set que no han sido cambiados durante el set. Si algún caso no cuenta o sí cuenta (por ejemplo, un cambio especial), corrígelo con la casilla; queda señalado con ✎.</p>
+    ${faltan.some(([, f]) => f.length) ? `<p class="msg err">Sin ningún set completo: ${faltan.filter(([, f]) => f.length).map(([eq, f]) => `${esc(eqNombre(eq))}: ${f.map((x) => esc(x.num)).join(', ')}`).join(' · ')}</p>` : '<p class="msg ok">Todos los jugadores han jugado al menos un set completo.</p>'}
+    <div class="dos">${tabla('L')}${tabla('V')}</div></section>`;
 }
 
 /* ---------- Acta impresa ---------- */
@@ -577,6 +603,7 @@ function actaHtml() {
       ${r.filas.map((f) => { const a = f[eqA], b = f[eqB]; return `<tr><td>${f.set}</td><td>${f.duracion ?? ''}</td><td>${a.tiempos}</td><td>${a.sust}</td><td>${a.gana}</td><td>${a.puntos}</td><td>${b.puntos}</td><td>${b.gana}</td><td>${b.sust}</td><td>${b.tiempos}</td></tr>`; }).join('')}
       <tr><th>Total</th><td>${r.total.duracion}</td><td>${r.total[eqA].tiempos}</td><td>${r.total[eqA].sust}</td><td>${r.total[eqA].gana}</td><td>${r.total[eqA].puntos}</td><td>${r.total[eqB].puntos}</td><td>${r.total[eqB].gana}</td><td>${r.total[eqB].sust}</td><td>${r.total[eqB].tiempos}</td></tr></table>
       <table><tr><th>Inicio</th><td>${hora(r.inicio)}</td><th>Fin</th><td>${hora(r.fin)}</td><th>Duración</th><td>${r.duracionPartido ?? ''} min</td><th>Ganador</th><td>${r.ganador ? esc(eqNombre(r.ganador)) + ` ${Math.max(r.total.L.gana, r.total.V.gana)}:${Math.min(r.total.L.gana, r.total.V.gana)}` : ''}</td></tr></table></div>
+    ${st.cfg.setObligatorio ? (() => { const sc = M.setsCompletos(st), js = st.sets.filter((x) => x.inicio); const t = (eq) => `<table><tr><th colspan="${js.length + 3}">Set obligatorio · ${ab(eq)} · ${esc(st.equipos[eq].nombre)}</th></tr><tr><th>Nº</th><th>Jugador</th>${js.map((x) => `<th>S${x.n}</th>`).join('')}<th>Cumple</th></tr>${Object.values(sc[eq]).map((j) => `<tr><td>${esc(j.num)}</td><td class="izq">${esc(j.nombre)}</td>${j.sets.map((x) => `<td>${x.completo ? 'X' : ''}${x.mano !== null ? '*' : ''}</td>`).join('')}<td>${j.cumple ? 'Sí' : '<b>NO</b>'}</td></tr>`).join('')}</table>`; return `<div class="bloque cols"><div>${t(eqA)}</div><div>${t(eqB)}</div></div><p style="font-size:9px;margin:-4px 0 6px">X = set completo (titular sin cambio) · * = corregido a mano por el anotador.</p>`; })() : ''}
     <div class="bloque"><table><tr><th class="izq">Observaciones</th></tr><tr><td class="izq">${st.observaciones.map((o) => `Set ${o.set} ${hora(o.h)}: ${esc(o.texto)}`).join('<br>') || '—'}</td></tr></table></div>
     <div class="bloque"><table><tr>${FIRMAS_PRE.map(([k, t]) => firma(k, t + ' (antes)')).join('')}</tr><tr>${FIRMAS.map(([k, t]) => firma(k, t)).join('')}</tr></table></div>
     <p style="font-size:9px">Acta electrónica de Vòlei EnXarxa (prototipo, no oficial). Generada el ${new Date().toLocaleString('es-ES')}.</p>`;

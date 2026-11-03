@@ -858,7 +858,16 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   de sets, **pista vista desde la mesa** (`pistaGrande`: red en medio; el de la izquierda tiene la I abajo a la izquierda y el
   de la derecha arriba a la derecha; el que saca con anillo rojo y balón), botones, teclas y registro a 2 columnas. En móvil y
   tablet, como antes (`.solo-pc` / `.solo-movil`). Plantillas lado a lado en PC (`.dos`).
-- Pruebas: `node --test tools/prueba-acta-motor.mjs` (13 casos de reglas). Partido completo con clics reales y axe: banco de la
+- **Infantil (3-nov-2026, Ferran):** en Datos, "Hay líbero" (`cfg.liberos`) y "Set obligatorio por jugador"
+  (`cfg.setObligatorio`); con "INFANTIL" en competición o categoría, al crear el acta salen sin líbero y con set obligatorio.
+  Sin líbero: no hay columna de líbero ni botón, el motor rechaza inscribirlo o usarlo, y al desactivarlo se quita la marca de
+  las plantillas guardadas. Set obligatorio (FCVB, Circular 011: "tots els jugadors anotats en acta tenen l'obligació de
+  jugar un set complert"; se marca a los titulares no cambiados durante el set): `setsCompletos(st)` (un set en juego no
+  cuenta) + suceso `setCompleto {eq, num, set, si}` para corregir a mano (manda; ✎ en pantalla, * en el acta). Panel de PC:
+  "Les falta un set completo"; final: tabla por jugador y set con aviso de quién no cumple; acta impresa con su tabla.
+  **Pendiente de confirmar con la FCVB:** el texto entero de la circular (el "canvi especial" que no rompe el set completo:
+  de momento se corrige a mano) y si en infantil hay líbero (no se ha encontrado ninguna norma catalana que lo prohíba).
+- Pruebas: `node --test tools/prueba-acta-motor.mjs` (15 casos de reglas). Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
 - Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,
   equipo incompleto/incomparecencia, sanciones entre sets aplicadas al empezar el siguiente.

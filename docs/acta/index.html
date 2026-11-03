@@ -122,6 +122,12 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
   .dos .card{margin:0}
 }
 @media (min-width:1100px) and (max-width:1279px){ .jug .n{width:54px;height:54px;font-size:26px} .marcador .pts{font-size:76px} }
+.opcion{display:flex!important;align-items:flex-start;gap:10px;margin:10px 0;font-weight:400;cursor:pointer}
+.opcion input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--ink)}
+.chip.falta{border-color:var(--red);color:var(--warn)}
+.setob .nocumple td{background:var(--warn-bg)}
+.setob .chk input{width:22px;height:22px;accent-color:var(--ink)}
+.ok-t{color:var(--ok);font-weight:700} .no-t{color:var(--warn);font-weight:700}
 /* Hoja de diálogo */
 #hoja{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:20;padding:12px}
 #hoja .card{width:100%;max-width:560px;max-height:88vh;overflow:auto;margin:0}
