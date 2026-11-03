@@ -436,6 +436,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   compacta, `[data-home]`) llevan al inicio (`goHome`): cierran hojas y paneles y van a la vista con la que se abre la app
   (`liq-vista`); si ya estás, scroll arriba. Cada cambio de vista es una entrada del historial (`history.state.vista`, en
   `render()`) y `popstate` vuelve a la anterior: el botón Atrás del navegador y del Android recorre las vistas.
+- 3-nov-2026 (Ferran): el índice de Ajustes (`.aj-nav`) es una lista tipo menú (una fila de 48 px por sección con icono
+  SVG de trazo y flecha, máx. 560 px de ancho); "Administración" va aparte, en amarillo, como última fila. "Km por pabellón"
+  es plegable (`details#kmFold`, plegado por defecto, con el número de pabellones en la cabecera, `#kmCount`); el enlace del
+  índice a `#aj-km` lo despliega.
 
 ## Cabecera por pestaña (21-oct-2026)
 

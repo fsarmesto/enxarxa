@@ -348,10 +348,18 @@ table.venues td:last-child{text-align:right;white-space:nowrap}
 body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){display:none}
 @media (max-width:720px){ body:is([data-vista="ajustes"],[data-vista="admin"]) #appView{padding-bottom:24px} }
 .aj-t{font-family:var(--display);font-size:30px;margin:0 0 10px}
-.aj-nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
-.aj-nav a{display:inline-flex;align-items:center;min-height:40px;padding:4px 14px;border:2px solid var(--line);border-radius:20px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600}
-.aj-nav a:hover{border-color:var(--ink)}
-.aj-nav a.adm{border-color:var(--yellow);background:var(--yellow);color:#000}
+/* Índice de Ajustes: lista tipo menú (una fila por sección, icono y flecha). Administración, aparte en amarillo. */
+.aj-nav{display:flex;flex-direction:column;gap:12px;margin:0 0 16px;max-width:560px}
+.aj-nav a{display:flex;align-items:center;gap:12px;min-height:48px;padding:4px 14px;border:1px solid var(--line);border-top-width:0;color:var(--ink);text-decoration:none;font-size:15px;font-weight:600;margin-top:-12px}
+.aj-nav a:first-child{border-top-width:1px;border-radius:8px 8px 0 0;margin-top:0}
+.aj-nav a:nth-last-child(2){border-radius:0 0 8px 8px}
+.aj-nav a>span{flex:1;min-width:0}
+.aj-nav svg{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.aj-nav .ic{color:var(--ink-2)}
+.aj-nav .ar{color:var(--ink-2);width:18px;height:18px}
+.aj-nav a:hover{background:var(--surface-2)}
+.aj-nav a.adm{border:0;border-radius:8px;margin-top:0;background:var(--yellow);color:#000}
+.aj-nav a.adm .ic,.aj-nav a.adm .ar{color:#000}
 .aj-card{border:1px solid var(--line);border-radius:8px;padding:14px 16px 16px;margin:0 0 12px;scroll-margin-top:76px}
 .aj-card h3{font-family:var(--display);font-size:23px;margin:0 0 10px}
 .aj-card .aj-h4{font-size:15px;margin:16px 0 6px}
@@ -363,6 +371,11 @@ body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){displ
 .disp-card a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:2px solid var(--ink);border-radius:3px;color:var(--ink);text-decoration:none;font-weight:700}
 .disp-card.done{border-left-color:var(--ok-line)}
 body:not([data-vista="agenda"]) #dispCard{display:none}
+/* Km por pabellón: plegado por defecto (lista larga). Toda la cabecera abre y cierra; el índice lo abre al saltar. */
+#kmFold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;margin:-6px -8px;padding:6px 8px;border-radius:6px}
+#kmFold>summary::-webkit-details-marker{display:none}
+#kmFold>summary h3{margin:0;flex:1;min-width:0}
+#kmFold[open]>summary{margin-bottom:4px}
 .aj-card .row a.go{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:2px solid var(--ink);border-radius:3px;color:var(--ink);text-decoration:none;font-weight:700}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .form-grid label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--ink-2)}
@@ -1074,7 +1087,16 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
     <button type="button" class="ghost back aj-back" data-aj-back>← Volver</button>
     <h2 class="aj-t" tabindex="-1">Ajustes</h2>
     <nav class="aj-nav" aria-label="Secciones de Ajustes">
-      <a href="#aj-avisos">Notificaciones</a><a href="#aj-cal">Calendario</a><a href="#aj-idioma">Idioma</a><a class="arb-only" href="#aj-despl">Desplazamiento</a><a class="arb-only" href="#aj-irpf">IRPF</a><a class="arb-only" href="#aj-km">Km por pabellón</a><a class="arb-only" href="#aj-coche">Compartir coche</a><a href="#aj-ayuda">Ayuda</a><a href="#aj-cuenta">Tu cuenta</a><a class="adm hidden" href="./?vista=admin" data-open-admin>Administración</a>
+      <a href="#aj-avisos"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Notificaciones</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a href="#aj-cal"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Calendario</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a href="#aj-idioma"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg><span>Idioma</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a class="arb-only" href="#aj-despl"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17H3v-5l2.5-6h13L21 12v5h-2"/><path d="M9 17h6M3 12h18"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg><span>Desplazamiento</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a class="arb-only" href="#aj-irpf"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg><span>IRPF</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a class="arb-only" href="#aj-km"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Km por pabellón</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a class="arb-only" href="#aj-coche"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 21v-1a7 7 0 0 1 14 0v1M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6 6 0 0 1 4 5.5v1"/></svg><span>Compartir coche</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a href="#aj-ayuda"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span>Ayuda</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a href="#aj-cuenta"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg><span>Tu cuenta</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a class="adm hidden" href="./?vista=admin" data-open-admin><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Administración</span><svg class="ar" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
     </nav>
     <section class="aj-card" id="aj-avisos" aria-labelledby="h-aj-avisos">
       <h3 id="h-aj-avisos">Notificaciones</h3>
@@ -1114,9 +1136,10 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <p class="muted small" style="margin-top:6px">Se aplica sobre la tarifa de cada partido; dietas, desplazamiento y peajes van exentos.</p>
     </section>
     <section class="aj-card arb-only" id="aj-km" aria-labelledby="h-aj-km">
-      <h3 id="h-aj-km">Km por pabellón (solo ida)</h3>
+      <details id="kmFold"><summary aria-expanded="false"><h3 id="h-aj-km">Km por pabellón (solo ida)</h3><span class="km-n muted small" id="kmCount"></span><span class="chev" aria-hidden="true"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M4 7l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="sr">Mostrar el detalle</span></summary>
       <p class="muted small">Se calculan por carretera al aparecer un pabellón nuevo (direcciones con OpenStreetMap, rutas con OpenRouteService), con la ruta más corta de las razonables, que es la que paga la FCVB. Si no se encuentra la calle, se toma el centro de la población y se marcan como aproximados; si tampoco, se reintenta a la semana o los pones tú. Corrige los que no cuadren con lo que te paga la federación.</p>
       <table class="venues" id="venueTable"></table>
+      </details>
     </section>
     <section class="aj-card arb-only" id="aj-coche" aria-labelledby="h-aj-coche">
       <h3 id="h-aj-coche">Compartir coche</h3>
@@ -2109,6 +2132,7 @@ function renderSettings(){
   $('accountInfo').textContent = GUEST ? `Sin guardar: datos de ${P.isquad_login} leídos de iSquad solo para esta pestaña.` : `Conectada a iSquad como ${P.isquad_login}.`;
   $('btnDelete').classList.toggle('hidden', GUEST);
   const keys=Object.keys(VENUES).sort((a,b)=>(VENUES[a].label||a).localeCompare(VENUES[b].label||b));
+  $('kmCount').textContent = keys.length ? `${keys.length} ${keys.length===1?tr('pabellón'):tr('pabellones')}` : '';
   $('venueTable').innerHTML = keys.map(k=>`<tr><td>${esc(VENUES[k].label||k)}<div class="muted small">${esc(k)}${VENUES[k].km_source==='poblacion'?' · km aproximados al centro de la población':''}</div></td><td><input type="number" step="1" data-venue="${esc(k)}" value="${VENUES[k].km??''}" placeholder="?"> km</td></tr>`).join('') || '<tr><td class="muted">Sin pabellones todavía.</td></tr>';
 }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400); }
@@ -3366,7 +3390,8 @@ async function loadAdmin(){
   if(VIEW==='admin') render();   // abierta con ?vista=admin: ya se sabe si se enseña
 }
 document.querySelector('.aj-nav').addEventListener('click', e=>{
-  if(e.target.closest('a[data-open-admin]')){ e.preventDefault(); openAdmin(); } });
+  if(e.target.closest('a[data-open-admin]')){ e.preventDefault(); openAdmin(); return; }
+  if(e.target.closest('a[href="#aj-km"]')) $('kmFold').open = true; });   // saltar a Km lo despliega
 // Se carga al entrar en la página (cada vez); dentro, cada panel tiene su botón Actualizar.
 function renderAdmin(){
   if(ADMIN===null){ $('admKpis').innerHTML='<p class="small muted">Cargando…</p>'; return; }
