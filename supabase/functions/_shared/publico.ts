@@ -121,16 +121,17 @@ export function seasonCode(d = new Date()) {
 }
 // Perfil de iSquad ("Jugador", "Entrenador", "2º Entrenador", "Invitado"...) en el que usa la app.
 export const perfilOf = (p: string) => { const n = norm(p); return /ENTRENADOR|TECNIC/.test(n) ? "entrenador" : /JUGADOR/.test(n) ? "jugador" : (p || "").toLowerCase() || "jugador"; };
-// Plantilla pública de un equipo: nombre, foto de afiliado (images/afiliacion/...) y perfil de cada persona.
-export async function roster(idEquipo: string): Promise<{ name: string; foto: string; perfil: string }[]> {
+// Plantilla pública de un equipo: nombre, foto de afiliado (images/afiliacion/...), perfil de cada persona y si está de
+// baja (columna FECHA BAJA con fecha). No trae dorsales.
+export async function roster(idEquipo: string): Promise<{ name: string; foto: string; perfil: string; baja: boolean }[]> {
   const s = await getText(`${PUB}/equipo.php?id_equipo=${encodeURIComponent(idEquipo)}&id_territorial=${TERRITORIAL}`);
   const table = s.match(/<table class='table table-striped tabla-plantilla'>[\s\S]*?<\/table>/)?.[0] || "";
-  const out: { name: string; foto: string; perfil: string }[] = [];
+  const out: { name: string; foto: string; perfil: string; baja: boolean }[] = [];
   for (const tr of table.match(/<tr>[\s\S]*?<\/tr>/g) || []) {
     const cells = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((x) => x[1]);
     if (cells.length < 2) continue;
     const foto = cells[0].match(/images\/afiliacion\/([^"'\s>]+)/)?.[1] || "";
-    out.push({ name: text(fixMojibake(cells[0])), foto, perfil: text(cells[1]) });
+    out.push({ name: text(fixMojibake(cells[0])), foto, perfil: text(cells[1]), baja: /\d/.test(text(cells[4] || "")) });
   }
   return out;
 }

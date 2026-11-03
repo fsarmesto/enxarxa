@@ -68,10 +68,11 @@ function pintar() {
 }
 
 /* ---------- Inicio ---------- */
-let MIOS = null;
+let MIOS = null, SB = null;
+const sbc = () => (SB ??= supabase.createClient(window.APP_CONFIG.SUPABASE_URL, window.APP_CONFIG.SUPABASE_ANON_KEY));
 async function cargarMios() {
   try {
-    const sb = supabase.createClient(window.APP_CONFIG.SUPABASE_URL, window.APP_CONFIG.SUPABASE_ANON_KEY);
+    const sb = sbc();
     const { data: { session } } = await sb.auth.getSession(); if (!session) { MIOS = []; return; }
     const desde = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10), hasta = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
     const { data } = await sb.from('matches').select('id, date, time, comp, teams, venue, addr, crew').eq('user_id', session.user.id).gte('date', desde).lte('date', hasta).order('date').order('time');
@@ -96,18 +97,23 @@ function pInicio() {
   $('app').querySelectorAll('[data-desde]').forEach((b) => (b.onclick = () => {
     const m = MIOS.find((x) => x.id === b.dataset.desde), [l, v] = (m.teams || '').split(' vs ');
     const crew = (f) => titulo((m.crew || []).find((c) => c.f === f)?.n || '');
+    A_ORIGEN = { local: l, visitante: v, fecha: m.date };
     crear({ competicion: titulo(m.comp), partido: m.id, fecha: m.date, hora: m.time, pabellon: titulo(m.venue), ciudad: titulo((m.addr || '').match(/\d{5}\s+([^,]+)/)?.[1] || ''),
       local: titulo(l), visitante: titulo(v), r1: crew('r1'), r2: crew('r2'), an: crew('an') });
   }));
   $('app').querySelectorAll('[data-abrir]').forEach((b) => (b.onclick = () => abrir(b.dataset.abrir)));
   $('app').querySelectorAll('[data-borrar]').forEach((b) => (b.onclick = () => { if (confirm('¿Borrar esta acta de este dispositivo?')) { localStorage.removeItem(clave(b.dataset.borrar)); pintar(); } }));
 }
+let A_ORIGEN = null;
 function crear(datos) {
-  A = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cfg: { ...M.CONFIG }, datos, ev: [], paso: 'datos', creada: new Date().toISOString() };
+  A = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cfg: { ...M.CONFIG }, datos, ev: [], paso: 'datos', creada: new Date().toISOString(),
+    ...(A_ORIGEN ? { origen: A_ORIGEN } : {}) };
+  A_ORIGEN = null; reiniciar();
   guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
 }
-function abrir(id) { try { A = JSON.parse(localStorage.getItem(clave(id))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
-function salir() { A = null; ST = null; VER = false; history.replaceState(null, '', location.pathname); pintar(); }
+function reiniciar() { delete BORR.L; delete BORR.V; ISQ = { estado: null, msg: '' }; VER = false; }   // nada de un acta pasa a otra
+function abrir(id) { reiniciar(); try { A = JSON.parse(localStorage.getItem(clave(id))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
+function salir() { A = null; ST = null; reiniciar(); history.replaceState(null, '', location.pathname); pintar(); }
 
 /* ---------- 1. Datos del partido ---------- */
 function campo(k, t, tipo = 'text', extra = '') { return `<label class="f"><span>${esc(t)}</span><input type="${tipo}" data-d="${k}" value="${esc(A.datos[k] || '')}" ${extra}></label>`; }
@@ -134,18 +140,51 @@ function pDatos() {
 
 /* ---------- 2. Equipos ---------- */
 const BORR = {};   // plantillas en edición (sin guardar todavía en el acta)
+const clavePlantilla = (nombre) => 'acta-plantilla:' + nombre;
+const nombreKey = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().split(/[^A-Z]+/).filter(Boolean).sort().join(' ');
+// Plantillas de iSquad del partido (función equipos, acción plantillas): jugadores sin dorsal (la web no los da), entrenador y
+// segundo; los dorsales, capitán y líberos se recuperan de la última acta de ese equipo en este dispositivo, por nombre.
+let ISQ = { estado: null, msg: '' };
+async function cargarIsquad(forzar) {
+  if (!A.origen || (!forzar && A.isqCargada) || ISQ.estado === 'cargando') return;
+  ISQ = { estado: 'cargando', msg: '' }; pEquipos();
+  let r = {};
+  try {
+    const { data: { session } } = await sbc().auth.getSession();
+    const res = await fetch(window.APP_CONFIG.SUPABASE_URL + '/functions/v1/equipos', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: window.APP_CONFIG.SUPABASE_ANON_KEY, ...(session ? { Authorization: 'Bearer ' + session.access_token } : {}) }, body: JSON.stringify({ action: 'plantillas', ...A.origen }) });
+    r = await res.json().catch(() => ({})); if (!res.ok) r = { error: r.error || 'No se ha podido leer iSquad.' };
+  } catch (e) { r = { error: 'Sin conexión: escribe las plantillas a mano.' }; }
+  if (r.error) { ISQ = { estado: 'error', msg: r.error }; if (A && vista() === 'equipos') pEquipos(); return; }
+  for (const eq of ['L', 'V']) {
+    const t = r[eq]; if (!t) continue;
+    const nombre = eqNombre(eq); let prev = null;
+    try { prev = JSON.parse(localStorage.getItem(clavePlantilla(nombre)) || 'null'); } catch (x) {}
+    const mem = new Map((prev?.jugadores || []).filter((j) => j.nombre).map((j) => [nombreKey(j.nombre), j]));
+    const jug = t.personas.filter((x) => x.perfil === 'jugador').map((x) => { const m = mem.get(nombreKey(x.nombre)) || {}; return { num: m.num || '', nombre: titulo(x.nombre), cap: !!m.cap, lib: !!m.lib, isq: true }; })
+      .sort((a, b) => (+a.num || 999) - (+b.num || 999) || a.nombre.localeCompare(b.nombre));
+    const ent = t.personas.filter((x) => x.perfil === 'entrenador');
+    const segundo = (x) => /2|SEGON|SEGUN|AYUD|AJUD|AUX/i.test(x.cargo);
+    const E = ent.find((x) => !segundo(x)), E2 = ent.find((x) => segundo(x)) || ent.filter((x) => x !== E)[0];
+    BORR[eq] = { jugadores: jug.length ? jug : [{ num: '', nombre: '' }], isq: jug.length,
+      oficiales: ['E', 'E2', 'F', 'M'].map((rol) => ({ rol, nombre: rol === 'E' && E ? titulo(E.nombre) : rol === 'E2' && E2 ? titulo(E2.nombre) : (prev?.oficiales || []).find((o) => o.rol === rol)?.nombre || '' })) };
+  }
+  ISQ = { estado: 'ok', msg: [r.L ? '' : eqNombre('L'), r.V ? '' : eqNombre('V')].filter(Boolean).join(' y ') };
+  A.isqCargada = true; guardar();
+  if (A && vista() === 'equipos') pEquipos();
+}
 function borrador(eq) {
   if (!BORR[eq]) {
     const e = ST.equipos[eq];
     BORR[eq] = { jugadores: e.jugadores.length ? e.jugadores.map((j) => ({ ...j })) : Array.from({ length: 12 }, () => ({ num: '', nombre: '' })),
       oficiales: ['E', 'E2', 'F', 'M'].map((rol) => ({ rol, nombre: e.oficiales.find((o) => o.rol === rol)?.nombre || '' })) };
-    try { const prev = JSON.parse(localStorage.getItem('acta-plantilla:' + (eq === 'L' ? A.datos.local : A.datos.visitante)) || 'null'); if (prev && !e.jugadores.length) Object.assign(BORR[eq], prev); } catch (x) {}
+    try { const prev = JSON.parse(localStorage.getItem(clavePlantilla(eq === 'L' ? A.datos.local : A.datos.visitante)) || 'null'); if (prev && !e.jugadores.length) Object.assign(BORR[eq], { ...prev, jugadores: prev.jugadores.filter((j) => j.nombre || j.num) }); } catch (x) {}
   }
   return BORR[eq];
 }
 function tablaEquipo(eq) {
   const b = borrador(eq), nombre = eq === 'L' ? A.datos.local : A.datos.visitante;
-  return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>
+  const deIsq = b.isq ? `<p class="small muted">Plantilla de iSquad: ${b.isq} jugadores (sin las bajas). La web no da los dorsales: ponlos y quita con ✕ a quien no esté convocado.</p>` : '';
+  return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deIsq}
     <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th><th>Líbero</th><th></th></tr></thead><tbody>
     ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="number" min="1" max="99" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal"></td>
       <td><input type="text" data-i="${i}" data-k="nombre" value="${esc(j.nombre || '')}" aria-label="Nombre"></td>
@@ -161,7 +200,11 @@ function leerEquipo(eq) {
   sec.querySelectorAll('[data-o]').forEach((i) => (b.oficiales[+i.dataset.o].nombre = i.value.trim()));
 }
 function pEquipos() {
-  $('app').innerHTML = pasos('equipos') + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán y los líberos (como mucho 2). Las filas sin dorsal no cuentan.</p>
+  if (A.origen && !A.isqCargada && !ST.equipos.L.jugadores.length && ISQ.estado === null) { cargarIsquad(); return; }
+  const aviso = ISQ.estado === 'cargando' ? '<p class="msg ok">Cargando las plantillas de iSquad…</p>'
+    : ISQ.estado === 'error' ? `<p class="msg err">${esc(ISQ.msg)}</p>`
+    : ISQ.estado === 'ok' && ISQ.msg ? `<p class="msg err">No he encontrado en iSquad la plantilla de ${esc(ISQ.msg)}: escríbela a mano.</p>` : '';
+  $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán y los líberos (como mucho 2).${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
     ${tablaEquipo('L')}${tablaEquipo('V')}
     <section class="card"><h2>Firmas antes del partido</h2><p class="small muted">Capitanes y entrenadores firman la plantilla.</p>${firmasHtml(FIRMAS_PRE)}</section>
     <div class="row"><button type="button" class="ghost" id="atras">Atrás</button><button class="primary" id="sig">Siguiente: sorteo y alineación</button></div>`;
@@ -171,18 +214,21 @@ function pEquipos() {
     sec.querySelectorAll('[data-quitar]').forEach((b) => (b.onclick = () => { leerEquipo('L'); leerEquipo('V'); borrador(eq).jugadores.splice(+b.dataset.quitar, 1); pEquipos(); }));
   }
   enlazarFirmas(() => { leerEquipo('L'); leerEquipo('V'); });   // que firmar no borre lo escrito sin guardar
+  $('recargar')?.addEventListener('click', () => { if (confirm('¿Volver a cargar las plantillas de iSquad? Se pierden los cambios de esta pantalla.')) { delete BORR.L; delete BORR.V; cargarIsquad(true); } });
   $('atras').onclick = () => { leerEquipo('L'); leerEquipo('V'); A.paso = 'datos'; guardar(); pintar(); };
   $('sig').onclick = () => {
     leerEquipo('L'); leerEquipo('V');
     for (const eq of ['L', 'V']) {
       const b = borrador(eq), nombre = eq === 'L' ? A.datos.local : A.datos.visitante;
+      const sinDorsal = b.jugadores.filter((j) => String(j.num).trim() === '' && String(j.nombre || '').trim());
+      if (sinDorsal.length) { toast(`${nombre}: falta el dorsal de ${sinDorsal.slice(0, 3).map((j) => j.nombre).join(', ')}${sinDorsal.length > 3 ? '…' : ''} (o quítalo con ✕).`); return; }
       const jugadores = b.jugadores.filter((j) => String(j.num).trim() !== '').map((j) => ({ num: +j.num, nombre: titulo(String(j.nombre || '').trim()), ...(j.cap ? { cap: true } : {}), ...(j.lib ? { lib: true } : {}) }));
       const ev = { t: 'equipo', eq, nombre, jugadores, oficiales: b.oficiales.filter((o) => o.nombre) };
       if (jugadores.filter((j) => !j.lib).length < 6) { toast(`${nombre}: hacen falta al menos 6 jugadores que no sean líberos.`); return; }
       if (!jugadores.some((j) => j.cap)) { toast(`${nombre}: marca quién es el capitán.`); return; }
       const m = M.validar(A.cfg, A.datos, A.ev, ev); if (m) { toast(`${nombre}: ${m}`); return; }
       A.ev = A.ev.filter((e) => !(e.t === 'equipo' && e.eq === eq)); A.ev.push({ ...ev, h: new Date().toISOString() });
-      try { localStorage.setItem('acta-plantilla:' + nombre, JSON.stringify({ jugadores: b.jugadores, oficiales: b.oficiales })); } catch (x) {}
+      try { localStorage.setItem(clavePlantilla(nombre), JSON.stringify({ jugadores: b.jugadores.filter((j) => j.num || j.nombre), oficiales: b.oficiales })); } catch (x) {}
     }
     A.paso = 'sorteo'; guardar(); pintar(); scrollTo(0, 0);
   };

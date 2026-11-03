@@ -836,6 +836,12 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   También "Descargar los datos (JSON)".
 - Entrada: Ajustes → "Acta electrónica (prototipo)", solo para administradores (como Administración); la página es pública por
   URL. Con sesión, ofrece empezar desde un partido designado (−7 a +30 días): equipos, competición, fecha, pabellón y árbitros.
+- **Plantillas precargadas (3-nov-2026):** desde un partido designado, el paso Equipos llama a `equipos {action:"plantillas",
+  local, visitante, fecha}`: club y categoría salen del listado de partidos (`feed`; si el partido ya no sale, otro partido del
+  equipo), el equipo de la ficha del club (por nombre, o el único del club en esa categoría: la ficha a veces pone el nombre del
+  club) y la plantilla pública (`roster`, sin las bajas). **iSquad no da dorsales**: se ponen en el acta y se recuerdan por
+  nombre en `acta-plantilla:<equipo>` (dorsal, capitán, líbero) para la siguiente. Entrenador y 2º por el cargo. Fila con
+  nombre y sin dorsal = aviso (antes se ignoraba). 3-nov: 59 de 60 equipos de 30 partidos encontrados.
 - Pruebas: `node --test tools/prueba-acta-motor.mjs` (12 casos de reglas). Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
 - Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,
