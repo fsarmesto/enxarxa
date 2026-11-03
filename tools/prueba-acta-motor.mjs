@@ -257,3 +257,52 @@ test('líbero que no puede seguir: entra el otro líbero o se redesigna a uno de
   assert.equal(M.setActual(p.st()).libero.V.num, '7');
   assert.equal(p.st().liberosFuera.V[0].nuevo, '7');
 });
+
+test('líbero en pista: la excepcional no vale para el que está fuera por el líbero; el sancionado sí se sustituye', () => {
+  const p = preparado();
+  p.add({ t: 'liberoEntra', eq: 'V', libero: 12, sale: 5 });
+  assert.match(p.falla({ t: 'sust', eq: 'V', sale: 5, entra: 7, tipo: 'excepcional' }), /fuera por el líbero/);
+  // El 5 (fuera por el líbero) es expulsado: hay que sustituirlo y el líbero sigue, ahora por el que entra
+  p.add({ t: 'sancion', eq: 'V', quien: 5, tipo: 'expulsion' });
+  assert.match(p.falla({ t: 'punto', eq: 'L' }), /sustituir/);
+  p.add({ t: 'sust', eq: 'V', sale: 5, entra: 7 });
+  const s = M.setActual(p.st());
+  assert.equal(s.libero.V.por, '7'); assert.equal(s.rot.V[4], '7'); assert.deepEqual(M.enPista(s, 'V'), S([1, 2, 3, 4, 12, 6]));
+  p.add({ t: 'punto', eq: 'L' });
+});
+
+test('falta de rotación: punto y saque al rival, anotada', () => {
+  const p = preparado();
+  p.add({ t: 'faltaRotacion', eq: 'L' });   // L sacaba
+  const st = p.st(), s = M.setActual(st);
+  assert.deepEqual(s.puntos, { L: 0, V: 1 }); assert.equal(s.saque, 'V'); assert.equal(st.faltasRotacion.length, 1); assert.equal(s.progreso[0].motivo, 'rotacion');
+});
+
+test('castigo entre sets: el punto se da al empezar el set siguiente', () => {
+  const p = preparado();
+  puntos(p, 'L', 25);
+  p.add({ t: 'sancion', eq: 'V', quien: 'E', tipo: 'castigo' });
+  assert.equal(M.setActual(p.st()).puntos.L, 0, 'entre sets todavía no cuenta');
+  p.add({ t: 'alineacion', eq: 'L', jugadores: [1, 2, 3, 4, 5, 6] }); p.add({ t: 'alineacion', eq: 'V', jugadores: [1, 2, 3, 4, 5, 6] }); p.add({ t: 'inicioSet' });
+  const s = M.setActual(p.st());
+  assert.deepEqual(s.puntos, { L: 1, V: 0 }); assert.equal(s.saque, 'L', 'y el saque');
+});
+
+test('incomparecencia: 3-0 con 25-0; equipo incompleto a mitad: el rival gana lo que falta', () => {
+  const p = preparado();
+  puntos(p, 'L', 10); puntos(p, 'V', 12);
+  p.add({ t: 'incompleto', eq: 'L', motivo: 'incompleto' });
+  let st = p.st();
+  assert.equal(st.fase, 'fin'); assert.equal(st.ganados.V, 3); assert.equal(st.ganados.L, 0);
+  assert.deepEqual(st.sets[0].puntos, { L: 10, V: 25 }, 'el set en juego: el rival suma lo que le falta');
+  assert.deepEqual(st.sets[1].puntos, { L: 0, V: 25 }); assert.equal(st.incompleto.motivo, 'incompleto');
+  assert.ok(p.falla({ t: 'punto', eq: 'L' }));
+  // Incomparecencia antes de empezar
+  const ev = [plantilla('L'), plantilla('V'), { t: 'incompleto', eq: 'V', motivo: 'incomparecencia' }];
+  st = M.reproducir({}, {}, ev);
+  assert.equal(st.ganados.L, 3); assert.deepEqual(st.sets.map((x) => `${x.puntos.L}-${x.puntos.V}`), ['25-0', '25-0', '25-0']);
+  assert.equal(M.resultados(st).ganador, 'L');
+  // Incompleto con el set ajustado: 24-23 → el rival necesita 2 de ventaja
+  const p2 = preparado(); puntos(p2, 'L', 24); puntos(p2, 'V', 23); p2.add({ t: 'incompleto', eq: 'L' });
+  assert.deepEqual(p2.st().sets[0].puntos, { L: 24, V: 26 });
+});

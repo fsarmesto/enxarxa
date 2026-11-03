@@ -39,11 +39,12 @@ main{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:
 </head>
 <body>
 <script src="../../cargando.js"></script>
-<div class="top"><a href="../../">← Vòlei EnXarxa</a><span class="vivo" id="vivo"><i></i><span>En directo</span></span></div>
+<div class="top board" style="border-bottom:4px solid var(--yellow)"><div class="in" style="display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;position:relative;padding-right:90px"><a href="../../">← Vòlei EnXarxa</a><span class="vivo" id="vivo"><i></i><span>En directo</span></span></div></div>
 <main id="m" aria-live="polite"></main>
 <p class="pie" id="pie"></p>
 <script src="../../config.js"></script>
 <script src="../../vendor/supabase-2.45.4.js"></script>
+<script src="../acta-ca.js"></script>
 <script>
 (() => {
 const $ = (id) => document.getElementById(id);

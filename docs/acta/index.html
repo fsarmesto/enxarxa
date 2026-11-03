@@ -46,9 +46,9 @@
    la derecha, como los ve el anotador) con la pista, el botón de punto y las acciones de cada equipo. */
 main.wide{max-width:1180px}
 .pasos{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px;font-size:13px;font-weight:700;color:var(--ink-3)}
-.pasos span{padding:2px 9px;border-radius:12px;border:1px solid var(--line)}
-.pasos span.on{background:var(--yellow);border-color:var(--yellow);color:#000}
-.pasos span.ok{color:var(--ok);border-color:var(--ok)}
+.pasos>span{padding:2px 9px;border-radius:12px;border:1px solid var(--line)}
+.pasos>span.on{background:var(--yellow);border-color:var(--yellow);color:#000}
+.pasos>span.ok{color:var(--ok);border-color:var(--ok)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px 16px}
 .lista{width:100%;border-collapse:collapse;font-size:14px}
 .lista td,.lista th{padding:4px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
@@ -248,6 +248,7 @@ button.en-directo{background:var(--red);border-color:var(--red);color:#fff}
 <script src="../config.js"></script>
 <script src="../vendor/supabase-2.45.4.js"></script>
 <script src="motor.js"></script>
+<script src="acta-ca.js"></script>
 <script src="acta.js"></script>
 </body>
 </html>
