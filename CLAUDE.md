@@ -243,7 +243,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   page), sin token. Hasta el 28/29-oct-2026 era `voleibol.isquad.es/json/api/call.php/resultados/busquedaGlobal?token=`
   con el `let token` de las páginas; iSquad quitó el token y esa API da 500. Misma respuesta. Devuelve por partido estado (Pendiente, Finalizado, Suspendido...), resultado en sets, fecha, hora,
   `fecha_confirmada` (1 = horario confirmado; si no, hora provisional o 0:00 = sin horario), jornada, grupo e ids de
-  equipo. Sin pabellón: se cruza con el listado. `teamMatches` en `_shared/publico.ts`, caché `tm:<id_equipo>` 30 min.
+  equipo. Sin pabellón: se cruza con el listado. `teamMatches` en `_shared/publico.ts`, caché `tm2:<id_equipo>` 30 min.
+  Busca por palabras sueltas (todos los equipos con MANRESA, de todas las categorías), 20 por página como mucho (no admite más
+  ni filtro por equipo) y ordenado alrededor de hoy: un club grande ocupa ~15 páginas. Desde el 3-nov-2026, las 6 primeras
+  cada 30 min y el calendario entero (hasta 25 páginas) cada 12 h en `tmc:`, juntos (antes solo 6: faltaba media temporada).
   En la web, etiquetas: Ganado/Perdido con el resultado, Por jugar · hora, hora sin confirmar, sin horario, Suspendido.
   Equipo arbitral: `previo.php?id_partido=` (página pública ~800 KB): un bloque `divN` por persona ("ARBITRO",
   "ARBITRO", "ANOTADOR/CRONOMETRADOR", "TV" vacío; desde el 28/29-oct-2026 la función va en `<i-t page='common'>`);

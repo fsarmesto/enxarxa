@@ -183,31 +183,50 @@ export type PartidoEquipo = { id: string; d: string; t: string; conf: boolean; e
   rl: number | null; rv: number | null; j: string; g: string; comp: string; tor: string; fase: string };
 // aparte: el nombre lo manda el navegador sin comprobar (Clasificación → partidos de un equipo): su propia caché, para que
 // un nombre equivocado no deje vacío el calendario de ese equipo para todos (revisión del 2-nov-2026).
+// El buscador busca por palabras sueltas: con "AE VOLEI MANRESA A" salen todos los equipos con MANRESA, de 20 en 20 (no admite
+// más ni filtrar por equipo) y ordenados alrededor de hoy. Las 6 primeras páginas (unas ±4 semanas en un club grande) se leen
+// cada 30 min; el calendario entero (hasta 25 páginas: un club grande ocupa ~15) como mucho cada 12 h, en `tmc:`. Se juntan y
+// manda lo de las 6 páginas (3-nov-2026: antes solo se leían 6 y faltaba media temporada de los clubs grandes).
+const PAGINAS_CERCA = 6, PAGINAS_TODO = 25;
 export function teamMatches(db: Db, idEquipo: string, name: string, aparte = false): Promise<PartidoEquipo[]> {
   if (idEquipo.startsWith("rfevb:")) return rfevb.partidosEquipo(db, idEquipo);
-  const key = aparte ? `tm2:${idEquipo}|${name.trim().toUpperCase().replace(/\s+/g, " ").slice(0, 80)}` : `tm2:${idEquipo}`;
-  return cached(db, key, 0.5 * H, async () => {
-    const out: PartidoEquipo[] = [];
-    for (let page = 1; page <= 6; page++) {
-      const res = await apiSearch(db, { q: name, id_temporada: seasonCode(), id_superficie: "1", seleccion: "0", limit: "20", categoria: "partidos", page: String(page) });
-      // deno-lint-ignore no-explicit-any
-      for (const p of (res?.data?.partidos || []) as any[]) {
-        if (String(p.id_local) !== idEquipo && String(p.id_visitante) !== idEquipo) continue;
-        const [dd, mm, yy] = String(p.fecha || "").split("/");
-        const hora = String(p.hora || "").padStart(5, "0");
-        out.push({
-          id: String(p.id_partido), d: yy ? `${yy}-${mm}-${dd}` : "", t: hora === "00:00" || hora === "0:00" ? "" : hora,
-          conf: String(p.fecha_confirmada) === "1", est: String(p.estado || ""), l: fixMojibake(String(p.nombre_local || "")).trim(),
-          v: fixMojibake(String(p.nombre_visitante || "")).trim(), idl: String(p.id_local), idv: String(p.id_visitante),
-          rl: p.resultado_local == null ? null : +p.resultado_local, rv: p.resultado_visitante == null ? null : +p.resultado_visitante,
-          j: String(p.jornada || ""), g: String(p.grupo || ""), comp: fixMojibake(String(p.nombre_competicion || "")),
-          tor: String(p.id_torneo || ""), fase: fixMojibake(String(p.nombre_fase || "")),
-        });
-      }
-      if (!res?.has_more?.partidos) break;
+  const sufijo = aparte ? `${idEquipo}|${name.trim().toUpperCase().replace(/\s+/g, " ").slice(0, 80)}` : idEquipo;
+  return cached(db, `tm2:${sufijo}`, 0.5 * H, async () => {
+    const cerca = await buscarPartidosEquipo(db, idEquipo, name, PAGINAS_CERCA);
+    let todos: PartidoEquipo[] = [];
+    if (cerca.mas) {
+      try { todos = (await cached(db, `tmc:${sufijo}`, 12 * H, async () => (await buscarPartidosEquipo(db, idEquipo, name, PAGINAS_TODO)).out)); }
+      catch { /* sin el calendario entero, al menos lo de cerca */ }
     }
-    return out.sort((a, b) => (a.d + a.t).localeCompare(b.d + b.t));
+    const porId = new Map(todos.map((m) => [m.id, m]));
+    for (const m of cerca.out) porId.set(m.id, m);
+    return [...porId.values()].sort((a, b) => (a.d + a.t).localeCompare(b.d + b.t));
   });
+}
+
+async function buscarPartidosEquipo(db: Db, idEquipo: string, name: string, paginas: number): Promise<{ out: PartidoEquipo[]; mas: boolean }> {
+  const out: PartidoEquipo[] = [];
+  let mas = false;
+  for (let page = 1; page <= paginas; page++) {
+    const res = await apiSearch(db, { q: name, id_temporada: seasonCode(), id_superficie: "1", seleccion: "0", limit: "20", categoria: "partidos", page: String(page) });
+    // deno-lint-ignore no-explicit-any
+    for (const p of (res?.data?.partidos || []) as any[]) {
+      if (String(p.id_local) !== idEquipo && String(p.id_visitante) !== idEquipo) continue;
+      const [dd, mm, yy] = String(p.fecha || "").split("/");
+      const hora = String(p.hora || "").padStart(5, "0");
+      out.push({
+        id: String(p.id_partido), d: yy ? `${yy}-${mm}-${dd}` : "", t: hora === "00:00" || hora === "0:00" ? "" : hora,
+        conf: String(p.fecha_confirmada) === "1", est: String(p.estado || ""), l: fixMojibake(String(p.nombre_local || "")).trim(),
+        v: fixMojibake(String(p.nombre_visitante || "")).trim(), idl: String(p.id_local), idv: String(p.id_visitante),
+        rl: p.resultado_local == null ? null : +p.resultado_local, rv: p.resultado_visitante == null ? null : +p.resultado_visitante,
+        j: String(p.jornada || ""), g: String(p.grupo || ""), comp: fixMojibake(String(p.nombre_competicion || "")),
+        tor: String(p.id_torneo || ""), fase: fixMojibake(String(p.nombre_fase || "")),
+      });
+    }
+    mas = !!res?.has_more?.partidos;
+    if (!mas) break;
+  }
+  return { out, mas };
 }
 
 // Id público de un partido del listado de la federación (que no lo trae), para su Previo: se busca por el nombre del
