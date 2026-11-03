@@ -3301,7 +3301,7 @@ function openGuide(){
 function closeGuide(){ if(CONSENT_OPEN) return; $('guide').classList.add('hidden'); try{ localStorage.setItem(GUIDE_KEY,'1'); }catch(e){} }
 // Edad mínima y política: las cuentas sin aceptar la versión vigente ven este aviso (no se puede cerrar) antes que nada.
 // POLICY_VERSION tiene que coincidir con supabase/functions/_shared/politica.ts.
-const POLICY_VERSION = '2026-11-02';
+const POLICY_VERSION = '2026-11-03';
 const LEGAL_LINKS = '<a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a>';
 const UNDER14 = 'Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.';
 let CONSENT_OPEN = false;
@@ -3337,7 +3337,9 @@ function openConsent(){
     const {error} = await sb.rpc('aceptar_politica',{v:POLICY_VERSION});
     $('cOk').disabled=false;
     if(error){ $('cErr').textContent=tr('No se ha podido guardar'); return; }
-    P.policy_version=POLICY_VERSION; polSave(); CONSENT_OPEN=false; $('guide').classList.add('hidden'); maybeGuide();
+    P.policy_version=POLICY_VERSION; polSave(); CONSENT_OPEN=false; $('guide').classList.add('hidden');
+    if(GO_DISP){ GO_DISP=false; location.href='disponibilidad/'; return; }   // venía de "Entrar con iSquad" del formulario
+    maybeGuide();
   };
 }
 function maybeGuide(){ if(needsConsent()) return openConsent(); let seen=false; try{ seen=!!localStorage.getItem(GUIDE_KEY); }catch(e){} if(!seen && !GUEST) openGuide(); }
