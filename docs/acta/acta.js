@@ -22,9 +22,27 @@ let VER = false;       // viendo el acta para imprimir (no se guarda)
 /* ---------- Guardar en el dispositivo ---------- */
 const clave = (id) => 'acta:' + id;
 function guardar() { A.actualizada = new Date().toISOString(); try { localStorage.setItem(clave(A.id), JSON.stringify(A)); } catch (e) { toast('No se ha podido guardar en el dispositivo.'); } }
+// Actas guardadas con versiones anteriores: lo que ahora no se acepta y se puede arreglar sin tocar lo anotado se arregla
+// al cargarlas. Hoy: jugadores con un dorsal no válido (antes no se comprobaba, p. ej. "544") en un acta que aún no ha
+// empezado: se quitan de la plantilla guardada y se dejan aparte (a.quitados) para que salgan en Equipos y se corrijan.
+function reparar(a) {
+  if (!a || !Array.isArray(a.ev)) return a;
+  const empezada = a.ev.some((e) => e.t === 'inicioSet');
+  let cambios = false;
+  a.ev = a.ev.map((e) => {
+    if (e.t !== 'equipo' || !Array.isArray(e.jugadores)) return e;
+    const malos = e.jugadores.filter((j) => !M.dorsalValido(j.num));
+    if (!malos.length || empezada) return e;
+    cambios = true;
+    ((a.quitados ??= {})[e.eq] ??= []).push(...malos.map((j) => ({ ...j, num: String(j.num ?? '') })));
+    return { ...e, jugadores: e.jugadores.filter((j) => M.dorsalValido(j.num)) };
+  });
+  if (cambios) { a.paso = 'equipos'; try { localStorage.setItem(clave(a.id), JSON.stringify(a)); } catch (x) {} }
+  return a;
+}
 function actas() {
   const out = [];
-  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('acta:')) { try { out.push(JSON.parse(localStorage.getItem(k))); } catch (e) {} } } } catch (e) {}
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('acta:')) { try { out.push(reparar(JSON.parse(localStorage.getItem(k)))); } catch (e) {} } } } catch (e) {}
   return out.sort((a, b) => String(b.actualizada).localeCompare(String(a.actualizada)));
 }
 function calcular() { ST = M.reproducir(A.cfg, A.datos, A.ev); return ST; }
@@ -139,7 +157,7 @@ function crear(datos) {
   guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
 }
 function reiniciar() { delete BORR.L; delete BORR.V; ISQ = { estado: null, msg: '' }; VER = false; }   // nada de un acta pasa a otra
-function abrir(id) { reiniciar(); try { A = JSON.parse(localStorage.getItem(clave(id))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
+function abrir(id) { reiniciar(); try { A = reparar(JSON.parse(localStorage.getItem(clave(id)))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
 function salir() { A = null; ST = null; reiniciar(); history.replaceState(null, '', location.pathname); pintar(); }
 
 /* ---------- 1. Datos del partido ---------- */
@@ -210,6 +228,11 @@ async function cargarIsquad(forzar) {
   if (A && vista() === 'equipos') pEquipos();
 }
 function borrador(eq) {
+  if (!BORR[eq] && A.quitados?.[eq]?.length) {
+    const e = ST.equipos[eq];
+    BORR[eq] = { jugadores: [...e.jugadores.map((j) => ({ ...j })), ...A.quitados[eq].map((j) => ({ ...j }))],
+      oficiales: ['E', 'E2', 'F', 'M'].map((rol) => ({ rol, nombre: e.oficiales.find((o) => o.rol === rol)?.nombre || '' })) };
+  }
   if (!BORR[eq]) {
     const e = ST.equipos[eq];
     BORR[eq] = { jugadores: e.jugadores.length ? e.jugadores.map((j) => ({ ...j })) : Array.from({ length: 12 }, () => ({ num: '', nombre: '' })),
@@ -220,8 +243,10 @@ function borrador(eq) {
 }
 function tablaEquipo(eq) {
   const b = borrador(eq), nombre = eq === 'L' ? A.datos.local : A.datos.visitante;
+  const q = A.quitados?.[eq] || [];
+  const deQuitados = q.length ? `<p class="msg err small">Dorsal no válido de una versión anterior: ${q.map((j) => `${esc(j.nombre || 'sin nombre')} (${esc(j.num || 'vacío')})`).join(', ')}. Pon un dorsal de 0 a 99, o 00 (o quítalo con ✕).</p>` : '';
   const deIsq = b.isq ? `<p class="small muted">Plantilla de iSquad: ${b.isq} jugadores (sin las bajas). La web no da los dorsales: ponlos y quita con ✕ a quien no esté convocado.</p>` : '';
-  return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deIsq}
+  return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deQuitados}${deIsq}
     <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th>${A.cfg.liberos ? '<th>Líbero</th>' : ''}<th></th></tr></thead><tbody>
     ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="text" inputmode="numeric" maxlength="2" autocomplete="off" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal (0 a 99, o 00)"${j.num !== '' && j.num != null && !M.dorsalValido(j.num) ? ' aria-invalid="true"' : ''}></td>
       <td><input type="text" data-i="${i}" data-k="nombre" value="${esc(j.nombre || '')}" aria-label="Nombre"></td>
@@ -271,7 +296,7 @@ function pEquipos() {
       A.ev = A.ev.filter((e) => !(e.t === 'equipo' && e.eq === eq)); A.ev.push({ ...ev, h: new Date().toISOString() });
       try { localStorage.setItem(clavePlantilla(nombre), JSON.stringify({ jugadores: b.jugadores.filter((j) => j.num || j.nombre), oficiales: b.oficiales })); } catch (x) {}
     }
-    A.paso = 'sorteo'; guardar(); pintar(); scrollTo(0, 0);
+    delete A.quitados; A.paso = 'sorteo'; guardar(); pintar(); scrollTo(0, 0);
   };
 }
 

@@ -884,6 +884,10 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   captura cualquier error y enseña `mostrarError` (qué pasa, Volver a intentarlo, Mis actas, descargar el JSON del acta); errores
   sin capturar y vigilancia de 15 s al arrancar; en la lista, un acta que no se puede abrir se señala sin romper las demás;
   plantillas de iSquad con la animación y como mucho 1 minuto. SW v8 con `cargando.js` en el precache.
+  Causa real (consola de Ferran): un acta guardada antes de validar dorsales, con el **544**, hacía fallar la lista entera.
+  `reparar(a)` al cargar: en un acta sin empezar, los jugadores con dorsal no válido se quitan de la plantilla guardada y se
+  guardan en `a.quitados`, que vuelven a Equipos en rojo con aviso para corregirlos. Vigilancia en `acta/index.html` (10 s,
+  independiente de acta.js, `window.ACTA_OK`): enseña el error del navegador y "Recargar sin caché".
 - Pruebas: `node --test tools/prueba-acta-motor.mjs` (17 casos de reglas). Banco de pruebas con Chrome: un solo perfil
   fijo en /tmp que se vacía al empezar (`tools/prueba-accesibilidad.mjs` igual): los perfiles temporales sin borrar, de
   ~180 MB cada uno, llenaron /tmp (tmpfs de 7,4 GB) el 3-nov. Partido completo con clics reales y axe: banco de la
