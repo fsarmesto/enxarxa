@@ -68,7 +68,7 @@
     </div>
     <p class="small muted" data-t="franjas">Mañana: partidos que empiezan antes de las 15:00. Tarde: desde las 15:00.</p>
     <div class="row"><button type="submit" class="primary" id="enviar" data-t="enviar">Enviar disponibilidad</button><button type="button" class="ghost hidden" id="cancelar" data-t="cancelar">Cancelar</button></div>
-    <p class="small muted" style="margin-top:14px" data-t="privacidad">Tus respuestas solo las ve quien designa en la FCVB, para repartir los partidos. Se borran 4 semanas después del fin de semana.</p>
+    <p class="small muted" style="margin-top:14px"><span data-t="privacidad">Tus respuestas solo las ve quien designa en la FCVB, para repartir los partidos. Se borran 4 semanas después del fin de semana.</span> <a href="../privacidad.html" target="_blank" rel="noopener" data-t="politica">Política de privacidad</a></p>
   </form>
 </main>
 <script src="../config.js"></script>
@@ -83,7 +83,7 @@ const T = {
     coche:'¿Tienes coche?', si:'Sí', no:'No', sabado:'Sábado', domingo:'Domingo', manana:'Mañana', tarde:'Tarde', ambas:'Mañana y tarde', noPuedo:'No puedo',
     obs:'Observaciones', obsPh:'Por ejemplo: a partir de las 17:00', franjas:'Mañana: partidos que empiezan antes de las 15:00. Tarde: desde las 15:00.',
     enviar:'Enviar disponibilidad', cancelar:'Cancelar', guardar:'Guardar cambios', enviando:'Enviando…',
-    privacidad:'Tus respuestas solo las ve quien designa en la FCVB, para repartir los partidos. Se borran 4 semanas después del fin de semana.',
+    privacidad:'Tus respuestas solo las ve quien designa en la FCVB, para repartir los partidos. Se borran 4 semanas después del fin de semana.', politica:'Política de privacidad',
     ok:'Enviada. Puedes cambiarla o retirarla desde esta página.', retirada:'Disponibilidad retirada.', falta:'Rellena lo que falta:', fNombre:'nombre', fPob:'población', fCoche:'coche', fSab:'sábado', fDom:'domingo',
     red:'Sin conexión. Inténtalo de nuevo.', finde:(a,b)=>`Fin de semana del ${a} y ${b}`, sabD:d=>`Sábado ${d}`, domD:d=>`Domingo ${d}`, esteFinde:'Este finde', siguiente:'El siguiente',
     dCoche:'Coche', dPob:'Población', dNombre:'Nombre', obsCorta:'obs.', confirmar:'¿Seguro que quieres retirarla?' },
@@ -95,7 +95,7 @@ const T = {
     coche:'Tens cotxe?', si:'Sí', no:'No', sabado:'Dissabte', domingo:'Diumenge', manana:'Matí', tarde:'Tarda', ambas:'Matí i tarda', noPuedo:'No puc',
     obs:'Observacions', obsPh:'Per exemple: a partir de les 17:00', franjas:'Matí: partits que comencen abans de les 15:00. Tarda: des de les 15:00.',
     enviar:'Envia la disponibilitat', cancelar:'Cancel·la', guardar:'Desa els canvis', enviando:'Enviant…',
-    privacidad:'Les teves respostes només les veu qui designa a la FCVB, per repartir els partits. S\'esborren 4 setmanes després del cap de setmana.',
+    privacidad:'Les teves respostes només les veu qui designa a la FCVB, per repartir els partits. S\'esborren 4 setmanes després del cap de setmana.', politica:'Política de privacitat',
     ok:'Enviada. La pots canviar o retirar des d\'aquesta pàgina.', retirada:'Disponibilitat retirada.', falta:'Omple el que falta:', fNombre:'nom', fPob:'població', fCoche:'cotxe', fSab:'dissabte', fDom:'diumenge',
     red:'Sense connexió. Torna-ho a provar.', finde:(a,b)=>`Cap de setmana del ${a} i ${b}`, sabD:d=>`Dissabte ${d}`, domD:d=>`Diumenge ${d}`, esteFinde:'Aquest cap de setmana', siguiente:'El següent',
     dCoche:'Cotxe', dPob:'Població', dNombre:'Nom', obsCorta:'obs.', confirmar:'Segur que la vols retirar?' }

@@ -46,6 +46,13 @@ usuarios, si se añaden datos nuevos o si cambia la forma de leer iSquad.
 9. **Que iSquad o la FCVB no autoricen la lectura de sus datos.** No es un riesgo de privacidad para los usuarios, pero
    sí legal para el proyecto. Medidas: lectura mínima (ficha pública primero, login solo si hay cambios, sesión
    reutilizada); compromiso de dejar de leer si lo piden; pedirles autorización antes de abrir la app a más gente.
+10. **Disponibilidad para arbitrar (3-nov-2026).** Formulario público (sin cuenta se puede rellenar) y panel del
+   designador. Riesgos: que alguien entre en el panel y vea nombres, poblaciones y disponibilidad; que se llene la
+   lista de respuestas falsas. Medidas: tablas sin acceso desde el navegador (todo por la función `designa`); login del
+   designador con huella PBKDF2 en los secretos (la contraseña no está en el repositorio), sesión firmada de 12 h y
+   tope de intentos; sin cuenta, como mucho 20 envíos por conexión y hora, y solo quien tiene el código puede
+   cambiar o retirar su respuesta; borrado a las 4 semanas; el panel no enseña emails ni nada de iSquad salvo
+   nombre y población.
 
 ## Conclusión
 

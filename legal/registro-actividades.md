@@ -1,6 +1,6 @@
 # Registro de actividades de tratamiento (art. 30 RGPD)
 
-Vòlei EnXarxa · última revisión: 22 de octubre de 2026. Revisarlo cada vez que la app trate datos nuevos o cambie de
+Vòlei EnXarxa · última revisión: 3 de noviembre de 2026. Revisarlo cada vez que la app trate datos nuevos o cambie de
 proveedor, y al menos una vez al año.
 
 ## Responsable
@@ -40,11 +40,17 @@ de tratamiento).
    (limitación del plazo).
 7. **Modo sin guardar.** Lectura puntual de iSquad sin guardar nada: los datos solo pasan por el servidor y se
    devuelven al navegador.
+8. **Disponibilidad para arbitrar (3-nov-2026).** Que el designador de la FCVB reparta los partidos del fin de semana.
+   Datos: nombre y apellidos, población y sus coordenadas aproximadas, coche (sí/no), disponibilidad del sábado y el
+   domingo con observaciones, plan del designador (partido y puesto); sin cuenta, huella sha256 del código de edición.
+   Interesados: árbitros, con cuenta de la app o sin ella. Destinatario: el designador (login propio, `DESIGNA_USERS`).
+   Base: consentimiento (art. 6.1.a): lo envía el propio árbitro para eso; puede retirarlo desde el formulario.
+   Plazo: 4 semanas desde el fin de semana (borrado automático).
 
 ## Destinatarios y encargados
 
 Ver `encargados.md`. No se ceden datos a terceros. Lo único visible para otros usuarios es lo de compartir coche
-(si lo activan los dos).
+(si lo activan los dos) y la disponibilidad para arbitrar, que ve el designador de la FCVB (tratamiento 8).
 
 ## Transferencias internacionales
 

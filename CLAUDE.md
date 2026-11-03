@@ -332,7 +332,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   `docs/eliminar-cuenta.html` (cómo borrar la cuenta; Google Play pide un enlace así), con `legal.css` y `legal.js`: castellano y catalán
   en la misma página, se ve el de `liq-lang` o el del móvil; selector ES/CA. Enlazadas desde la pantalla de entrar,
   la guía, Ajustes y el aviso de aceptación. Contacto: fsarmesto@gmail.com. Si cambia su contenido: actualizar la
-  fecha de las 2 versiones y subir `POLICY_VERSION` (vigente `2026-11-02`: copia local sin conexión y contador de intentos en la política), que vuelve a
+  fecha de las 2 versiones y subir `POLICY_VERSION` (vigente `2026-11-03`: disponibilidad para arbitrar y designador; antes `2026-11-02`, copia local sin conexión y contador de intentos), que vuelve a
   pedir la aceptación a todos.
 - Documentación interna en `legal/`: registro de actividades, análisis de riesgos (hace de evaluación de impacto
   simplificada), encargados (Supabase: su DPA va incluido en sus condiciones, no hay que firmar nada) y brechas.
