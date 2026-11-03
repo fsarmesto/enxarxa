@@ -205,7 +205,7 @@ function pEquipos() {
     : ISQ.estado === 'error' ? `<p class="msg err">${esc(ISQ.msg)}</p>`
     : ISQ.estado === 'ok' && ISQ.msg ? `<p class="msg err">No he encontrado en iSquad la plantilla de ${esc(ISQ.msg)}: escríbela a mano.</p>` : '';
   $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán y los líberos (como mucho 2).${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
-    ${tablaEquipo('L')}${tablaEquipo('V')}
+    <div class="dos">${tablaEquipo('L')}${tablaEquipo('V')}</div>
     <section class="card"><h2>Firmas antes del partido</h2><p class="small muted">Capitanes y entrenadores firman la plantilla.</p>${firmasHtml(FIRMAS_PRE)}</section>
     <div class="row"><button type="button" class="ghost" id="atras">Atrás</button><button class="primary" id="sig">Siguiente: sorteo y alineación</button></div>`;
   for (const eq of ['L', 'V']) {
@@ -327,18 +327,49 @@ function pista(s, eq) {
   const celda = (i) => { const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n); return `<div class="p${l && l.pos === i ? ' lib' : ''}${saca && i === 0 ? ' saca' : ''}" title="Posición ${POS[i]}">${esc(n)}${j?.cap ? '<small>C</small>' : `<small>${POS[i]}</small>`}</div>`; };
   return `<div class="pista" aria-label="Posiciones de ${esc(eqNombre(eq))}"><div class="red" aria-hidden="true"></div>${[3, 2, 1, 4, 5, 0].map(celda).join('')}</div>`;
 }
+// Puntos que se van gastando (tiempos y cambios).
+const gastados = (n, max, t) => `<span class="dots" role="img" aria-label="${esc(t)}: ${n} de ${max}">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
 function mitad(s, eq) {
-  const pend = s.pendienteSust[eq];
+  const pend = s.pendienteSust[eq], e = ST.equipos[eq], l = s.libero[eq];
+  const enP = new Set(M.enPista(s, eq));
+  const banco = e.jugadores.filter((j) => !enP.has(j.num));
+  const fuera = (j) => ST.descalificados[eq].has(j.num) || ST.fueraPartido[eq].has(j.num) || s.expulsados[eq].has(j.num);
+  const sanc = ST.sanciones.filter((x) => x.eq === eq);
+  const quien = (q) => (M.esDorsal(q) ? q : q === 'equipo' ? 'Equipo' : q);
   return `<div class="mitad" data-mitad="${eq}">
+    <div class="m-cab solo-pc"><div class="m-nom">${s.saque === eq ? '<span class="balon" role="img" aria-label="Saca"></span>' : ''}${esc(eqNombre(eq))}</div><div class="m-sets" title="Sets ganados">${ST.ganados[eq]}</div></div>
     ${pend.length ? `<p class="msg err small" style="margin:0 0 8px">Hay que sustituir al ${pend.join(', ')}</p>` : ''}
-    ${pista(s, eq)}
-    <button class="btnPunto" data-punto="${eq}">Punto ${esc(eqNombre(eq).split(' ').slice(0, 2).join(' '))}</button>
+    <div class="solo-movil">${pista(s, eq)}</div>
+    <button class="btnPunto" data-punto="${eq}">Punto <span class="solo-movil-i">${esc(eqNombre(eq).split(' ').slice(0, 2).join(' '))}</span></button>
     <div class="acts">
       <button data-acc="tiempo" data-eq="${eq}">Tiempo<b>${s.tiempos[eq].length}/${ST.cfg.tiempos}</b></button>
       <button data-acc="sust" data-eq="${eq}">Cambio<b>${s.nSust[eq]}/${ST.cfg.sustituciones}</b></button>
-      <button data-acc="libero" data-eq="${eq}">Líbero${s.libero[eq] ? '<b>en pista</b>' : ''}</button>
+      <button data-acc="libero" data-eq="${eq}">Líbero${l ? '<b>en pista</b>' : ''}</button>
       <button data-acc="sancion" data-eq="${eq}">Sanción</button>
+    </div>
+    <div class="m-info solo-pc">
+      <div class="m-fila"><span>Tiempos</span>${gastados(s.tiempos[eq].length, ST.cfg.tiempos, 'Tiempos')}</div>
+      <div class="m-fila"><span>Cambios</span>${gastados(s.nSust[eq], ST.cfg.sustituciones, 'Cambios')}</div>
+      <h4>Banquillo</h4>
+      <div class="chips">${banco.map((j) => `<span class="chip${j.lib ? ' lib' : ''}${fuera(j) ? ' fuera' : ''}" title="${esc(j.nombre)}${j.lib ? ' · líbero' : ''}${fuera(j) ? ' · no puede jugar' : ''}">${esc(j.num)}</span>`).join('') || '<span class="small muted">—</span>'}</div>
+      ${l ? `<p class="small" style="margin:8px 0 0"><span class="chip lib">${esc(l.num)}</span> en pista por el ${esc(l.por)}</p>` : ''}
+      ${sanc.length ? `<h4>Sanciones</h4><ul class="sancs">${sanc.map((x) => `<li><span class="tarjeta t-${x.tipo}" aria-hidden="true"></span>${esc(SANC[x.tipo])} · ${esc(quien(x.quien))} <span class="muted">set ${x.set}, ${x.a}:${x.b}</span></li>`).join('')}</ul>` : ''}
     </div></div>`;
+}
+// Pista vista desde la mesa del anotador (PC): la red en medio; cada equipo mira hacia la red, así que el de la izquierda
+// tiene la I abajo a la izquierda y el de la derecha, arriba a la derecha.
+function pistaGrande(s) {
+  const izq = s.izq, der = OTRO(izq);
+  const campo = (eq, orden) => {
+    const r = M.enPista(s, eq), l = s.libero[eq];
+    return `<div class="campo" aria-label="${esc(eqNombre(eq))}">${orden.map((i) => {
+      const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n), saca = s.saque === eq && i === 0;
+      return `<div class="jug${l && l.pos === i ? ' lib' : ''}${saca ? ' saca' : ''}" title="Posición ${POS[i]}${j ? ' · ' + esc(j.nombre) : ''}"><span class="n">${esc(n)}</span>${j?.cap ? '<span class="cap">C</span>' : ''}${saca ? '<span class="pelota" aria-hidden="true"></span>' : ''}<span class="pos">${POS[i]}</span></div>`;
+    }).join('')}</div>`;
+  };
+  return `<div class="cancha"><div class="c-nom"><span>${esc(eqNombre(izq))}</span><span>${esc(eqNombre(der))}</span></div>
+    <div class="c-pista">${campo(izq, [4, 3, 5, 2, 0, 1])}<div class="red" aria-hidden="true"></div>${campo(der, [1, 0, 2, 5, 3, 4])}</div>
+    <div class="c-mesa">Mesa del anotador</div></div>`;
 }
 function describir(ev, st) {
   const n = (eq) => eqNombre(eq);
@@ -361,17 +392,22 @@ function describir(ev, st) {
 }
 function pJuego() {
   const s = M.setActual(ST), izq = s.izq, der = OTRO(izq);
-  const ultimos = A.ev.slice(-8).reverse().filter((e) => !['equipo', 'firma'].includes(e.t));
-  $('app').innerHTML = pasos('juego') + `
-    <div class="marcador" aria-live="polite">
+  const ultimos = A.ev.slice(-10).reverse().filter((e) => !['equipo', 'firma'].includes(e.t));
+  const jugados = ST.sets.filter((x) => x.ganador);
+  $('app').innerHTML = pasos('juego') + `<div class="juego">
+    <div class="j-marc"><div class="marcador" aria-live="polite">
       <div class="eq">${s.saque === izq ? '<span class="balon" role="img" aria-label="Saca"></span>' : ''}${esc(eqNombre(izq))}<div class="sets">${ST.ganados[izq]}</div></div>
-      <div class="pts">${s.puntos[izq]} – ${s.puntos[der]}<small>Set ${s.n}${s.decisivo ? ' · decisivo' : ''}</small></div>
+      <div class="pts"><span class="p-i">${s.puntos[izq]}</span><span class="p-g">–</span><span class="p-d">${s.puntos[der]}</span><small>Set ${s.n}${s.decisivo ? ' · decisivo' : ''}</small></div>
       <div class="eq d">${esc(eqNombre(der))}${s.saque === der ? '<span class="balon" role="img" aria-label="Saca"></span>' : ''}<div class="sets">${ST.ganados[der]}</div></div>
-    </div>
-    <div class="mitades">${mitad(s, izq)}${mitad(s, der)}</div>
-    <div class="barra"><button id="deshacer">Deshacer</button><button id="obs">Observación</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
-    <p class="small muted">En el portátil: ← y → dan el punto al equipo de la izquierda o de la derecha; Ctrl+Z deshace.</p>
-    <div class="registro" aria-label="Últimos sucesos">${ultimos.map((e) => `<div>${hora(e.h)} · ${esc(describir(e, ST))}</div>`).join('')}</div>`;
+      ${jugados.length ? `<div class="historial">${jugados.map((x) => `<span class="${x.ganador === izq ? 'gi' : 'gd'}">Set ${x.n} · ${x.puntos[izq]}-${x.puntos[der]}</span>`).join('')}</div>` : ''}
+    </div></div>
+    <div class="j-izq">${mitad(s, izq)}</div>
+    <div class="j-cancha">${pistaGrande(s)}</div>
+    <div class="j-der">${mitad(s, der)}</div>
+    <div class="j-barra"><div class="barra"><button id="deshacer">Deshacer</button><button id="obs">Observación</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
+      <p class="small muted teclas">Teclado: <kbd>←</kbd> punto a ${esc(eqNombre(izq))} · <kbd>→</kbd> punto a ${esc(eqNombre(der))} · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer</p></div>
+    <div class="j-reg"><h3 class="solo-pc">Últimos sucesos</h3><div class="registro" aria-label="Últimos sucesos">${ultimos.map((e) => `<div><span class="h">${hora(e.h)}</span>${esc(describir(e, ST))}</div>`).join('')}</div></div>
+  </div>`;
   $('app').querySelectorAll('[data-punto]').forEach((b) => (b.onclick = () => hacer({ t: 'punto', eq: b.dataset.punto })));
   $('app').querySelectorAll('[data-acc]').forEach((b) => (b.onclick = () => ({ tiempo: () => hacer({ t: 'tiempo', eq: b.dataset.eq }), sust: () => hojaSust(b.dataset.eq), libero: () => hojaLibero(b.dataset.eq), sancion: () => hojaSancion(b.dataset.eq) })[b.dataset.acc]()));
   barraComun();

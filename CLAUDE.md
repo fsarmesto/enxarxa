@@ -852,6 +852,12 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   rechaza la plantilla con un dorsal no válido; en pantalla, campo de 2 caracteres en rojo al escribirlo y aviso al guardar.
 - **Alineación (3-nov-2026, Ferran):** un jugador elegido en una posición desaparece de los desplegables de las otras y vuelve
   si se cambia (`enlazarAlineacion`, rehace las opciones: en el iPhone las opciones escondidas se siguen viendo).
+- **PC (3-nov-2026, Ferran: "más bonita para PC"):** desde 1100 px, la pantalla de juego va en 3 columnas (`.juego` con
+  áreas de grid): panel de cada equipo a su lado (nombre y sets, punto grande, acciones, tiempos y cambios con puntos, banquillo
+  con el líbero en amarillo y los que no pueden jugar tachados, sanciones con su tarjeta) y en el centro marcador con historial
+  de sets, **pista vista desde la mesa** (`pistaGrande`: red en medio; el de la izquierda tiene la I abajo a la izquierda y el
+  de la derecha arriba a la derecha; el que saca con anillo rojo y balón), botones, teclas y registro a 2 columnas. En móvil y
+  tablet, como antes (`.solo-pc` / `.solo-movil`). Plantillas lado a lado en PC (`.dos`).
 - Pruebas: `node --test tools/prueba-acta-motor.mjs` (13 casos de reglas). Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
 - Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,
