@@ -230,7 +230,8 @@ async function altaManual(db: Db, b: DispIn & { finde?: string; id?: string }) {
 
 Deno.serve(async (req) => {
   const t0 = Date.now();
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  // El panel manda su sesión en x-designa-token: el navegador la pregunta antes (CORS) y tiene que estar permitida.
+  if (req.method === "OPTIONS") return new Response("ok", { headers: { ...cors, "Access-Control-Allow-Headers": cors["Access-Control-Allow-Headers"] + ", x-designa-token" } });
   const db = admin();
   let b: Record<string, unknown> = {};
   try { b = await req.json(); } catch { return json({ error: "Petición no válida" }, 400); }
