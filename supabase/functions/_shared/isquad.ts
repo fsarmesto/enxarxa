@@ -1,6 +1,10 @@
-// Lectura de designaciones de iSquad (voleibol.misquad.es) con las credenciales del árbitro.
+// Lectura de designaciones de iSquad (área de árbitros en voleibol.misquad.es; login en voleibol.isquad.es) con las credenciales del árbitro.
 import { parseHTML } from "npm:linkedom@0.18.5";
 
+// Desde el 3-nov-2026 el login es solo el único de voleibol.isquad.es (loginarbitros.php da 404 y los logins de misquad.es
+// redirigen allí). Tras entrar, una pantalla de áreas; su enlace "ir=arbitros" pasa la sesión firmada a voleibol.misquad.es
+// (loginunico.php?lu_ir=arbitros&…&sig=), donde siguen las páginas de árbitros. Cada dominio, con sus cookies.
+const LOGIN = "https://voleibol.isquad.es";
 const BASE = "https://voleibol.misquad.es";
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
 // Ninguna llamada a iSquad puede colgar la sincronización.
@@ -27,70 +31,98 @@ export type Staff = { role: "r1" | "r2" | "an" | "jl"; team: "t1" | "t2a" | "t2b
 // es el propio árbitro. Solo el nombre: ni teléfonos ni correos.
 export type Crew = { f: string; n: string; me: boolean };
 
+// Cookies por dominio: clave "dominio|nombre". Los 2 dominios de iSquad dan cada uno su PHPSESSID y no se pueden mezclar.
 type Jar = Map<string, string>;
-function keep(jar: Jar, res: Response) {
+const host = (url: string) => new URL(url).host;
+function keep(jar: Jar, res: Response, url: string) {
   for (const c of res.headers.getSetCookie()) {
     const kv = c.split(";")[0]; const i = kv.indexOf("=");
-    if (i > 0) jar.set(kv.slice(0, i).trim(), kv.slice(i + 1).trim());
+    if (i > 0) jar.set(`${host(url)}|${kv.slice(0, i).trim()}`, kv.slice(i + 1).trim());
   }
 }
-const cookie = (jar: Jar) => [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
+const cookie = (jar: Jar, url: string) => {
+  const h = `${host(url)}|`;
+  return [...jar].filter(([k]) => k.startsWith(h)).map(([k, v]) => `${k.slice(h.length)}=${v}`).join("; ");
+};
 
-async function get(url: string, jar: Jar): Promise<Response> {
-  let res = await fetch(url, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual", signal: T() });
-  for (let n = 0; n < 5 && res.status >= 300 && res.status < 400; n++) {
-    keep(jar, res); await res.body?.cancel();
+// Rastro de redirecciones sin datos: ni tokens, ni firmas, ni el email.
+const limpia = (u: string) => u.replace(/([?&](?:t|k|e|token|utr|sig|lut|exp|volver)=)[^&]*/g, "$1…");
+
+async function get(url: string, jar: Jar, chain?: string[]): Promise<Response> {
+  let cur = url;
+  let res = await fetch(cur, { headers: { "User-Agent": UA, Cookie: cookie(jar, cur) }, redirect: "manual", signal: T() });
+  for (let n = 0; n < 6 && res.status >= 300 && res.status < 400; n++) {
+    keep(jar, res, cur); await res.body?.cancel();
     const loc = res.headers.get("location"); if (!loc) break;
-    const next = new URL(loc, url).toString();
+    const next = new URL(loc, cur).toString();
+    chain?.push(`${res.status} ${limpia(next)}`);
     if (/login/i.test(next) && !/login/i.test(url)) return res; // nos manda al login: sesión no válida
-    res = await fetch(next, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual", signal: T() });
+    cur = next;
+    res = await fetch(cur, { headers: { "User-Agent": UA, Cookie: cookie(jar, cur) }, redirect: "manual", signal: T() });
   }
-  keep(jar, res);
+  keep(jar, res, cur);
   return res;
 }
 
 // iSquad alterna entre 2 logins: el único (loginunico.php?area=arbitros, con csrf_token; 20-oct-2026) y el clásico
 // (loginarbitros.php; el 21-oct volvió). Se pide el único y, si redirige al clásico, se entra por ahí.
 // Devuelve un rastro para diagnosticar.
-async function loginIsquad(jar: Jar, login: string, password: string): Promise<string> {
-  const form = await get(`${BASE}/loginunico.php?area=arbitros`, jar);
+async function loginIsquad(jar: Jar, login: string, password: string, areas: string[] = ["arbitros"], out?: { html?: string; area?: string }): Promise<string> {
+  const form = await get(`${LOGIN}/loginunico.php?area=arbitros`, jar);
   const html = await form.text();
   if (/action="loginarbitros\.php"/.test(html)) {
     const res = await fetch(`${BASE}/loginarbitros.php`, {
       method: "POST", signal: T(), redirect: "manual",
       body: new URLSearchParams({ login, password, qr_login: "0", utr: "" }),
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar),
+        "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar, BASE),
         Origin: BASE, Referer: `${BASE}/loginarbitros.php`,
       },
     });
-    keep(jar, res); await res.body?.cancel();
+    keep(jar, res, BASE); await res.body?.cancel();
     return `clásico · post ${res.status} → ${res.headers.get("location")}`;
   }
   const csrf = html.match(/name="csrf_token"\s+value="([^"]+)"/)?.[1] ?? "";
-  const res = await fetch(`${BASE}/loginunico.php`, {
+  const res = await fetch(`${LOGIN}/loginunico.php`, {
     method: "POST", signal: T(), redirect: "manual",
     body: new URLSearchParams({ csrf_token: csrf, login, password, lu_disp: "{}" }),
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar),
-      Origin: BASE, Referer: `${BASE}/loginunico.php?area=arbitros`,
+      "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar, LOGIN),
+      Origin: LOGIN, Referer: `${LOGIN}/loginunico.php?area=arbitros`,
     },
   });
-  keep(jar, res);
+  keep(jar, res, LOGIN);
   let trace = `form ${form.status} csrf ${csrf ? "sí" : "no"} · post ${res.status} → ${res.headers.get("location")}`;
   await res.body?.cancel();
-  // Tras el login, el área de árbitros (si el login lleva a la pantalla de áreas).
+  // Tras el login, la pantalla de áreas de loginunico.php (3-nov-2026): enlaces "loginunico.php?ir=arbitros&k=&t=<token>"
+  // (también ir=deportista, ir=anotadores...). Se entra en el área pedida siguiendo su enlace.
   const after = res.headers.get("location");
-  if (after) {
-    const r = await get(new URL(after, `${BASE}/`).toString(), jar);
-    trace += ` · ${r.status} ${r.headers.get("location") ?? ""}`;
-    await r.body?.cancel();
-  }
+  if (after) trace += ` · ${await entrarArea(jar, new URL(after, `${LOGIN}/`).toString(), areas, out)}`;
   return trace;
 }
 
+// Abre la pantalla de áreas (o lo que haya tras el login) y sigue el enlace de la primera de `areas` que tenga
+// ("loginunico.php?ir=<área>&k=&t=<token>"). Deja en `out` la página donde acaba y el área. Devuelve un rastro.
+async function entrarArea(jar: Jar, url: string, areas: string[], out?: { html?: string; area?: string }): Promise<string> {
+  const r = await get(url, jar);
+  const trace = `${r.status} ${r.headers.get("location") ?? ""}`;
+  if (r.status !== 200) { await r.body?.cancel(); return trace; }
+  const h = await r.text();
+  for (const area of areas) {
+    const ir = h.match(new RegExp(`href=["']([^"']*loginunico\\.php\\?ir=${area}&[^"']*)["']`))?.[1]?.replace(/&amp;/g, "&");
+    if (!ir) continue;
+    const chain: string[] = [];
+    const a = await get(new URL(ir, url).toString(), jar, chain);
+    if (out) { out.area = area; out.html = a.status === 200 ? await a.text() : (await a.body?.cancel(), ""); }
+    else await a.body?.cancel();
+    return trace + ` · ${area} ${chain.join(" > ")} · ${a.status}`;
+  }
+  const hay = [...new Set([...h.matchAll(/loginunico\.php\?ir=([a-z_]+)/g)].map((x) => x[1]))].join(",");
+  return trace + ` · sin enlace a ${areas.join("/")} (hay: ${hay || "ninguno"}${/data-reto|lu2-espera/.test(h) ? ", pide verificar" : ""})`;
+}
+
 async function designaciones(jar: Jar, season?: string): Promise<string> {
-  if (season) jar.set("TemporadaSelect", season); // la web de iSquad cambia de temporada con esta cookie
+  if (season) jar.set(`${host(BASE)}|TemporadaSelect`, season); // la web de iSquad cambia de temporada con esta cookie
   const page = await get(`${BASE}/arbitros_designaciones.php?rol=1`, jar);
   if (page.status >= 300) { await page.body?.cancel(); throw new IsquadAuthError("login"); }
   return await page.text();
@@ -148,7 +180,7 @@ async function fetchStaff(jar: Jar, desigId: string, me: string[]): Promise<Staf
   try {
     const r = await fetch(`${BASE}/json/arbitros_ver_datos_designacion.php`, {
       method: "POST", body: new URLSearchParams({ id_designacion: desigId }), signal: AbortSignal.timeout(10_000),
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar), "X-Requested-With": "XMLHttpRequest" },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar, BASE), "X-Requested-With": "XMLHttpRequest" },
     });
     if (!r.ok) { await r.body?.cancel(); return null; }
     const html = JSON.parse(await r.text())?.[0]?.html;
@@ -172,18 +204,20 @@ export async function fetchDesignaciones(
   let html = "";
   if (opts.session) {
     for (const kv of opts.session.split("; ")) { const i = kv.indexOf("="); if (i > 0) jar.set(kv.slice(0, i), kv.slice(i + 1)); }
-    jar.delete("TemporadaSelect");
+    jar.delete(`${host(BASE)}|TemporadaSelect`);
     try { html = await designaciones(jar); if (!parseDesignaciones(html)) html = ""; }
     catch (e) { if (!(e instanceof IsquadAuthError)) throw e; }
   }
   const fresh = !html;
   if (fresh) {
     jar.clear();
-    await loginIsquad(jar, login, password);
-    html = await designaciones(jar);
+    const trace = await loginIsquad(jar, login, password);
+    try { html = await designaciones(jar); }
+    catch (e) { throw e instanceof IsquadAuthError ? new IsquadAuthError(`login · ${trace}`) : e; }
     if (!parseDesignaciones(html)) throw new IsquadAuthError("ilegible");   // entra pero la tabla no se lee (cambio de diseño, mantenimiento… o no es árbitro)
   }
-  opts.onSession?.(cookie(new Map([...jar].filter(([k]) => k !== "TemporadaSelect"))), fresh);
+  // Se guardan todas, con su dominio ("dominio|nombre=valor; …"); una sesión guardada en el formato de antes no vale y hace login.
+  opts.onSession?.([...jar].filter(([k]) => !k.endsWith("|TemporadaSelect")).map(([k, v]) => `${k}=${v}`).join("; "), fresh);
   const { current, previous } = seasons(html);
   const out: ScrapedMatch[] = [];
   // También la temporada anterior: al empezar una nueva, los partidos pendientes de cobro siguen allí.
@@ -336,26 +370,17 @@ export function parseDesignaciones(html: string): ScrapedMatch[] | null {
 // Entrenadores (loginentrenadores.php). Para quien no es árbitro solo hace falta saber quién es: nombre y foto de
 // afiliado de la cabecera (con la foto se le encuentra en las plantillas públicas). No se lee nada más.
 export async function loginDeportista(login: string, password: string): Promise<{ area: "jugador" | "entrenador"; nombre: string; foto: string }> {
-  for (const [path, area] of [["login.php", "jugador"], ["loginentrenadores.php", "entrenador"]] as const) {
-    const jar: Jar = new Map();
-    const first = await get(`${BASE}/${path}`, jar); await first.body?.cancel();
-    const res = await fetch(`${BASE}/${path}`, {
-      method: "POST", signal: T(), redirect: "manual",
-      body: new URLSearchParams({ login, password, qr_login: "0", utr: "" }),
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar), Origin: BASE, Referer: `${BASE}/${path}` },
-    });
-    keep(jar, res);
-    const loc = res.headers.get("location"); await res.body?.cancel();
-    if (!loc || /login/i.test(loc)) continue;                                  // no entra: vuelve al login
-    const page = await get(new URL(loc, `${BASE}/`).toString(), jar);
-    const html = page.status === 200 ? await page.text() : (await page.body?.cancel(), "");
-    if (!html || /name=["']password["']/.test(html)) continue;
-    // deno-lint-ignore no-explicit-any
-    const { document } = parseHTML(html) as any;
-    const nombre = (document.querySelector(".contact-container")?.textContent || "").replace(/\s+/g, " ").trim()
-      .replace(/\s+(JUGADOR|JUGADORA|STAFF T[EÉ]CNICO|ENTRENADOR|ENTRENADORA|DELEGADO)$/i, "");
-    const foto = (document.querySelector(".contact img")?.getAttribute("src") || "").match(/images\/afiliacion\/(.+)$/)?.[1] || "";
-    return { area, nombre, foto };
-  }
-  throw new IsquadAuthError("login");
+  // Desde el 3-nov-2026 login.php y loginentrenadores.php llevan al login único: se entra una vez y se elige el área
+  // de jugador ("deportista") o, si no la tiene, la de entrenador.
+  const jar: Jar = new Map();
+  const out: { html?: string; area?: string } = {};
+  await loginIsquad(jar, login, password, ["deportista", "entrenadores", "entrenador", "staff"], out);
+  const html = out.html || "";
+  if (!out.area || !html || /name=["']password["']/.test(html)) throw new IsquadAuthError("login");
+  // deno-lint-ignore no-explicit-any
+  const { document } = parseHTML(html) as any;
+  const nombre = (document.querySelector(".contact-container")?.textContent || "").replace(/\s+/g, " ").trim()
+    .replace(/\s+(JUGADOR|JUGADORA|STAFF T[EÉ]CNICO|ENTRENADOR|ENTRENADORA|DELEGADO)$/i, "");
+  const foto = (document.querySelector(".contact img")?.getAttribute("src") || "").match(/images\/afiliacion\/(.+)$/)?.[1] || "";
+  return { area: out.area === "deportista" ? "jugador" : "entrenador", nombre, foto };
 }

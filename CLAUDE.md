@@ -93,7 +93,15 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 
 ## iSquad (voleibol.misquad.es): lo que no es obvio
 
-- Login: POST `loginarbitros.php` (login, password, qr_login=0, utr). Designaciones en `arbitros_designaciones.php?rol=1`.
+- **Login desde el 3-nov-2026** (ese día, 0 de 18 árbitros sincronizaban): solo el login único de `voleibol.isquad.es`
+  (`loginunico.php`, `csrf_token`, `login`, `password`, `lu_disp`); `loginarbitros.php` da 404, y `login.php` y
+  `loginentrenadores.php` llevan allí. El POST bueno da 302 a una pantalla de áreas con enlaces `loginunico.php?ir=<área>&k=&t=…`
+  (arbitros, deportista, anotadores, delegados_mesa, actividades); el malo, 200 con el formulario. `ir=arbitros` pasa la sesión
+  firmada a `voleibol.misquad.es/loginunico.php?lu_ir=arbitros&…&sig=`, y las páginas de árbitros siguen en misquad.es.
+  **Las cookies van por dominio** (`Jar` con clave `dominio|nombre`): cada dominio tiene su PHPSESSID y, mezcladas, misquad.es
+  devolvía a la pantalla de áreas. `loginDeportista` usa el mismo login con el área deportista (o entrenadores).
+  El cron manual devuelve `errores` con el rastro del login de cada árbitro que falla (sin tokens ni emails).
+- Login de antes: POST `loginarbitros.php` (login, password, qr_login=0, utr). Designaciones en `arbitros_designaciones.php?rol=1`.
 - **Hay que enviar siempre la cookie `TemporadaSelect`** (p. ej. `2627`). Sin ella el desplegable marca la temporada
   en curso pero la tabla llega vacía. Se leen la temporada en curso y la anterior.
 - El texto viene con comillas escapadas (`D\'HEBRON`): se quita la barra al leer.
@@ -235,7 +243,10 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   page), sin token. Hasta el 28/29-oct-2026 era `voleibol.isquad.es/json/api/call.php/resultados/busquedaGlobal?token=`
   con el `let token` de las páginas; iSquad quitó el token y esa API da 500. Misma respuesta. Devuelve por partido estado (Pendiente, Finalizado, Suspendido...), resultado en sets, fecha, hora,
   `fecha_confirmada` (1 = horario confirmado; si no, hora provisional o 0:00 = sin horario), jornada, grupo e ids de
-  equipo. Sin pabellón: se cruza con el listado. `teamMatches` en `_shared/publico.ts`, caché `tm:<id_equipo>` 30 min.
+  equipo. Sin pabellón: se cruza con el listado. `teamMatches` en `_shared/publico.ts`, caché `tm2:<id_equipo>` 30 min.
+  Busca por palabras sueltas (todos los equipos con MANRESA, de todas las categorías), 20 por página como mucho (no admite más
+  ni filtro por equipo) y ordenado alrededor de hoy: un club grande ocupa ~15 páginas. Desde el 3-nov-2026, las 6 primeras
+  cada 30 min y el calendario entero (hasta 25 páginas) cada 12 h en `tmc:`, juntos (antes solo 6: faltaba media temporada).
   En la web, etiquetas: Ganado/Perdido con el resultado, Por jugar · hora, hora sin confirmar, sin horario, Suspendido.
   Equipo arbitral: `previo.php?id_partido=` (página pública ~800 KB): un bloque `divN` por persona ("ARBITRO",
   "ARBITRO", "ANOTADOR/CRONOMETRADOR", "TV" vacío; desde el 28/29-oct-2026 la función va en `<i-t page='common'>`);

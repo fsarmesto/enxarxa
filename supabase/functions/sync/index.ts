@@ -52,7 +52,9 @@ Deno.serve(async (req) => {
       km.push(r);
       if (r === "quota") break;   // sin cupo en ORS: no tiene sentido seguir hoy
     }
-    return json({ users: list.length, ok: synced.filter((r) => r?.ok).length, sinTiempo: synced.filter((r) => r?.error === "sin tiempo").length, km });
+    return json({ users: list.length, ok: synced.filter((r) => r?.ok).length, sinTiempo: synced.filter((r) => r?.error === "sin tiempo").length,
+      // Qué ha fallado (sin datos de nadie: código y rastro del login), para ver de un vistazo si iSquad ha cambiado.
+      errores: synced.filter((r) => r && !r.ok).map((r) => r.detalle || r.error), km });
   }
   const user = await userFromRequest(db, req);
   if (!user) return json({ error: "Inicia sesión de nuevo" }, 401);
