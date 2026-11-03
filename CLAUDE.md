@@ -879,6 +879,11 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   036; lectura pública por id aleatorio, escritura solo su anotador, `limpiar_directos()` borra los de más de 2 días al abrir
   uno nuevo) con `resumenDirecto()` = equipos, competición, marcador, sets, saque y tiempos, **ningún nombre de jugador**;
   se publica tras cada suceso. Página `docs/acta/directo/?id=` (negra, para móvil o TV; pregunta cada 4 s).
+- **Arranque a prueba de fallos (3-nov-2026, Ferran: "carga infinita, y sin nuestra animación"):** `docs/cargando.js` = la
+  animación de la app (los 2 jugadores) para las páginas aparte (acta y directo; si cambia la de la app, copiarla). `pintar()`
+  captura cualquier error y enseña `mostrarError` (qué pasa, Volver a intentarlo, Mis actas, descargar el JSON del acta); errores
+  sin capturar y vigilancia de 15 s al arrancar; en la lista, un acta que no se puede abrir se señala sin romper las demás;
+  plantillas de iSquad con la animación y como mucho 1 minuto. SW v8 con `cargando.js` en el precache.
 - Pruebas: `node --test tools/prueba-acta-motor.mjs` (17 casos de reglas). Banco de pruebas con Chrome: un solo perfil
   fijo en /tmp que se vacía al empezar (`tools/prueba-accesibilidad.mjs` igual): los perfiles temporales sin borrar, de
   ~180 MB cada uno, llenaron /tmp (tmpfs de 7,4 GB) el 3-nov. Partido completo con clics reales y axe: banco de la

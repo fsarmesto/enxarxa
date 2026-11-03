@@ -60,6 +60,25 @@ function pasos(on) {
   return `<div class="pasos">${P.map(([k, t], j) => `<span class="${j === i ? 'on' : j < i ? 'ok' : ''}">${j < i ? '✓ ' : ''}${esc(t)}</span>`).join('')}</div>`;
 }
 function pintar() {
+  try { pintar0(); LISTO = true; window.pepperLoader?.done(); } catch (e) { mostrarError(e); }
+}
+// Si algo falla al pintar (p. ej. un acta guardada que esta versión no puede abrir) no se queda colgado: se explica qué pasa
+// y se puede volver a intentar, ir a Mis actas o descargar los datos de esa acta para no perderlos.
+let LISTO = false;
+function mostrarError(e) {
+  console.error(e);
+  window.pepperLoader?.done(); clearInterval(RELOJ);
+  const msg = (e && e.message) || String(e);
+  $('app').innerHTML = `<section class="card" role="alert"><h2>No se ha podido abrir</h2>
+    <p>${A ? 'Esta acta no se puede mostrar con esta versión.' : 'La página no ha arrancado bien.'} Tus datos siguen guardados en este dispositivo.</p>
+    <p class="small muted">Detalle: ${esc(msg)}</p>
+    <div class="row"><button class="primary" id="errReintentar">Volver a intentarlo</button>${A ? '<button id="errJson">Descargar los datos de esta acta</button>' : ''}<button class="ghost" id="errMis">Mis actas</button></div></section>`;
+  $('errReintentar').onclick = () => location.reload();
+  $('errMis').onclick = () => { location.href = location.pathname; };
+  if (A) $('errJson').onclick = () => { const b = new Blob([JSON.stringify(A, null, 1)], { type: 'application/json' }); const x = document.createElement('a'); x.href = URL.createObjectURL(b); x.download = `acta-${A.id}.json`; x.click(); };
+  LISTO = true;
+}
+function pintar0() {
   if (A) calcular();
   const v = vista();
   document.body.classList.toggle('vista', v === 'ver');
@@ -90,7 +109,9 @@ function pInicio() {
       <div class="row">${MIOS.map((m) => `<button data-desde="${esc(m.id)}">${esc(m.date.slice(8, 10) + '/' + m.date.slice(5, 7))} ${esc(m.time || '')} · ${esc(titulo(m.teams).replace(' Vs ', ' – '))}</button>`).join('')}</div>` : ''}
     </section>
     ${lst.length ? `<section class="card"><h2>Actas en este dispositivo</h2>${lst.map((a) => {
-      const st = M.reproducir(a.cfg, a.datos, a.ev), r = M.resultados(st);
+      let st, r;
+      try { st = M.reproducir(a.cfg, a.datos, a.ev); r = M.resultados(st); }
+      catch (e) { return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(a.datos?.local || 'Local')} – ${esc(a.datos?.visitante || 'Visitante')}</b><br><span class="small" style="color:var(--warn)">No se puede abrir con esta versión: ${esc(e.message)}</span></span><span class="row"><button class="ghost" data-borrar="${esc(a.id)}">Borrar</button></span></div>`; }
       return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(a.datos.local || 'Local')} – ${esc(a.datos.visitante || 'Visitante')}</b><br><span class="small muted">${esc(a.datos.fecha || '')} · ${st.fase === 'fin' ? `Final ${r.total.L.gana}-${r.total.V.gana}` : st.fase === 'preparacion' ? 'Sin empezar' : `En juego · sets ${st.ganados.L}-${st.ganados.V}`}</span></span>
         <span class="row"><button data-abrir="${esc(a.id)}">Abrir</button><button class="ghost" data-borrar="${esc(a.id)}">Borrar</button></span></div>`; }).join('')}</section>` : ''}`;
   $('nueva').onclick = () => crear({});
@@ -158,12 +179,15 @@ let ISQ = { estado: null, msg: '' };
 async function cargarIsquad(forzar) {
   if (!A.origen || (!forzar && A.isqCargada) || ISQ.estado === 'cargando') return;
   ISQ = { estado: 'cargando', msg: '' }; pEquipos();
+  window.pepperLoader?.show('Leyendo las plantillas de iSquad…');
   let r = {};
+  const corte = new AbortController(), tope = setTimeout(() => corte.abort(), 60000);   // iSquad a veces tarda: como mucho 1 minuto
   try {
     const { data: { session } } = await sbc().auth.getSession();
-    const res = await fetch(window.APP_CONFIG.SUPABASE_URL + '/functions/v1/equipos', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: window.APP_CONFIG.SUPABASE_ANON_KEY, ...(session ? { Authorization: 'Bearer ' + session.access_token } : {}) }, body: JSON.stringify({ action: 'plantillas', ...A.origen }) });
+    const res = await fetch(window.APP_CONFIG.SUPABASE_URL + '/functions/v1/equipos', { method: 'POST', signal: corte.signal, headers: { 'Content-Type': 'application/json', apikey: window.APP_CONFIG.SUPABASE_ANON_KEY, ...(session ? { Authorization: 'Bearer ' + session.access_token } : {}) }, body: JSON.stringify({ action: 'plantillas', ...A.origen }) });
     r = await res.json().catch(() => ({})); if (!res.ok) r = { error: r.error || 'No se ha podido leer iSquad.' };
-  } catch (e) { r = { error: 'Sin conexión: escribe las plantillas a mano.' }; }
+  } catch (e) { r = { error: e.name === 'AbortError' ? 'iSquad no ha respondido a tiempo: escribe las plantillas a mano o vuelve a cargarlas.' : 'Sin conexión: escribe las plantillas a mano.' }; }
+  finally { clearTimeout(tope); window.pepperLoader?.done(); }
   if (r.error) { ISQ = { estado: 'error', msg: r.error }; if (A && vista() === 'equipos') pEquipos(); return; }
   for (const eq of ['L', 'V']) {
     const t = r[eq]; if (!t) continue;
@@ -211,7 +235,7 @@ function leerEquipo(eq) {
 }
 function pEquipos() {
   if (A.origen && !A.isqCargada && !ST.equipos.L.jugadores.length && ISQ.estado === null) { cargarIsquad(); return; }
-  const aviso = ISQ.estado === 'cargando' ? '<p class="msg ok">Cargando las plantillas de iSquad…</p>'
+  const aviso = ISQ.estado === 'cargando' ? ''
     : ISQ.estado === 'error' ? `<p class="msg err">${esc(ISQ.msg)}</p>`
     : ISQ.estado === 'ok' && ISQ.msg ? `<p class="msg err">No he encontrado en iSquad la plantilla de ${esc(ISQ.msg)}: escríbela a mano.</p>` : '';
   $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán${A.cfg.liberos ? ' y los líberos (como mucho 2)' : ' (en este partido no hay líbero)'}.${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
@@ -713,6 +737,10 @@ function pVer() {
 }
 
 /* ---------- Arranque ---------- */
+window.pepperLoader?.show('Cargando el acta…');
+window.addEventListener('error', (e) => { if (!LISTO) mostrarError(e.error || e.message); });
+window.addEventListener('unhandledrejection', (e) => { if (!LISTO) mostrarError(e.reason); });
+setTimeout(() => { if (!LISTO) mostrarError(new Error('La página está tardando demasiado en arrancar.')); }, 15000);
 const id = new URLSearchParams(location.search).get('acta');
 if (id) abrir(id); else pintar();
 cargarMios();
