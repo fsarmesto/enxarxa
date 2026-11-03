@@ -30,7 +30,7 @@ function hacer(ev, silencio) {
   ev = { ...ev, h: ev.h || new Date().toISOString() };
   const m = M.validar(A.cfg, A.datos, A.ev, ev);
   if (m) { if (!silencio) toast(m); return m; }
-  A.ev.push(ev); guardar(); pintar(); return null;
+  A.ev.push(ev); guardar(); pintar(); publicarDirecto(); return null;
 }
 function toast(msg, ok) { const t = $('toast'); t.textContent = msg; t.className = ok ? 'ok' : ''; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), 3200); }
 
@@ -328,7 +328,7 @@ function empezarSet(conSorteo) {
   // Todo o nada: se valida la secuencia entera antes de guardarla.
   const prueba = [...A.ev], h = new Date().toISOString();
   for (const e of evs) { const m = M.validar(A.cfg, A.datos, prueba, { ...e, h }); if (m) { toast(m); return; } prueba.push({ ...e, h }); }
-  A.ev = prueba; guardar(); pintar(); scrollTo(0, 0);
+  A.ev = prueba; guardar(); pintar(); publicarDirecto(); scrollTo(0, 0);
 }
 
 /* ---------- 4. Partido ---------- */
@@ -421,6 +421,8 @@ function describir(ev, st) {
     case 'alineacion': return `Alineación ${n(ev.eq)}`;
     case 'obs': return 'Observación';
     case 'firma': return 'Firma';
+    case 'repeticion': return 'Repetición de la jugada';
+    case 'liberoNoPuede': return `Líbero ${ev.libero} de ${n(ev.eq)} no puede seguir${ev.nuevo ? ` · nuevo líbero: ${ev.nuevo}` : ''}`;
     case 'setCompleto': return `Set ${ev.set} del ${ev.num} (${n(ev.eq)}) ${ev.si ? 'marcado' : 'desmarcado'} como completo`;
     case 'equipo': return `Plantilla ${n(ev.eq)}`;
     default: return ev.t;
@@ -440,7 +442,7 @@ function pJuego() {
     <div class="j-izq">${mitad(s, izq)}</div>
     <div class="j-cancha">${pistaGrande(s)}</div>
     <div class="j-der">${mitad(s, der)}</div>
-    <div class="j-barra"><div class="barra"><button id="deshacer" class="solo-movil">Deshacer</button><button id="obs">Observación</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
+    <div class="j-barra"><div class="barra"><button id="deshacer" class="solo-movil">Deshacer</button><button id="repe">Repetición</button><button id="obs">Observación</button><button id="directo"${A.directo ? ' class="en-directo"' : ''}>${A.directo ? '● En directo' : 'Directo'}</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
       <p class="small muted teclas">Teclado: <kbd>←</kbd> punto a ${esc(eqNombre(izq))} · <kbd>→</kbd> punto a ${esc(eqNombre(der))} · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer</p></div>
     <div class="j-reg"><h3 class="solo-pc">Últimos sucesos</h3><div class="registro" aria-label="Últimos sucesos">${ultimos.map((e) => `<div><span class="h">${hora(e.h)}</span>${esc(describir(e, ST))}</div>`).join('')}</div></div>
   </div>`;
@@ -456,6 +458,8 @@ function pJuego() {
 let RELOJ = null;
 function barraComun() {
   $('deshacer')?.addEventListener('click', deshacer);
+  $('repe')?.addEventListener('click', () => { if (!hacer({ t: 'repeticion' })) toast('Repetición anotada: sin punto para nadie.', true); });
+  $('directo')?.addEventListener('click', hojaDirecto);
   $('obs')?.addEventListener('click', hojaObs);
   $('ver')?.addEventListener('click', () => { VER = true; pintar(); scrollTo(0, 0); });
   $('mis')?.addEventListener('click', salir);
@@ -468,7 +472,7 @@ function deshacer() {
   let desde = i;
   if (ult.t === 'inicioSet') while (desde > 0 && ['alineacion', 'sorteo'].includes(A.ev[desde - 1].t)) desde--;
   if (!confirm(`¿Deshacer "${describir(ult, ST)}"?`)) return;
-  A.ev.splice(desde, i - desde + 1); guardar(); pintar(); toast('Deshecho: ' + describir(ult, ST), true);
+  A.ev.splice(desde, i - desde + 1); guardar(); pintar(); publicarDirecto(); toast('Deshecho: ' + describir(ult, ST), true);
 }
 
 function hojaSust(eq) {
@@ -494,11 +498,12 @@ function hojaSust(eq) {
 }
 function hojaLibero(eq) {
   const s = M.setActual(ST), libs = ST.equipos[eq].jugadores.filter((j) => j.lib), l = s.libero[eq];
-  if (!libs.length) { toast(`${eqNombre(eq)} no tiene líbero inscrito.`); return; }
+  if (!libs.filter((j) => !ST.fueraPartido[eq].has(j.num)).length) { toast(`${eqNombre(eq)} no tiene líbero que pueda jugar.`); return; }
   if (l) {
     const otro = libs.find((j) => j.num !== l.num);
     hoja(`<h2 id="hojaT">Líbero · ${esc(eqNombre(eq))}</h2><p>En pista: el ${l.num}, por el ${l.por}.</p>
-      <div class="row"><button class="primary" id="sale">Sale el líbero (vuelve el ${l.por})</button>${otro ? `<button id="cambia">Cambiar por el ${otro.num}</button>` : ''}<button class="ghost" data-cerrar>Cancelar</button></div>`);
+      <div class="row"><button class="primary" id="sale">Sale el líbero (vuelve el ${l.por})</button>${otro ? `<button id="cambia">Cambiar por el ${otro.num}</button>` : ''}<button id="noPuede">No puede seguir…</button><button class="ghost" data-cerrar>Cancelar</button></div>`);
+    $('noPuede').onclick = () => hojaLiberoNoPuede(eq);
     $('sale').onclick = () => { if (!hacer({ t: 'liberoSale', eq })) cerrarHoja(); };
     if (otro) $('cambia').onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: otro.num, sale: l.num })) cerrarHoja(); };
     return;
@@ -509,12 +514,71 @@ function hojaLibero(eq) {
     $('hojaC').innerHTML = `<h2 id="hojaT">Líbero · ${esc(eqNombre(eq))}</h2>
       ${libs.length > 1 ? `<b>Líbero</b><div class="botones">${libs.map((j) => `<button data-lib="${j.num}" aria-pressed="${lib === j.num}">${j.num}</button>`).join('')}</div>` : ''}
       <b>Entra por (solo zagueros)</b><div class="botones">${zagueros.map(({ i, n }) => { const m = M.validar(A.cfg, A.datos, A.ev, { t: 'liberoEntra', eq, libero: lib, sale: n, h: new Date().toISOString() }); return `<button data-por="${n}"${m ? ` disabled title="${esc(m)}"` : ''}>${n} <small>(${POS[i]})</small></button>`; }).join('')}</div>
-      <div class="row"><button class="ghost" data-cerrar>Cancelar</button></div>`;
+      <div class="row"><button id="noPuede">Un líbero no puede seguir…</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
+    $('noPuede').onclick = () => hojaLiberoNoPuede(eq);
     $('hojaC').querySelectorAll('[data-lib]').forEach((b) => (b.onclick = () => { lib = b.dataset.lib; dibujar(); }));
     $('hojaC').querySelectorAll('[data-por]').forEach((b) => (b.onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: lib, sale: b.dataset.por })) cerrarHoja(); }));
   };
   hoja('', () => { dibujar(); $('hojaC').querySelector('button')?.focus(); });
 }
+// FIVB 19.4: líbero lesionado, enfermo, expulsado o descalificado. Si queda otro líbero, juega ese; si no, el entrenador
+// puede redesignar como líbero a un jugador que no esté en pista. El que no puede seguir ya no vuelve en el partido.
+function hojaLiberoNoPuede(eq) {
+  const s = M.setActual(ST), libs = ST.equipos[eq].jugadores.filter((j) => j.lib && !ST.fueraPartido[eq].has(j.num));
+  let cual = s.libero[eq]?.num || libs[0]?.num, nuevo = null;
+  const dibujar = () => {
+    const quedan = libs.filter((j) => j.num !== cual);
+    const candidatos = ST.equipos[eq].jugadores.filter((j) => !j.lib && !j.cap && !s.rot[eq].includes(j.num) && !ST.fueraPartido[eq].has(j.num) && !ST.descalificados[eq].has(j.num));
+    $('hojaC').innerHTML = `<h2 id="hojaT">Líbero que no puede seguir · ${esc(eqNombre(eq))}</h2>
+      <p class="small muted">Lesión, enfermedad, expulsión o descalificación. El líbero que no puede seguir ya no vuelve en el partido.</p>
+      <b>Líbero</b><div class="botones">${libs.map((j) => `<button data-cual="${esc(j.num)}" aria-pressed="${cual === j.num}">${esc(j.num)}</button>`).join('')}</div>
+      ${quedan.length ? `<p class="msg ok small">Sigue jugando el otro líbero, el ${esc(quedan[0].num)}.</p>` : `<b>Redesignar como líbero a</b> <span class="small muted">(un jugador que no esté en pista; o ninguno y se sigue sin líbero)</span>
+        <div class="botones"><button data-nuevo="" aria-pressed="${nuevo === null}" style="font-size:15px">Ninguno</button>${candidatos.map((j) => `<button data-nuevo="${esc(j.num)}" aria-pressed="${nuevo === j.num}">${esc(j.num)}</button>`).join('')}</div>`}
+      <div class="row"><button class="primary" id="ok">Confirmar</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
+    $('hojaC').querySelectorAll('[data-cual]').forEach((b) => (b.onclick = () => { cual = b.dataset.cual; nuevo = null; dibujar(); }));
+    $('hojaC').querySelectorAll('[data-nuevo]').forEach((b) => (b.onclick = () => { nuevo = b.dataset.nuevo || null; dibujar(); }));
+    $('ok').onclick = () => { if (!hacer({ t: 'liberoNoPuede', eq, libero: cual, ...(nuevo ? { nuevo } : {}) })) { cerrarHoja(); toast(nuevo ? `El ${nuevo} es ahora líbero.` : 'Anotado.', true); } };
+  };
+  hoja('', () => { dibujar(); $('hojaC').querySelector('button')?.focus(); });
+}
+
+/* ---------- Directo: marcador público para quien tenga el enlace (sin nombres de jugadores) ---------- */
+function resumenDirecto() {
+  const s = M.setActual(ST), r = M.resultados(ST);
+  return { local: A.datos.local || '', visitante: A.datos.visitante || '', competicion: A.datos.competicion || '', categoria: A.datos.categoria || '', pabellon: A.datos.pabellon || '', fecha: A.datos.fecha || '',
+    fase: ST.fase, set: s.n, decisivo: s.decisivo, puntos: s.puntos, ganados: ST.ganados, saque: s.saque, izq: s.izq || 'L', tiempos: { L: s.tiempos.L.length, V: s.tiempos.V.length },
+    sets: ST.sets.filter((x) => x.ganador).map((x) => ({ n: x.n, L: x.puntos.L, V: x.puntos.V })), ganador: r.ganador, actualizado: new Date().toISOString() };
+}
+let DIR_T = null;
+function publicarDirecto(ahora) {
+  if (!A?.directo) return;
+  clearTimeout(DIR_T);
+  DIR_T = setTimeout(async () => {
+    try { const { error } = await sbc().from('acta_directo').upsert({ id: A.directo, estado: resumenDirecto(), updated_at: new Date().toISOString() }); if (error) throw error; }
+    catch (e) { toast('No se ha podido actualizar el directo (¿sin conexión?). Se reintenta con el siguiente punto.'); }
+  }, ahora ? 0 : 800);
+}
+const enlaceDirecto = () => new URL('directo/?id=' + A.directo, location.href).href;
+async function hojaDirecto() {
+  let session = null; try { ({ data: { session } } = await sbc().auth.getSession()); } catch (e) {}
+  if (!session) { hoja(`<h2 id="hojaT">Directo</h2><p>Para emitir el marcador en directo tienes que haber entrado con tu cuenta de Vòlei EnXarxa en este navegador.</p><div class="row"><a class="btn primary" href="../">Entrar</a><button class="ghost" data-cerrar>Cerrar</button></div>`); return; }
+  if (!A.directo) {
+    hoja(`<h2 id="hojaT">Emitir en directo</h2><p class="small">Quien tenga el enlace verá el marcador en tiempo real: equipos, sets, puntos y quién saca. <b>No se publica ningún nombre de jugador.</b> Se borra a los 2 días.</p>
+      <div class="row"><button class="primary" id="empezarDir">Empezar el directo</button><button class="ghost" data-cerrar>Cancelar</button></div>`);
+    $('empezarDir').onclick = async () => {
+      A.directo = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => (b % 36).toString(36)).join('') + Date.now().toString(36);
+      guardar(); sbc().rpc('limpiar_directos').then(() => {}, () => {});
+      publicarDirecto(true); pintar(); hojaDirecto();
+    };
+    return;
+  }
+  hoja(`<h2 id="hojaT">En directo</h2><p class="small muted">Pásalo por WhatsApp o ábrelo en una TV.</p>
+    <label class="f"><span>Enlace</span><input type="text" id="dirUrl" readonly value="${esc(enlaceDirecto())}"></label>
+    <div class="row"><button class="primary" id="copiarDir">Copiar el enlace</button><a class="btn" href="${esc(enlaceDirecto())}" target="_blank" rel="noopener">Abrir</a><button id="pararDir">Dejar de emitir</button><button class="ghost" data-cerrar>Cerrar</button></div>`);
+  $('copiarDir').onclick = async () => { try { await navigator.clipboard.writeText(enlaceDirecto()); toast('Enlace copiado.', true); } catch (e) { $('dirUrl').select(); } };
+  $('pararDir').onclick = async () => { const id = A.directo; A.directo = null; guardar(); try { await sbc().from('acta_directo').delete().eq('id', id); } catch (e) {} cerrarHoja(); pintar(); toast('Directo terminado.', true); };
+}
+
 function hojaSancion(eq) {
   let tipo = null, quien = null;
   const dibujar = () => {
@@ -634,7 +698,10 @@ function actaHtml() {
       <tr><th>Total</th><td>${r.total.duracion}</td><td>${r.total[eqA].tiempos}</td><td>${r.total[eqA].sust}</td><td>${r.total[eqA].gana}</td><td>${r.total[eqA].puntos}</td><td>${r.total[eqB].puntos}</td><td>${r.total[eqB].gana}</td><td>${r.total[eqB].sust}</td><td>${r.total[eqB].tiempos}</td></tr></table>
       <table><tr><th>Inicio</th><td>${hora(r.inicio)}</td><th>Fin</th><td>${hora(r.fin)}</td><th>Duración</th><td>${r.duracionPartido ?? ''} min</td><th>Ganador</th><td>${r.ganador ? esc(eqNombre(r.ganador)) + ` ${Math.max(r.total.L.gana, r.total.V.gana)}:${Math.min(r.total.L.gana, r.total.V.gana)}` : ''}</td></tr></table></div>
     ${st.cfg.setObligatorio ? (() => { const sc = M.setsCompletos(st), js = st.sets.filter((x) => x.inicio); const t = (eq) => `<table><tr><th colspan="${js.length + 3}">Set obligatorio · ${ab(eq)} · ${esc(st.equipos[eq].nombre)}</th></tr><tr><th>Nº</th><th>Jugador</th>${js.map((x) => `<th>S${x.n}</th>`).join('')}<th>Cumple</th></tr>${Object.values(sc[eq]).map((j) => `<tr><td>${esc(j.num)}</td><td class="izq">${esc(j.nombre)}</td>${j.sets.map((x) => `<td>${x.completo ? 'X' : ''}${x.mano !== null ? '*' : ''}</td>`).join('')}<td>${j.cumple ? 'Sí' : '<b>NO</b>'}</td></tr>`).join('')}</table>`; return `<div class="bloque cols"><div>${t(eqA)}</div><div>${t(eqB)}</div></div><p style="font-size:9px;margin:-4px 0 6px">X = set completo (titular sin cambio) · * = corregido a mano por el anotador.</p>`; })() : ''}
-    <div class="bloque"><table><tr><th class="izq">Observaciones</th></tr><tr><td class="izq">${st.observaciones.map((o) => `Set ${o.set} ${hora(o.h)}: ${esc(o.texto)}`).join('<br>') || '—'}</td></tr></table></div>
+    <div class="bloque"><table><tr><th class="izq">Observaciones</th></tr><tr><td class="izq">${[
+      ...st.sets.flatMap((x) => x.repeticiones.map((r) => `Set ${x.n} ${hora(r.h)}: repetición de la jugada (${r.a}:${r.b}).`)),
+      ...['L', 'V'].flatMap((eq) => st.liberosFuera[eq].map((x) => `Set ${x.set} ${hora(x.h)}: el líbero ${esc(x.libero)} de ${esc(st.equipos[eq].nombre)} no puede seguir${x.nuevo ? `; nuevo líbero, el ${esc(x.nuevo)}` : ''} (${x.a}:${x.b}).`)),
+      ...st.observaciones.map((o) => `Set ${o.set} ${hora(o.h)}: ${esc(o.texto)}`)].join('<br>') || '—'}</td></tr></table></div>
     <div class="bloque"><table><tr>${FIRMAS_PRE.map(([k, t]) => firma(k, t + ' (antes)')).join('')}</tr><tr>${FIRMAS.map(([k, t]) => firma(k, t)).join('')}</tr></table></div>
     <p style="font-size:9px">Acta electrónica de Vòlei EnXarxa (prototipo, no oficial). Generada el ${new Date().toLocaleString('es-ES')}.</p>`;
 }

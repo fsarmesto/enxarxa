@@ -228,3 +228,32 @@ test('set obligatorio: titulares sin cambio cuentan; el set en juego no; marcas 
   assert.match(p.falla({ t: 'setCompleto', eq: 'L', num: 7, set: 3, si: true }), /no se ha jugado/);
   assert.match(p.falla({ t: 'setCompleto', eq: 'L', num: 55, set: 1, si: true }), /no está en el acta/);
 });
+
+test('repetición: sin punto, sin cambio de saque, anotada', () => {
+  const p = preparado();
+  p.add({ t: 'punto', eq: 'L' }); p.add({ t: 'repeticion' });
+  const s = set(p);
+  assert.deepEqual(s.puntos, { L: 1, V: 0 }); assert.equal(s.saque, 'L');
+  assert.deepEqual([s.repeticiones[0].a, s.repeticiones[0].b], [1, 0]);
+});
+
+test('líbero que no puede seguir: entra el otro líbero o se redesigna a uno del banquillo', () => {
+  const p = preparado();
+  // L tiene 2 líberos (12 y 13): el 12 en pista se lesiona → le sustituye directamente el 13 y el 12 no vuelve
+  p.add({ t: 'liberoEntra', eq: 'L', libero: 12, sale: 6 }); p.add({ t: 'punto', eq: 'V' });
+  p.add({ t: 'liberoNoPuede', eq: 'L', libero: 12 });
+  let st = p.st(), s = M.setActual(st);
+  assert.equal(s.libero.L.num, '13'); assert.ok(st.fueraPartido.L.has('12'));
+  assert.match(p.falla({ t: 'liberoEntra', eq: 'L', libero: 12, sale: 5 }), /no puede jugar|Ya hay un líbero/);
+  // V tiene un solo líbero (12): no puede seguir y se redesigna al 7 (en el banquillo)
+  assert.match(p.falla({ t: 'liberoNoPuede', eq: 'V', libero: 12, nuevo: 3 }), /está en pista/);
+  assert.match(p.falla({ t: 'liberoNoPuede', eq: 'V', libero: 12, nuevo: 1 }), /está en pista|capitán/);
+  p.add({ t: 'liberoNoPuede', eq: 'V', libero: 12, nuevo: 7 });
+  st = p.st();
+  assert.equal(st.equipos.V.jugadores.find((j) => j.num === '7').lib, true, 'el 7 pasa a ser líbero');
+  assert.match(p.falla({ t: 'sust', eq: 'V', sale: 3, entra: 7 }), /líbero/, 'ya no puede entrar por sustitución');
+  p.add({ t: 'punto', eq: 'L' });
+  p.add({ t: 'liberoEntra', eq: 'V', libero: 7, sale: 6 });
+  assert.equal(M.setActual(p.st()).libero.V.num, '7');
+  assert.equal(p.st().liberosFuera.V[0].nuevo, '7');
+});

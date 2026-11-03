@@ -872,7 +872,16 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   "Les falta un set completo"; final: tabla por jugador y set con aviso de quién no cumple; acta impresa con su tabla.
   **Pendiente de confirmar con la FCVB:** el texto entero de la circular (el "canvi especial" que no rompe el set completo:
   de momento se corrige a mano) y si en infantil hay líbero (no se ha encontrado ninguna norma catalana que lo prohíba).
-- Pruebas: `node --test tools/prueba-acta-motor.mjs` (15 casos de reglas). Partido completo con clics reales y axe: banco de la
+- **"Mete todo" del e-Scoresheet (3-nov-2026):** `repeticion` (jugada repetida: sin punto ni cambio de saque; registro y
+  observaciones del acta); `liberoNoPuede {eq, libero, nuevo?}` (FIVB 19.4: si queda otro líbero juega ese; si no, se puede
+  redesignar a un jugador que no esté en pista, nunca el capitán; el que no puede seguir no vuelve en el partido; si estaba en
+  pista le sustituye directamente). **Directo:** botón "Directo" (hace falta sesión de la app): `acta_directo` (migración
+  036; lectura pública por id aleatorio, escritura solo su anotador, `limpiar_directos()` borra los de más de 2 días al abrir
+  uno nuevo) con `resumenDirecto()` = equipos, competición, marcador, sets, saque y tiempos, **ningún nombre de jugador**;
+  se publica tras cada suceso. Página `docs/acta/directo/?id=` (negra, para móvil o TV; pregunta cada 4 s).
+- Pruebas: `node --test tools/prueba-acta-motor.mjs` (17 casos de reglas). Banco de pruebas con Chrome: un solo perfil
+  fijo en /tmp que se vacía al empezar (`tools/prueba-accesibilidad.mjs` igual): los perfiles temporales sin borrar, de
+  ~180 MB cada uno, llenaron /tmp (tmpfs de 7,4 GB) el 3-nov. Partido completo con clics reales y axe: banco de la
   sesión del 3-nov (scratchpad).
 - Pendiente: catalán, enviar el acta a la FCVB/iSquad, marcador para el público, faltas de rotación, protestas guiadas,
   equipo incompleto/incomparecencia, sanciones entre sets aplicadas al empezar el siguiente.

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://vevsurxxvjivjizuuqad.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<title>Directo · Vòlei EnXarxa</title>
+<link rel="icon" href="../../icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="../../designa.css">
+<style>
+/* Marcador en directo del acta electrónica: solo equipos, sets, puntos y saque (sin nombres de jugadores). Negro como el
+   marcador de la app, en el móvil y en una TV. */
+body{background:#000;color:#fff;min-height:100vh;display:flex;flex-direction:column}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:4px solid var(--yellow)}
+.top a{color:#fff;text-decoration:none;font-weight:600;font-size:14px}
+.vivo{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:#FF4A4F}
+.vivo i{width:10px;height:10px;border-radius:50%;background:#FF4A4F;animation:lat 1.4s infinite}
+.vivo.fin{color:#A6A6A6} .vivo.fin i{background:#A6A6A6;animation:none}
+@keyframes lat{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.vivo i{animation:none}}
+main{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:1200px;width:100%;margin:0 auto;padding:16px}
+.comp{text-align:center;color:#A6A6A6;font-size:clamp(13px,1.6vw,18px);margin:0 0 12px}
+.marc{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:clamp(8px,3vw,40px)}
+.eq{text-align:center;min-width:0}
+.eq .n{font:700 clamp(20px,4vw,52px)/1.05 var(--display);overflow-wrap:anywhere}
+.eq .s{display:inline-flex;align-items:center;justify-content:center;width:clamp(40px,7vw,90px);height:clamp(40px,7vw,90px);margin-top:10px;border-radius:10px;background:#1F1F1F;color:var(--yellow);font:700 clamp(26px,5vw,64px)/1 var(--display)}
+.saca{display:inline-block;width:clamp(14px,2vw,26px);height:clamp(14px,2vw,26px);border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 30%,var(--yellow) 31%);vertical-align:middle;margin:0 8px;visibility:hidden}
+.saca.on{visibility:visible}
+.pts{font:700 clamp(84px,18vw,260px)/.9 var(--display);white-space:nowrap;text-align:center}
+.pts .g{opacity:.35;margin:0 .08em}
+.set{text-align:center;color:#A6A6A6;font:600 clamp(14px,2vw,24px)/1.2 Barlow,sans-serif;margin-top:6px}
+.hist{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:22px}
+.hist span{border:1px solid #2E2E2E;border-radius:14px;padding:6px 12px;color:#C2C2C2;font:600 clamp(13px,1.6vw,18px)/1 Barlow,sans-serif}
+.pie{text-align:center;color:#8C8C8C;font-size:13px;padding:12px}
+.aviso{text-align:center;font-size:18px;color:#C2C2C2}
+</style>
+</head>
+<body>
+<div class="top"><a href="../../">← Vòlei EnXarxa</a><span class="vivo" id="vivo"><i></i><span>En directo</span></span></div>
+<main id="m" aria-live="polite"><p class="aviso">Cargando…</p></main>
+<p class="pie" id="pie"></p>
+<script src="../../config.js"></script>
+<script src="../../vendor/supabase-2.45.4.js"></script>
+<script>
+(() => {
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const id = new URLSearchParams(location.search).get('id') || '';
+const sb = supabase.createClient(window.APP_CONFIG.SUPABASE_URL, window.APP_CONFIG.SUPABASE_ANON_KEY);
+let ULT = null;
+function pintar(e) {
+  const izq = e.izq || 'L', der = izq === 'L' ? 'V' : 'L', nom = (k) => (k === 'L' ? e.local : e.visitante);
+  const fin = e.fase === 'fin';
+  document.title = `${e.puntos[izq]}-${e.puntos[der]} · ${nom(izq)} – ${nom(der)}`;
+  $('vivo').className = 'vivo' + (fin ? ' fin' : ''); $('vivo').querySelector('span').textContent = fin ? 'Final' : 'En directo';
+  $('m').innerHTML = `<p class="comp">${esc([e.competicion || e.categoria, e.pabellon].filter(Boolean).join(' · '))}</p>
+    <div class="marc">
+      <div class="eq"><div class="n"><span class="saca${!fin && e.saque === izq ? ' on' : ''}" role="img" aria-label="Saca"></span>${esc(nom(izq))}</div><div class="s" title="Sets">${e.ganados[izq]}</div></div>
+      <div><div class="pts">${fin ? `${e.ganados[izq]}<span class="g">–</span>${e.ganados[der]}` : `${e.puntos[izq]}<span class="g">–</span>${e.puntos[der]}`}</div>
+        <div class="set">${fin ? `Final · gana ${esc(nom(e.ganador))}` : e.fase === 'entreSets' ? `Descanso · empieza el set ${e.set}` : `Set ${e.set}${e.decisivo ? ' · decisivo' : ''}`}</div></div>
+      <div class="eq"><div class="n">${esc(nom(der))}<span class="saca${!fin && e.saque === der ? ' on' : ''}" role="img" aria-label="Saca"></span></div><div class="s" title="Sets">${e.ganados[der]}</div></div>
+    </div>
+    ${e.sets.length ? `<div class="hist">${e.sets.map((x) => `<span>Set ${x.n} · ${x[izq]}-${x[der]}</span>`).join('')}</div>` : ''}`;
+}
+async function cargar() {
+  if (!/^[a-z0-9]{16,40}$/.test(id)) { $('m').innerHTML = '<p class="aviso">Este enlace no es válido.</p>'; return; }
+  try {
+    const { data, error } = await sb.from('acta_directo').select('estado, updated_at').eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!data) { $('m').innerHTML = '<p class="aviso">Este directo ha terminado o ya no existe.</p>'; $('vivo').className = 'vivo fin'; $('vivo').querySelector('span').textContent = 'Sin directo'; return; }
+    ULT = data.updated_at; pintar(data.estado);
+  } catch (e) { $('pie').textContent = 'Sin conexión: se reintenta…'; }
+}
+setInterval(() => { if (ULT) { const s = Math.round((Date.now() - Date.parse(ULT)) / 1000); $('pie').textContent = `Actualizado hace ${s < 60 ? s + ' s' : Math.round(s / 60) + ' min'} · Acta electrónica de Vòlei EnXarxa`; } }, 1000);
+cargar(); setInterval(cargar, 4000);
+})();
+</script>
+</body>
+</html>

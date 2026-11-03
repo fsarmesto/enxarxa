@@ -20,7 +20,7 @@
   // Normaliza los dorsales de un suceso (las actas guardadas antes los tenían como número).
   function normalizar(ev) {
     const e = { ...ev };
-    for (const k of ['sale', 'entra', 'libero', 'num']) if (k in e) e[k] = D(e[k]);
+    for (const k of ['sale', 'entra', 'libero', 'num', 'nuevo']) if (k in e) e[k] = D(e[k]);
     if ('quien' in e && (typeof e.quien === 'number' || DORSAL.test(String(e.quien)))) e.quien = D(e.quien);
     if (e.t === 'alineacion' && Array.isArray(e.jugadores)) e.jugadores = e.jugadores.map(D);
     return e;
@@ -45,7 +45,7 @@
       tiempos: { L: [], V: [] },              // { a, b }
       liberos: { L: [], V: [] },              // cambios de líbero, para el acta: { entra, sale, a, b }
       progreso: [],                            // cada punto: { eq, a, b, motivo }
-      rallies: 0, ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
+      rallies: 0, repeticiones: [], ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
     };
   }
 
@@ -58,7 +58,8 @@
       avisoConducta: { L: false, V: false }, avisoRetraso: { L: false, V: false }, impropias: { L: 0, V: 0 },
       descalificados: { L: new Set(), V: new Set() }, fueraPartido: { L: new Set(), V: new Set() },
       observaciones: [], firmas: {}, fase: 'preparacion', auto: [],
-      marcasSet: { L: {}, V: {} },             // set completo marcado a mano: marcasSet[eq][dorsal][set] = true/false
+      marcasSet: { L: {}, V: {} },
+      liberosFuera: { L: [], V: [] },          // líberos que no pueden seguir y por quién se han redesignado             // set completo marcado a mano: marcasSet[eq][dorsal][set] = true/false
     };
   }
 
@@ -292,6 +293,40 @@
       case 'impropia': st.impropias[ev.eq]++; st.sanciones.push({ eq: ev.eq, quien: 'equipo', tipo: 'impropia', set: s.n, ...marcador(s, ev.eq), h }); return;
       case 'obs': st.observaciones.push({ texto: String(ev.texto || '').slice(0, 1000), set: s.n, h }); return;
       case 'firma': st.firmas[ev.rol] = { nombre: ev.nombre || '', img: ev.img, h }; return;
+      case 'repeticion': {   // la jugada se repite (p. ej. doble falta o interferencia externa): sin punto para nadie
+        if (st.fase !== 'juego') no('Las repeticiones se anotan con el set en marcha.');
+        s.repeticiones.push({ a: s.puntos.L, b: s.puntos.V, h });
+        return;
+      }
+      case 'liberoNoPuede': {   // { eq, libero, nuevo? } FIVB 19.4: líbero lesionado, enfermo, expulsado o descalificado
+        if (!st.cfg.liberos) no('En este partido no hay líbero.');
+        if (!['juego', 'entreSets'].includes(st.fase)) no('Se hace con el partido en marcha.');
+        const lib = jugador(st, ev.eq, ev.libero);
+        if (!lib?.lib) no(`El ${ev.libero} no es líbero.`);
+        if (st.fueraPartido[ev.eq].has(ev.libero)) no(`El ${ev.libero} ya no juega.`);
+        const enPistaAhora = s.libero[ev.eq]?.num === ev.libero;
+        let nuevo = null;
+        if (ev.nuevo != null) {
+          // Redesignación: un jugador que no esté en pista pasa a ser líbero el resto del partido.
+          const j = jugador(st, ev.eq, ev.nuevo);
+          if (!j) no(`El ${ev.nuevo} no está en el acta.`);
+          if (j.lib) no(`El ${ev.nuevo} ya es líbero: no hace falta redesignarlo.`);
+          if ((s.rot[ev.eq] || []).includes(ev.nuevo)) no(`El ${ev.nuevo} está en pista: solo se puede redesignar a quien no esté en pista.`);
+          if (st.descalificados[ev.eq].has(ev.nuevo) || st.fueraPartido[ev.eq].has(ev.nuevo)) no(`El ${ev.nuevo} no puede jugar.`);
+          if (st.equipos[ev.eq].jugadores.some((x) => x.cap && x.num === ev.nuevo)) no('El capitán no puede ser líbero.');
+          j.lib = true; j.redesignado = true; nuevo = j.num;
+        }
+        st.fueraPartido[ev.eq].add(ev.libero);
+        st.liberosFuera[ev.eq].push({ libero: ev.libero, nuevo, set: s.n, a: s.puntos[ev.eq], b: s.puntos[OTRO(ev.eq)], h });
+        if (enPistaAhora) {
+          // Estaba en pista: le sustituye directamente el nuevo líbero (o el otro líbero); si no hay, vuelve el jugador.
+          const otro = nuevo || st.equipos[ev.eq].jugadores.find((x) => x.lib && x.num !== ev.libero && !st.fueraPartido[ev.eq].has(x.num))?.num;
+          if (otro) { s.liberos[ev.eq].push({ entra: otro, sale: ev.libero, ...marcador(s, ev.eq), h }); s.libero[ev.eq] = { ...s.libero[ev.eq], num: otro }; }
+          else { s.liberos[ev.eq].push({ entra: s.libero[ev.eq].por, sale: ev.libero, ...marcador(s, ev.eq), h }); s.libero[ev.eq] = null; }
+          s.ultLibero[ev.eq] = s.rallies;
+        }
+        return;
+      }
       case 'setCompleto': {   // { eq, num, set, si }: corrección a mano del anotador (p. ej. un cambio especial que no cuenta)
         const set = st.sets.find((x) => x.n === ev.set);
         if (!set || !set.inicio) no('Ese set no se ha jugado.');
