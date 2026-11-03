@@ -364,6 +364,13 @@ body:is([data-vista="ajustes"],[data-vista="admin"]) :is(.views,#pushCard){displ
 .aj-card h3{font-family:var(--display);font-size:23px;margin:0 0 10px}
 .aj-card .aj-h4{font-size:15px;margin:16px 0 6px}
 .aj-ul{margin:0 0 8px;padding-left:18px}
+/* Disponibilidad del fin de semana (designaciones de la FCVB, 3-nov-2026): tarjeta arriba de Mis partidos, solo árbitros. */
+.disp-card{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;border:1px solid var(--line);border-left:5px solid var(--yellow);border-radius:8px;padding:10px 12px;margin:0 0 12px}
+.disp-card .t{flex:1;min-width:200px;font-size:14px}
+.disp-card .t b{display:block;font-size:15px}
+.disp-card a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:2px solid var(--ink);border-radius:3px;color:var(--ink);text-decoration:none;font-weight:700}
+.disp-card.done{border-left-color:var(--ok-line)}
+body:not([data-vista="agenda"]) #dispCard{display:none}
 /* Km por pabellón: plegado por defecto (lista larga). Toda la cabecera abre y cierra; el índice lo abre al saltar. */
 #kmFold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;margin:-6px -8px;padding:6px 8px;border-radius:6px}
 #kmFold>summary::-webkit-details-marker{display:none}
@@ -1046,6 +1053,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   </div>
   <div class="fsum hidden" id="fsum"></div>
   <div id="ledger"></div>
+  <div id="dispCard" class="disp-card hidden" data-noi18n></div>
   <div id="agenda" class="hidden"></div>
   <div id="resumen" class="hidden"></div>
   <div id="calc" class="hidden calc"></div>
@@ -2802,11 +2810,14 @@ try{ VIEW=localStorage.getItem(VIEW_KEY)||'cobros'; }catch(e){}
 if(VIEW==='ajustes') VIEW='cobros';   // Ajustes es una página aparte: no se abre sola al entrar
 // Al abrir desde una notificación (?vista=agenda), directamente en esa pestaña.
 let OPEN_AVISOS = new URLSearchParams(location.search).has('avisos');
+// Desde el formulario de disponibilidad ("Entrar con iSquad"): al entrar, de vuelta al formulario.
+let GO_DISP = false;
 let OPEN_PARTIDO = new URLSearchParams(location.search).get('partido');   // desde una notificación: abrir ese partido (?partido=<id>)   // desde una notificación: abrir los Avisos
 { const v=new URLSearchParams(location.search).get('vista'); if(['cobros','agenda','equipos','resumen'].includes(v)){ VIEW=v; history.replaceState(null,'',location.pathname); }
   else if(v==='com-calcular-dietes' || v==='calc'){ VIEW='calc'; history.replaceState(null,'',location.pathname); }
   else if(v==='ajustes' || v==='configuracio'){ VIEW='ajustes'; history.replaceState(null,'',location.pathname); }
-  else if(v==='admin'){ VIEW='admin'; history.replaceState(null,'',location.pathname); } }
+  else if(v==='admin'){ VIEW='admin'; history.replaceState(null,'',location.pathname); }
+  else if(v==='disponibilidad'){ GO_DISP=true; history.replaceState(null,'',location.pathname); } }
 const CREW_LABEL={r1:'R1', r2:'R2', an:'Anotador', jl:'Juez de línea'};
 // "PRIMERA DIVISION SENIOR FEMENINO" → "1ª Sén. Fem" (para la línea corta de la tarjeta).
 function shortComp(comp){
@@ -3559,9 +3570,28 @@ function started(user){
   sb.rpc('marcar_actividad').then(()=>{}, ()=>{});   // las cuentas sin abrir la app en 6 meses se borran
   // Idioma de la interfaz en el perfil: los avisos push salen en ese idioma (issue #36). Cambiar de idioma recarga y pasa por aquí.
   if(P && P.lang!==LANG){ P.lang=LANG; sb.from('profiles').update({lang:LANG}).eq('user_id',USER.id).then(()=>{}, ()=>{}); }
-  show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); loadAvisos();
+  if(GO_DISP && !needsConsent()){ GO_DISP=false; location.href='disponibilidad/'; return; }
+  show('app'); render(); loadAdmin(); initPush(); loadEquipos(); loadCoche(); loadAvisos(); loadDisp();
   if(needsConsent()) openConsent(); else if(OPEN_AVISOS){ OPEN_AVISOS=false; setTimeout(openAvisos, 800); }
   else if(OPEN_PARTIDO){ const id=OPEN_PARTIDO; OPEN_PARTIDO=null; setTimeout(()=>avGo({match:id}), 600); } else setTimeout(maybeGuide, 600);
+}
+// Tarjeta "Disponibilidad para el fin de semana" (función designa): si ya la has dado o no, con el enlace al formulario.
+async function loadDisp(){
+  const c=$('dispCard');
+  if(DEP || GUEST){ c.classList.add('hidden'); return; }
+  const r = await callFn('designa', {action:'form'});
+  if(!r.ok || !r.finde){ c.classList.add('hidden'); return; }
+  const f = n => new Intl.DateTimeFormat(LANG==='ca'?'ca-ES':'es-ES',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(Date.parse(r.finde+'T12:00:00Z')+n*864e5));
+  const ca = LANG==='ca';
+  const d0 = r.finde.slice(5,7)===new Date(Date.parse(r.finde+'T12:00:00Z')+864e5).toISOString().slice(5,7) ? String(+r.finde.slice(8,10)) : f(0);
+  const fr = v => (ca ? {manana:'matí',tarde:'tarda',ambas:'matí i tarda',no:'no'} : {manana:'mañana',tarde:'tarde',ambas:'mañana y tarde',no:'no'})[v]||v;
+  c.classList.toggle('done', !!r.mia);
+  c.innerHTML = r.mia
+    ? (ca ? `<div class="t"><b>Disponibilitat del ${esc(d0)} i ${esc(f(1))}: enviada</b>Dissabte: ${esc(fr(r.mia.sab))} · Diumenge: ${esc(fr(r.mia.dom))}</div><a href="disponibilidad/">Canvia-la</a>`
+          : `<div class="t"><b>Disponibilidad del ${esc(d0)} y ${esc(f(1))}: enviada</b>Sábado: ${esc(fr(r.mia.sab))} · Domingo: ${esc(fr(r.mia.dom))}</div><a href="disponibilidad/">Cambiarla</a>`)
+    : (ca ? `<div class="t"><b>Pots arbitrar el ${esc(d0)} i ${esc(f(1))}?</b>Dona la teva disponibilitat a la federació: el teu nom i la teva població ja hi són.</div><a href="disponibilidad/">Dona la disponibilitat</a>`
+          : `<div class="t"><b>¿Puedes arbitrar el ${esc(d0)} y ${esc(f(1))}?</b>Da tu disponibilidad a la federación: tu nombre y tu población ya están puestos.</div><a href="disponibilidad/">Dar disponibilidad</a>`);
+  c.classList.remove('hidden');
 }
 function retryLoad(load, user){
   (load || fetchAll()).then(d=>{ applyAll(d); started(user); toast('Conexión recuperada'); },

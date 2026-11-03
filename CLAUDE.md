@@ -776,3 +776,33 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - Si algún día no basta el cupo de ORS Matrix: el servidor público de rutas Valhalla de FOSSGIS
   (gratis, sin clave, 1 consulta/s) como segunda reserva. No probado desde Supabase.
 - Al empezar la temporada 2027/28: actualizar `CATS` y `dietaFor` con el anexo nuevo.
+
+## Designaciones del fin de semana (3-nov-2026, para Albert)
+
+- Para el designador de la FCVB (Albert), que antes lo hacía con un Google Forms. **Solo un plan**: nada se escribe en iSquad;
+  Albert lo pasa a iSquad como siempre (Excel de apoyo). Decidido por Ferran: los árbitros no reciben ningún aviso del plan.
+- **Formulario** `docs/disponibilidad/` (público, sin estar en el menú): nombre y apellidos, población, coche, y sábado y
+  domingo (mañana / tarde / mañana y tarde / no) con observaciones. Mañana = empieza antes de las 15:00. Con sesión de la app
+  (misma web, misma sesión de Supabase) nombre y población salen del perfil (`profiles.nombre`, `profiles.origin` = la de
+  iSquad) y se pueden cambiar; sin sesión, "Entrar con iSquad" (`../?vista=disponibilidad`: la app vuelve al formulario al
+  entrar, `GO_DISP`) o "Rellenar a mano", que devuelve un código (localStorage `designa-codigo:<sábado>`, en la base solo su
+  sha256 `edit_hash`) para cambiarla o retirarla. Se puede rellenar el fin de semana que toca y el siguiente (`?finde=`).
+  Tarjeta en Mis partidos (`#dispCard`, solo árbitros con cuenta): "¿Puedes arbitrar…?" o "enviada" con enlace.
+- **Panel** `docs/designa-admin/` (noindex): login propio, no de iSquad. Secret `DESIGNA_USERS` =
+  `usuario:sal:pbkdf2` (PBKDF2-SHA256, 100.000 iteraciones, 32 bytes, hex; varios separados por comas) y `DESIGNA_SECRET`
+  (firma HMAC de la sesión, 12 h, cabecera `x-designa-token`). Valores en `~/.config/fcvb/secrets.env`; **la contraseña
+  no va en el repo** (es público). Tope: 5 fallos por usuario en 15 min y 20 por conexión en 1 h (`sumar_intento`).
+  Partidos del sábado y domingo del listado público (`feed`), con estado de iSquad si el cálculo semanal de Administración
+  (`desig-global`) cubre ese fin de semana. Por partido: R1, R2 y Anotador (desplegables: recomendados, disponibles lejos o
+  con otro partido, no disponibles) y hasta 4 recomendados (clic = primer puesto libre). Pestaña Árbitros: franjas,
+  observaciones, partidos asignados y sus 3 partidos de liga sin R1 más cercanos; alta, edición y baja a mano (para quien
+  avisa por teléfono). Exportar a Excel (lo filtrado). Copiar enlace del formulario.
+- **Recomendación** (en la web): disponible en esa franja; no ocupado (otro partido suyo a menos de 1 h 45 min en el mismo
+  pabellón o de 2 h 30 min en otro); sin coche y a más de 12 km = no recomendado. Orden: km + 5 por partido ya asignado.
+  Km = línea recta × 1,25 entre la población del árbitro y el pabellón (Photon vía `geocode`/`locate`, sin gastar rutas
+  ORS); se enseñan como "≈". El listado de la federación no trae la calle: la dirección sale de `matches.addr` (designaciones
+  de los árbitros de la app) por el nombre del pabellón sin "- PISTA n" (`sinPista`). 3-nov: 443 de 707 partidos ubicados.
+  Pabellones en `pub_cache designa-geo2:<sábado>`, por tandas de 40 s (la web repite).
+- Datos: `designa_disp` y `designa_asig` (migración 035, sin acceso desde la web: todo por la función `designa`,
+  `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
+- Pruebas: banco con supabase y `designa` simulados en el scratchpad de la sesión del 3-nov (formulario, panel, móvil, axe).

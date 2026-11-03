@@ -9,3 +9,8 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = false
+
+# Disponibilidad y designaciones del fin de semana: el formulario se puede rellenar sin cuenta y el designador entra
+# con su propio login (secret DESIGNA_USERS), no con una sesión de Supabase.
+[functions.designa]
+verify_jwt = false
