@@ -3,7 +3,9 @@
 // la cabecera (equipos, competición, fecha, pabellón y árbitros).
 (() => {
 'use strict';
-const M = window.ActaMotor, OTRO = M.OTRO;
+const M = window.ActaMotor;
+if (!M) throw new Error('No se ha cargado el motor del acta (motor.js).');   // lo enseña la vigilancia de index.html
+const OTRO = M.OTRO;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const POS = ['I', 'II', 'III', 'IV', 'V', 'VI'];
@@ -60,7 +62,7 @@ function pasos(on) {
   return `<div class="pasos">${P.map(([k, t], j) => `<span class="${j === i ? 'on' : j < i ? 'ok' : ''}">${j < i ? '✓ ' : ''}${esc(t)}</span>`).join('')}</div>`;
 }
 function pintar() {
-  try { pintar0(); LISTO = true; window.pepperLoader?.done(); } catch (e) { mostrarError(e); }
+  try { pintar0(); LISTO = true; window.ACTA_OK = true; window.pepperLoader?.done(); } catch (e) { mostrarError(e); }
 }
 // Si algo falla al pintar (p. ej. un acta guardada que esta versión no puede abrir) no se queda colgado: se explica qué pasa
 // y se puede volver a intentar, ir a Mis actas o descargar los datos de esa acta para no perderlos.
@@ -69,6 +71,7 @@ function mostrarError(e) {
   console.error(e);
   window.pepperLoader?.done(); clearInterval(RELOJ);
   const msg = (e && e.message) || String(e);
+  window.ACTA_OK = true;   // ya se explica aquí: la vigilancia de index.html no hace falta
   $('app').innerHTML = `<section class="card" role="alert"><h2>No se ha podido abrir</h2>
     <p>${A ? 'Esta acta no se puede mostrar con esta versión.' : 'La página no ha arrancado bien.'} Tus datos siguen guardados en este dispositivo.</p>
     <p class="small muted">Detalle: ${esc(msg)}</p>
