@@ -78,18 +78,46 @@ const circ0 = (cx, cy, r) => `<div class="f-c" style="left:${cx - r}pt;top:${cy 
 
 // ---------- Nombres ----------
 // "Ferran Sanchís Armesto" → "SANCHÍS ARMESTO, FERRAN" (se toma la primera palabra como nombre). Si ya viene con coma, se respeta.
-function cognomNom(n) {
+// Partes de un nombre: "Ferran Sanchís Armesto" (nombre delante) o "Sanchís Armesto, Ferran". Las partículas (de, del, la…)
+// van con la palabra siguiente: "Joan de la Fuente Vila" → apellidos "de la Fuente" y "Vila".
+const PARTICULAS = new Set(['de', 'del', 'la', 'las', 'los', 'les', 'el', 'i', 'y', 'da', 'dos', 'van', 'von', 'di']);
+function partes(n) {
   const s = String(n || '').trim().replace(/\s+/g, ' ');
-  if (!s) return '';
-  if (s.includes(',')) return s.toUpperCase();
-  const p = s.split(' ');
-  return p.length < 2 ? s.toUpperCase() : `${p.slice(1).join(' ')}, ${p[0]}`.toUpperCase();
+  if (!s) return { nom: '', ap: [] };
+  let nom, resto;
+  if (s.includes(',')) { const [a, b] = s.split(','); resto = a.trim().split(' '); nom = (b || '').trim(); }
+  else { const w = s.split(' '); nom = w.length > 1 ? w[0] : ''; resto = w.length > 1 ? w.slice(1) : w; }
+  const ap = []; let pend = [];
+  for (const w of resto.filter(Boolean)) { if (PARTICULAS.has(w.toLowerCase())) pend.push(w); else { ap.push([...pend, w].join(' ')); pend = []; } }
+  if (pend.length) ap.push(pend.join(' '));
+  return { nom, ap };
 }
-// Inscripción de jugadores (Ferran): solo el primer apellido, "Sanchís"; si dos del equipo coinciden, con la inicial: "Pinto, G."
-const apellido = (n) => { const p = String(n || '').trim().split(/\s+/); return p.length > 1 ? p[1] : p[0] || ''; };
+// Árbitros, anotador y oficiales (Ferran): primer apellido y nombre, "SANCHÍS, FERRAN".
+function cognomNom(n) {
+  const { nom, ap } = partes(n);
+  if (!ap.length) return nom.toUpperCase();
+  return (nom ? `${ap[0]}, ${nom}` : ap[0]).toUpperCase();
+}
+// Inscripción de jugadores (Ferran): solo el primer apellido, "SANCHÍS". Si dos del equipo lo comparten, se añade la inicial
+// del segundo apellido ("PINTO G."); si comparten los dos apellidos (o no hay segundo), los apellidos y la inicial del nombre
+// ("PINTO GARCIA, J.").
+const apellido = (n) => partes(n).ap[0] || '';
+const clave = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 function apellidos(jugadores) {
-  const cuenta = {}; jugadores.forEach((j) => { const a = apellido(j.nombre).toLowerCase(); cuenta[a] = (cuenta[a] || 0) + 1; });
-  return (j) => { const a = apellido(j.nombre); return cuenta[a.toLowerCase()] > 1 ? `${a}, ${String(j.nombre).trim()[0] || ''}.` : a; };
+  const P = new Map(jugadores.map((j) => [j, partes(j.nombre)]));
+  const grupo = (j) => jugadores.filter((k) => clave(P.get(k).ap[0]) === clave(P.get(j).ap[0]));
+  return (j) => {
+    const { nom, ap } = P.get(j), g = grupo(j);
+    if (g.length < 2) return ap[0] || nom;
+    const ap2 = ap.slice(1).join(' '), ini = (x) => (x ? x.replace(/^((?:\S+ )*?)(\S)\S*$/, (m, pre, c) => pre + c) + '.' : '');
+    const mismos2 = g.filter((k) => clave(P.get(k).ap.slice(1).join(' ')) === clave(ap2));
+    if (ap2 && mismos2.length < 2) {
+      // Inicial del 2º apellido; si otro del grupo tiene la misma inicial con otro apellido, el 2º apellido entero
+      const choca = g.some((k) => k !== j && clave(ini(P.get(k).ap.slice(1).join(' '))) === clave(ini(ap2)));
+      return `${ap[0]} ${choca ? ap2 : ini(ap2)}`;
+    }
+    return `${[ap[0], ap2].filter(Boolean).join(' ')}${nom ? `, ${nom[0]}.` : ''}`;
+  };
 }
 const fecha = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${+m[3]}/${+m[2]}/${m[1]}` : String(iso || ''); };
 
@@ -413,5 +441,5 @@ function pagina(A, ST, M) {
   return `<div class="fcvb-pagina" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/${inf ? 'model-acta-infantils' : 'model-acta-estandard'}.svg" alt="">${out.join('')}</div>${resto ? nativo(() => annex(A, resto)) : ''}`;
 }
 
-window.ActaFcvb = { pagina, abreviatura, cognomNom, W, H };
+window.ActaFcvb = { pagina, abreviatura, cognomNom, apellidos, W, H };
 })();
