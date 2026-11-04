@@ -5,10 +5,10 @@
 // Copia la función sin Deno.serve junto a index.ts (para que resuelvan los imports de _shared) y la borra al acabar.
 const DIR = new URL("../supabase/functions/designa/", import.meta.url);
 const MOD = new URL("_prueba_mod.ts", DIR);
-await Deno.writeTextFile(MOD, (await Deno.readTextFile(new URL("index.ts", DIR))).split("Deno.serve(")[0] + "\nexport { choqueDe };\n");
+await Deno.writeTextFile(MOD, (await Deno.readTextFile(new URL("index.ts", DIR))).split("Deno.serve(")[0] + "\nexport { choqueDe, lote, importar };\n");
 // deno-lint-ignore no-explicit-any
-let choqueDe: any;
-try { ({ choqueDe } = await import(MOD.href)); } finally { await Deno.remove(MOD); }
+let choqueDe: any, lote: any, importar: any;
+try { ({ choqueDe, lote, importar } = await import(MOD.href)); } finally { await Deno.remove(MOD); }
 const SAB = "2026-11-07", DOM = "2026-11-08";
 const P = (h: string, l: string, v: string, pab: string, d = SAB) => ({ d: `${d} ${h}`, c: true, l, v, cl: "", cv: "", comp: "", cat: "SENIOR", pab, pista: "" });
 const feedRows = [P("08:00", "CV MANRESA", "CV A", "PAVELLÓ CONGOST - PISTA 1"), P("08:00", "CV SANT QUIRZE", "CV B", "PAVELLÓ SANT QUIRZE"),
@@ -17,10 +17,18 @@ const feedRows = [P("08:00", "CV MANRESA", "CV A", "PAVELLÓ CONGOST - PISTA 1")
 const key = (p: ReturnType<typeof P>) => `${p.d}|${p.l}|${p.v}`;
 let asig: { match_key: string; rol: string }[] = [], matches: { user_id: string; date: string; time: string; venue: string }[] = [];
 // deno-lint-ignore no-explicit-any
-const db = { from(t: string) { const q: any = { select: () => q, eq: () => q, in: () => q, is: () => q, order: () => q, upsert: async () => ({}),
-  maybeSingle: async () => ({ data: t === "pub_cache" ? { data: feedRows, fetched_at: new Date().toISOString() } : null }),
+const guardadas: { match_key: string; rol: string }[] = [];
+// geo_cache simulada (sin ir a Photon): "VILLARRIBA" no existe; el resto, en Igualada.
+const geo = (query: string) => /VILLARRIBA/.test(query) ? { found: false, created_at: new Date().toISOString() } : { found: true, lon: 1.62, lat: 41.58, exact: false, created_at: new Date().toISOString() };
+let dispYa: { id: string; nombre: string; user_id: string | null }[] = [];
+const insertadas: Record<string, unknown>[] = [], actualizadas: Record<string, unknown>[] = [];
+let filtro = "";
+const db = { from(t: string) { const q: any = { select: () => q, eq: (_k: string, v: string) => { filtro = String(v); return q; }, in: () => q, is: () => q, order: () => q, single: async () => ({ data: { id: "nuevo" }, error: null }),
+  insert: (row: Record<string, unknown>) => { insertadas.push(row); return q; }, update: (row: Record<string, unknown>) => { actualizadas.push(row); return { eq: async () => ({ error: null }) }; },
+  upsert: async (row: { match_key: string; rol: string }) => { if (t === "designa_asig") { guardadas.push(row); asig.push({ match_key: row.match_key, rol: row.rol }); } return { error: null }; },
+  maybeSingle: async () => ({ data: t === "pub_cache" ? { data: feedRows, fetched_at: new Date().toISOString() } : t === "designa_disp" ? d : t === "geo_cache" ? geo(filtro) : null }),
   // deno-lint-ignore no-explicit-any
-  then: (ok: any) => ok({ data: t === "designa_asig" ? asig : t === "matches" ? matches : [] }) }; return q; } };
+  then: (ok: any) => ok({ data: t === "designa_asig" ? asig : t === "matches" ? matches : t === "designa_disp" ? dispYa : [] }) }; return q; } };
 const d = { id: "x", nombre: "FERRAN SANCHIS", user_id: "u1" };
 let fallos = 0; const check = (c: boolean, t: string) => { console.log((c ? "OK   " : "FALLA") + " " + t); if (!c) fallos++; };
 const [M8, SQ8, M10, V930, I16, M830, M9] = feedRows.map(key);
@@ -39,4 +47,23 @@ r = await choqueDe(db, SAB, d, I16, "r1"); check(r === null, "iSquad: el mismo p
 r = await choqueDe(db, SAB, d, M8, "r1"); check(!!r && r.includes("en iSquad el partido de las 08:00 (Pavelló Sant Quirze)"), "iSquad: 8:00 en Sant Quirze → rechazado: " + r);
 r = await choqueDe(db, SAB, { ...d, user_id: null }, M8, "r1"); check(r === null, "sin cuenta: no se mira iSquad");
 r = await choqueDe(db, SAB, d, `${DOM} 08:00|X|Y`, "r1"); check(r === null, "otro día → permitido");
+// lote: 3 asignaciones, la 2ª choca con la 1ª (misma hora, otro pabellón) → sin forzar se guardan 2 y falla 1; con forzar, las 3.
+asig = []; matches = [];
+let res = await (await lote(db, { finde: SAB, items: [{ key: M8, rol: "r1", disp_id: "x" }, { key: SQ8, rol: "r1", disp_id: "x" }, { key: I16, rol: "r1", disp_id: "x" }] })).json();
+check(res.ok && res.hechos === 2 && res.fallos.length === 1 && res.fallos[0].key === SQ8, "lote sin forzar: 2 guardadas, falla la que choca · " + JSON.stringify(res));
+asig = [];
+res = await (await lote(db, { finde: SAB, forzar: true, items: [{ key: M8, rol: "r1", disp_id: "x" }, { key: SQ8, rol: "r1", disp_id: "x" }, { key: I16, rol: "r1", disp_id: "x" }] })).json();
+check(res.ok && res.hechos === 3 && !res.fallos.length, "lote con forzar (confirmado): las 3");
+res = await (await lote(db, { finde: SAB, items: [] })).json();
+check(!!res.error, "lote vacío: petición no válida");
+// importar: nueva, actualiza (mismo nombre sin acentos), la de la app no se toca, población que no existe, fila incompleta.
+dispYa = [{ id: "a1", nombre: "MARTA ROCA", user_id: null }, { id: "a2", nombre: "LAIA ESTEVE PUIG", user_id: "u9" }];
+const F = (fila: number, nombre: string, poblacion: string, extra = {}) => ({ fila, nombre, poblacion, coche: true, sab: "manana", dom: "no", ...extra });
+res = await (await importar(db, { finde: SAB, filas: [F(2, "Jordi Inventat", "Terrassa"), F(3, "Marta Rocà", "Barcelona"), F(4, "Laia Esteve Puig", "Igualada"), F(5, "Pere Sense", "Villarriba"), F(6, "Xx", "Vic", { sab: "quizá" })] })).json();
+check(res.ok && res.nuevos === 1 && res.actualizados === 1, "importar: 1 nueva y 1 actualizada · " + JSON.stringify(res));
+check(res.errores.map((e: { fila: number }) => e.fila).join(",") === "4,5,6", "importar: errores en las filas 4 (app), 5 (población) y 6 (incompleta)");
+check(/desde la app/.test(res.errores[0].error) && /Villarriba/.test(res.errores[1].error), "importar: motivos claros");
+check(insertadas.length === 1 && insertadas[0].origen === "designador" && insertadas[0].lat === 41.58, "importar: la nueva se guarda como del designador y con coordenadas");
+res = await (await importar(db, { finde: SAB, filas: [] })).json();
+check(!!res.error, "importar vacío: petición no válida");
 Deno.exit(fallos ? 1 : 0);

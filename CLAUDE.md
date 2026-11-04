@@ -41,6 +41,11 @@ rama `claude/...` con PR. Reglas para esos trabajos:
 
 ## Reglas de interfaz
 
+- **Tutorial del panel del designador** (Ferran, 4-nov-2026): cada vez que se cambie `docs/designa-admin/` hay que repasar
+  los pasos de `docs/designa-admin/tutorial.js` (textos es/ca y a qué señalan) para que sigan teniendo sentido, y si el
+  cambio se ve, subir `TOUR_VERSION` (a Albert le vuelve a salir). `imptour.mjs` del banco recorre todos los pasos y falla
+  si alguno apunta a algo que ya no existe o no se ve.
+
 - Toda lista con varios partidos se agrupa por semanas con el componente común (semana actual destacada, secciones de
   próximas y anteriores, título fijo al hacer scroll). No crear listas de partidos sin agrupar. (Issue #27.)
   - `weeksHtml(items, dateOf, {scope, head, body, openPrev, cls})` para listas grandes (Cobros, Mis partidos): anteriores
@@ -801,15 +806,46 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   con otro partido, no disponibles) y hasta 4 recomendados (clic = primer puesto libre). Pestaña Árbitros: franjas,
   observaciones, partidos asignados y sus 3 partidos de liga sin R1 más cercanos; alta, edición y baja a mano (para quien
   avisa por teléfono). Exportar a Excel (lo filtrado). Copiar enlace del formulario.
-- **Recomendación** (en la web): disponible en esa franja; no ocupado (otro partido suyo a menos de 1 h 45 min en el mismo
-  pabellón o de 2 h 30 min en otro); sin coche y a más de 12 km = no recomendado. Orden: km + 5 por partido ya asignado.
+- **Choques** (4-nov-2026, Ferran): partidos del mismo día con inicios a menos de 1 h en el mismo pabellón (cualquier
+  pista) o de 1 h 45 min en otro = choque. NO es bloqueo: al elegirlo sale una ventana ("Ponerlo igualmente"/"Cancelar") y
+  el servidor solo lo guarda con `forzar` (si no, 409; `choqueDe`). El mismo árbitro en 2 puestos del mismo partido se
+  rechaza siempre. Otro pabellón sin margen de viaje (1 h 45 + ≈1 min/km + 15; sin distancia, 2 h 30) = "poco margen",
+  solo indicado. Cuenta las designaciones de iSquad (tabla `matches`) de los árbitros con cuenta (hora y pabellón; en la
+  privacidad desde el 4-nov). Prueba del servidor: `tools/prueba-designa-choques.ts` (deno; necesita las VAPID_* de verdad).
+- **Lo visual** (4-nov-2026, `docs/designa-admin/vistas.js` + `catalunya.js`): vistas Cuadrícula (filas = pabellón sin
+  pista, columnas = horas, bloque de 1 h 30 por partido, carriles si se solapan; colores: verde con R1, amarillo sin R1,
+  rojo choque, gris ya con árbitro en iSquad, discontinuo = propuesta; tocar = ficha con la tarjeta), Lista (la de antes)
+  y Mapa (SVG propio: el CSP no deja teselas de fuera; contorno de Natural Earth, dominio público; círculos = pabellones,
+  cuadrados = árbitros, líneas = asignaciones; Catalunya / Área de Barcelona). Un color por árbitro (12, por orden en
+  `D.disp`) con iniciales; barra lateral con carga (partidos, km de ida y vuelta por pabellón y franja, franjas
+  libres/ocupadas/no disponibles; tocar = resaltar). Progreso por día y de "Pasado a iSquad" (`designa_hecho`, migración
+  037, acción `hecho`). "Franja →" por pabellón: un árbitro de R1 en todos los partidos sin R1 de esa franja. "Proponer
+  reparto": bloques día+pabellón+franja, alguien que pueda todo el bloque (disponible, sin choques, sin coche ≤ 12 km;
+  coste = km + 30 si va justo + 8 por partido ya asignado), si no, partido a partido; solo R1; no se guarda hasta "Guardar
+  la propuesta". Guardar varios = acción `lote` (hasta 300, con las comprobaciones de `asignar`). Mensaje de WhatsApp por
+  árbitro (wa.me sin número, con "Cómo llegar" de Google Maps). Excel con la columna "Pasado a iSquad".
+- **Excel de disponibilidad** (4-nov-2026, `docs/designa-admin/importar.js`): Albert puede seguir con su propio Excel.
+  Importar (xlsx/xls/ods/csv) lee el fichero en el navegador, busca la fila de títulos (en las 10 primeras, en cualquier
+  hoja) por palabras clave es/ca en cualquier orden (nombre, población/municipio, coche/cotxe, sábado/dissabte,
+  domingo/diumenge, observaciones por día o generales) y acepta muchas formas de la franja (Matí, M, T, M y T, Tot el
+  dia, Sí/x = todo el día; vacío/No = no). Vista previa: nueva / se actualiza (mismo nombre sin acentos) / error (con el
+  motivo); la que dio el árbitro con la app no se toca. Acción `importar` (tandas de 15, 40 s, `origen: designador`).
+  "Descargar plantilla" (con hoja de instrucciones) y "Exportar disponibilidad" con las mismas columnas: se reimporta
+  tal cual. El Excel del plan lleva una 2ª hoja con la disponibilidad.
+- **Tutorial** (`docs/designa-admin/tutorial.js`): 15 pasos que señalan cada parte (hueco fijo `#tourHueco` encima, la
+  sombra en el propio elemento queda recortada dentro de la cuadrícula). Se abre solo si `localStorage designa-tour` <
+  `TOUR_VERSION`; botón "Cómo funciona". Ver la regla en "Reglas de interfaz".
+- **Recomendación** (en la web): disponible en esa franja; sin choque ni "poco margen"; sin coche y a más de 12 km = no
+  recomendado. Orden: km + 5 por partido ya asignado.
   Km = línea recta × 1,25 entre la población del árbitro y el pabellón (Photon vía `geocode`/`locate`, sin gastar rutas
   ORS); se enseñan como "≈". El listado de la federación no trae la calle: la dirección sale de `matches.addr` (designaciones
   de los árbitros de la app) por el nombre del pabellón sin "- PISTA n" (`sinPista`). 3-nov: 443 de 707 partidos ubicados.
   Pabellones en `pub_cache designa-geo2:<sábado>`, por tandas de 40 s (la web repite).
-- Datos: `designa_disp` y `designa_asig` (migración 035, sin acceso desde la web: todo por la función `designa`,
+- Datos: `designa_disp`, `designa_asig` (migración 035) y `designa_hecho` (037, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
-- Pruebas: banco con supabase y `designa` simulados en el scratchpad de la sesión del 3-nov (formulario, panel, móvil, axe).
+- Pruebas: banco con supabase y `designa` simulados en `~/work/enxarxa-pruebas` (en la máquina del trabajo): `panel.mjs`,
+  `choques.mjs`, `visual.mjs` e `imptour.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
+  `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote e importar).
 
 ## Acta electrónica (prototipo para la FCVB, 3-nov-2026)
 

@@ -50,6 +50,91 @@
 #alta form{max-width:520px;width:100%}
 #aviso{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;z-index:11}
 #aviso .card{max-width:460px;width:100%}
+#avTxt{white-space:pre-line}
+/* Lo visual (vistas.js, 4-nov-2026) */
+:root{--y-bg:#FFF4C2}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--y-bg:#2E2600} }
+:root[data-theme="dark"]{--y-bg:#2E2600}
+.seg label{min-height:38px;padding:2px 14px}
+.kpis{gap:12px 28px;align-items:flex-end}
+.prog{flex:1 1 220px;min-width:180px;max-width:340px}
+.prog .pt{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13.5px;color:var(--ink-2)}
+.prog .pt b{font:700 20px/1.1 var(--display);color:var(--ink)}
+.pbar{display:block;height:12px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;margin-top:4px}
+.pbar i{display:block;height:100%;background:var(--yellow);transition:width .4s}
+.pbar.full i{background:var(--ok)} .pbar.hecho i{background:var(--ink-2)}
+.kmini{flex-basis:100%;font-size:13.5px;color:var(--ink-2)}
+.ini{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 4px;border-radius:12px;background:var(--c);color:#fff;font:700 11.5px/1 Barlow,system-ui,sans-serif;margin-right:5px;flex:none;vertical-align:middle}
+.slots label .ini{min-width:20px;height:20px;font-size:10.5px}
+.lay{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px;align-items:start}
+.lay:has(#lado.hidden){grid-template-columns:minmax(0,1fr)}
+#lado{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface)}
+#lado h2{font:700 21px/1.1 var(--display);margin:0 0 2px} #lado p{margin:0 0 6px} #lado ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:2px}
+.arb-l{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"c n" "c g" "f f";gap:0 4px;width:100%;text-align:left;min-height:0;padding:6px;border:1px solid transparent;border-radius:6px;font-weight:600;justify-content:stretch;align-items:center}
+.arb-l:hover{background:var(--surface-2)}
+.arb-l .ini{grid-area:c;grid-row:1/3} .arb-l .nm{grid-area:n;font-size:14px;line-height:1.2} .arb-l .cg{grid-area:g;font-size:12.5px;color:var(--ink-2);font-weight:400;line-height:1.2}
+.arb-l .fr{grid-area:f;display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+.arb-l[aria-pressed="true"]{border-color:var(--ink);background:var(--surface-2)}
+.fr i{font-style:normal;font-size:11px;font-weight:700;padding:1px 5px;border-radius:8px;border:1px solid var(--line);color:var(--ink-2)}
+.fr i.libre{border-color:var(--ok);color:var(--ok)} .fr i.ocup{background:var(--ok);border-color:var(--ok);color:var(--bg)} .fr i.no{color:var(--ink-3);text-decoration:line-through}
+.mini{min-height:30px;padding:0 8px;font-size:12.5px;border-width:1px;align-self:flex-start}
+.leyenda{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--ink-2);margin:0 0 8px;align-items:center}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid;border-left-width:4px}
+.sw.ok{background:var(--ok-bg);border-color:var(--ok)} .sw.falta{background:var(--y-bg);border-color:var(--yellow)} .sw.mal{background:var(--warn-bg);border-color:var(--warn)}
+.sw.isq{background:var(--surface-2);border-color:var(--ink-3)} .sw.prop{border-style:dashed;border-color:var(--ink)}
+.rej-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;margin:0 0 18px;background:var(--surface)}
+.rej{--alto:62px;--pabw:170px;min-width:calc(var(--pabw) + var(--w) + 12px)}
+.rej-cab,.rej-fila{display:grid;grid-template-columns:var(--pabw) calc(var(--w) + 12px)}
+.rej-cab{border-bottom:2px solid var(--line)}
+.rej-horas{position:relative;height:26px}
+.rej-horas span{position:absolute;top:5px;padding-left:3px;font-size:12px;font-weight:600;color:var(--ink-3)}
+.rej-fila{border-bottom:1px solid var(--line)} .rej-fila:last-child{border-bottom:0}
+.rej-pab{position:sticky;left:0;background:var(--surface);z-index:1;padding:6px 8px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;font-size:13px;min-width:0}
+.rej-pab b{line-height:1.15;overflow-wrap:anywhere} .rej-pab small{color:var(--ink-2)}
+.rej-pista{position:relative;height:calc(var(--n) * var(--alto) + 4px);background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px var(--hora))}
+.blq{position:absolute;margin:3px 0 0 2px;width:calc(var(--dur) - 4px);height:calc(var(--alto) - 4px);min-height:0;padding:3px 6px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:1px;border-radius:6px;border:1px solid var(--line);border-left-width:5px;font-weight:600;font-size:12px;line-height:1.15;text-align:left;overflow:hidden;background:var(--surface);color:var(--ink)}
+.blq:hover{filter:brightness(.96);box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.blq .bh{font:700 15px/1 var(--display)} .blq .bc{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.blq .bq{display:flex;gap:2px;margin-top:auto} .blq .ini{min-width:20px;height:20px;font-size:10.5px;margin:0}
+.blq .vacio{font-size:11px;color:var(--ink-3);font-weight:600}
+.blq.ok{background:var(--ok-bg);border-color:var(--ok)} .blq.falta{background:var(--y-bg);border-color:var(--yellow)} .blq.mal{background:var(--warn-bg);border-color:var(--warn)} .blq.isq{background:var(--surface-2);border-color:var(--ink-3)}
+.blq.prop,.m.prop{border-style:dashed;border-color:var(--ink)} .blq.prop{border-left-style:solid}
+.resalta .blq:not(.suyo),.resalta article.m:not(.suyo){opacity:.28}
+.prop-b{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;background:var(--y-bg);color:var(--ink);border:2px dashed var(--ink)}
+.prop-b button{min-height:38px}
+.mapa{width:100%;height:auto;max-height:78vh;display:block;background:var(--surface);border:1px solid var(--line);border-radius:8px;margin:0 0 12px}
+.mapa .prov{fill:var(--surface-2);stroke:var(--ink-3);stroke-linejoin:round}
+.mapa .ciu{fill:var(--ink-3);font-weight:600;font-family:Barlow,system-ui,sans-serif} .mapa .ciu-p{fill:var(--ink-3)}
+.mapa line{opacity:.8;stroke-linecap:round}
+.mapa .pb{stroke:var(--bg);cursor:pointer} .pb.ok{fill:var(--ok)} .pb.falta{fill:var(--yellow);stroke:#000} .pb.mal{fill:var(--warn)} .pb.isq{fill:var(--ink-3)}
+.mapa .pb.sel{stroke:var(--ink);stroke-width:4px} .mapa .pb:focus-visible{outline:none;stroke:var(--focus);stroke-width:4px}
+.mapa .arb-m{pointer-events:none}   /* el cuadrado del árbitro no tapa el pabellón de su pueblo al tocarlo */
+.mapa .arb-m text{fill:#fff;font-weight:700;font-family:Barlow,system-ui,sans-serif}
+.mapa .tenue{opacity:.12}
+.capa{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;z-index:10}
+.capa .card{max-width:560px;width:100%} #ficha article.m{border:0;padding:0;margin:0;background:none} #ficha .cab{justify-content:flex-end;margin:-6px -8px 0 0}
+#frLista{margin:0 0 14px;padding-left:20px}
+#waTxt{font-size:14px;margin-bottom:12px}
+.chk.hecho{margin-top:6px;font-size:13.5px;min-height:32px}
+/* Importar (importar.js) y tutorial (tutorial.js) */
+.capa .card.ancha{max-width:920px}
+.imp-scroll{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:6px;margin:0 0 12px}
+.imp-t{border-collapse:collapse;width:100%;font-size:13.5px}
+.imp-t th,.imp-t td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.imp-t th{position:sticky;top:0;background:var(--surface-2);font-weight:700}
+.imp-t tr.error td{background:var(--warn-bg)} .imp-t .tag{white-space:normal}
+#ayuda{text-decoration:none}
+#ayuda span[aria-hidden]{display:inline-flex;width:22px;height:22px;border-radius:11px;background:var(--yellow);color:#000;align-items:center;justify-content:center;font-weight:800}
+#tour{position:fixed;z-index:20;width:min(380px,calc(100vw - 16px));background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#tour.centro{top:50%!important;left:50%!important;transform:translate(-50%,-50%)}
+#tour h2{font:700 22px/1.1 var(--display);margin:0 0 6px} #tour p{margin:0 0 10px} #tour #tourN{margin:0 0 2px}
+#tour button{min-height:38px}
+#tourHueco{position:fixed;z-index:19;pointer-events:none;border:4px solid var(--yellow);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
+@media (max-width:900px){
+  .lay{display:block} #lado{position:static;max-height:none;margin:0 0 12px}
+  #lado ul{display:flex;overflow-x:auto;gap:6px;padding-bottom:4px} #lado li{flex:none;width:190px}
+  .rej{--pabw:118px}
+}
 @media (max-width:600px){
   .slots{grid-template-columns:1fr}
   .slots:not(.mas) :is(.s-r2,.s-an){display:none}
@@ -83,6 +168,7 @@
     <button type="button" id="actualizar" data-t="actualizar">Actualizar</button>
     <button type="button" id="exportar" data-t="exportar">Exportar a Excel</button>
     <button type="button" id="copiar" data-t="copiarEnlace">Copiar enlace del formulario</button>
+    <button type="button" class="ghost" id="ayuda"><span aria-hidden="true">?</span> <span data-t="ayuda">Cómo funciona</span></button>
   </div>
   <div class="kpis" id="kpis"></div>
   <div class="tabs" role="tablist"><button type="button" role="tab" id="tPart" aria-selected="true" data-t="partidos">Partidos</button><button type="button" role="tab" id="tArb" aria-selected="false">Árbitros</button></div>
@@ -94,11 +180,23 @@
       <label class="chk"><input type="checkbox" id="soloPend"> <span data-t="soloPend">Solo sin R1 en el plan</span></label>
       <input type="search" id="buscar" data-tp="buscar" placeholder="Buscar equipo, pabellón o categoría" aria-label="Buscar">
     </div>
+    <div class="bar">
+      <div class="opts seg" role="radiogroup" aria-label="Vista" id="vistas"></div>
+      <button type="button" class="primary" id="proponer" data-t="proponer">Proponer reparto</button>
+    </div>
+    <div id="prop"></div>
     <p class="small muted hidden" id="ubicando"></p>
-    <div id="lista"></div>
+    <div class="lay"><aside id="lado" aria-labelledby="ladoT"></aside><div id="lista"></div></div>
   </section>
   <section id="vArb" class="hidden">
-    <div class="bar"><button type="button" class="primary" id="nuevo" data-t="nuevo">Añadir árbitro</button><span class="small muted" data-t="nuevoH">Para quien te ha dado la disponibilidad por teléfono o WhatsApp.</span></div>
+    <div class="bar" id="impBar">
+      <button type="button" class="primary" id="nuevo" data-t="nuevo">Añadir árbitro</button>
+      <button type="button" id="bImp" data-t="iBoton">Importar Excel</button>
+      <button type="button" class="ghost" id="bPlantilla" data-t="iPlantilla">Descargar plantilla</button>
+      <button type="button" class="ghost" id="bExpDisp" data-t="iExportar">Exportar disponibilidad</button>
+      <input type="file" id="impFile" class="hidden" accept=".xlsx,.xls,.ods,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
+      <span class="small muted" data-t="nuevoH">Para quien te ha dado la disponibilidad por teléfono o WhatsApp.</span>
+    </div>
     <div id="arbs"></div>
   </section>
 </main>
@@ -116,6 +214,41 @@
     <label class="f"><span data-t="obs">Observaciones</span><input type="text" id="aDomObs" maxlength="300"></label>
     <div class="row"><button type="submit" class="primary" id="aGuardar" data-t="guardar">Guardar</button><button type="button" id="aCancelar" data-t="cancelar">Cancelar</button></div>
   </form>
+</div>
+<div id="ficha" class="capa hidden" role="dialog" aria-modal="true" aria-label="Partido">
+  <div class="card"><div class="row cab"><button type="button" class="ghost" id="fichaCerrar" data-t="cerrar">Cerrar</button></div><div id="fichaIn"></div></div>
+</div>
+<div id="franja" class="capa hidden" role="dialog" aria-modal="true" aria-labelledby="frT">
+  <form class="card" id="fFranja" novalidate>
+    <h2 id="frT"></h2>
+    <fieldset><legend data-t="franjaB">Franja</legend><div class="opts" id="frFranja"></div></fieldset>
+    <label class="f"><span data-t="franjaArb">Árbitro</span><select id="frArb"></select></label>
+    <p class="small muted" data-t="franjaQue">Partidos sin R1 que se le ponen:</p>
+    <ul id="frLista" class="small"></ul>
+    <div class="row"><button type="submit" class="primary" id="frSi"></button><button type="button" id="frNo" data-t="cancelar">Cancelar</button></div>
+  </form>
+</div>
+<div id="wa" class="capa hidden" role="dialog" aria-modal="true" aria-labelledby="waT">
+  <div class="card">
+    <h2 id="waT"></h2>
+    <textarea id="waTxt" rows="10" aria-labelledby="waT"></textarea>
+    <div class="row"><a class="btn primary" id="waAbrir" target="_blank" rel="noopener" data-t="waAbrir">Abrir WhatsApp</a><button type="button" id="waCopiar" data-t="waCopiar">Copiar</button><button type="button" id="waNo" data-t="cerrar">Cerrar</button></div>
+  </div>
+</div>
+<div id="imp" class="capa hidden" role="dialog" aria-modal="true" aria-labelledby="impT">
+  <div class="card ancha">
+    <h2 id="impT"></h2>
+    <div id="impRes" role="status" aria-live="polite"></div>
+    <div class="imp-scroll"><table class="imp-t"><thead><tr><th data-t="iFila">Fila</th><th data-t="nombre">Nombre y apellidos</th><th data-t="poblacion">Población</th><th data-t="iCoche">Coche</th><th data-t="sabado">Sábado</th><th data-t="domingo">Domingo</th><th></th></tr></thead><tbody id="impLista"></tbody></table></div>
+    <div class="row"><button type="button" class="primary" id="impSi"></button><button type="button" id="impNo" data-t="cancelar">Cancelar</button></div>
+  </div>
+</div>
+<div id="tourHueco" class="hidden" aria-hidden="true"></div>
+<div id="tour" class="hidden" role="dialog" aria-modal="false" aria-labelledby="tourT" aria-describedby="tourX">
+  <p class="small muted" id="tourN"></p>
+  <h2 id="tourT"></h2>
+  <p id="tourX"></p>
+  <div class="row"><button type="button" class="primary" id="tourSig"></button><button type="button" id="tourAnt"></button><button type="button" class="ghost" id="tourSalir"></button></div>
 </div>
 <div id="aviso" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="avTit" aria-describedby="avTxt">
   <div class="card">
@@ -140,6 +273,28 @@ const T = {
     grpPisa:'Ya tienen un partido a esta hora', yaTiene:x=>`ya tiene ${x}`, justo:x=>`poco margen: ${x}`, enIsq:'iSquad', enIsqL:'En iSquad:',
     avPisa:(n,x)=>`${n} ya tiene el partido de las ${x}.`, avTit:'Ya tiene un partido a esa hora', avSi:'Ponerlo igualmente', avJusto:(n,x)=>`Ojo: ${n} tiene el partido de las ${x} y va justo de tiempo para el viaje.`,
     yaAqui:n=>`${n} ya está en este partido.`,
+    vRejilla:'Cuadrícula', vLista:'Lista', vMapa:'Mapa', vistaL:'Vista', hecho:'Pasado a iSquad', propuesto:'Propuesta',
+    progR1:(a,b)=>`${a} de ${b} con R1`, progHecho:(a,b)=>`${a} de ${b} pasados a iSquad`, progDisp:n=>n===1?'1 árbitro disponible':`${n} árbitros disponibles`, progSinIsq:n=>`${n} sin árbitro en iSquad`,
+    enIsqB:'en iSquad', leyenda:'Leyenda:', ayuda:'Cómo funciona',
+    iBoton:'Importar Excel', iPlantilla:'Descargar plantilla', iExportar:'Exportar disponibilidad', iFila:'Fila', iCoche:'Coche', xlsDisp:'Disponibilidad',
+    iTit:n=>`Importar disponibilidad · ${n}`, iRes:(a,b,c)=>`${a} nuevas, ${b} se actualizan${c?`, ${c} con errores (no se importan)`:''}. Revisa la lista y pulsa Importar.`,
+    iNueva:'nueva', iActualiza:'se actualiza', iImportar:n=>n===1?'Importar 1':`Importar ${n}`, iImportando:(a,b)=>`Importando… ${a} de ${b}`,
+    iHecho:(n,a,e)=>`Hecho: ${n} nuevas y ${a} actualizadas.${e?` ${e} no se han podido importar (en rojo).`:''}`,
+    iSinCols:'No encuentro las columnas: el fichero tiene que tener al menos "Nombre" y "Población" en la fila de títulos. Descarga la plantilla para verlo.', iNoLeo:'No he podido leer el fichero. Prueba a guardarlo como .xlsx.',
+    iErrNombre:'Falta el nombre.', iErrPob:'Falta la población.', iErrSinCoche:'Falta la columna "Coche".', iErrCoche:v=>`Coche: no entiendo "${v}" (Sí o No).`,
+    iErrSinDia:d=>`Falta la columna "${d}".`, iErrDia:(d,v)=>`${d}: no entiendo "${v}" (Mañana, Tarde, Mañana y tarde o No).`, iErrRepe:'Repetido en el fichero.', iErrApp:'Ya la ha dado él mismo desde la app: se deja la suya.',
+    iEj1n:'Nombre Inventado Uno', iEj1o:'Hasta las 19:00', iEj2n:'Nombre Inventado Dos', iEj2o:'Desde las 17:00', iInstrH:'Cómo rellenarla', iPlantillaF:'plantilla-disponibilidad.xlsx', iDispF:'disponibilidad',
+    iInstr:['Una fila por árbitro. Borra los 2 ejemplos.', 'Nombre y apellidos y Población: obligatorios (la población, para calcular las distancias).', 'Coche: Sí o No.', 'Sábado y Domingo: Mañana, Tarde, Mañana y tarde, o No (también vale M, T, Matí, Tarda, Tot el dia…).', 'Mañana = hasta las 14:59; tarde = desde las 15:00.', 'Observaciones: opcionales (horarios, preferencias…).', 'Si un nombre ya está ese fin de semana, se actualiza en vez de duplicarse.', 'Las columnas pueden ir en cualquier orden y con los títulos en castellano o catalán.'], lOk:'con R1', lFalta:'sin R1', lMal:'choque', lIsq:'ya con árbitro en iSquad', lProp:'propuesta', lHecho:'pasado a iSquad',
+    franjaB:'Franja', franjaT:p=>`Toda una franja en ${p}`, franjaAplicar:n=>n===1?'Poner de R1 en 1 partido':`Poner de R1 en ${n} partidos`, franjaNada:'No hay partidos sin R1 en esta franja.',
+    franjaArb:'Árbitro', franjaQue:'Partidos sin R1 que se le ponen:', franjaChoque:n=>`Hay choques con otros partidos suyos:\n${n}`,
+    proponer:'Proponer reparto', propT:(n,f)=>`Propuesta: ${n===1?'1 partido':n+' partidos'} con R1${f?` · ${f} sin nadie que pueda ir`:''}. Revísala y cámbiala si quieres antes de guardarla.`,
+    propAplicar:'Guardar la propuesta', propDescartar:'Descartar', propNada:'No hay partidos sin R1 que se puedan cubrir con quien ha dado disponibilidad.',
+    propOk:(n,f)=>`Guardados ${n}.${f?` ${f} no se han podido guardar (ya estaban ocupados).`:''}`,
+    ladoT:'Árbitros', ladoH:'Toca uno para ver sus partidos.', ladoTodos:'Ver todos', cargaP:n=>n===1?'1 partido':`${n} partidos`, cargaKm:k=>`≈ ${k} km`,
+    fSabM:'Sáb M', fSabT:'Sáb T', fDomM:'Dom M', fDomT:'Dom T', fLibre:'libre', fOcup:'con partido', fNo:'no disponible',
+    cerrar:'Cerrar', wa:'Mensaje', waT:n=>`Mensaje para ${n}`, waAbrir:'Abrir WhatsApp', waCopiar:'Copiar', waCopiado:'Mensaje copiado.',
+    waHola:n=>`Hola ${n}, estos son tus partidos del fin de semana:`, waLlegar:'Cómo llegar', waNada:'Todavía no tiene partidos en el plan.', waFin:'Gracias.',
+    mapaCat:'Catalunya', mapaBcn:'Área de Barcelona', mapaH:'Círculos: pabellones (tamaño = partidos). Cuadrados: árbitros. Toca un pabellón para ver sus partidos.', mapaSin:n=>n===1?'1 pabellón sin ubicar':`${n} pabellones sin ubicar`,
     isqCon:'Con árbitro en iSquad', isqSin:'Sin árbitro en iSquad', aplazado:'Fecha sin confirmar', sinPartidos:'No hay partidos con estos filtros.',
     sinArb:'Todavía nadie ha dado disponibilidad para este fin de semana. Copia el enlace del formulario y pásalo a los árbitros.',
     app:'con cuenta', mano:'a mano', porTi:'añadido por ti', asignados:n=>n===1?'1 partido':`${n} partidos`, cercanos:'Más cercanos sin R1:', ninguno:'Ningún partido libre a su hora.',
@@ -158,6 +313,28 @@ const T = {
     grpPisa:'Ja tenen un partit a aquesta hora', yaTiene:x=>`ja té ${x}`, justo:x=>`poc marge: ${x}`, enIsq:'iSquad', enIsqL:'A iSquad:',
     avPisa:(n,x)=>`${n} ja té el partit de les ${x}.`, avTit:'Ja té un partit a aquesta hora', avSi:'Posa\'l igualment', avJusto:(n,x)=>`Compte: ${n} té el partit de les ${x} i va just de temps per al viatge.`,
     yaAqui:n=>`${n} ja és en aquest partit.`,
+    vRejilla:'Graella', vLista:'Llista', vMapa:'Mapa', vistaL:'Vista', hecho:'Passat a iSquad', propuesto:'Proposta',
+    progR1:(a,b)=>`${a} de ${b} amb R1`, progHecho:(a,b)=>`${a} de ${b} passats a iSquad`, progDisp:n=>n===1?'1 àrbitre disponible':`${n} àrbitres disponibles`, progSinIsq:n=>`${n} sense àrbitre a iSquad`,
+    enIsqB:'a iSquad', leyenda:'Llegenda:', ayuda:'Com funciona',
+    iBoton:'Importa Excel', iPlantilla:'Descarrega la plantilla', iExportar:'Exporta la disponibilitat', iFila:'Fila', iCoche:'Cotxe', xlsDisp:'Disponibilitat',
+    iTit:n=>`Importa disponibilitat · ${n}`, iRes:(a,b,c)=>`${a} noves, ${b} s'actualitzen${c?`, ${c} amb errors (no s'importen)`:''}. Revisa la llista i prem Importa.`,
+    iNueva:'nova', iActualiza:'s\'actualitza', iImportar:n=>n===1?'Importa 1':`Importa ${n}`, iImportando:(a,b)=>`Important… ${a} de ${b}`,
+    iHecho:(n,a,e)=>`Fet: ${n} noves i ${a} actualitzades.${e?` ${e} no s'han pogut importar (en vermell).`:''}`,
+    iSinCols:'No trobo les columnes: el fitxer ha de tenir com a mínim "Nom" i "Població" a la fila de títols. Descarrega la plantilla per veure-ho.', iNoLeo:'No he pogut llegir el fitxer. Prova de desar-lo com a .xlsx.',
+    iErrNombre:'Falta el nom.', iErrPob:'Falta la població.', iErrSinCoche:'Falta la columna "Cotxe".', iErrCoche:v=>`Cotxe: no entenc "${v}" (Sí o No).`,
+    iErrSinDia:d=>`Falta la columna "${d}".`, iErrDia:(d,v)=>`${d}: no entenc "${v}" (Matí, Tarda, Matí i tarda o No).`, iErrRepe:'Repetit al fitxer.', iErrApp:'Ja l\'ha donada ell mateix des de l\'app: es deixa la seva.',
+    iEj1n:'Nom Inventat U', iEj1o:'Fins a les 19:00', iEj2n:'Nom Inventat Dos', iEj2o:'Des de les 17:00', iInstrH:'Com omplir-la', iPlantillaF:'plantilla-disponibilitat.xlsx', iDispF:'disponibilitat',
+    iInstr:['Una fila per àrbitre. Esborra els 2 exemples.', 'Nom i cognoms i Població: obligatoris (la població, per calcular les distàncies).', 'Cotxe: Sí o No.', 'Dissabte i Diumenge: Matí, Tarda, Matí i tarda, o No (també val M, T, Mañana, Tarde, Tot el dia…).', 'Matí = fins a les 14:59; tarda = des de les 15:00.', 'Observacions: opcionals (horaris, preferències…).', 'Si un nom ja hi és aquell cap de setmana, s\'actualitza en lloc de duplicar-se.', 'Les columnes poden anar en qualsevol ordre i amb els títols en català o castellà.'], lOk:'amb R1', lFalta:'sense R1', lMal:'xoc', lIsq:'ja amb àrbitre a iSquad', lProp:'proposta', lHecho:'passat a iSquad',
+    franjaB:'Franja', franjaT:p=>`Tota una franja a ${p}`, franjaAplicar:n=>n===1?'Posa\'l de R1 en 1 partit':`Posa\'l de R1 en ${n} partits`, franjaNada:'No hi ha partits sense R1 en aquesta franja.',
+    franjaArb:'Àrbitre', franjaQue:'Partits sense R1 que se li posen:', franjaChoque:n=>`Hi ha xocs amb altres partits seus:\n${n}`,
+    proponer:'Proposa un repartiment', propT:(n,f)=>`Proposta: ${n===1?'1 partit':n+' partits'} amb R1${f?` · ${f} sense ningú que hi pugui anar`:''}. Revisa-la i canvia-la si vols abans de desar-la.`,
+    propAplicar:'Desa la proposta', propDescartar:'Descarta', propNada:'No hi ha partits sense R1 que es puguin cobrir amb qui ha donat disponibilitat.',
+    propOk:(n,f)=>`Desats ${n}.${f?` ${f} no s\'han pogut desar (ja estaven ocupats).`:''}`,
+    ladoT:'Àrbitres', ladoH:'Toca\'n un per veure els seus partits.', ladoTodos:'Mostra\'ls tots', cargaP:n=>n===1?'1 partit':`${n} partits`, cargaKm:k=>`≈ ${k} km`,
+    fSabM:'Dis M', fSabT:'Dis T', fDomM:'Diu M', fDomT:'Diu T', fLibre:'lliure', fOcup:'amb partit', fNo:'no disponible',
+    cerrar:'Tanca', wa:'Missatge', waT:n=>`Missatge per a ${n}`, waAbrir:'Obre WhatsApp', waCopiar:'Copia', waCopiado:'Missatge copiat.',
+    waHola:n=>`Hola ${n}, aquests són els teus partits del cap de setmana:`, waLlegar:'Com arribar-hi', waNada:'Encara no té partits al pla.', waFin:'Gràcies.',
+    mapaCat:'Catalunya', mapaBcn:'Àrea de Barcelona', mapaH:'Cercles: pavellons (mida = partits). Quadrats: àrbitres. Toca un pavelló per veure\'n els partits.', mapaSin:n=>n===1?'1 pavelló sense situar':`${n} pavellons sense situar`,
     isqCon:'Amb àrbitre a iSquad', isqSin:'Sense àrbitre a iSquad', aplazado:'Data sense confirmar', sinPartidos:'No hi ha partits amb aquests filtres.',
     sinArb:'Encara ningú no ha donat disponibilitat per a aquest cap de setmana. Copia l\'enllaç del formulari i passa\'l als àrbitres.',
     app:'amb compte', mano:'a mà', porTi:'afegit per tu', asignados:n=>n===1?'1 partit':`${n} partits`, cercanos:'Més propers sense R1:', ninguno:'Cap partit lliure a la seva hora.',
@@ -217,6 +394,7 @@ async function cargar(f){
   if(!r.ok){ if(TOKEN) msg(r.error||t('red'),'err'); return; }
   D=r; FINDE=r.finde; msg('');
   pintar();
+  if(window.tourAuto) tourAuto();
   // Pabellones sin ubicar todavía: el servidor sigue por tandas.
   if(r.falta>0) setTimeout(()=>cargar(), 1500);
 }
@@ -232,7 +410,9 @@ function km(a, m){
   const h = Math.sin(dLa/2)**2 + Math.cos(r(a.lat))*Math.cos(r(m.lat))*Math.sin(dLo/2)**2;
   return Math.round(2*R*Math.asin(Math.sqrt(h))*1.25);
 }
-const PLAN = () => { const p={}; for(const x of D.asig) (p[x.match_key] ||= {})[x.rol]=x.disp_id; return p; };
+// Plan guardado + la propuesta automática que se está revisando (PROP, en vistas.js), sin pisar lo guardado.
+const PLAN = () => { const p={}; for(const x of D.asig) (p[x.match_key] ||= {})[x.rol]=x.disp_id; for(const x of PROP||[]) { const q=(p[x.key] ||= {}); if(!q[x.rol]) q[x.rol]=x.disp_id; } return p; };
+const HECHO = () => new Set(D.hecho||[]);
 const ARB = () => Object.fromEntries(D.disp.map(a=>[a.id,a]));
 const disponible = (a, m) => { const v=a[dia(m)]; return v==='ambas' || v===franja(m); };
 // ¿Choca con otro partido suyo? (4-nov-2026, Ferran: nadie puede estar en 2 partidos a la vez.) Misma regla que el
@@ -298,10 +478,10 @@ function pintar(){
   $('tArb').textContent = t('arbitros')(D.disp.length);
   const plan=PLAN(), liga=D.partidos.filter(m=>m.liga);
   const disp = D.disp.filter(a=>a.sab!=='no'||a.dom!=='no').length;
-  $('kpis').innerHTML = `<div><b>${liga.length}</b>${esc(t('kPart'))}</div><div><b>${liga.filter(m=>plan[m.key]?.r1).length}</b>${esc(t('kR1'))}</div>`
-    + (D.estadoIsquad ? `<div><b>${liga.filter(m=>m.isquad==='sin').length}</b>${esc(t('kSinIsq'))}</div>` : '') + `<div><b>${disp}</b>${esc(t('kDisp'))}</div>`;
+  $('kpis').innerHTML = progresoHtml(plan, liga, disp);
   const ub=$('ubicando'); ub.classList.toggle('hidden', !(D.falta>0)); if(D.falta>0) ub.textContent=t('ubicando')(D.falta);
-  TAB==='part' ? pintarPartidos(plan) : pintarArbitros(plan);
+  TAB==='part' ? pintarVistaPartidos(plan) : pintarArbitros(plan);
+  refrescarFicha(plan);
 }
 function filtrados(plan){
   const q=$('buscar').value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
@@ -320,29 +500,32 @@ function opciones(m, rol, plan){
     + (no.length?`<optgroup label="${esc(t('grpNo'))}">${no.map(op).join('')}</optgroup>`:'')
     + (pisan.length?`<optgroup label="${esc(t('grpPisa'))}">${pisan.map(op).join('')}</optgroup>`:'');
 }
-function pintarPartidos(plan){
-  $('vPart').classList.remove('hidden'); $('vArb').classList.add('hidden');
-  const ms=filtrados(plan);
+// Tarjeta de un partido (lista, ficha de la cuadrícula y del mapa).
+function tarjeta(m, plan){
+  const p=plan[m.key]||{}, recs=candidatos(m,plan).filter(c=>c.disp&&!c.pisa&&!c.oc&&!c.lejosSinCoche).slice(0,4), arb=ARB();
+  // Choques de los que ya están puestos (p. ej. confirmados con el aviso, o designados después en iSquad).
+  const avisos=['r1','r2','an'].map(rol=>{ const a=arb[p[rol]]; if(!a) return ''; const sinEste={...plan, [m.key]:Object.fromEntries(Object.entries(p).filter(([r])=>r!==rol))}, ch=choque(a,m,sinEste);
+    return ch ? `<p class="choque ${ch.tipo}">${esc((ch.tipo==='pisa'?t('avPisa'):t('avJusto'))(corto(a.nombre), ocTxt(ch.o)))}</p>` : ''; }).join('');
+  const prop = esPropuesta(m.key), hecho = HECHO().has(m.key);
+  return `<article class="m ${p.r1?'ok':'falta'}${avisos.includes('choque pisa')?' mal':''}${prop?' prop':''}" data-key="${esc(m.key)}">
+      <div class="top"><span class="hora">${esc(m.d.slice(11,16))}</span><span class="tag" title="${esc(m.cat)}">${esc(cat(m.cat))}</span>${m.isquad==='con'?`<span class="tag g">${esc(t('isqCon'))}</span>`:m.isquad==='sin'?`<span class="tag r">${esc(t('isqSin'))}</span>`:''}${m.conf?'':`<span class="tag">${esc(t('aplazado'))}</span>`}${prop?`<span class="tag y">${esc(t('propuesto'))}</span>`:''}</div>
+      <div class="eq">${esc(corto(m.l))} – ${esc(corto(m.v))}</div>
+      <div class="pab">${esc(corto(m.pab))}${pobDe(m)?' · '+esc(corto(pobDe(m))):''}</div>
+      ${avisos}
+      <div class="slots${p.r2||p.an?' mas':''}">${['r1','r2','an'].map(rol=>`<label class="s-${rol}">${chipArb(arb[p[rol]])}${esc(t(rol))}<select data-rol="${rol}" aria-label="${esc(t(rol))} · ${esc(corto(m.l))} – ${esc(corto(m.v))}">${opciones(m,rol,plan)}</select></label>`).join('')}<button type="button" class="ghost s-mas" data-mas>${esc(t('masRoles'))}</button></div>
+      ${D.disp.length?`<div class="recs"><span class="l">${esc(t('recomendados'))}</span>${recs.length?recs.map(c=>`<button type="button" data-pon="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k!=null?esc(t('km')(c.k)):''}${c.a.coche?'':' · '+esc(t('sinCoche'))}</small></button>`).join(''):`<span class="small muted">${esc(t('sinRec'))}</span>`}</div>`:''}
+      <label class="chk hecho"><input type="checkbox" data-hecho${hecho?' checked':''}> <span>${esc(t('hecho'))}</span></label>
+    </article>`;
+}
+function pintarPartidos(plan, ms){
   if(!ms.length){ $('lista').innerHTML=`<p class="muted">${esc(t('sinPartidos'))}</p>`; return; }
   let html='', ult='';
   for(const m of ms){
     const d=m.d.slice(0,10);
     if(d!==ult){ ult=d; html+=`<h2 class="dia-h">${esc(cap(fecha(d,0,{weekday:'long',day:'numeric',month:'long'})))}</h2>`; }
-    const p=plan[m.key]||{}, recs=candidatos(m,plan).filter(c=>c.disp&&!c.pisa&&!c.oc&&!c.lejosSinCoche).slice(0,4), arb=ARB();
-    // Choques de los que ya están puestos (p. ej. puestos antes de esta regla, o designados después en iSquad).
-    const avisos=['r1','r2','an'].map(rol=>{ const a=arb[p[rol]]; if(!a) return ''; const sinEste={...plan, [m.key]:Object.fromEntries(Object.entries(p).filter(([r])=>r!==rol))}, ch=choque(a,m,sinEste);
-      return ch ? `<p class="choque ${ch.tipo}">${esc((ch.tipo==='pisa'?t('avPisa'):t('avJusto'))(corto(a.nombre), ocTxt(ch.o)))}</p>` : ''; }).join('');
-    const id=encodeURIComponent(m.key);
-    html+=`<article class="m ${p.r1?'ok':'falta'}${avisos.includes('choque pisa')?' mal':''}" data-key="${esc(m.key)}">
-      <div class="top"><span class="hora">${esc(m.d.slice(11,16))}</span><span class="tag" title="${esc(m.cat)}">${esc(cat(m.cat))}</span>${m.isquad==='con'?`<span class="tag g">${esc(t('isqCon'))}</span>`:m.isquad==='sin'?`<span class="tag r">${esc(t('isqSin'))}</span>`:''}${m.conf?'':`<span class="tag">${esc(t('aplazado'))}</span>`}</div>
-      <div class="eq">${esc(corto(m.l))} – ${esc(corto(m.v))}</div>
-      <div class="pab">${esc(corto(m.pab))}${pobDe(m)?' · '+esc(corto(pobDe(m))):''}</div>
-      ${avisos}
-      <div class="slots${p.r2||p.an?' mas':''}">${['r1','r2','an'].map(rol=>`<label class="s-${rol}">${esc(t(rol))}<select data-rol="${rol}" aria-label="${esc(t(rol))} · ${esc(corto(m.l))} – ${esc(corto(m.v))}">${opciones(m,rol,plan)}</select></label>`).join('')}<button type="button" class="ghost s-mas" data-mas>${esc(t('masRoles'))}</button></div>
-      ${D.disp.length?`<div class="recs"><span class="l">${esc(t('recomendados'))}</span>${recs.length?recs.map(c=>`<button type="button" data-pon="${c.a.id}">${esc(corto(c.a.nombre))} <small>${c.k!=null?esc(t('km')(c.k)):''}${c.a.coche?'':' · '+esc(t('sinCoche'))}</small></button>`).join(''):`<span class="small muted">${esc(t('sinRec'))}</span>`}</div>`:''}
-    </article>`;
+    html+=tarjeta(m, plan);
   }
-  $('lista').innerHTML = (D.disp.length?'':`<p class="msg err">${esc(t('sinArb'))}</p>`) + `<p class="small muted">${esc(t('planNota'))}</p>` + html;
+  $('lista').innerHTML = html;
 }
 function pintarArbitros(plan){
   $('vPart').classList.add('hidden'); $('vArb').classList.remove('hidden');
@@ -352,12 +535,12 @@ function pintarArbitros(plan){
     const mios = D.partidos.filter(m=>Object.entries(plan[m.key]||{}).some(([,id])=>id===a.id));
     const libres = D.partidos.filter(m=>m.liga && !plan[m.key]?.r1 && disponible(a,m) && !ocupado(a,m,plan)).map(m=>({m,k:km(a,m)}))
       .filter(x=>a.coche || x.k==null || x.k<=12).sort((x,y)=>(x.k??999)-(y.k??999)).slice(0,3);
-    return `<article class="a"><div class="top"><span class="n">${esc(corto(a.nombre))}</span><span class="tag">${esc(corto(a.poblacion))}</span>${a.coche?'':`<span class="tag r">${esc(t('sinCoche'))}</span>`}<span class="tag">${esc(a.origen==='designador'?t('porTi'):a.app?t('app'):t('mano'))}</span>${mios.length?`<span class="tag y">${esc(t('asignados')(mios.length))}</span>`:''}</div>
+    return `<article class="a"><div class="top">${chipArb(a)}<span class="n">${esc(corto(a.nombre))}</span><span class="tag">${esc(corto(a.poblacion))}</span>${a.coche?'':`<span class="tag r">${esc(t('sinCoche'))}</span>`}<span class="tag">${esc(a.origen==='designador'?t('porTi'):a.app?t('app'):t('mano'))}</span>${mios.length?`<span class="tag y">${esc(t('asignados')(mios.length))}</span>`:''}</div>
       <div class="d">${esc(t('sabado'))}: ${fr(a.sab,a.sab_obs)} · ${esc(t('domingo'))}: ${fr(a.dom,a.dom_obs)}</div>
       ${(a.isq||[]).length?`<div class="d">${esc(t('enIsqL'))} ${a.isq.map(o=>`${esc(cap(fecha(o.d.slice(0,10),0,{weekday:'short'})))} ${esc(o.d.slice(11,16))} · ${esc(pabCorto(o.pab))}`).join(' · ')}</div>`:''}
       ${mios.length?`<div class="d">${mios.map(m=>`${esc(cap(fecha(m.d.slice(0,10),0,{weekday:'short'})))} ${esc(m.d.slice(11,16))} · ${esc(corto(m.l))} – ${esc(corto(m.v))} (${esc(t(Object.entries(plan[m.key]).find(([,id])=>id===a.id)[0]))})`).join('<br>')}</div>`:''}
       <div class="recs"><span class="l">${esc(t('cercanos'))}</span>${libres.length?libres.map(x=>`<button type="button" data-asig="${esc(x.m.key)}" data-arb="${a.id}">${esc(cap(fecha(x.m.d.slice(0,10),0,{weekday:'short'})))} ${esc(x.m.d.slice(11,16))} · ${esc(corto(x.m.pab))} <small>${x.k!=null?esc(t('km')(x.k)):''}</small></button>`).join(''):`<span class="small muted">${esc(t('ninguno'))}</span>`}</div>
-      <div class="acts row"><button type="button" data-edit="${a.id}">${esc(t('editarB'))}</button><button type="button" class="ghost" data-quitar="${a.id}">${esc(t('quitar'))}</button></div></article>`;
+      <div class="acts row"><button type="button" class="primary" data-wa="${a.id}">${esc(t('wa'))}</button><button type="button" data-edit="${a.id}">${esc(t('editarB'))}</button><button type="button" class="ghost" data-quitar="${a.id}">${esc(t('quitar'))}</button></div></article>`;
   }).join('');
 }
 
@@ -384,8 +567,12 @@ async function asignar(key, rol, id){
   const r = await api({action:'asignar', finde:FINDE, key, rol, disp_id:id||null, forzar});
   if(!r.ok){ msg(r.error||t('red'),'err'); cargar(); }
 }
-$('lista').addEventListener('change', e=>{ const s=e.target.closest('select[data-rol]'); if(!s) return; asignar(s.closest('[data-key]').dataset.key, s.dataset.rol, s.value); });
-$('lista').addEventListener('click', e=>{
+document.addEventListener('change', e=>{
+  const s=e.target.closest('article.m select[data-rol]'); if(s){ asignar(s.closest('[data-key]').dataset.key, s.dataset.rol, s.value); return; }
+  const h=e.target.closest('article.m input[data-hecho]'); if(h) marcarHecho(h.closest('[data-key]').dataset.key, h.checked);
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('article.m')) return;
   const mas=e.target.closest('button[data-mas]'); if(mas){ const sl=mas.closest('.slots'); sl.classList.add('mas'); sl.querySelector('.s-r2 select').focus(); return; }
   const b=e.target.closest('button[data-pon]'); if(!b) return;
   const key=b.closest('[data-key]').dataset.key, p=PLAN()[key]||{}, rol=['r1','r2','an'].find(r=>!p[r]); if(rol) asignar(key, rol, b.dataset.pon);
@@ -438,11 +625,18 @@ $('exportar').addEventListener('click', async ()=>{
   if(!window.XLSX) await new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src='../vendor/xlsx-0.18.5.full.min.js'; s.onload=ok; s.onerror=ko; document.head.appendChild(s); });
   const plan=PLAN(), arb=ARB(), n = id => id&&arb[id] ? corto(arb[id].nombre) : '';
   const rows = filtrados(plan).map(m=>{ const p=plan[m.key]||{}; return { Fecha:m.d.slice(0,10), Hora:m.d.slice(11,16), Categoría:cat(m.cat), Local:corto(m.l), Visitante:corto(m.v),
-    Pabellón:corto(m.pab), Dirección:m.pista, R1:n(p.r1), R2:n(p.r2), Anotador:n(p.an), 'Km R1 (aprox.)': p.r1&&arb[p.r1] ? km(arb[p.r1], m) ?? '' : '' }; });
+    Pabellón:corto(m.pab), Dirección:m.pista, R1:n(p.r1), R2:n(p.r2), Anotador:n(p.an), 'Km R1 (aprox.)': p.r1&&arb[p.r1] ? km(arb[p.r1], m) ?? '' : '', [t('hecho')]: HECHO().has(m.key) ? '✓' : '' }; });
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), t('xlsHoja'));
+  XLSX.utils.book_append_sheet(wb, hojaDisp(filasDisp()), t('xlsDisp'));   // la disponibilidad, como la plantilla de importar
   XLSX.writeFile(wb, `designaciones-${FINDE}.xlsx`);
 });
 
+</script>
+<script src="catalunya.js"></script>
+<script src="vistas.js"></script>
+<script src="importar.js"></script>
+<script src="tutorial.js"></script>
+<script>
 applyLang();
 if(TOKEN) entrarApp();
 </script>
