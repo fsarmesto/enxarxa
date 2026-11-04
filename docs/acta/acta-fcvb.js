@@ -73,6 +73,12 @@ const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-ES', { hour: '
 // Texto apoyado en la línea base `base` (pt), como la letra impresa del rótulo o encima de un renglón. Con line-height 1,
 // la línea base de Arial queda a 0,8465 × tamaño desde arriba.
 function linea(x, base, w, t, o = {}) { const fs = o.fs || 9.5; return txt(x, base - 0.8465 * fs, w, fs, t, { ...o, fs }); }
+// Cierre de un hueco libre, como a mano (Ferran): "-----/": raya horizontal en el primer renglón libre y, desde su extremo
+// derecho, una diagonal que baja hasta abajo a la izquierda (si no hay más renglones, un "/" corto al final).
+function cierre(x1, y, x2, xAbajo, yAbajo) {
+  if (x2 - x1 < 6) return '';
+  return raya(x1, y, x2, y, 0.8) + (yAbajo > y + 3 ? raya(x2, y, xAbajo, yAbajo, 0.8) : raya(x2 - 2.5, y + 2.5, x2 + 2.5, y - 4.5, 0.8));
+}
 const circulo = (cx, cy, r) => { [[cx, cy]] = mapear(cx, cy); return circ0(cx, cy, r); };
 const circ0 = (cx, cy, r) => `<div class="f-c" style="left:${cx - r}pt;top:${cy - r}pt;width:${2 * r}pt;height:${2 * r}pt"></div>`;
 
@@ -191,7 +197,11 @@ function mitad(o, out) {
   // "/" de cada turno, como a mano: trazo largo pegado al número que cruza el numerito impreso y sube casi toda la casilla
   const tacha = (c) => raya(c.x2 - 4.2, c.y + SET.saqueH - 1.2, c.x2 - 0.4, c.y + 3.8, 0.8);
   if (o.x) { const c = casilla(0); out.push(cruz(c.x, c.y, c.x2 - c.x, SET.saqueH)); }
-  o.turnos.forEach((tu, i) => {
+  // Si el ganador no tiene su marcador final en una casilla (set acabado por equipo incompleto), va en la del siguiente
+  // sacador, rodeado y sin "/" (manual de anotación FIVB/USAV, "Default").
+  let turnos = o.turnos; const ult = turnos[turnos.length - 1];
+  if (o.final && o.gana && (!ult || ult.hasta !== o.total)) turnos = [...turnos, { col: ult ? (ult.col + 1) % 6 : 0, hasta: o.total, desde: o.total }];
+  turnos.forEach((tu, i) => {
     if (tu.col < 0) return;
     const c = casilla(tu.col); if (!c) return;
     if (tu.abierto) { out.push(tacha(c)); return; }   // set 5: el turno que va en curso al cambiar se deja abierto
@@ -199,13 +209,14 @@ function mitad(o, out) {
     const w = c.x2 - c.x;
     // Set ganado en recepción: el último punto va en la casilla del siguiente sacador, rodeado y sin "/" (no llegó a sacar;
     // RFEVB/CTNA pág. 8, FIVB, y así en papel)
-    const ultimo = o.final && i === o.turnos.length - 1, sinSacar = ultimo && o.gana && tu.desde != null && tu.desde === tu.hasta;
+    const ultimo = o.final && i === turnos.length - 1, sinSacar = ultimo && o.gana && tu.desde != null && tu.desde === tu.hasta;
     out.push(txt(c.x + 0.5, c.y + 0.5, w - 4, SET.saqueH - 1, tu.hasta, { fs: 8.5 }), sinSacar ? '' : tacha(c));
-    if (o.final && i === o.turnos.length - 1) out.push(circulo(c.x + w / 2 - 1.5, c.y + SET.saqueH / 2, 5.6));
+    if (o.final && i === turnos.length - 1) out.push(circulo(c.x + w / 2 - 1.5, c.y + SET.saqueH / 2, 5.6));
   });
   // PUNTS: "/" en cada punto (círculo si es de castigo); reloj de arena en lo que sobra de cada columna
   o.puntos.forEach((p) => { const q = o.punto(p.n); if (!q) return; const [x, yy] = q;
-    out.push(/castigo/i.test(p.motivo) ? circulo(x, yy, 3.3) : raya(x - 2.6, yy + 2.4, x + 2.6, yy - 2.4, 0.7)); });
+    // Castigo: rodeado. Equipo incompleto (FIVB 6.4.3): los puntos que se dan al rival, con "/" y rodeados.
+    out.push(/castigo/i.test(p.motivo) ? circulo(x, yy, 3.3) : raya(x - 2.6, yy + 2.4, x + 2.6, yy - 2.4, 0.7) + (p.motivo === 'incompleto' ? circulo(x, yy, 3.3) : '')); });
   if (o.reloj) for (const [a, b, x1, x2] of o.reloj) {
     const desde = Math.max(a, o.total + 1); if (desde > b) continue;
     out.push(reloj(x1, o.punto(desde)[1] - 3, x2, o.punto(b)[1] + 3));
@@ -370,10 +381,18 @@ function abajo(A, st, M, eqA, out) {
   }
   partes.forEach((t, i) => out.push(linea(lineas[i][0], lineas[i][1], lineas[i][2], t, { fs: FS })));
   if (resto) out.push(linea(383, 491.6, 79, 'Continua al full annex', { fs: 6.5, b: true }));
+  else out.push(cierreRenglones(lineas.map(([x, b, w]) => [x, b - 1.5, x + w - 2]), partes, FS, [11, 492.0]));
   return resto;
 }
 // Hoja anexa "Format 5" (A4 vertical): ampliación de las observaciones
 const MESOS = ['gener', 'febrer', 'març', 'abril', 'maig', 'juny', 'juliol', 'agost', 'setembre', 'octubre', 'novembre', 'desembre'];
+// Cierra lo que sobra de unos renglones [[x, y, xFin]] tras el texto escrito (`partes`, uno por renglón).
+function cierreRenglones(R, partes, fs, [xAbajo, yAbajo]) {
+  let k = partes.length - 1, x1;
+  if (k < 0) { k = 0; x1 = R[0][0]; }
+  else { x1 = R[k][0] + anchoTexto(String(partes[k]).toUpperCase(), fs) + 4; if (R[k][2] - x1 < 18) { k++; if (k >= R.length) return ''; x1 = R[k][0]; } }
+  return cierre(x1, R[k][1], R[k][2], xAbajo, k < R.length - 1 ? yAbajo : R[k][1]);
+}
 function annex(A, resto) {
   const d = A.datos, out = [], f = String(d.fecha || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (f) { const y = +f[1], mes = +f[2], ini = mes >= 8 ? y : y - 1; out.push(linea(116, 134.9, 14, String(ini).slice(2), { al: 'center', fs: 10 }), linea(151.3, 134.9, 14, String(ini + 1).slice(2), { al: 'center', fs: 10 })); }
@@ -383,7 +402,9 @@ function annex(A, resto) {
   out.push(linea(72, 298.5, 152, cognomNom(d.r1), { fs: 10 }), linea(137, 312.0, 24, d.r1Lic || '', { al: 'center', fs: 10 }));
   // Comentarios: un renglón por línea impresa (no van a distancia fija)
   const RENGLONES = [397.5, 417.0, 432.7, 452.2, 470.2, 489.6];
-  enLineas('(continuació) ' + resto, 500, 9.5).slice(0, RENGLONES.length).forEach((l, i) => out.push(linea(38, RENGLONES[i] - 2, 500, l, { fs: 9.5 })));
+  const lin = enLineas('(continuació) ' + resto, 500, 9.5).slice(0, RENGLONES.length);
+  lin.forEach((l, i) => out.push(linea(38, RENGLONES[i] - 2, 500, l, { fs: 9.5 })));
+  out.push(cierreRenglones(RENGLONES.map((y) => [38, y - 3.5, 536]), lin, 9.5, [38, RENGLONES[RENGLONES.length - 1] - 3.5]));
   if (f) out.push(linea(305, 736.3, 60, d.ciudad || '', { al: 'center', fs: 10 }), linea(380, 736.3, 14, String(+f[3]), { al: 'center', fs: 10 }), linea(409, 736.3, 89, MESOS[+f[2] - 1], { al: 'center', fs: 10 }), linea(513, 736.3, 33, f[1], { al: 'center', fs: 10 }));
   return `<div class="fcvb-pagina vertical" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/complement-observacions.svg" alt="">${out.join('')}</div>`;
 }
@@ -409,6 +430,16 @@ function pagina(A, ST, M) {
     out.push(txt(...ab, d['abrev' + eq] || abreviatura(eq === 'L' ? d.local : d.visitante), { al: eq === 'L' ? 'right' : 'left', b: true }));
     const ape = apellidos(e[eq].jugadores);
     const jug = [...e[eq].jugadores].sort((a, b) => (a.num === '00' ? -1 : +a.num) - (b.num === '00' ? -1 : +b.num));
+    // Filas libres de la inscripción, cerradas con "-----/" (Ferran)
+    const libres = G.filas - Math.min(jug.length, G.filas);
+    const ausente = ST.incompleto?.motivo === 'incomparecencia' && ST.incompleto.eq === eq;
+    if (libres > 0 && !ausente) { const y0 = G.fila0 + (G.filas - libres) * G.filaH + G.filaH / 2, xl = col.num[0] + 1.5, xr = col.nom[0] + col.nom[1] - 1.5;
+      out.push(cierre(xl, y0, xr, xl, G.fila0 + G.filas * G.filaH - 1.5)); }
+    // Incomparecencia (FIVB 6.4.1-2; manual USAV "Forfeit"): plantilla y oficiales del que no se presenta, tachados con una raya
+    if (ST.incompleto?.motivo === 'incomparecencia' && ST.incompleto.eq === eq) {
+      const xl = col.num[0] + 1, xr = col.nom[0] + col.nom[1] - 1, [ox, ow] = eq === 'L' ? G.ofiL : G.ofiV, of0 = G.ofiFilas[0][0], ofN = G.ofiFilas[G.ofiFilas.length - 1];
+      out.push(raya(xr, G.fila0 + 1, xl, G.fila0 + G.filas * G.filaH - 1, 1), raya(ox + ow - 1, of0 + 1, ox + 1, ofN[0] + ofN[1] - 1, 1));
+    }
     jug.slice(0, G.filas).forEach((j, i) => {
       const y = G.fila0 + i * G.filaH;
       out.push(txt(col.num[0], y, col.num[1], G.filaH, j.num, { al: 'center' }));
@@ -434,9 +465,11 @@ function pagina(A, ST, M) {
   });
   // Sets 1 a 4 y el 5 (decisivo, en 3 partes). Equipo de la mitad izquierda: A en los sets 1 y 3, B en los 2 y 4.
   ST.__abrev = { L: d.abrevL || abreviatura(d.local), V: d.abrevV || abreviatura(d.visitante) };
-  if (eqA) for (const s of ST.sets) if (s.inicio && s.n <= 4 && !s.golden) setBloque(ST, s, s.n % 2 ? eqA : (eqA === 'L' ? 'V' : 'L'), out);
+  // Los sets que no se llegaron a jugar (los da el motor por equipo incompleto o incomparecencia) solo van al cuadro de resultados
+  const jugado = (s) => !ST.incompleto || s.n < ST.incompleto.set || (s.n === ST.incompleto.set && !!(s.alineacion.L?.length || s.alineacion.V?.length));
+  if (eqA) for (const s of ST.sets) if (s.inicio && s.n <= 4 && !s.golden && jugado(s)) setBloque(ST, s, s.n % 2 ? eqA : (eqA === 'L' ? 'V' : 'L'), out);
   const s5 = ST.sets.find((x) => x.n === 5 && x.decisivo && !x.golden && x.inicio);
-  if (eqA && s5) set5Bloque(A, ST, s5, M, out);
+  if (eqA && s5 && jugado(s5)) set5Bloque(A, ST, s5, M, out);
   const resto = eqA ? abajo(A, ST, M, eqA, out) : '';
   return `<div class="fcvb-pagina" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/${inf ? 'model-acta-infantils' : 'model-acta-estandard'}.svg" alt="">${out.join('')}</div>${resto ? nativo(() => annex(A, resto)) : ''}`;
 }
