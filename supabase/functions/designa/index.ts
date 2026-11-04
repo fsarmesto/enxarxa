@@ -208,6 +208,7 @@ async function panel(db: Db, b: { finde?: string }, t0: number) {
   const cubre = !!(r?.pendientes && r.desde && r.hasta && r.desde <= finde && r.hasta >= dom);
   const sinArb = new Set((cubre ? r!.pendientes! : []).map((x) => `${x.d}|${norm(x.l)}|${norm(x.v)}`));
   const { data: disp } = await db.from("designa_disp").select("*").eq("finde", finde).order("nombre");
+  const isq = await designacionesIsquad(db, finde, (disp || []).map((d: { user_id: string | null }) => d.user_id).filter(Boolean));
   const { data: asig } = await db.from("designa_asig").select("match_key, rol, disp_id").eq("finde", finde);
   return {
     ok: true, finde, findes: findes(), falta, estadoIsquad: cubre,
@@ -217,9 +218,51 @@ async function panel(db: Db, b: { finde?: string }, t0: number) {
         liga: relevante(p.cat), isquad: cubre && relevante(p.cat) ? (sinArb.has(k) ? "sin" : "con") : null };
     }),
     disp: (disp || []).map((d: Record<string, unknown>) => ({ id: d.id, nombre: d.nombre, poblacion: d.poblacion, lon: d.lon, lat: d.lat, coche: d.coche,
-      sab: d.sab, sab_obs: d.sab_obs, dom: d.dom, dom_obs: d.dom_obs, app: !!d.user_id, origen: d.origen, updated_at: d.updated_at })),
+      sab: d.sab, sab_obs: d.sab_obs, dom: d.dom, dom_obs: d.dom_obs, app: !!d.user_id, origen: d.origen, updated_at: d.updated_at,
+      // Lo que ya tiene designado en iSquad ese fin de semana (hora y pabellón; solo árbitros con cuenta): para los choques.
+      isq: d.user_id ? (isq.get(d.user_id as string) || []).map((o) => ({ d: o.d, pab: o.pab })) : [] })),
     asig: asig || [],
   };
+}
+
+// ---------- Choques (4-nov-2026, Ferran: nadie puede estar en 2 partidos a la vez) ----------
+// Dos partidos del mismo día cuyos inicios están a menos de 1 h 45 min se pisan, sea cual sea el pabellón: el panel no
+// deja elegir a ese árbitro y el servidor lo rechaza. En pabellones distintos con poco margen para el viaje, el panel
+// solo avisa (lo decide el designador). Cuenta el plan del panel y, de los árbitros con cuenta, sus designaciones de
+// iSquad (tabla matches). La misma regla está en docs/designa-admin/index.html (choque).
+const PISA_MIN = 105;
+const minDe = (d: string) => +d.slice(11, 13) * 60 + +d.slice(14, 16);
+// El mismo partido visto desde iSquad (designación del árbitro) y desde la web pública: misma hora y mismo pabellón.
+const mismoPab = (a: string, b: string) => { const x = sinPista(a), y = sinPista(b); return !!x && !!y && (x === y || x.includes(y) || y.includes(x)); };
+type Ocupa = { d: string; pab: string; isq?: boolean };
+async function designacionesIsquad(db: Db, finde: string, users: string[]): Promise<Map<string, Ocupa[]>> {
+  const m = new Map<string, Ocupa[]>();
+  if (!users.length) return m;
+  const { data } = await db.from("matches").select("user_id, date, time, venue").in("user_id", users).in("date", [finde, masDias(finde, 1)]).is("missing_since", null);
+  for (const r of data || []) if (r.time) (m.get(r.user_id) ?? m.set(r.user_id, []).get(r.user_id)!).push({ d: `${r.date} ${r.time}`, pab: r.venue || "" });
+  return m;
+}
+const horaPab = (o: Ocupa) => { const p = o.pab.replace(/\s*-\s*(PISTA|TERCIO|TERC|CAMP|SALA|ANNEX).*$/i, "").trim(); return `${o.d.slice(11, 16)}${p ? " (" + titulo(p) + ")" : ""}`; };
+
+// Texto del choque (o null): el mismo árbitro en otro puesto de este partido, u otro partido que se pisa con este.
+// deno-lint-ignore no-explicit-any
+async function choqueDe(db: Db, finde: string, d: any, key: string, rol: string): Promise<string | null> {
+  const nombre = titulo(d.nombre || "");
+  const { data: suyas } = await db.from("designa_asig").select("match_key, rol").eq("finde", finde).eq("disp_id", d.id);
+  const otras = (suyas || []).filter((x: { match_key: string; rol: string }) => !(x.match_key === key && x.rol === rol));
+  const aqui = otras.find((x: { match_key: string }) => x.match_key === key);
+  if (aqui) return `${nombre} ya está en este partido como ${aqui.rol === "an" ? "anotador" : aqui.rol.toUpperCase()}.`;
+  const dia = key.slice(0, 10), t = minDe(key);
+  const ps = await feed(db), porKey = new Map(ps.map((p) => [matchKey(p), p]));
+  const este = porKey.get(key);
+  const ocupa: Ocupa[] = otras.map((x: { match_key: string }) => ({ d: x.match_key.slice(0, 16), pab: porKey.get(x.match_key)?.pab || "" }));
+  if (d.user_id) for (const o of (await designacionesIsquad(db, finde, [d.user_id])).get(d.user_id) || []) {
+    if (o.d === key.slice(0, 16) && este && mismoPab(o.pab, este.pab)) continue;   // es este mismo partido
+    ocupa.push({ ...o, isq: true });
+  }
+  const x = ocupa.find((o) => o.d.slice(0, 10) === dia && Math.abs(minDe(o.d) - t) < PISA_MIN);
+  if (!x) return null;
+  return `${nombre} ya tiene ${x.isq ? "en iSquad " : ""}el partido de las ${horaPab(x)}: no puede estar en 2 partidos a la vez.`;
 }
 
 async function asignar(db: Db, b: { finde?: string; key?: string; rol?: string; disp_id?: string | null }) {
@@ -227,8 +270,10 @@ async function asignar(db: Db, b: { finde?: string; key?: string; rol?: string; 
   if (!["r1", "r2", "an"].includes(rol) || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}\|/.test(key)) return json({ error: "Petición no válida" }, 400);
   if (key.slice(0, 10) !== finde && key.slice(0, 10) !== masDias(finde, 1)) return json({ error: "Ese partido no es de este fin de semana" }, 400);
   if (!b.disp_id) { await db.from("designa_asig").delete().eq("match_key", key).eq("rol", rol); return json({ ok: true }); }
-  const { data: d } = await db.from("designa_disp").select("id").eq("id", b.disp_id).eq("finde", finde).maybeSingle();
+  const { data: d } = await db.from("designa_disp").select("id, nombre, user_id").eq("id", b.disp_id).eq("finde", finde).maybeSingle();
   if (!d) return json({ error: "Ese árbitro no ha dado disponibilidad este fin de semana" }, 400);
+  const choque = await choqueDe(db, finde, d, key, rol);
+  if (choque) return json({ error: choque }, 409);
   const { error } = await db.from("designa_asig").upsert({ finde, match_key: key, rol, disp_id: d.id });
   return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true });
 }

@@ -43,6 +43,8 @@ de tratamiento).
 8. **Disponibilidad para arbitrar (3-nov-2026).** Que el designador de la FCVB reparta los partidos del fin de semana.
    Datos: nombre y apellidos, población y sus coordenadas aproximadas, coche (sí/no), disponibilidad del sábado y el
    domingo con observaciones, plan del designador (partido y puesto); sin cuenta, huella sha256 del código de edición.
+   Con cuenta (4-nov-2026): hora y pabellón de sus designaciones de iSquad de ese fin de semana (tabla `matches`), solo
+   para que el panel no le ponga en 2 partidos a la vez.
    Interesados: árbitros, con cuenta de la app o sin ella. Destinatario: el designador (login propio, `DESIGNA_USERS`).
    Base: consentimiento (art. 6.1.a): lo envía el propio árbitro para eso; puede retirarlo desde el formulario.
    Plazo: 4 semanas desde el fin de semana (borrado automático).
