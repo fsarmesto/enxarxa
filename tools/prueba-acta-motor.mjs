@@ -106,7 +106,7 @@ test('sustitución excepcional: no cuenta y el lesionado no vuelve en el partido
   p.add({ t: 'sust', eq: 'V', sale: 2, entra: 8, tipo: 'excepcional' });
   const st = p.st(), s = M.setActual(st);
   assert.equal(s.nSust.V, 2); assert.ok(st.fueraPartido.V.has('2'));
-  assert.equal(M.resultados(st).filas[0].V.sust, 2, 'en el cuadro de resultados no cuenta');
+  assert.equal(M.resultados(st).filas[0].V.sust, 3, 'en el total del acta sí cuenta (FIVB 15.7), aunque no para el límite de 6');
   assert.match(p.falla({ t: 'sust', eq: 'V', sale: 8, entra: 2 }), /no puede volver/);
 });
 
@@ -355,4 +355,37 @@ test('capitán líbero: cuando sale de pista no se pide capitán en juego', () =
     { t: 'equipo', eq: 'V', nombre: 'V', jugadores: [1, 2, 3, 4, 5, 6].map((num) => ({ num, cap: num === 1 })) },
     { t: 'sorteo', saca: 'V', izq: 'L' }, { t: 'alineacion', eq: 'L', jugadores: [1, 2, 3, 4, 5, 6] }, { t: 'alineacion', eq: 'V', jugadores: [1, 2, 3, 4, 5, 6] }, { t: 'inicioSet' }];
   assert.equal(M.necesitaCapitanJuego(M.reproducir({}, {}, ev), 'L'), false, 'capitán líbero en el banquillo: sin aviso');
+});
+
+test('normativa 2025-2028 / FCVB 2026-27', () => {
+  // Rally completo: un castigo también cuenta (FIVB 6.1.3): el líbero puede volver a cambiar después
+  let p = preparado();
+  p.add({ t: 'punto', eq: 'L' }); p.add({ t: 'punto', eq: 'V' });   // V rota y saca; L recibe
+  p.add({ t: 'liberoEntra', eq: 'L', libero: 12, sale: set(p).rot.L[5] });   // VI: al rotar pasa a V, sigue en la zaga
+  assert.match(p.falla({ t: 'liberoSale', eq: 'L' }), /rally completo/);
+  p.add({ t: 'sancion', eq: 'V', quien: 2, tipo: 'castigo' });
+  assert.equal(p.falla({ t: 'liberoSale', eq: 'L' }), null, 'tras un castigo ya hay rally completo');
+  // Máximo de jugadores: 14 con líbero, 12 sin líbero
+  const jug = (n) => Array.from({ length: n }, (_, i) => ({ num: i + 1 }));
+  assert.match(M.validar({}, {}, [], { t: 'equipo', eq: 'L', jugadores: jug(15) }), /Como mucho 14/);
+  assert.equal(M.validar({}, {}, [], { t: 'equipo', eq: 'L', jugadores: jug(14) }), null);
+  assert.match(M.validar({ liberos: false }, {}, [], { t: 'equipo', eq: 'L', jugadores: jug(13) }), /Como mucho 12/);
+  assert.match(M.validar({}, {}, [], { t: 'equipo', eq: 'L', jugadores: jug(12), oficiales: [{ rol: 'E', nombre: 'a' }, { rol: 'E2', nombre: 'b' }, { rol: 'E3', nombre: 'c' }, { rol: 'F', nombre: 'd' }, { rol: 'M', nombre: 'e' }] }), /3 oficiales/);
+  // Redesignación con 2 líberos: no, mientras el otro pueda jugar (FIVB 19.4.3.1)
+  p = preparado();
+  assert.match(p.falla({ t: 'liberoNoPuede', eq: 'L', libero: 12, nuevo: 8 }), /Queda el otro líbero, el 13/);
+  p.add({ t: 'liberoNoPuede', eq: 'L', libero: 12 });
+  p.add({ t: 'liberoNoPuede', eq: 'L', libero: 13, nuevo: 8 });
+  assert.ok(p.st().equipos.L.jugadores.find((j) => j.num === '8').lib, 'sin ninguno disponible, sí');
+  // Falta de rotación con anulación de puntos (FIVB 7.7.2)
+  p = preparado();
+  puntos(p, 'L', 3); p.add({ t: 'punto', eq: 'V' }); puntos(p, 'V', 2); p.add({ t: 'punto', eq: 'L' });   // L 4 - V 3
+  assert.match(p.falla({ t: 'faltaRotacion', eq: 'L', desde: 9 }), /de 0 a 4/);
+  p.add({ t: 'faltaRotacion', eq: 'L', desde: 2 });
+  let s = set(p); assert.deepEqual(s.puntos, { L: 2, V: 4 }, 'se anulan los 2 puntos de L desde la falta y V gana 1');
+  assert.equal(s.progreso.filter((x) => x.anulado).length, 2); assert.equal(p.st().faltasRotacion[0].anulados, 2);
+  p.add({ t: 'faltaRotacion', eq: 'V' }); assert.deepEqual(set(p).puntos, { L: 3, V: 4 }, 'sin momento: solo punto al rival');
+  // Excepcionales: cuentan en el total del acta, no en el límite
+  p = preparado(); p.add({ t: 'sust', eq: 'L', sale: 3, entra: 8, tipo: 'excepcional' });
+  assert.equal(set(p).nSust.L, 0); assert.equal(M.resultados(p.st()).filas[0].L.sust, 1);
 });

@@ -945,7 +945,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     - **Correcciones del anotador:** cada Deshacer queda en `A.correcciones` ({h, texto, set, L, V}; fuera de `ev`, no
       cambia el estado) y sale en el final y en el acta impresa; no se puede borrar. Reabrir el acta también se anota.
     - **Descanso entre sets:** cuenta atrás en la pantalla entre sets desde el fin del set (`cfg.descanso`, 3 min;
-      `cfg.descanso23` entre el 2º y el 3º, 15 si el local pide el intermedio promocional); pasado, en rojo.
+      `cfg.descanso23` entre el 2º y el 3º, hasta 10 si lo pide el organizador, FIVB 18.1); pasado, en rojo.
     - **Espectadores** (`A.datos.espectadores`) en el final y en el acta impresa.
     - **Aprobar y cerrar:** anotador, capitán local, capitán visitante y 1er árbitro con contraseña (`CLAVE_APROBAR`
       = '0000' para todos de momento, decisión de Ferran). `A.aprobada = {h}`: `hacer()` solo deja pasar firmas,
@@ -989,6 +989,28 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     nadie marcado → aviso al salir (toast) y recuadro en el panel con los jugadores en pista para marcarlo. En la pista
     lleva la C (blanca con borde), "CJ" en las listas y se anota en las observaciones del acta impresa.
     Prueba: ~/work/enxarxa-pruebas/libero-capitan.mjs (PC y `ANCHO=390`).
+  - **Revisión de la normativa vigente (4-nov-2026, Ferran: "léete toda la normativa"):** leídas las Reglas Oficiales
+    FIVB 2025-2028 (EN v05, fivb.com) y las circulares de árbitros de la FCVB 2026-27 (001-010, fcvolei.cat →
+    Circulars àrbitres). Las "Normes de competició 25-26" y la normativa aleví 25-26 no se pueden bajar (enlace roto);
+    la aleví 24-25 sí. Cambios hechos:
+    - Rally completo = cualquier punto, también castigo o falta de rotación (FIVB 6.1.3): antes un castigo no contaba y
+      bloqueaba el cambio de líbero siguiente.
+    - Máximo en el acta 14 jugadores con 0-2 líberos, 12 sin líbero (FCVB Circ. 004 y 009; `cfg.maxJugadores` para
+      otra cifra). Cuerpo técnico: entrenador + como mucho 3 (FCVB normes 8.7.7), con los cargos de FIVB 4.1.1 y FCVB
+      004 (E, E2, E3, F, M, PS, PF, MS). Delegado de equipo en observaciones, sin DNI (FCVB Circ. 003 y 010).
+    - Con 2 líberos no se redesigna mientras el otro pueda jugar (FIVB 19.4.3.1); el expulsado ese set no cuenta.
+    - Falta de rotación: opción de anular los puntos del infractor desde el momento de la falta (FIVB 7.7.2): `desde`
+      = sus puntos entonces; `progreso[].anulado`; en el acta impresa no se numeran y salen en observaciones.
+    - Sustitución excepcional: suma al total de sustituciones del acta, no al límite de 6 (FIVB 15.7).
+    - Firmas al final: anotador (y ayudante), capitanes, 2º y 1er árbitro (FIVB 27.2.3.3).
+    - Descanso 2º-3º: hasta 10 min (FIVB 18.1; la guía CTNA de 2017 decía 15).
+    - Avisos del último tiempo y del 5º y 6º cambio (FIVB 24.2.7); varios avisos a la vez salen juntos
+      (`toastVarios`) y el aviso ya no se come el toque del botón que tiene debajo (`pointer-events:none`).
+    Sin hacer (pendiente de Ferran): protesta oficial al final del partido (FIVB 5.1.2.1, 5.1.3.2, 27.2.3.2; Ferran
+    descartó "protesta/desafío" pensando en el challenge); alevín (4x4/3x3, 5 sets a 15 jugados siempre, 3 saques
+    seguidos como mucho) no lo cubre esta acta de 6x6; marcas de categoría inferior junto al nombre (Y, J, C, I, A:
+    FCVB Circ. 004); plantillas de observaciones de la Circ. 010; dorsales (FIVB 4.3.3 dice 1-20; aquí 0-99 y 00 por
+    decisión de Ferran). Prueba de clics: ~/work/enxarxa-pruebas/normativa.mjs (PC y `ANCHO=390`).
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución

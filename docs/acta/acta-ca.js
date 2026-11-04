@@ -102,9 +102,11 @@ const exact = {
   'Color local': 'Color local', 'Color visitante': 'Color visitant', 'Líbero local': 'Líbero local', 'Líbero visitante': 'Líbero visitant',
   'Iniciar partido de prueba': 'Inicia un partit de prova', 'prueba': 'prova', 'Partido de prueba': 'Partit de prova', 'Partido de prueba listo: haz el sorteo y la alineación.': "Partit de prova a punt: fes el sorteig i l'alineació.", 'Pabellón de pruebas': 'Pavelló de proves',
   "El líbero sale de pista": "El líbero surt de la pista", "Entra": "Entra", "Entendido": "Entesos", "Vuelve el jugador al que sustituía: es el único que puede entrar por el líbero (o el otro líbero, que tampoco puede jugar delante). FIVB 19.3.2.": "Torna el jugador a qui substituïa: és l'únic que pot entrar pel líbero (o l'altre líbero, que tampoc no pot jugar davant). FIVB 19.3.2.", "Avisos del líbero": "Avisos del líbero", "Cuando el equipo pasa a recibir, propone por quién entra; cuando pasa delante, avisa de que sale y quién vuelve.": "Quan l'equip passa a rebre, proposa per qui entra; quan passa davant, avisa que surt i qui torna.", "Capitán en juego": "Capità en joc", "Capitán": "Capità",
+  "Entrenador ayudante": "Entrenador assistent", "Psicólogo": "Psicòleg", "Preparador físico": "Preparador físic", "Masajista": "Massatgista", "Delegado de equipo": "Delegat d'equip", "Va a observaciones, sin DNI (FCVB, Circular 003).": "Va a observacions, sense DNI (FCVB, Circular 003).", "Cuerpo técnico: primer entrenador y, como mucho, 3 más.": "Cos tècnic: primer entrenador i, com a molt, 3 més.", "Por este orden: anotador (y ayudante), capitanes, 2º árbitro y 1er árbitro (FIVB 27.2.3.3).": "Per aquest ordre: anotador (i ajudant), capitans, 2n àrbitre i 1r àrbitre (FIVB 27.2.3.3).", "Se puede alargar hasta 10 si lo pide el organizador (FIVB 18.1).": "Es pot allargar fins a 10 si ho demana l'organitzador (FIVB 18.1).", "Puntos del infractor cuando la cometió (si se sabe)": "Punts de l'infractor quan la va cometre (si se sap)", "Se anulan los puntos que ha ganado desde entonces (FIVB 7.7.2). Vacío: solo punto y saque.": "S'anul·len els punts que ha guanyat des d'aleshores (FIVB 7.7.2). Buit: només punt i servei.",
 };
 // Trozos con datos (nombres, dorsales, marcadores): se cambian dentro del texto, por palabras completas. De más largo a más corto.
 const frags = [
+  ['Como mucho 3 oficiales además del primer entrenador.', 'Com a molt 3 oficials a més del primer entrenador.'], ['presenta delegado/a', 'presenta delegat/da'], ['anulados sus puntos desde el', 'anul·lats els seus punts des del'],
   ['capitán en juego de', 'capità en joc de'],
   ['Acta reabierta', 'Acta reoberta'], ['estaba aprobada desde las', 'estava aprovada des de les'], ['gana', 'guanya'], ['Golden set', 'Golden set'],
   ['está fuera por el líbero: primero tiene que salir el líbero', "és fora pel líbero: primer ha de sortir el líbero"], ['es titular: solo puede volver a pista por el suplente que entró por él', 'és titular: només pot tornar a la pista pel suplent que va entrar per ell'],
@@ -147,6 +149,12 @@ const frags = [
   ['Descanso · empieza el set', 'Descans · comença el set'], ['Final · gana', 'Final · guanya'], ['Actualizado hace', 'Actualitzat fa'], ['Sin conexión: se reintenta…', 'Sense connexió: es torna a provar…'], ['Acta electrónica de Vòlei EnXarxa', 'Acta electrònica de Vòlei EnXarxa'],
 ];
 const rules = [
+  [/^(.+): (\d+)º tiempo, el último del set\.$/, (_, a, b) => `${a}: ${b}r temps mort, l'últim del set.`],
+  [/^(.+): (\d+)º cambio, el último del set\.$/, (_, a, b) => `${a}: ${b}è canvi, l'últim del set.`], [/^(.+): (\d+)º cambio\.$/, (_, a, b) => `${a}: ${b}è canvi.`],
+  [/^Falta de rotación anotada: punto para el rival y (\d+) puntos? anulados?\.$/, (_, a) => `Falta de rotació anotada: punt per al rival i ${a} punt${a === '1' ? '' : 's'} anul·lat${a === '1' ? '' : 's'}.`],
+  [/^Queda el otro líbero, el (\d+): solo se puede redesignar si tampoco puede jugar \(FIVB 19\.4\.3\.1\)\.$/, (_, a) => `Queda l'altre líbero, el ${a}: només es pot redesignar si tampoc no pot jugar (FIVB 19.4.3.1).`],
+  [/^Como mucho (\d+) jugadores en el acta( \(líberos incluidos\))?\.$/, (_, a, b) => `Com a molt ${a} jugadors a l'acta${b ? ' (líberos inclosos)' : ''}.`],
+  [/^El marcador del infractor en el momento de la falta tiene que ser de 0 a (\d+)\.$/, (_, a) => `El marcador de l'infractor en el moment de la falta ha de ser de 0 a ${a}.`],
   [/^El líbero (\d+) pasa delante \(posición IV\) y tiene que salir\.$/, (_, a) => `El líbero ${a} passa davant (posició IV) i ha de sortir.`],
   [/^: el líbero (\d+) pasa delante \(posición IV\) y tiene que salir\.$/, (_, a) => `: el líbero ${a} passa davant (posició IV) i ha de sortir.`],
   [/^El capitán \((\d+)\) no está en pista\. Capitán en juego:$/, (_, a) => `El capità (${a}) no és a la pista. Capità en joc:`],
