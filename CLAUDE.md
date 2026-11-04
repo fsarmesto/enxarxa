@@ -898,8 +898,35 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     coinciden los 421. Diferencias de manejo, no de resultado: el e-Scoresheet anota a mano la salida del líbero al pasar
     a delantero (40 veces; nosotros, sola), el "replay" del árbitro que revisa su decisión QUITA el último punto (aquí:
     Deshacer + Repetición) y el líbero redesignado entra en el mismo paso. Encontró un fallo: un castigo/expulsión
-    gastaba la amarilla del equipo; ahora solo la gasta otra amarilla (Casebook FIVB cap. 6).
+    gastaba la amarilla del equipo; ahora solo la gasta otra amarilla. Base: Casebook FIVB caso 6.07 (regla 21: tras una
+    expulsión se puede amonestar a otro miembro; una sola amarilla por equipo). Que un CASTIGO tampoco la gaste no lo dice
+    el Casebook: se deduce del 6.07 y del partido suizo (castigo y expulsión del 7 y luego amarilla al 3). Leído en una
+    copia no oficial del Casebook sin edición: confirmar en la vigente antes de llevarlo a la FCVB.
     Manuales leídos: eScorMan (Data Project 2014), CTNA RFEVB 2017, Swiss Volley 2021, Finlandia 2024.
+  - **Lo copiado del e-Scoresheet (4-nov-2026, Ferran: "añade todo excepto la protesta"; el "replay" se queda como
+    estaba: un balón que entra se repite sin anular la jugada anterior):**
+    - **Correcciones del anotador:** cada Deshacer queda en `A.correcciones` ({h, texto, set, L, V}; fuera de `ev`, no
+      cambia el estado) y sale en el final y en el acta impresa; no se puede borrar. Reabrir el acta también se anota.
+    - **Descanso entre sets:** cuenta atrás en la pantalla entre sets desde el fin del set (`cfg.descanso`, 3 min;
+      `cfg.descanso23` entre el 2º y el 3º, 15 si el local pide el intermedio promocional); pasado, en rojo.
+    - **Espectadores** (`A.datos.espectadores`) en el final y en el acta impresa.
+    - **Aprobar y cerrar:** anotador, capitán local, capitán visitante y 1er árbitro con contraseña (`CLAVE_APROBAR`
+      = '0000' para todos de momento, decisión de Ferran). `A.aprobada = {h}`: `hacer()` solo deja pasar firmas,
+      Deshacer y Ctrl+Z no hacen nada. "Reabrir" con la del 1er árbitro (queda en correcciones). Enviar a la FCVB: no hay
+      dónde (se dice en pantalla).
+    - **Aviso de líbero** (`cfg.avisoLibero`, por defecto sí): con el equipo recibiendo, sin líbero en pista y con un
+      rally desde el último cambio de líbero, el panel propone "Líbero N: ¿entra por…?" con los zagueros (V, VI, I; primero
+      por el que entró la última vez). Va debajo de los botones de acción para no mover el botón de Punto en el móvil.
+    - **Golden set:** suceso `goldenSet` tras el final (no con incomparecencia/incompleto): set decisivo a
+      `puntosDecisivo` con sorteo y cambio a los 8, marcado `golden`; al acabar `st.golden = {set, ganador}` y NO suma a
+      `ganados`; `resultados()` lo deja fuera de los totales (`r.golden`) y del set obligatorio.
+    - Pruebas de clics: ~/work/enxarxa-pruebas/escoresheet.mjs (PC y `ANCHO=390`).
+  - **Colores (4-nov-2026, Ferran):** en Datos, color de cada equipo y de su líbero (`A.datos.colorL/colorV/colorLibL/
+    colorLibV`; por defecto rojo #D2232A y amarillo #FFD100, líberos azul #1E5BC6 y verde #1B8A3A). Se ven en la pista
+    (PC y móvil; el líbero además con borde discontinuo), en la fila del líbero de las listas y como muestra junto al
+    nombre en el panel. El número va en negro o blanco según cuál contrasta más (`textoSobre`, luminancia > 0,18 =
+    negro; por eso el verde por defecto lleva número negro). El que saca: anillo blanco y negro (el rojo no se veía
+    sobre el rojo del local). Prueba: ~/work/enxarxa-pruebas/colores.mjs.
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución
