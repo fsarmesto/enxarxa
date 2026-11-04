@@ -1139,6 +1139,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     los 2 asistentes, T/M), casillas cuadradas de equipo del set 5, INICI del set 5 entero (su ":" está mal impreso),
     HI/HF/TT con los ":" impresos y ganador: nombre en la línea de GUANYADOR y, tras "TRES (3):", los sets del perdedor en
     letra (DOS (2), U (1), ZERO (0); Ferran). Prueba: infantil-fcvb.mjs (partido real puesto como infantil).
+    Sustitución deshecha (vuelve el titular): marcador de vuelta en su fila y el número del suplente rodeado (Ferran).
     "/" de los turnos de saque: trazo largo pegado al número que cruza el numerito impreso, como a mano (Ferran, 4-nov).
     Todo lo escrito "a mano" en el acta FCVB sale en MAYÚSCULAS (`txt` lo pasa a mayúsculas; Ferran, 4-nov). Plantillas por
     orden de dorsal (Ferran). Cada observación se cierra con ".\\" (punto y doble barra invertida) y la siguiente va a

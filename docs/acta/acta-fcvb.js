@@ -153,7 +153,8 @@ function mitad(o, out) {
     if (!entra) continue;
     out.push(txt(x, y.entra, w, 13, entra.entra, { al: 'center', fs: 9 }), txt(x, y.mEntra, w, 13, `${entra.a}:${entra.b}`, { al: 'center', fs: 7.5 }));
     const vuelve = o.sust.find((z) => z.entra === t && z.sale === entra.entra && z.tipo !== 'excepcional');
-    if (vuelve) out.push(txt(x, y.mVuelve, w, 13, `${vuelve.a}:${vuelve.b}`, { al: 'center', fs: 7.5 }));
+    // Vuelve el titular: su marcador debajo y el suplente que sale, rodeado (sustitución deshecha; Ferran)
+    if (vuelve) out.push(txt(x, y.mVuelve, w, 13, `${vuelve.a}:${vuelve.b}`, { al: 'center', fs: 7.5 }), circulo(x + w / 2, y.entra + 6.5, 5.6));
   }
   // Turnos de saque: casilla siguiente de la columna (1-4 a la izquierda, 5-8 a la derecha)
   const usadas = [0, 0, 0, 0, 0, 0];
