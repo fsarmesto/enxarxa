@@ -822,8 +822,9 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   037, acción `hecho`). "Franja →" por pabellón: un árbitro de R1 en todos los partidos sin R1 de esa franja. "Proponer
   reparto": bloques día+pabellón+franja, alguien que pueda todo el bloque (disponible, sin choques, sin coche ≤ 12 km;
   coste = km + 30 si va justo + 8 por partido ya asignado), si no, partido a partido; solo R1; no se guarda hasta "Guardar
-  la propuesta". Guardar varios = acción `lote` (hasta 300, con las comprobaciones de `asignar`). Mensaje de WhatsApp por
-  árbitro (wa.me sin número, con "Cómo llegar" de Google Maps). Excel con la columna "Pasado a iSquad".
+  la propuesta". Guardar varios = acción `lote` (hasta 300, con las comprobaciones de `asignar`). Excel con la columna
+  "Pasado a iSquad". El mensaje de WhatsApp por árbitro se QUITÓ el 4-nov-2026 (Ferran: Albert no avisa por WhatsApp; la
+  disponibilidad, por el formulario o por correo, que él añade a mano o importa).
 - **Excel de disponibilidad** (4-nov-2026, `docs/designa-admin/importar.js`): Albert puede seguir con su propio Excel.
   Importar (xlsx/xls/ods/csv) lee el fichero en el navegador, busca la fila de títulos (en las 10 primeras, en cualquier
   hoja) por palabras clave es/ca en cualquier orden (nombre, población/municipio, coche/cotxe, sábado/dissabte,
@@ -832,7 +833,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   motivo); la que dio el árbitro con la app no se toca. Acción `importar` (tandas de 15, 40 s, `origen: designador`).
   "Descargar plantilla" (con hoja de instrucciones) y "Exportar disponibilidad" con las mismas columnas: se reimporta
   tal cual. El Excel del plan lleva una 2ª hoja con la disponibilidad.
-- **Tutorial** (`docs/designa-admin/tutorial.js`): 15 pasos que señalan cada parte (hueco fijo `#tourHueco` encima, la
+- **Tutorial** (`docs/designa-admin/tutorial.js`): 14 pasos (versión 2) que señalan cada parte (hueco fijo `#tourHueco` encima, la
   sombra en el propio elemento queda recortada dentro de la cuadrícula). Se abre solo si `localStorage designa-tour` <
   `TOUR_VERSION`; botón "Cómo funciona". Ver la regla en "Reglas de interfaz".
 - **Recomendación** (en la web): disponible en esa franja; sin choque ni "poco margen"; sin coche y a más de 12 km = no

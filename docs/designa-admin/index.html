@@ -114,7 +114,6 @@
 .capa{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;z-index:10}
 .capa .card{max-width:560px;width:100%} #ficha article.m{border:0;padding:0;margin:0;background:none} #ficha .cab{justify-content:flex-end;margin:-6px -8px 0 0}
 #frLista{margin:0 0 14px;padding-left:20px}
-#waTxt{font-size:14px;margin-bottom:12px}
 .chk.hecho{margin-top:6px;font-size:13.5px;min-height:32px}
 /* Importar (importar.js) y tutorial (tutorial.js) */
 .capa .card.ancha{max-width:920px}
@@ -195,7 +194,7 @@
       <button type="button" class="ghost" id="bPlantilla" data-t="iPlantilla">Descargar plantilla</button>
       <button type="button" class="ghost" id="bExpDisp" data-t="iExportar">Exportar disponibilidad</button>
       <input type="file" id="impFile" class="hidden" accept=".xlsx,.xls,.ods,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
-      <span class="small muted" data-t="nuevoH">Para quien te ha dado la disponibilidad por teléfono o WhatsApp.</span>
+      <span class="small muted" data-t="nuevoH">Para quien te la ha mandado por correo (o por otra vía).</span>
     </div>
     <div id="arbs"></div>
   </section>
@@ -228,13 +227,6 @@
     <div class="row"><button type="submit" class="primary" id="frSi"></button><button type="button" id="frNo" data-t="cancelar">Cancelar</button></div>
   </form>
 </div>
-<div id="wa" class="capa hidden" role="dialog" aria-modal="true" aria-labelledby="waT">
-  <div class="card">
-    <h2 id="waT"></h2>
-    <textarea id="waTxt" rows="10" aria-labelledby="waT"></textarea>
-    <div class="row"><a class="btn primary" id="waAbrir" target="_blank" rel="noopener" data-t="waAbrir">Abrir WhatsApp</a><button type="button" id="waCopiar" data-t="waCopiar">Copiar</button><button type="button" id="waNo" data-t="cerrar">Cerrar</button></div>
-  </div>
-</div>
 <div id="imp" class="capa hidden" role="dialog" aria-modal="true" aria-labelledby="impT">
   <div class="card ancha">
     <h2 id="impT"></h2>
@@ -264,7 +256,7 @@ const T = {
   es: { titulo:'Designaciones', subLogin:'Fin de semana · FCVB', entrar:'Entrar', usuario:'Usuario', clave:'Contraseña', salir:'Salir', actualizar:'Actualizar', exportar:'Exportar a Excel',
     copiarEnlace:'Copiar enlace del formulario', copiado:'Enlace copiado. Pásalo a los árbitros.', partidos:'Partidos', arbitros:n=>`Árbitros (${n})`, soloLiga:'Solo liga (sin alevín, máster ni amateur)',
     soloSinIsq:'Solo sin árbitro en iSquad', soloPend:'Solo sin R1 en el plan', buscar:'Buscar equipo, pabellón o categoría', nuevo:'Añadir árbitro', editar:'Editar árbitro',
-    nuevoH:'Para quien te ha dado la disponibilidad por teléfono o WhatsApp.', nombre:'Nombre y apellidos', poblacion:'Población', coche:'¿Tiene coche?', si:'Sí', no:'No',
+    nuevoH:'Para quien te la ha mandado por correo (o por otra vía).', nombre:'Nombre y apellidos', poblacion:'Población', coche:'¿Tiene coche?', si:'Sí', no:'No',
     sabado:'Sábado', domingo:'Domingo', obs:'Observaciones', guardar:'Guardar', cancelar:'Cancelar', manana:'Mañana', tarde:'Tarde', ambas:'Mañana y tarde', noPuede:'No',
     todo:'Todo', finde:(a,b)=>`Fin de semana del ${a} y ${b}`, este:'Este fin de semana', siguiente:'El siguiente', cargando:'Cargando…',
     ubicando:n=>`Ubicando ${n} pabellones en el mapa… las distancias se completan solas.`, kPart:'partidos', kR1:'con R1 en el plan', kDisp:'árbitros disponibles', kSinIsq:'sin árbitro en iSquad',
@@ -292,8 +284,7 @@ const T = {
     propOk:(n,f)=>`Guardados ${n}.${f?` ${f} no se han podido guardar (ya estaban ocupados).`:''}`,
     ladoT:'Árbitros', ladoH:'Toca uno para ver sus partidos.', ladoTodos:'Ver todos', cargaP:n=>n===1?'1 partido':`${n} partidos`, cargaKm:k=>`≈ ${k} km`,
     fSabM:'Sáb M', fSabT:'Sáb T', fDomM:'Dom M', fDomT:'Dom T', fLibre:'libre', fOcup:'con partido', fNo:'no disponible',
-    cerrar:'Cerrar', wa:'Mensaje', waT:n=>`Mensaje para ${n}`, waAbrir:'Abrir WhatsApp', waCopiar:'Copiar', waCopiado:'Mensaje copiado.',
-    waHola:n=>`Hola ${n}, estos son tus partidos del fin de semana:`, waLlegar:'Cómo llegar', waNada:'Todavía no tiene partidos en el plan.', waFin:'Gracias.',
+    cerrar:'Cerrar',
     mapaCat:'Catalunya', mapaBcn:'Área de Barcelona', mapaH:'Círculos: pabellones (tamaño = partidos). Cuadrados: árbitros. Toca un pabellón para ver sus partidos.', mapaSin:n=>n===1?'1 pabellón sin ubicar':`${n} pabellones sin ubicar`,
     isqCon:'Con árbitro en iSquad', isqSin:'Sin árbitro en iSquad', aplazado:'Fecha sin confirmar', sinPartidos:'No hay partidos con estos filtros.',
     sinArb:'Todavía nadie ha dado disponibilidad para este fin de semana. Copia el enlace del formulario y pásalo a los árbitros.',
@@ -304,7 +295,7 @@ const T = {
   ca: { titulo:'Designacions', subLogin:'Cap de setmana · FCVB', entrar:'Entra', usuario:'Usuari', clave:'Contrasenya', salir:'Surt', actualizar:'Actualitza', exportar:'Exporta a Excel',
     copiarEnlace:'Copia l\'enllaç del formulari', copiado:'Enllaç copiat. Passa\'l als àrbitres.', partidos:'Partits', arbitros:n=>`Àrbitres (${n})`, soloLiga:'Només lliga (sense aleví, màster ni amateur)',
     soloSinIsq:'Només sense àrbitre a iSquad', soloPend:'Només sense R1 al pla', buscar:'Cerca equip, pavelló o categoria', nuevo:'Afegeix àrbitre', editar:'Edita l\'àrbitre',
-    nuevoH:'Per a qui t\'ha donat la disponibilitat per telèfon o WhatsApp.', nombre:'Nom i cognoms', poblacion:'Població', coche:'Té cotxe?', si:'Sí', no:'No',
+    nuevoH:'Per a qui te l\'ha enviada per correu (o per una altra via).', nombre:'Nom i cognoms', poblacion:'Població', coche:'Té cotxe?', si:'Sí', no:'No',
     sabado:'Dissabte', domingo:'Diumenge', obs:'Observacions', guardar:'Desa', cancelar:'Cancel·la', manana:'Matí', tarde:'Tarda', ambas:'Matí i tarda', noPuede:'No',
     todo:'Tot', finde:(a,b)=>`Cap de setmana del ${a} i ${b}`, este:'Aquest cap de setmana', siguiente:'El següent', cargando:'Carregant…',
     ubicando:n=>`Situant ${n} pavellons al mapa… les distàncies es completen soles.`, kPart:'partits', kR1:'amb R1 al pla', kDisp:'àrbitres disponibles', kSinIsq:'sense àrbitre a iSquad',
@@ -332,8 +323,7 @@ const T = {
     propOk:(n,f)=>`Desats ${n}.${f?` ${f} no s\'han pogut desar (ja estaven ocupats).`:''}`,
     ladoT:'Àrbitres', ladoH:'Toca\'n un per veure els seus partits.', ladoTodos:'Mostra\'ls tots', cargaP:n=>n===1?'1 partit':`${n} partits`, cargaKm:k=>`≈ ${k} km`,
     fSabM:'Dis M', fSabT:'Dis T', fDomM:'Diu M', fDomT:'Diu T', fLibre:'lliure', fOcup:'amb partit', fNo:'no disponible',
-    cerrar:'Tanca', wa:'Missatge', waT:n=>`Missatge per a ${n}`, waAbrir:'Obre WhatsApp', waCopiar:'Copia', waCopiado:'Missatge copiat.',
-    waHola:n=>`Hola ${n}, aquests són els teus partits del cap de setmana:`, waLlegar:'Com arribar-hi', waNada:'Encara no té partits al pla.', waFin:'Gràcies.',
+    cerrar:'Tanca',
     mapaCat:'Catalunya', mapaBcn:'Àrea de Barcelona', mapaH:'Cercles: pavellons (mida = partits). Quadrats: àrbitres. Toca un pavelló per veure\'n els partits.', mapaSin:n=>n===1?'1 pavelló sense situar':`${n} pavellons sense situar`,
     isqCon:'Amb àrbitre a iSquad', isqSin:'Sense àrbitre a iSquad', aplazado:'Data sense confirmar', sinPartidos:'No hi ha partits amb aquests filtres.',
     sinArb:'Encara ningú no ha donat disponibilitat per a aquest cap de setmana. Copia l\'enllaç del formulari i passa\'l als àrbitres.',
@@ -540,7 +530,7 @@ function pintarArbitros(plan){
       ${(a.isq||[]).length?`<div class="d">${esc(t('enIsqL'))} ${a.isq.map(o=>`${esc(cap(fecha(o.d.slice(0,10),0,{weekday:'short'})))} ${esc(o.d.slice(11,16))} · ${esc(pabCorto(o.pab))}`).join(' · ')}</div>`:''}
       ${mios.length?`<div class="d">${mios.map(m=>`${esc(cap(fecha(m.d.slice(0,10),0,{weekday:'short'})))} ${esc(m.d.slice(11,16))} · ${esc(corto(m.l))} – ${esc(corto(m.v))} (${esc(t(Object.entries(plan[m.key]).find(([,id])=>id===a.id)[0]))})`).join('<br>')}</div>`:''}
       <div class="recs"><span class="l">${esc(t('cercanos'))}</span>${libres.length?libres.map(x=>`<button type="button" data-asig="${esc(x.m.key)}" data-arb="${a.id}">${esc(cap(fecha(x.m.d.slice(0,10),0,{weekday:'short'})))} ${esc(x.m.d.slice(11,16))} · ${esc(corto(x.m.pab))} <small>${x.k!=null?esc(t('km')(x.k)):''}</small></button>`).join(''):`<span class="small muted">${esc(t('ninguno'))}</span>`}</div>
-      <div class="acts row"><button type="button" class="primary" data-wa="${a.id}">${esc(t('wa'))}</button><button type="button" data-edit="${a.id}">${esc(t('editarB'))}</button><button type="button" class="ghost" data-quitar="${a.id}">${esc(t('quitar'))}</button></div></article>`;
+      <div class="acts row"><button type="button" data-edit="${a.id}">${esc(t('editarB'))}</button><button type="button" class="ghost" data-quitar="${a.id}">${esc(t('quitar'))}</button></div></article>`;
   }).join('');
 }
 

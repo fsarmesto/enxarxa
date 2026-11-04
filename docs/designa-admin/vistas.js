@@ -2,7 +2,8 @@
 // - Cuadrícula por pabellón y hora (bloques de color: con R1, sin R1, choque, ya con árbitro en iSquad, propuesta).
 // - Mapa (SVG, sin servicios de fuera: el contorno de Catalunya está en catalunya.js).
 // - Un color por árbitro y barra lateral con su carga (partidos, km aprox. de ida y vuelta, franjas libres).
-// - Barras de progreso, propuesta automática, "toda una franja a…", casilla "Pasado a iSquad" y mensaje de WhatsApp.
+// - Barras de progreso, propuesta automática, "toda una franja a…" y casilla "Pasado a iSquad".
+// (El mensaje de WhatsApp para cada árbitro se quitó el 4-nov-2026: Albert no avisa por WhatsApp.)
 // Usa lo que define el script de index.html (D, PLAN, choque, candidatos, tarjeta, asignar, api…): se carga después.
 
 let PROP = null, PROP_SIN = 0;   // propuesta automática en revisión: [{key, rol:'r1', disp_id}]
@@ -16,7 +17,7 @@ const COLORES = ['#2563EB', '#9333EA', '#C2410C', '#0E7490', '#DB2777', '#4D7C0F
 function colorDe(a) { const i = D.disp.findIndex(x => x.id === a.id); return COLORES[(i < 0 ? 0 : i) % COLORES.length]; }
 const iniciales = n => corto(n).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 const chipArb = a => a ? `<span class="ini" style="--c:${colorDe(a)}" aria-hidden="true">${esc(iniciales(a.nombre))}</span>` : '';
-// Plan guardado, sin la propuesta (para el progreso y el WhatsApp).
+// Plan guardado, sin la propuesta (para el progreso).
 const planGuardado = () => { const p = {}; for (const x of D.asig) (p[x.match_key] ||= {})[x.rol] = x.disp_id; return p; };
 const esPropuesta = key => !!PROP && PROP.some(x => x.key === key) && !D.asig.some(x => x.match_key === key && x.rol === 'r1');
 const suyo = (m, plan, id) => Object.values(plan[m.key] || {}).includes(id);
@@ -227,25 +228,6 @@ async function marcarHecho(key, si) {
   if (!r.ok) { msg(r.error || t('red'), 'err'); cargar(); }
 }
 
-/* ---------- Mensaje de WhatsApp para un árbitro ---------- */
-// Se escribe aquí y se abre WhatsApp con el texto (wa.me, sin número: Albert elige el chat). No se envía nada desde la web.
-function abrirWa(id) {
-  const a = ARB()[id]; if (!a) return;
-  const plan = planGuardado(), ms = D.partidos.filter(m => suyo(m, plan, id)).sort((x, y) => x.d.localeCompare(y.d));
-  const lin = ms.map(m => {
-    const rol = Object.entries(plan[m.key]).find(([, v]) => v === id)[0], dir = m.pista || m.pab;
-    return `• ${cap(fecha(m.d.slice(0, 10), 0, { weekday: 'long', day: 'numeric' }))}, ${m.d.slice(11, 16)} · ${t(rol)} · ${cat(m.cat)}\n  ${corto(m.l)} – ${corto(m.v)}\n  ${pabCorto(m.pab)}${pobDe(m) ? ', ' + corto(pobDe(m)) : ''}\n  ${t('waLlegar')}: https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dir)}`;
-  });
-  $('waT').textContent = t('waT')(corto(a.nombre));
-  $('waTxt').value = ms.length ? [t('waHola')(corto(a.nombre).split(' ')[0]), '', ...lin, '', t('waFin')].join('\n') : t('waNada');
-  actualizaWa(); $('wa').dataset.desde = id; $('wa').classList.remove('hidden'); $('waTxt').focus();
-}
-const actualizaWa = () => { $('waAbrir').href = 'https://wa.me/?text=' + encodeURIComponent($('waTxt').value); };
-function cerrarWa() { const id = $('wa').dataset.desde; $('wa').classList.add('hidden'); document.querySelector(`[data-wa="${id}"]`)?.focus(); }
-$('waTxt').addEventListener('input', actualizaWa);
-$('waNo').addEventListener('click', cerrarWa);
-$('waCopiar').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('waTxt').value); msg(t('waCopiado'), 'ok'); } catch (e) { $('waTxt').select(); } });
-
 /* ---------- Mapa ---------- */
 const proy = (lon, lat) => { const C = window.CATALUNYA; return [(lon - C.lon0) * C.cx * C.k, (C.lat0 - lat) * C.k]; };
 // Ciudades de referencia; las del área de Barcelona (true) solo salen con ese encuadre, si no se montan unas sobre otras.
@@ -308,17 +290,15 @@ document.addEventListener('click', e => {
   const v = el.closest('[data-ver]'); if (v) { abrirFicha(v.dataset.key); return; }
   const r = el.closest('[data-resalta]'); if (r) { RESALTA = r.dataset.resalta && r.dataset.resalta !== RESALTA ? r.dataset.resalta : null; pintar(); return; }
   const f = el.closest('[data-franja]'); if (f) { const v = f.dataset.franja, i = v.indexOf('|'); abrirFranja(v.slice(0, i), v.slice(i + 1)); return; }
-  const w = el.closest('[data-wa]'); if (w) { abrirWa(w.dataset.wa); return; }
   const p = el.closest('[data-pab]'); if (p) { MAPA_SEL = MAPA_SEL === p.dataset.pab ? null : p.dataset.pab; pintar(); return; }
   if (el.id === 'propSi') { const items = PROP.map(x => ({ key: x.key, rol: x.rol, disp_id: x.disp_id })); PROP = null; guardarLote(items, false); return; }
   if (el.id === 'propNo') { PROP = null; pintar(); return; }
   if (el.id === 'fichaCerrar' || e.target === $('ficha')) { cerrarFicha(); return; }
   if (e.target === $('franja')) { cerrarFranja(); return; }
-  if (e.target === $('wa')) { cerrarWa(); return; }
 });
 document.addEventListener('keydown', e => {
   if (!$('aviso').classList.contains('hidden')) return;   // la ventana de choque tiene su propio Escape
-  if (e.key === 'Escape') { if (!$('wa').classList.contains('hidden')) cerrarWa(); else if (!$('franja').classList.contains('hidden')) cerrarFranja(); else if (FICHA) cerrarFicha(); return; }
+  if (e.key === 'Escape') { if (!$('franja').classList.contains('hidden')) cerrarFranja(); else if (FICHA) cerrarFicha(); return; }
   const p = e.target.closest && e.target.closest('[data-pab]');
   if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); p.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
 });
