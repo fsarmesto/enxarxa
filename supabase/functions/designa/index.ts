@@ -226,11 +226,12 @@ async function panel(db: Db, b: { finde?: string }, t0: number) {
 }
 
 // ---------- Choques (4-nov-2026, Ferran: nadie puede estar en 2 partidos a la vez) ----------
-// Dos partidos del mismo día cuyos inicios están a menos de 1 h 45 min se pisan, sea cual sea el pabellón: el panel no
-// deja elegir a ese árbitro y el servidor lo rechaza. En pabellones distintos con poco margen para el viaje, el panel
-// solo avisa (lo decide el designador). Cuenta el plan del panel y, de los árbitros con cuenta, sus designaciones de
+// Dos partidos del mismo día se pisan si sus inicios están a menos de 1 h en el mismo pabellón, o de 1 h 45 min en otro.
+// No es un bloqueo (Ferran, 4-nov): el panel avisa con una ventana y, si el designador lo confirma, manda forzar=true;
+// sin confirmar, el servidor responde 409. El mismo árbitro en 2 puestos del mismo partido sí se rechaza siempre.
+// En pabellones distintos con poco margen para el viaje, el panel solo lo indica. Cuenta el plan del panel y, de los árbitros con cuenta, sus designaciones de
 // iSquad (tabla matches). La misma regla está en docs/designa-admin/index.html (choque).
-const PISA_MIN = 105;
+const PISA_MIN = 105, PISA_MISMO_MIN = 60;
 const minDe = (d: string) => +d.slice(11, 13) * 60 + +d.slice(14, 16);
 // El mismo partido visto desde iSquad (designación del árbitro) y desde la web pública: misma hora y mismo pabellón.
 const mismoPab = (a: string, b: string) => { const x = sinPista(a), y = sinPista(b); return !!x && !!y && (x === y || x.includes(y) || y.includes(x)); };
@@ -246,12 +247,13 @@ const horaPab = (o: Ocupa) => { const p = o.pab.replace(/\s*-\s*(PISTA|TERCIO|TE
 
 // Texto del choque (o null): el mismo árbitro en otro puesto de este partido, u otro partido que se pisa con este.
 // deno-lint-ignore no-explicit-any
-async function choqueDe(db: Db, finde: string, d: any, key: string, rol: string): Promise<string | null> {
+async function choqueDe(db: Db, finde: string, d: any, key: string, rol: string, forzar = false): Promise<string | null> {
   const nombre = titulo(d.nombre || "");
   const { data: suyas } = await db.from("designa_asig").select("match_key, rol").eq("finde", finde).eq("disp_id", d.id);
   const otras = (suyas || []).filter((x: { match_key: string; rol: string }) => !(x.match_key === key && x.rol === rol));
   const aqui = otras.find((x: { match_key: string }) => x.match_key === key);
   if (aqui) return `${nombre} ya está en este partido como ${aqui.rol === "an" ? "anotador" : aqui.rol.toUpperCase()}.`;
+  if (forzar) return null;
   const dia = key.slice(0, 10), t = minDe(key);
   const ps = await feed(db), porKey = new Map(ps.map((p) => [matchKey(p), p]));
   const este = porKey.get(key);
@@ -260,19 +262,19 @@ async function choqueDe(db: Db, finde: string, d: any, key: string, rol: string)
     if (o.d === key.slice(0, 16) && este && mismoPab(o.pab, este.pab)) continue;   // es este mismo partido
     ocupa.push({ ...o, isq: true });
   }
-  const x = ocupa.find((o) => o.d.slice(0, 10) === dia && Math.abs(minDe(o.d) - t) < PISA_MIN);
+  const x = ocupa.find((o) => o.d.slice(0, 10) === dia && Math.abs(minDe(o.d) - t) < (este && mismoPab(o.pab, este.pab) ? PISA_MISMO_MIN : PISA_MIN));
   if (!x) return null;
-  return `${nombre} ya tiene ${x.isq ? "en iSquad " : ""}el partido de las ${horaPab(x)}: no puede estar en 2 partidos a la vez.`;
+  return `${nombre} ya tiene ${x.isq ? "en iSquad " : ""}el partido de las ${horaPab(x)}: confírmalo en el panel si quieres ponerlo igualmente.`;
 }
 
-async function asignar(db: Db, b: { finde?: string; key?: string; rol?: string; disp_id?: string | null }) {
+async function asignar(db: Db, b: { finde?: string; key?: string; rol?: string; disp_id?: string | null; forzar?: boolean }) {
   const finde = validFinde(b.finde), rol = String(b.rol || ""), key = String(b.key || "");
   if (!["r1", "r2", "an"].includes(rol) || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}\|/.test(key)) return json({ error: "Petición no válida" }, 400);
   if (key.slice(0, 10) !== finde && key.slice(0, 10) !== masDias(finde, 1)) return json({ error: "Ese partido no es de este fin de semana" }, 400);
   if (!b.disp_id) { await db.from("designa_asig").delete().eq("match_key", key).eq("rol", rol); return json({ ok: true }); }
   const { data: d } = await db.from("designa_disp").select("id, nombre, user_id").eq("id", b.disp_id).eq("finde", finde).maybeSingle();
   if (!d) return json({ error: "Ese árbitro no ha dado disponibilidad este fin de semana" }, 400);
-  const choque = await choqueDe(db, finde, d, key, rol);
+  const choque = await choqueDe(db, finde, d, key, rol, b.forzar === true);
   if (choque) return json({ error: choque }, 409);
   const { error } = await db.from("designa_asig").upsert({ finde, match_key: key, rol, disp_id: d.id });
   return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true });
