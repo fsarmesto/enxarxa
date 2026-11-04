@@ -169,6 +169,7 @@ function setBloque(st, s, eqIzq, out) {
 // Parte 3 (a la derecha del todo): el primer equipo después del cambio; se vuelve a escribir la formación, las
 // sustituciones y los tiempos de antes del cambio (se apuntan en ambos lados) y los turnos y puntos siguen donde iban.
 // El turno que va en curso al cambiar se deja abierto en la parte 1 (solo "/") y se cierra en la parte 3 (Ferran).
+// Si el primer equipo llega al cambio con menos de 8 puntos, lo que sobra de su PUNTS 1-8 se cierra con el reloj (Ferran).
 const S5 = { dy: 259.4, dyP: 260.0, p1: 0.5, p2: 196.6, p3: 395.7, circ: { p1: [116.6, 319.0], p2: [258.2, 319.0], p3: [457.4, 319.0], canvi: [530.3, 319.0] } };
 function set5Bloque(A, st, s, M, out) {
   const OT = (e) => (e === 'L' ? 'V' : 'L');
@@ -194,7 +195,7 @@ function set5Bloque(A, st, s, M, out) {
   const tPre = pre.turnos[X].map((t) => (t.hasta == null ? { ...t, abierto: true } : t));
   const p1punto = (n) => (n >= 1 && n <= 8 ? [S5.p1 + 211.15, 333.35 + (n - 1) * 6.7] : null);
   mitad({ cols: cols(S5.p1), subs: subs(S5.p1), y, al: al[X] || [], sust: pre.sust[X], x: s.saqueInicial !== X, turnos: tPre, final: !sc && !!s.fin,
-    puntos: conNumero(pre.progreso, X), total: ptsCambio, punto: p1punto, reloj: null, tiempos: pre.tiempos[X], T: T(S5.p1) }, out);
+    puntos: conNumero(pre.progreso, X), total: ptsCambio, punto: p1punto, reloj: sc ? [[1, 8, S5.p1 + 207.4, S5.p1 + 216]] : null, tiempos: pre.tiempos[X], T: T(S5.p1) }, out);
   if (!sc) return;
   out.push(enCirc(S5.circ.canvi, String(ptsCambio)));
   // Parte 3: después del cambio (formación, sustituciones y tiempos de antes se vuelven a escribir)

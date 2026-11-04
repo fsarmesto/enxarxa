@@ -1105,7 +1105,10 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     otro entero, parte 3 = el primero después del cambio (formación, sustituciones y tiempos de antes se repiten: "se
     apuntan en ambos lados"; turnos y PUNTS siguen donde iban; "Punts al canvi" = sus puntos al cambiar). El turno en
     curso al cambiar: en la parte 1 solo la "/" (abierto) y se cierra en la parte 3. El estado del cambio se saca
-    reproduciendo el acta suceso a suceso hasta `cambioHecho`. Prueba: fcvb3.mjs (5 sets).
+    reproduciendo el acta suceso a suceso hasta `cambioHecho`. Si el equipo de la parte 1 llega al cambio con menos de 8,
+    lo que sobra de su PUNTS 1-8 se cierra con el reloj de arena (Ferran, 4-nov). Pruebas: fcvb3.mjs (5 sets) y
+    real-0111.mjs (partido real SFR-VLF del 1-11-2026 transcrito de la foto del acta en papel: 238 sucesos, el acta
+    generada coincide casilla a casilla con el papel).
     Paso 4 (`abajo`, `observaciones`, `annex`): sanciones (5 filas; número / E, 2E… / D por demora en A-C-E-D, equipo,
     set, marcador; las que no caben, a observaciones), solicitud improcedente (X en A o B), cuadro de resultados (T S G
     PUNTS por set y total; las sustituciones excepcionales suman, FIVB 15.7), HI / HF / TT, ganador "3 : x", RESULTATS
