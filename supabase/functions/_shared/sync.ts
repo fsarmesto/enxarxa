@@ -475,8 +475,11 @@ const contarLogin = (db: SupabaseClient) => db.rpc("contar_login").then(() => {}
 
 export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: "wait" | "background" | "none"; deadline: number; quick?: boolean; notify?: boolean }) {
   const { data: cred } = await db.from("isquad_credentials").select("secret, session, session_at").eq("user_id", userId).maybeSingle();
-  const { data: prof } = await db.from("profiles").select("isquad_login").eq("user_id", userId).maybeSingle();
+  const { data: prof } = await db.from("profiles").select("isquad_login, last_error").eq("user_id", userId).maybeSingle();
   if (!cred || !prof) return { ok: false, error: "sin_credenciales" };
+  // iSquad ya rechazó la contraseña guardada: las pasadas automáticas no la vuelven a probar (iSquad bloquea la cuenta al
+  // 3r fallo). Se vuelve a intentar cuando el árbitro entra de nuevo en la app (auth-isquad borra last_error).
+  if (opts.notify && prof.last_error === "credenciales") return { ok: false, error: "credenciales" };
   try {
     // El equipo arbitral de un partido ya jugado no cambia: se lee una vez. Los próximos y recientes, en cada pasada.
     const checked = new Set<string>();
@@ -528,7 +531,9 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     else if (opts.km === "background") background(fillKm(db, userId, opts.deadline));
     return { ok: true, count: matches.length, avisos, ...(resultados ? { resultados } : {}) };
   } catch (e) {
-    const code = e instanceof IsquadAuthError ? "credenciales" : "conexion";
+    // "credenciales" solo cuando iSquad ha dicho que la contraseña no vale (o la cuenta está bloqueada): lo demás (no entra
+    // en el área, cambio de diseño o de dominio como el 4-nov-2026) es "conexion" y se reintenta solo.
+    const code = e instanceof IsquadAuthError && ["rechazada", "bloqueada", "doble"].includes(e.motivo) ? "credenciales" : "conexion";
     if (code === "credenciales") await db.from("isquad_credentials").update({ session: null, session_at: null }).eq("user_id", userId);
     await db.from("profiles").update({ last_error: code }).eq("user_id", userId);
     return { ok: false, error: code };

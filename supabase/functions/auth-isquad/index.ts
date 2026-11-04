@@ -6,7 +6,8 @@ import { POLICY_VERSION } from "../_shared/politica.ts";
 import { admin, background, cors, json, storeMatches, syncUser } from "../_shared/sync.ts";
 
 // Tope de intentos (revisión de seguridad, 27-oct-2026): sin él, cualquiera podría usar esta función para probar
-// contraseñas de iSquad sin límite desde nuestros servidores. Cuenta los fallos por usuario (5 en 15 min) y por conexión
+// contraseñas de iSquad sin límite desde nuestros servidores. Cuenta los fallos por usuario (2 en 15 min: desde el
+// 4-nov-2026 iSquad bloquea la cuenta al 3r fallo, y no queremos ser nosotros quien la bloquee) y por conexión
 // (20 en 1 h; un intento que sale bien no cuenta) en pub_cache, con una huella (no se guarda ni el usuario ni la IP). La ventana empieza en el primer fallo.
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -54,11 +55,17 @@ Deno.serve(async (req) => {
   if (!login || !password) return json({ error: "Escribe tu usuario y contraseña de iSquad" }, 400);
   const key = login.toLowerCase();
   const db0 = admin(), ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "?";
-  const topes: Tope[] = [{ k: `intentos:${await huella("u:" + key)}`, max: 5, ms: 15 * 60_000 }, { k: `intentos:${await huella("ip:" + ip)}`, max: 20, ms: 3600_000 }];
+  const topes: Tope[] = [{ k: `intentos:${await huella("u:" + key)}`, max: 2, ms: 15 * 60_000 }, { k: `intentos:${await huella("ip:" + ip)}`, max: 20, ms: 3600_000 }];
   // Cada intento cuenta al empezar; si sale bien, se devuelve (el del usuario se borra y el de la conexión resta uno).
   const n = await Promise.all(topes.map((t) => sumar(db0, t, 1)));
   if (n.some((v, i) => v > topes[i].max)) return json({ error: "Demasiados intentos. Prueba de nuevo dentro de un rato." }, 429);
   const malas = () => json({ error: "iSquad no acepta ese usuario y contraseña" }, 401);
+  // Lo que dice iSquad cuando no deja entrar (contraseña mala, cuenta bloqueada, verificación en 2 pasos).
+  const porQue = (e: IsquadAuthError) =>
+    e.motivo === "bloqueada" ? json({ error: "iSquad ha bloqueado tu cuenta por demasiados intentos. Desbloquéala desde iSquad (\"¿Has olvidado la contraseña?\") y vuelve a probar." }, 401)
+    : e.motivo === "doble" ? json({ error: "Tu cuenta de iSquad pide un segundo paso de verificación y EnXarxa todavía no puede entrar así." }, 401)
+    : e.motivo === "rechazada" ? json({ error: `iSquad no acepta ese usuario y contraseña${/te queda/i.test(e.aviso) ? ". " + e.aviso.replace(/^.*?(te queda)/i, "Te queda") : ""}` }, 401)
+    : null;
   const devolver = async () => { await db0.from("pub_cache").delete().eq("key", topes[0].k); await sumar(db0, topes[1], -1).catch(() => 0); };
   // Lo que no es un fallo de contraseña (iSquad caído, petición incompleta) tampoco cuenta.
   const noCuenta = async (r: Response) => { await sumar(db0, topes[0], -1).catch(() => 0); await sumar(db0, topes[1], -1).catch(() => 0); return r; };
@@ -81,7 +88,7 @@ Deno.serve(async (req) => {
         matches: list.map(({ staff, ...m }) => ({ ...m, ...(staff ?? {}), staff_checked: staff ? now : null, last_seen: now })),
       });
     } catch (e) {
-      if (e instanceof IsquadAuthError) return malas();
+      if (e instanceof IsquadAuthError) return porQue(e) ?? malas();
       return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
     }
   }
@@ -90,11 +97,13 @@ Deno.serve(async (req) => {
   try { matches = await fetchDesignaciones(login, password); }
   catch (e) {
     if (!(e instanceof IsquadAuthError)) return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
+    // iSquad ha dicho que no (contraseña, bloqueo, 2 pasos): no se prueba como jugador, que gastaría otro intento.
+    const no = porQue(e); if (no) return no;
     // No es árbitro (o no entra en esa área): ¿jugador o entrenador? Misma cuenta de iSquad.
     let dep;
     try { dep = await loginDeportista(login, password); }
     catch (e2) {
-      if (e2 instanceof IsquadAuthError) return malas();
+      if (e2 instanceof IsquadAuthError) return porQue(e2) ?? malas();
       return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
     }
     await devolver();

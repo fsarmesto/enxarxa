@@ -96,9 +96,15 @@ Comprobar tipos antes de desplegar: `npx -y deno@2.1.4 check supabase/functions/
 Lanzar el cron a mano: `curl -X POST https://vevsurxxvjivjizuuqad.supabase.co/functions/v1/sync -H "x-cron-secret: $CRON_SECRET" -d '{}'`.
 La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros de Supabase no muestran nada útil.
 
-## iSquad (voleibol.misquad.es): lo que no es obvio
+## iSquad (voleibol.isquad.es): lo que no es obvio
 
-- Login: POST `loginarbitros.php` (login, password, qr_login=0, utr). Designaciones en `arbitros_designaciones.php?rol=1`.
+- **Dominio**: desde el 4-nov-2026 es `voleibol.isquad.es`; `voleibol.misquad.es` redirige con 303 y el POST del login se
+  pierde (nadie podía entrar). Si vuelve a cambiar, `BASE` en `_shared/isquad.ts`.
+- Login: login único, `loginunico.php?area=arbitros|deportista|entrenador` (GET para el `csrf_token`; POST `csrf_token`,
+  `login`, `password`, `lu_disp`). Contraseña mala → 200 con el aviso `lu-alerta--error` ("Te quedan N intentos");
+  buena → redirección. **iSquad bloquea la cuenta al 3r fallo**: no se reintenta nunca una contraseña rechazada (motivo
+  "rechazada"/"bloqueada" en `IsquadAuthError`; las pasadas automáticas se saltan a quien tiene `last_error=credenciales`;
+  tope de 2 fallos en 15 min en auth-isquad). Designaciones en `arbitros_designaciones.php?rol=1`.
 - **Hay que enviar siempre la cookie `TemporadaSelect`** (p. ej. `2627`). Sin ella el desplegable marca la temporada
   en curso pero la tabla llega vacía. Se leen la temporada en curso y la anterior.
 - El texto viene con comillas escapadas (`D\'HEBRON`): se quita la barra al leer.
