@@ -341,11 +341,12 @@ function tablaEquipo(eq) {
   const deQuitados = q.length ? `<p class="msg err small">Dorsal no válido de una versión anterior: ${q.map((j) => `${esc(j.nombre || 'sin nombre')} (${esc(j.num || 'vacío')})`).join(', ')}. Pon un dorsal de 0 a 99, o 00 (o quítalo con ✕).</p>` : '';
   const deIsq = b.isq ? `<p class="small muted">Plantilla de iSquad: ${b.isq} jugadores (sin las bajas). La web no da los dorsales: ponlos y quita con ✕ a quien no esté convocado.</p>` : '';
   return `<section class="card" data-eq="${eq}"><h2>${esc(nombre)} <span class="small muted">(${eq === 'L' ? 'local' : 'visitante'})</span></h2>${deQuitados}${deIsq}
-    <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th>${A.cfg.liberos ? '<th>Líbero</th>' : ''}<th></th></tr></thead><tbody>
+    <table class="lista"><thead><tr><th>Dorsal</th><th>Nombre y apellidos</th><th>Cap.</th>${A.cfg.liberos ? '<th>Líbero</th>' : ''}<th><abbr title="Categoría inferior por edad (FCVB, Circular 004)">Cat.</abbr></th><th></th></tr></thead><tbody>
     ${b.jugadores.map((j, i) => `<tr><td><input class="num" type="text" inputmode="numeric" maxlength="2" autocomplete="off" data-i="${i}" data-k="num" value="${esc(j.num)}" aria-label="Dorsal (0 a 99, o 00)"${j.num !== '' && j.num != null && !M.dorsalValido(j.num) ? ' aria-invalid="true"' : ''}></td>
       <td><input type="text" data-i="${i}" data-k="nombre" value="${esc(j.nombre || '')}" aria-label="Nombre"></td>
       <td><label class="chk"><input type="radio" name="cap${eq}" data-i="${i}" data-k="cap"${j.cap ? ' checked' : ''} aria-label="Capitán"></label></td>
       ${A.cfg.liberos ? `<td><label class="chk"><input type="checkbox" data-i="${i}" data-k="lib"${j.lib ? ' checked' : ''} aria-label="Líbero"></label></td>` : ''}
+      <td><select class="cat" data-i="${i}" data-k="cat" aria-label="Categoría inferior">${['', ...Object.keys(M.CATEGORIAS)].map((c) => `<option value="${c}"${(j.cat || '') === c ? ' selected' : ''}>${c ? `${c} · ${M.CATEGORIAS[c]}` : '—'}</option>`).join('')}</select></td>
       <td><button type="button" class="x ghost" data-quitar="${i}" aria-label="Quitar">✕</button></td></tr>`).join('')}
     </tbody></table><div class="row" style="margin:8px 0 12px"><button type="button" data-mas>+ Jugador</button></div>
     <p class="small muted" style="margin:0 0 6px">Cuerpo técnico: primer entrenador y, como mucho, 3 más.</p>
@@ -354,7 +355,7 @@ function tablaEquipo(eq) {
 }
 function leerEquipo(eq) {
   const sec = $('app').querySelector(`[data-eq="${eq}"]`), b = borrador(eq);
-  sec.querySelectorAll('[data-k]').forEach((i) => { const j = b.jugadores[+i.dataset.i]; if (i.dataset.k === 'num') j.num = i.value; else if (i.dataset.k === 'nombre') j.nombre = i.value; else j[i.dataset.k] = i.checked; });
+  sec.querySelectorAll('[data-k]').forEach((i) => { const j = b.jugadores[+i.dataset.i]; if (i.dataset.k === 'num') j.num = i.value; else if (i.dataset.k === 'nombre') j.nombre = i.value; else if (i.dataset.k === 'cat') { if (i.value) j.cat = i.value; else delete j.cat; } else j[i.dataset.k] = i.checked; });
   sec.querySelectorAll('[data-o]').forEach((i) => (b.oficiales[+i.dataset.o].nombre = i.value.trim()));
   sec.querySelectorAll('[data-del]').forEach((i) => (A.datos['delegado' + eq] = i.value.trim()));
 }
@@ -385,7 +386,7 @@ function pEquipos() {
       if (sinDorsal.length) { toast(`${nombre}: falta el dorsal de ${sinDorsal.slice(0, 3).map((j) => j.nombre).join(', ')}${sinDorsal.length > 3 ? '…' : ''} (o quítalo con ✕).`); return; }
       const malos = b.jugadores.filter((j) => String(j.num ?? '').trim() !== '' && !M.dorsalValido(j.num));
       if (malos.length) { toast(`${nombre}: dorsal no válido ${malos.map((j) => '"' + String(j.num).trim() + '"').join(', ')}. Tiene que ser de 0 a 99, o 00.`); $('app').querySelector(`[data-eq="${eq}"] [data-k=num][aria-invalid="true"]`)?.focus(); return; }
-      const jugadores = b.jugadores.filter((j) => String(j.num).trim() !== '').map((j) => ({ num: M.D(j.num), nombre: titulo(String(j.nombre || '').trim()), ...(j.cap ? { cap: true } : {}), ...(j.lib ? { lib: true } : {}) }));
+      const jugadores = b.jugadores.filter((j) => String(j.num).trim() !== '').map((j) => ({ num: M.D(j.num), nombre: titulo(String(j.nombre || '').trim()), ...(j.cap ? { cap: true } : {}), ...(j.lib ? { lib: true } : {}), ...(j.cat ? { cat: j.cat } : {}) }));
       const ev = { t: 'equipo', eq, nombre, jugadores, oficiales: b.oficiales.filter((o) => o.nombre) };
       if (jugadores.filter((j) => !j.lib).length < 6) { toast(`${nombre}: hacen falta al menos 6 jugadores que no sean líberos.`); return; }
       if (!jugadores.some((j) => j.cap)) { toast(`${nombre}: marca quién es el capitán.`); return; }
@@ -813,10 +814,58 @@ function hojaSancion(eq) {
   };
   hoja('', () => { dibujar(); $('hojaC').querySelector('button')?.focus(); });
 }
+// Frases hechas para las observaciones ("macros"), de la Circular 010 de la FCVB (recull d'observacions). En catalán, el texto
+// de la circular; en castellano, su traducción. Campos: eq (equipo), jug (un jugador), jugs (varios), min, n, txt; el
+// marcador y el set se ponen solos con el set en juego.
+const MACROS = [
+  ['Retraso: partido federado anterior', ['min'], { es: 'El partido empieza con {min} minutos de retraso debido a un partido de voleibol federado anterior.', ca: 'El partit comença amb {min} minuts de retard degut a un partit de voleibol federat anterior.' }],
+  ['Retraso: partido escolar anterior', ['min'], { es: 'El partido empieza con {min} minutos de retraso debido a un partido de voleibol escolar anterior.', ca: 'El partit comença amb {min} minuts de retard degut a un partit de voleibol escolar anterior.' }],
+  ['Retraso: partido de otro deporte', ['min', 'txt'], { es: 'El partido empieza con {min} minutos de retraso por un partido de {txt}.', ca: 'El partit comença amb {min} minuts de retard per un partit de {txt}.' }, 'Deporte'],
+  ['Retraso: un equipo llega tarde', ['min', 'eq'], { es: 'El partido empieza con {min} minutos de retraso por la llegada con retraso del equipo {eq}.', ca: "El partit comença amb {min} minuts de retard per l'arribada amb retard de l'equip {eq}." }],
+  ['CTA-1 de todo el equipo', ['eq'], { es: 'El equipo {eq} presenta CTA-1 para todos sus componentes por falta de autorización federativa.', ca: "L'equip {eq} presenta CTA-1 per a tots els seus components per manca d'autorització federativa." }],
+  ['CTA-1 de algunos componentes', ['eq', 'n'], { es: 'El equipo {eq} presenta CTA-1 de {n} de sus componentes por falta de autorización federativa.', ca: "L'equip {eq} presenta CTA-1 de {n} dels seus components per manca d'autorització federativa." }, 'Cuántos'],
+  ['DNI que no coincide con la autorización', ['eq', 'jug'], { es: 'El equipo {eq} presenta DNI con numeración no coincidente con la que consta en la autorización federativa para {jug}.', ca: "L'equip {eq} presenta D.N.I. amb numeració no coincident amb la que consta a l'autorització federativa per {jug}." }],
+  ['Fotografía por falta de documento', ['eq', 'jug'], { es: '{jug} del equipo {eq} presenta fotografía por falta de documento identificativo.', ca: "{jug} de l'equip {eq} presenta fotografia per manca de document identificatiu." }],
+  ['Inscrito que no se presenta', ['eq', 'jug'], { es: '{jug} del equipo {eq} no comparece al partido habiendo sido inscrito/a en el acta.', ca: "{jug} de l'equip {eq} no compareix al partit havent estat inscrit/a a l'acta." }],
+  ['Abandona el partido', ['eq', 'jug'], { es: '{jug} del equipo {eq} abandona el partido con el tanteo {tanteo} del {set} set.', ca: "{jug} de l'equip {eq} abandona el partit amb el tanteig {tanteo} del {set} set." }],
+  ['Lesión', ['eq', 'jug'], { es: '{jug} del equipo {eq} se lesiona con el tanteo {tanteo} del {set} set.', ca: "{jug} de l'equip {eq} es lesiona amb el tanteig {tanteo} del {set} set." }],
+  ['Lesionado antes del partido', ['eq', 'jug'], { es: 'El equipo {eq} informa antes del encuentro que {jug} está lesionado/a: se inscribe en el acta pero no disputará el encuentro.', ca: "L'equip {eq} informa previ a l'encontre que {jug} es troba lesionat/da, s'inscriurà en acta però no disputarà l'encontre." }],
+  ['Uniformidad: camiseta diferente', ['eq', 'jugs'], { es: 'Se informa al equipo {eq} de la falta de uniformidad de sus jugadores {jugs}: presentan camiseta diferente del resto del equipo.', ca: "S'informa a l'equip {eq} de la manca d'uniformitat dels seus jugadors {jugs}, presenten samarreta diferent de la resta de l'equip." }],
+  ['Uniformidad: líberos con colores invertidos', ['eq'], { es: 'Se informa al equipo {eq} de la falta de uniformidad de sus líberos: presentan los mismos colores pero invertidos respecto al resto del equipo, lo que dificulta identificarlos como tales.', ca: "S'informa a l'equip {eq} de la manca d'uniformitat dels seus lliures, aquests presenten els mateixos colors però de manera invertida a la uniformitat de la resta de l'equip, presentant dificultat la seva identificació com a tals." }],
+  ['Uniformidad: dorsal con esparadrapo', ['eq', 'jugs'], { es: 'Se informa al equipo {eq} de la falta de uniformidad de sus jugadores {jugs}, que presentan su número de camiseta dibujado con esparadrapo.', ca: "S'informa a l'equip {eq} de la manca d'uniformitat dels seus jugadors {jugs} que presenten el seu número de samarreta dibuixat amb esparadrap." }],
+  ['No juega el mínimo de sets', ['eq', 'jug'], { es: '{jug} del equipo {eq} no ha disputado el mínimo de sets requeridos.', ca: "{jug} de l'equip {eq} no ha disputat el mínim de sets requerits." }],
+];
+const ORD = { es: ['', '1er', '2º', '3er', '4º', '5º', '6º'], ca: ['', '1r', '2n', '3r', '4t', '5è', '6è'] };
 function hojaObs() {
-  hoja(`<h2 id="hojaT">Observación</h2><p class="small muted">Retrasos, incidencias, protestas, lesiones… Se añade al acta con la hora.</p><label class="f"><span>Texto</span><textarea id="oTxt" maxlength="1000"></textarea></label>
+  const lang = window.ACTA_LANG === 'ca' ? 'ca' : 'es';
+  hoja(`<h2 id="hojaT">Observación</h2><p class="small muted">Retrasos, incidencias, lesiones… Se añade al acta con la hora.</p>
+    <label class="f"><span>Frase hecha (FCVB, Circular 010)</span><select id="oMacro"><option value="">— Escribir a mano —</option>${MACROS.map(([t], i) => `<option value="${i}">${esc(t)}</option>`).join('')}</select></label>
+    <div id="oCampos" class="grid2"></div>
+    <label class="f"><span>Texto</span><textarea id="oTxt" maxlength="1000"></textarea></label>
     <div class="row"><button class="primary" id="oOk">Añadir</button><button class="ghost" data-cerrar>Cancelar</button></div>`);
-  $('oOk').onclick = () => { const t = $('oTxt').value.trim(); if (!t) return; if (!hacer({ t: 'obs', texto: t })) { cerrarHoja(); toast('Observación añadida.', true); } };
+  const montar = () => {
+    const m = MACROS[$('oMacro').value]; if (!m) { $('oCampos').innerHTML = ''; return; }
+    const [, campos, txt, etq] = m, eqSel = $('oCampos').querySelector('[data-c=eq]')?.value || 'L';
+    const jugadores = (eq) => ST.equipos[eq].jugadores.map((j) => `<option value="${esc(j.num)}">${esc(j.num)} · ${esc(j.nombre || '')}</option>`).join('');
+    $('oCampos').innerHTML = campos.map((c) => c === 'eq' ? `<label class="f"><span>Equipo</span><select data-c="eq">${['L', 'V'].map((e) => `<option value="${e}"${e === eqSel ? ' selected' : ''}>${esc(eqNombre(e))}</option>`).join('')}</select></label>`
+      : c === 'jug' ? `<label class="f"><span>Jugador</span><select data-c="jug">${jugadores(eqSel)}</select></label>`
+      : c === 'jugs' ? `<label class="f"><span>Dorsales</span><input type="text" data-c="jugs" placeholder="4, 7 y 9"></label>`
+      : c === 'min' ? `<label class="f"><span>Minutos de retraso</span><input type="number" min="0" inputmode="numeric" data-c="min"></label>`
+      : `<label class="f"><span>${esc(etq || 'Texto')}</span><input type="${c === 'n' ? 'number' : 'text'}" data-c="${c}"${c === 'n' ? ' min="1" inputmode="numeric"' : ''}></label>`).join('');
+    const escribir = () => {
+      const v = (c) => $('oCampos').querySelector(`[data-c=${c}]`)?.value?.trim() || '___';
+      const eq = $('oCampos').querySelector('[data-c=eq]')?.value || 'L', s = M.setActual(ST);
+      const jn = $('oCampos').querySelector('[data-c=jug]')?.value, j = ST.equipos[eq].jugadores.find((x) => x.num === jn);
+      $('oTxt').value = txt[lang].replace('{eq}', eqNombre(eq)).replace('{jug}', j ? `${lang === 'ca' ? 'el/la jugador/a' : 'el/la jugador/a'} nº ${j.num}${j.nombre ? ' (' + j.nombre + ')' : ''}` : '___')
+        .replace('{jugs}', v('jugs')).replace('{min}', v('min')).replace('{n}', v('n')).replace('{txt}', v('txt'))
+        .replace('{tanteo}', s.inicio ? `${s.puntos.L}-${s.puntos.V}` : '___').replace('{set}', s.inicio ? ORD[lang][s.n] || s.n + 'º' : '___')
+        .replace(/^el\/la/, (x) => x[0].toUpperCase() + x.slice(1));
+    };
+    $('oCampos').querySelectorAll('[data-c]').forEach((x) => (x.oninput = x.onchange = () => { if (x.dataset.c === 'eq' && campos.includes('jug')) { montar(); return; } escribir(); }));
+    escribir();
+  };
+  $('oMacro').onchange = montar;
+  $('oOk').onclick = () => { const t = $('oTxt').value.trim(); if (!t) return; if (t.includes('___') && !confirmar('Falta algún dato (___). ¿Añadir igualmente?')) return; if (!hacer({ t: 'obs', texto: t })) { cerrarHoja(); toast('Observación añadida.', true); } };
 }
 
 /* ---------- Entre sets ---------- */
@@ -925,7 +974,7 @@ function actaHtml() {
   const equipoTabla = (eq) => {
     const e = st.equipos[eq];
     return `<table><tr><th colspan="3">${ab(eq)} · ${esc(eqNombre(eq))}</th></tr><tr><th>Nº</th><th>Jugador</th><th></th></tr>
-      ${e.jugadores.map((j) => `<tr><td>${j.num}</td><td class="izq">${esc(j.nombre)}</td><td>${j.cap ? 'C' : ''}${j.lib ? 'L' : ''}</td></tr>`).join('')}
+      ${e.jugadores.map((j) => `<tr><td>${j.num}</td><td class="izq">${esc(j.nombre)}${j.cat ? ` (${esc(j.cat)})` : ''}${j.lib ? ' (L)' : ''}</td><td>${j.cap ? 'C' : ''}${j.lib ? 'L' : ''}</td></tr>`).join('')}
       ${e.oficiales.filter((o) => o.nombre).map((o) => `<tr><td>${esc(o.rol)}</td><td class="izq" colspan="2">${esc(o.nombre)} <span style="color:#666">· ${esc(M.ROLES_OFICIALES[o.rol] || o.rol)}</span></td></tr>`).join('')}</table>`;
   };
   const setBloque = (s) => {
@@ -969,6 +1018,7 @@ function actaHtml() {
     ${st.cfg.setObligatorio ? (() => { const sc = M.setsCompletos(st), js = st.sets.filter((x) => x.inicio); const t = (eq) => `<table><tr><th colspan="${js.length + 3}">Set obligatorio · ${ab(eq)} · ${esc(eqNombre(eq))}</th></tr><tr><th>Nº</th><th>Jugador</th>${js.map((x) => `<th>S${x.n}</th>`).join('')}<th>Cumple</th></tr>${Object.values(sc[eq]).map((j) => `<tr><td>${esc(j.num)}</td><td class="izq">${esc(j.nombre)}</td>${j.sets.map((x) => `<td>${x.completo ? 'X' : ''}${x.mano !== null ? '*' : ''}</td>`).join('')}<td>${j.cumple ? 'Sí' : '<b>NO</b>'}</td></tr>`).join('')}</table>`; return `<div class="bloque cols"><div>${t(eqA)}</div><div>${t(eqB)}</div></div><p style="font-size:9px;margin:-4px 0 6px">X = set completo (titular sin cambio) · * = corregido a mano por el anotador.</p>`; })() : ''}
     <div class="bloque"><table><tr><th class="izq">Observaciones</th></tr><tr><td class="izq">${[
       ...st.sets.flatMap((x) => x.repeticiones.map((r) => `Set ${x.n} ${hora(r.h)}: repetición de la jugada (${r.a}:${r.b}).`)),
+      ...['L', 'V'].filter((eq) => st.equipos[eq].jugadores.some((j) => j.cat === 'C')).map((eq) => `${esc(eqNombre(eq))} inscribe jugadores cadetes: ${st.equipos[eq].jugadores.filter((j) => j.cat === 'C').map((j) => esc(j.num)).join(', ')}.`),
       ...['L', 'V'].filter((eq) => d['delegado' + eq]).map((eq) => `${esc(eqNombre(eq))} presenta delegado/a: ${esc(d['delegado' + eq])}.`),
       ...st.faltasRotacion.map((x) => `Set ${x.set} ${hora(x.h)}: falta de rotación de ${esc(st.equipos[x.eq].nombre || eqNombre(x.eq))} (${x.a}:${x.b}); punto para el rival${x.anulados ? `; anulados ${x.anulados} puntos suyos desde el momento de la falta` : ''}.`),
       ...(st.incompleto ? [st.incompleto.motivo === 'incomparecencia' ? `Incomparecencia de ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))}: 0-3 (25-0).` : `Set ${st.incompleto.set} ${hora(st.incompleto.h)}: ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))} se queda con el equipo incompleto (${st.incompleto.a}:${st.incompleto.b}); el rival gana los puntos y sets que faltan.`] : []),
