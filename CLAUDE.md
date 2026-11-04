@@ -1115,6 +1115,15 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     lo que sobra de su PUNTS 1-8 se cierra con el reloj de arena (Ferran, 4-nov). Pruebas: fcvb3.mjs (5 sets) y
     real-0111.mjs (partido real SFR-VLF del 1-11-2026 transcrito de la foto del acta en papel: 238 sucesos, el acta
     generada coincide casilla a casilla con el papel).
+    ACTA INFANTIL (4-nov): si competición o categoría dicen "infantil" (`esInfantil`), el fondo es
+    fcvb/model-acta-infantils.svg (modelo de la web de la FCVB) y todo lo calculado en coordenadas del estándar se traslada
+    al infantil por zonas (`MAPA_INF`: rayas emparejadas de los 2 modelos, medidas en el PDF, interpolación lineal; fuera
+    de las rayas, la recta ajustada). Con medidas propias (`G_INF` y `nativo()`): plantillas (12 filas de 14,16 pt y
+    columna de marcas de la Circular 011, que de momento va en blanco: "más adelante"), oficiales en 3 filas (1r E, 2on con
+    los 2 asistentes, T/M), casillas cuadradas de equipo del set 5, INICI del set 5 entero (su ":" está mal impreso),
+    HI/HF/TT con los ":" impresos y ganador: nombre en la línea de GUANYADOR y, tras "TRES (3):", los sets del perdedor en
+    letra (DOS (2), U (1), ZERO (0); Ferran). Prueba: infantil-fcvb.mjs (partido real puesto como infantil).
+    "/" de los turnos de saque: trazo largo pegado al número que cruza el numerito impreso, como a mano (Ferran, 4-nov).
     Todo lo escrito "a mano" en el acta FCVB sale en MAYÚSCULAS (`txt` lo pasa a mayúsculas; Ferran, 4-nov). Plantillas por
     orden de dorsal (Ferran). Cada observación se cierra con ".\\" (punto y doble barra invertida) y la siguiente va a
     continuación en la misma línea. La capitana en juego no se apunta en papel.
