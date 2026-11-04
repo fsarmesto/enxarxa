@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://vevsurxxvjivjizuuqad.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<title>Tablet · Acta electrónica · Vòlei EnXarxa</title>
+<link rel="icon" href="../../icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="../../designa.css">
+<style>
+/* Tablet de árbitros y entrenadores del acta electrónica (4-nov-2026, specs/acta-tablets-alineacion.md). Árbitros: fondo
+   oscuro (como el Directo: se lee mejor en el pabellón). Entrenadores: claro u oscuro según el sistema. Solo dorsales. */
+html,body,button,a,input,label{touch-action:manipulation}
+body.arb{--bg:#000000;--surface:#141414;--surface-2:#1F1F1F;--ink:#FFFFFF;--ink-2:#C2C2C2;--ink-3:#8C8C8C;--line:#2E2E2E;--accent:#FFD100;--accent-ink:#000000;--focus:#FFD100;--warn-bg:#3A1214;--warn:#FF4A4F;color-scheme:dark}
+body{min-height:100vh;display:flex;flex-direction:column}
+.board .in{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding-right:96px;min-height:34px}
+.board .rol{font:700 20px/1.1 var(--display);margin:0}
+.board .sub{flex-basis:100%}
+main{max-width:1280px;width:100%;flex:1;padding:12px 16px 24px}
+.aviso{text-align:center;font-size:18px;color:var(--ink-2);margin:40px 0}
+/* Banda de datos viejos y pie */
+.banda{position:sticky;top:0;z-index:5;background:#C41E25;color:#fff;font-weight:700;text-align:center;padding:10px 12px;font-size:16px}
+.pie{text-align:center;color:var(--ink-3);font-size:13px;padding:8px 12px 14px;margin:0}
+/* Marcador */
+.marc{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:clamp(8px,2vw,28px);margin:4px 0 6px}
+.marc .eq{min-width:0;display:flex;align-items:center;gap:10px;font:700 clamp(18px,2.6vw,32px)/1.05 var(--display);overflow-wrap:anywhere}
+.marc .eq.d{justify-content:flex-end;text-align:right}
+.marc .s{flex:none;display:inline-flex;align-items:center;justify-content:center;width:clamp(34px,4.5vw,54px);height:clamp(34px,4.5vw,54px);border-radius:8px;background:#000;color:var(--yellow);font:700 clamp(22px,3.4vw,40px)/1 var(--display);border:1px solid var(--line)}
+.marc .pts{font:700 clamp(56px,9vw,120px)/.9 var(--display);white-space:nowrap;text-align:center}
+.marc .pts .g{opacity:.35;margin:0 .06em}
+.muestra{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid rgba(127,127,127,.6);flex:none}
+.balon{display:inline-block;flex:none;width:clamp(14px,1.8vw,22px);height:clamp(14px,1.8vw,22px);border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 30%,var(--yellow) 31%);border:2px solid #000}
+.setinfo{text-align:center;color:var(--ink-2);font:600 clamp(15px,1.8vw,20px)/1.2 Barlow,sans-serif;margin:0 0 8px}
+.hist{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:0 0 10px}
+.hist span{border:1px solid var(--line);border-radius:14px;padding:4px 10px;color:var(--ink-2);font:600 14px/1 Barlow,sans-serif}
+/* Cuenta atrás del tiempo de descanso (FIVB 15.4.1) */
+.crono{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 auto 10px;padding:8px 16px;border-radius:10px;background:var(--yellow);color:#000;font:700 clamp(20px,2.4vw,30px)/1.1 var(--display);width:fit-content}
+.crono b{font-size:1.5em}
+/* Pistas vistas desde la mesa: red en medio; izquierda con la I abajo a la izquierda, derecha con la I arriba a la derecha */
+.cancha{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.c-nom{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14px;margin:0 0 6px}
+.c-nom span:last-child{text-align:right}
+.c-pista{display:grid;grid-template-columns:1fr 10px 1fr;background:#E9893B;border:4px solid #fff;outline:2px solid #C96F25;border-radius:4px;aspect-ratio:2/1.05}
+.campo{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);position:relative}
+.campo.i{background:linear-gradient(90deg,transparent calc(66.6% - 2px),rgba(255,255,255,.9) calc(66.6% - 2px),rgba(255,255,255,.9) 66.6%,transparent 66.6%)}
+.campo.d{background:linear-gradient(90deg,transparent 33.3%,rgba(255,255,255,.9) 33.3%,rgba(255,255,255,.9) calc(33.3% + 2px),transparent calc(33.3% + 2px))}
+.c-pista .red{background:repeating-linear-gradient(0deg,#111 0 3px,#eee 3px 6px);border-left:2px solid #111;border-right:2px solid #111;margin:-10px 0;border-radius:2px}
+.jug{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;--d:clamp(32px,6.2vw,64px)}
+.jug .n{display:flex;align-items:center;justify-content:center;width:var(--d);height:var(--d);border-radius:50%;background:var(--c,#fff);color:var(--ct,#000);font:700 calc(var(--d) * .47)/1 var(--display);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.jug.lib .n{border:3px dashed var(--ct,#000)}
+.jug.saca .n{box-shadow:0 0 0 3px #fff,0 0 0 6px #000}
+.jug .cap{position:absolute;top:calc(50% - var(--d) * .7);right:calc(50% - var(--d) * .62);background:#000;color:#fff;font:700 11px/16px Barlow,sans-serif;width:16px;height:16px;border-radius:50%;text-align:center}
+.jug .cap.cj{background:#fff;color:#000;border:1px solid #000}
+.jug .pelota{position:absolute;top:calc(50% - var(--d) * .72);left:calc(50% - var(--d) * .7);width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 30%,var(--yellow) 31%);border:2px solid #000}
+.jug .pos{font:600 11px/1 Barlow,sans-serif;color:#fff;margin-top:3px;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.c-mesa{text-align:center;font-size:12px;color:var(--ink-3);margin-top:6px}
+.vacio{grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5);text-align:center;padding:6px}
+/* Paneles de equipo */
+.juego{display:grid;gap:12px}
+@media (min-width:980px){ .juego{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr);align-items:start} .juego .cancha{order:2} .juego .pan.i{order:1} .juego .pan.d{order:3} }
+@media (min-width:600px) and (max-width:979px){ .juego{grid-template-columns:1fr 1fr} .juego .cancha{grid-column:1/-1} }
+@media (min-width:980px){ .juego.ent{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)} .juego.ent .cancha{order:1} .juego.ent .pan{order:2} }
+@media (max-width:979px){ .juego.ent{grid-template-columns:1fr} }
+@media (max-width:599px){ .juego .cancha{order:-1} }   /* móvil: la pista lo primero */
+.pan{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.pan h3{display:flex;align-items:center;gap:8px;margin:0 0 8px;font:700 20px/1.1 var(--display)}
+.fila{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-weight:600}
+.fila b{font:700 24px/1 var(--display)}
+.fila.ojo{color:var(--warn)} .fila.ojo b{color:var(--warn)}
+.pan h4{margin:10px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+.pan ul{list-style:none;margin:0;padding:0}
+.pan li{padding:3px 0;font-size:15px}
+.pan li .m{color:var(--ink-3);font-size:13px}
+.alerta{margin:8px 0 0;padding:8px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn);font-weight:700}
+.nota{margin:8px 0 0;padding:6px 10px;border-radius:8px;background:var(--surface-2);font-weight:600}
+.tarjeta{display:inline-block;width:10px;height:14px;border-radius:2px;background:var(--yellow);vertical-align:-2px;margin-right:6px}
+.tarjeta.t-castigo,.tarjeta.t-castigoRetraso{background:var(--red)}
+.tarjeta.t-expulsion{background:linear-gradient(90deg,var(--yellow) 50%,var(--red) 50%)}
+.tarjeta.t-descalificacion{background:var(--red);box-shadow:3px 0 0 var(--yellow)}
+.tarjeta.t-avisoRetraso{background:var(--yellow);outline:1px dashed #000}
+/* Intervalo y formaciones recibidas (árbitros) */
+.grid2{display:grid;gap:12px}
+@media (min-width:700px){ .grid2{grid-template-columns:1fr 1fr} }
+.form6{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--surface-2);border-radius:8px;padding:8px;position:relative;margin:6px 0}
+.form6 .red6{grid-column:1/-1;height:4px;background:var(--ink);border-radius:2px}
+.form6 span{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:48px;border-radius:6px;background:var(--bg);border:1px solid var(--line);font:700 24px/1 var(--display)}
+.form6 span small{font:600 11px/1 Barlow,sans-serif;color:var(--ink-3);margin-top:2px}
+/* Editor de la formación del entrenador */
+.ed{display:grid;gap:14px}
+@media (min-width:860px){ .ed{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start} }
+.ed-pista{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:#E9893B;border:4px solid #fff;outline:2px solid #C96F25;border-radius:6px;padding:10px}
+.ed-pista .red6{grid-column:1/-1;height:8px;background:repeating-linear-gradient(90deg,#111 0 4px,#eee 4px 8px);border:2px solid #111;border-radius:2px}
+.ed-pista button{flex-direction:column;min-height:76px;border-radius:10px;border:3px solid rgba(0,0,0,.25);background:#fff;color:#000;font:700 34px/1 var(--display);padding:4px}
+.ed-pista button small{font:600 12px/1 Barlow,sans-serif;color:#444;margin-top:4px}
+.ed-pista button.vacia{background:rgba(255,255,255,.55);color:#444;font-size:16px}
+.ed-pista button[aria-pressed="true"]{border-color:#000;box-shadow:0 0 0 4px var(--yellow)}
+.dorsales{display:flex;flex-wrap:wrap;gap:8px}
+.dorsales button{min-width:60px;min-height:56px;font:700 26px/1 var(--display);padding:0 10px}
+.dorsales button small{font:600 12px/1 Barlow,sans-serif;margin-left:3px}
+.dorsales button.usado{opacity:.35;text-decoration:line-through}
+.enviar{width:100%;min-height:58px;font-size:20px;margin-top:6px}
+.estado-env{display:flex;flex-direction:column;gap:6px}
+.ok-env{color:var(--ok);font-weight:700}
+.lista-msg{margin:6px 0 0}
+</style>
+</head>
+<body>
+<script src="../../cargando.js"></script>
+<header class="board"><div class="in"><p class="rol" id="rol">Acta electrónica</p><p class="sub" id="sub"></p></div></header>
+<div class="banda hidden" id="banda" role="alert"></div>
+<main id="m"></main>
+<p class="sr" id="anuncio" aria-live="polite" data-noi18n></p>
+<p class="pie" id="pie" aria-live="off"></p>
+<script src="../../config.js"></script>
+<script src="../../vendor/supabase-2.45.4.js"></script>
+<script src="../motor.js"></script>
+<script src="../acta-ca.js"></script>
+<script src="tablet.js"></script>
+</body>
+</html>

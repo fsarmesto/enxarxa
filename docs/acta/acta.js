@@ -107,8 +107,8 @@ function toastVarios(lista) { const tr = window.trActa || ((x) => x); toast(list
 function toast(msg, ok) { const t = $('toast'); t.textContent = msg; t.className = ok ? 'ok' : ''; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), 3200); }
 
 /* ---------- Hoja (diálogo) ---------- */
-function hoja(html, alAbrir) { $('hojaC').innerHTML = html; $('hoja').classList.remove('hidden'); (alAbrir || (() => $('hojaC').querySelector('button,input,select,textarea')?.focus()))(); }
-function cerrarHoja() { clearInterval(TIEMPO_T); $('hoja').classList.remove('centro'); $('hoja').classList.add('hidden'); $('hojaC').innerHTML = ''; }
+function hoja(html, alAbrir) { $('hoja').querySelector('.card').classList.remove('ancha'); $('hojaC').innerHTML = html; $('hoja').classList.remove('hidden'); (alAbrir || (() => $('hojaC').querySelector('button,input,select,textarea')?.focus()))(); }
+function cerrarHoja() { clearInterval(TIEMPO_T); $('hoja').classList.remove('centro'); $('hoja').querySelector('.card').classList.remove('ancha'); $('hoja').classList.add('hidden'); $('hojaC').innerHTML = ''; }
 $('hoja').addEventListener('click', (e) => { if (e.target.id === 'hoja' || e.target.closest('[data-cerrar]')) cerrarHoja(); });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('hoja').classList.contains('hidden')) { cerrarHoja(); return; }
@@ -152,6 +152,7 @@ function mostrarError(e) {
   LISTO = true;
 }
 function pintar0() {
+  clearInterval(FORM_T);   // la consulta de formaciones de las tablets solo va en sorteo y entre sets (la vuelven a poner)
   if (A) calcular();
   const v = vista();
   document.body.classList.toggle('vista', v === 'ver');
@@ -242,7 +243,7 @@ function crearPrueba() {
   reiniciar(); guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
   toast('Partido de prueba listo: haz el sorteo y la formación inicial.', true);
 }
-function reiniciar() { delete BORR.L; delete BORR.V; ISQ = { estado: null, msg: '' }; VER = false; }   // nada de un acta pasa a otra
+function reiniciar() { delete BORR.L; delete BORR.V; ISQ = { estado: null, msg: '' }; VER = false; FORM_RECIB = { L: null, V: null }; FORM_USADA = { L: null, V: null }; MESA_ERR = false; }   // nada de un acta pasa a otra
 function abrir(id) { reiniciar(); try { A = reparar(JSON.parse(localStorage.getItem(clave(id)))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
 function salir() { A = null; ST = null; reiniciar(); history.replaceState(null, '', location.pathname); pintar(); }
 
@@ -264,11 +265,12 @@ function pDatos() {
       <label class="f"><span>Tiempos de descanso por set</span><input type="number" id="tiempos" min="0" max="5" value="${c.tiempos}"></label>
       <label class="f"><span>Intervalo entre sets (min)</span><input type="number" id="descanso" min="0" max="30" value="${c.descanso ?? 3}"></label>
       <label class="f"><span>Intervalo entre el 2º y el 3º set (min)</span><input type="number" id="descanso23" min="0" max="10" value="${c.descanso23 ?? c.descanso ?? 3}"><span class="small muted">Se puede alargar hasta 10 si lo pide el organizador (FIVB 18.1).</span></label></div>
+    <h3 style="font-size:16px;margin:8px 0">Modo de la mesa</h3>${selectorModo()}
     <label class="chk opcion"><input type="checkbox" id="cfgAvisoLib"${c.avisoLibero !== false ? ' checked' : ''}> <span><b>Avisos del líbero</b><br><span class="small muted">Cuando el equipo pasa a recibir, propone por quién entra; cuando pasa delante, avisa de que sale y quién vuelve.</span></span></label>
     <label class="chk opcion"><input type="checkbox" id="cfgLib"${c.liberos ? ' checked' : ''}> <span><b>Hay líbero</b><br><span class="small muted">Desactívalo en las categorías que juegan sin líbero.</span></span></label>
     <label class="chk opcion"><input type="checkbox" id="cfgSet"${c.setObligatorio ? ' checked' : ''}> <span><b>Set obligatorio por jugador</b><br><span class="small muted">Infantil (FCVB, Circular 011): cada jugador del acta tiene que jugar al menos un set completo. Al final se revisa y se puede corregir a mano.</span></span></label>
     <div class="row"><button type="button" class="ghost" id="volver">Mis actas</button><button class="primary">Siguiente: equipos</button></div></form>`;
-  $('volver').onclick = salir;
+  $('volver').onclick = salir; enlazarModo();
   $('f').onsubmit = (e) => {
     e.preventDefault();
     $('f').querySelectorAll('[data-d]').forEach((i) => (A.datos[i.dataset.d] = i.value.trim()));
@@ -463,10 +465,13 @@ function pSorteo() {
   const s = M.setActual(ST);
   $('app').innerHTML = pasos('sorteo') + `<section class="card"><h2>Sorteo</h2>
       <fieldset><legend>Saca primero</legend>${opcionesEq('saca', s.saqueInicial)}</fieldset>
-      <fieldset><legend>A la izquierda del anotador (equipo A)</legend>${opcionesEq('izq', s.izq)}</fieldset></section>
-    <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2>${selectorAlineacion('L', s.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2>${selectorAlineacion('V', s.alineacion.V)}</section></div>
-    <div class="row"><button class="ghost" id="atras">Atrás</button><button class="primary" id="empezar">Empezar el set 1</button><button class="ghost" id="noPresentado">No presentación…</button></div>`;
-  enlazarAlineacion();
+      <fieldset><legend>A la izquierda del anotador (equipo A)</legend>${opcionesEq('izq', s.izq)}</fieldset>
+      <h3 style="font-size:16px;margin:8px 0">Modo de la mesa</h3>${selectorModo()}</section>
+    <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2><div data-formtab="L"></div>${selectorAlineacion('L', s.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2><div data-formtab="V"></div>${selectorAlineacion('V', s.alineacion.V)}</section></div>
+    <div class="row"><button class="ghost" id="atras">Atrás</button><button class="primary" id="empezar">Empezar el set 1</button><span id="tabSlot" style="display:contents">${botonTablets()}</span><button class="ghost" id="noPresentado">No presentación…</button></div>`;
+  enlazarAlineacion(); vigilarFormaciones(s.n);
+  $('tablets')?.addEventListener('click', hojaTablets);
+  enlazarModo(() => { $('tabSlot').innerHTML = botonTablets(); $('tablets')?.addEventListener('click', hojaTablets); vigilarFormaciones(s.n); });
   $('atras').onclick = () => { A.paso = 'equipos'; guardar(); pintar(); };
   $('empezar').onclick = () => empezarSet(true);
   $('noPresentado').onclick = () => hoja(`<h2 id="hojaT">No presentación</h2><p class="small">El equipo que no se presenta pierde el partido 0-3 y cada set 0-25, y queda anotado en el acta (FIVB 6.4).</p>
@@ -478,12 +483,21 @@ function empezarSet(conSorteo) {
   const q = (n) => $('app').querySelector(`input[name="${n}"]:checked`)?.value;
   const evs = [];
   if (conSorteo) { if (!q('saca') || !q('izq')) { toast('Indica quién saca y quién está a la izquierda.'); return; } evs.push({ t: 'sorteo', saca: q('saca'), izq: q('izq') }); }
-  for (const eq of ['L', 'V']) { const a = leerAlineacion(eq); if (a.some((n) => !n)) { toast(`Falta completar la formación inicial de ${eqNombre(eq)}.`); return; } evs.push({ t: 'alineacion', eq, jugadores: a }); }
+  const n = M.setActual(ST).n;
+  for (const eq of ['L', 'V']) {
+    const a = leerAlineacion(eq); if (a.some((x) => !x)) { toast(`Falta completar la formación inicial de ${eqNombre(eq)}.`); return; }
+    // origen 'tablet': la enviada por el entrenador, usada tal cual (el motor ignora el campo; no sale en el acta impresa).
+    const tablet = FORM_USADA[eq] && FORM_RECIB[eq]?.set === n && FORM_USADA[eq].join() === a.join();
+    evs.push({ t: 'alineacion', eq, jugadores: a, ...(tablet ? { origen: 'tablet' } : {}) });
+  }
   evs.push({ t: 'inicioSet' });
   // Todo o nada: se valida la secuencia entera antes de guardarla.
   const prueba = [...A.ev], h = new Date().toISOString();
   for (const e of evs) { const m = M.validar(A.cfg, A.datos, prueba, { ...e, h }); if (m) { toast(m); return; } prueba.push({ ...e, h }); }
-  A.ev = prueba; guardar(); pintar(); publicarDirecto(); scrollTo(0, 0);
+  A.ev = prueba; FORM_USADA = { L: null, V: null };
+  // Las formaciones de este set quedan cerradas en el servidor (los entrenadores ya no pueden enviar para él).
+  if (A.tablets) sbc().from('acta_formacion').update({ cerrada: true }).eq('mesa_id', A.tablets.mesa).eq('set_n', n).then(() => {}, () => {});
+  guardar(); pintar(); publicarDirecto(true); scrollTo(0, 0);
 }
 
 /* ---------- 4. Partido ---------- */
@@ -632,7 +646,7 @@ function pJuego() {
     <div class="j-cancha">${pistaGrande(s)}</div>
     <div class="j-der">${mitad(s, der)}</div>
     <div class="j-ult solo-movil">${(() => { const u = [...A.ev].reverse().find((e) => !['equipo', 'firma'].includes(e.t)); return `<div class="c-ultimo"><span>${u ? `<span class="muted">Último:</span> ${esc(describir(u, ST))}` : '<span class="muted">Todavía no hay nada que deshacer.</span>'}</span><button id="deshacer" class="deshacer"${u ? '' : ' disabled'}>Deshacer</button></div>`; })()}</div>
-    <div class="j-barra"><div class="barra"><button id="repe">Repetición</button><button id="incid">Incidencias</button><button id="obs">Observación</button><button id="directo"${A.directo ? ' class="en-directo"' : ''}>${A.directo ? '● En directo' : 'Directo'}</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
+    <div class="j-barra"><div class="barra"><button id="repe">Repetición</button><button id="incid">Incidencias</button><button id="obs">Observación</button><button id="directo"${A.directo ? ' class="en-directo"' : ''}>${A.directo ? '● En directo' : 'Directo'}</button>${botonTablets()}<button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
       <p class="small muted teclas">Teclado: <kbd>←</kbd> punto a ${esc(eqNombre(izq))} · <kbd>→</kbd> punto a ${esc(eqNombre(der))} · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer</p></div>
     <div class="j-reg"><h3 class="solo-pc">Últimos sucesos</h3><div class="registro" aria-label="Últimos sucesos">${ultimos.map((e) => `<div><span class="h">${hora(e.h)}</span>${esc(describir(e, ST))}</div>`).join('')}</div></div>
   </div>`;
@@ -654,6 +668,7 @@ function barraComun() {
   $('deshacer')?.addEventListener('click', deshacer);
   $('repe')?.addEventListener('click', () => { if (!hacer({ t: 'repeticion' })) toast('Repetición anotada: sin punto para nadie.', true); });
   $('directo')?.addEventListener('click', hojaDirecto);
+  $('tablets')?.addEventListener('click', hojaTablets);
   $('incid')?.addEventListener('click', hojaIncidencias);
   $('obs')?.addEventListener('click', hojaObs);
   $('ver')?.addEventListener('click', () => { VER = true; pintar(); scrollTo(0, 0); });
@@ -790,6 +805,7 @@ function resumenDirecto() {
 }
 let DIR_T = null;
 function publicarDirecto(ahora) {
+  publicarMesa(ahora);   // tablets de árbitros y entrenadores (si se comparten)
   if (!A?.directo) return;
   clearTimeout(DIR_T);
   DIR_T = setTimeout(async () => {
@@ -816,6 +832,186 @@ async function hojaDirecto() {
     <div class="row"><button class="primary" id="copiarDir">Copiar el enlace</button><a class="btn" href="${esc(enlaceDirecto())}" target="_blank" rel="noopener">Abrir</a><button id="pararDir">Dejar de emitir</button><button class="ghost" data-cerrar>Cerrar</button></div>`);
   $('copiarDir').onclick = async () => { try { await navigator.clipboard.writeText(enlaceDirecto()); toast('Enlace copiado.', true); } catch (e) { $('dirUrl').select(); } };
   $('pararDir').onclick = async () => { const id = A.directo; A.directo = null; guardar(); try { await sbc().from('acta_directo').delete().eq('id', id); } catch (e) {} cerrarHoja(); pintar(); toast('Directo terminado.', true); };
+}
+
+/* ---------- Tablets de árbitros y entrenadores (4-nov-2026, encargo specs/acta-tablets-alineacion.md) ---------- */
+// El anotador comparte 3 enlaces privados (migración 039): árbitros (1º y 2º, el mismo), entrenador local y entrenador
+// visitante. Las tablets no tienen cuenta: su token es la llave. Ven el estado de la mesa (solo dorsales, ningún nombre:
+// puede haber menores) y los entrenadores envían su formación inicial de cada set: FIVB 7.3.2 ("…or electronically sent
+// directly to the e-scorer") y 5.2.3.1 (con tablets, la transmisión electrónica es oficial); enviada queda bloqueada
+// (7.3.4). Aquí solo llega "Formación recibida" y [Usar] rellena los desplegables: el set lo empieza siempre el anotador.
+// El acta nunca depende de la red: si no hay conexión se anota igual y se reintenta en el siguiente suceso o latido.
+// Nada de lo publicado es secreto: la formación de un set sin empezar no está en el estado del motor (solo existe desde
+// empezarSet). Lo único privado son las formaciones enviadas, y las filtra el servidor (tablet_estado) por rol.
+const ficha = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
+// Cada token empieza por la letra de su rol (migración 039: así uno no puede estar en 2 columnas ni en 2 mesas).
+const fichasTablets = () => ({ arb: 'a' + ficha(31), entL: 'l' + ficha(31), entV: 'v' + ficha(31) });
+const CADUCA_MESA = 2 * 864e5;   // como limpiar_mesas(): pasados 2 días no se vuelve a publicar (no se resucita la mesa)
+let MESA_T = null, MESA_ERR = false, FORM_T = null;
+let FORM_RECIB = { L: null, V: null }, FORM_USADA = { L: null, V: null };   // del acta abierta (reiniciar() los vacía)
+function estadoMesa() {
+  const s = M.setActual(ST), preparando = ['preparacion', 'entreSets'].includes(ST.fase) && !s.inicio, prev = ST.sets[ST.sets.length - 2];
+  const eq = {};
+  for (const e of ['L', 'V']) {
+    eq[e] = {
+      plantilla: ST.equipos[e].jugadores.map((j) => ({ num: j.num, ...(j.cap ? { cap: 1 } : {}), ...(j.lib ? { lib: 1 } : {}) })),
+      noPuede: [...ST.descalificados[e], ...ST.fueraPartido[e]], expulsados: [...s.expulsados[e]],
+      rot: s.rot[e] ? [...s.rot[e]] : null, libero: s.libero[e] ? { num: s.libero[e].num, por: s.libero[e].por, pos: s.libero[e].pos } : null,
+      tiempos: s.tiempos[e].map((t) => ({ a: t.a, b: t.b })), sust: s.sust[e].map((x) => ({ sale: x.sale, entra: x.entra, a: x.a, b: x.b, tipo: x.tipo })),
+      sustUsadas: s.nSust[e], parejas: { ...s.parejas[e] }, cerradas: [...s.cerradas[e]], pendienteSust: [...s.pendienteSust[e]],
+      capJuego: s.capJuego[e] || null, necesitaCapitan: M.necesitaCapitanJuego(ST, e),
+      anterior: preparando && prev?.alineacion?.[e] ? [...prev.alineacion[e]] : null,   // propuesta del entrenador: la del set anterior
+    };
+  }
+  const ultT = ['L', 'V'].flatMap((e) => s.tiempos[e].map((t) => ({ eq: e, h: t.h }))).sort((a, b) => String(a.h).localeCompare(String(b.h))).at(-1) || null;
+  return {
+    v: 1, local: A.datos.local || '', visitante: A.datos.visitante || '', competicion: A.datos.competicion || '', categoria: A.datos.categoria || '',
+    colores: { L: color('L'), V: color('V'), libL: color('L', true), libV: color('V', true) },
+    fase: ST.fase, set: s.n, decisivo: !!s.decisivo, golden: !!s.golden, puntos: { ...s.puntos }, ganados: { ...ST.ganados },
+    sets: ST.sets.filter((x) => x.ganador).map((x) => ({ n: x.n, L: x.puntos.L, V: x.puntos.V })),
+    saque: s.saque, saqueInicial: s.saqueInicial, izq: s.izq || 'L', cambioHecho: !!s.cambioHecho, inicioSet: s.inicio,
+    tiemposMax: ST.cfg.tiempos, sustMax: ST.cfg.sustituciones, duracionTiempo: A.cfg.duracionTiempo || 30, liberos: !!ST.cfg.liberos,
+    eq, sanciones: ST.sanciones.map((x) => ({ eq: x.eq, quien: x.quien, tipo: x.tipo, set: x.set, a: x.a, b: x.b })), impropias: { ...ST.impropias },
+    ultimoTiempo: ultT && ST.fase === 'juego' ? ultT : null,
+    abierta: preparando && ST.fase !== 'fin' ? s.n : null,   // el set que admite formaciones de las tablets
+    recibidas: { L: FORM_RECIB.L?.set ?? null, V: FORM_RECIB.V?.set ?? null },
+    ganador: M.resultados(ST).ganador, actualizado: new Date().toISOString(),
+  };
+}
+// Tras cada suceso (desde publicarDirecto) y cada 10 s de latido: así las tablets distinguen "no pasa nada" de "el
+// anotador se ha quedado sin conexión". Si falla, solo cambia el botón ("Tablets: sin conexión"), sin avisos repetidos.
+function publicarMesa(ahora) {
+  if (!A?.tablets || !modoConexion()) return;
+  clearTimeout(MESA_T);
+  MESA_T = setTimeout(async () => {
+    const t = A?.tablets; if (!t || !ST) return;
+    if (Date.now() - Date.parse(t.creada || 0) > CADUCA_MESA) { A.tablets = null; guardar(); pintar(); return; }
+    try { const { error } = await sbc().from('acta_mesa').upsert({ id: t.mesa, tok_arb: t.arb, tok_entl: t.entL, tok_entv: t.entV, estado: estadoMesa() }); if (error) throw error; marcaMesa(false); }
+    catch (e) { marcaMesa(true); }
+  }, ahora ? 0 : 800);
+}
+// Con el partido acabado no hay latido: el suceso que lo acaba ya publica el estado final.
+setInterval(() => { if (A?.tablets && modoConexion() && ST?.fase !== 'fin') publicarMesa(true); }, 10000);
+const textoTablets = () => (A?.tablets ? (MESA_ERR ? 'Tablets: sin conexión' : '● Tablets') : 'Tablets');
+const botonTablets = () => (!modoConexion() ? '' : `<button id="tablets"${A.tablets ? ` class="en-directo${MESA_ERR ? ' sin-red' : ''}"` : ''}>${textoTablets()}</button>`);
+function marcaMesa(err) {
+  if (MESA_ERR === err) return;
+  MESA_ERR = err; const b = $('tablets'); if (!b) return;
+  b.textContent = (window.trActa || ((x) => x))(textoTablets()); b.classList.toggle('sin-red', err);
+}
+const enlaceTablet = (tok) => new URL('tablet/?t=' + tok, location.href).href;
+const ROLES_TABLET = () => [
+  ['arb', 'Árbitros (1º y 2º)', 'Solo lectura: las 2 pistas, tiempos de descanso, sustituciones, sanciones y cuenta atrás.'],
+  ['entL', eqNombre('L') || 'Local', 'Entrenador: envía su formación inicial de cada set y ve el partido.'],
+  ['entV', eqNombre('V') || 'Visitante', 'Entrenador: envía su formación inicial de cada set y ve el partido.'],
+];
+async function cargarQr() {
+  if (window.QRCode) return true;
+  try { await new Promise((ok, ko) => { const sc = document.createElement('script'); sc.src = '../vendor/qrcode-1.0.0.min.js'; sc.onload = ok; sc.onerror = ko; document.head.appendChild(sc); }); return !!window.QRCode; } catch (e) { return false; }
+}
+async function hojaTablets() {
+  let session = null; try { ({ data: { session } } = await sbc().auth.getSession()); } catch (e) {}
+  if (!session) { hoja(`<h2 id="hojaT">Tablets</h2><p>Para compartir el partido con las tablets de los árbitros y los entrenadores tienes que haber entrado con tu cuenta de Vòlei EnXarxa en este navegador.</p><div class="row"><a class="btn primary" href="../">Entrar</a><button class="ghost" data-cerrar>Cerrar</button></div>`); return; }
+  if (!A.tablets) {
+    hoja(`<h2 id="hojaT">Tablets de árbitros y entrenadores</h2>
+      <p class="small">Se crean 3 enlaces privados, con su código QR: uno para los árbitros y uno para cada entrenador.</p>
+      <ul class="small"><li>Los árbitros ven en directo las 2 pistas, los tiempos de descanso, las sustituciones y las sanciones.</li>
+        <li>Cada entrenador envía desde su tablet la formación inicial de cada set (FIVB 7.3.2). Una vez enviada no se puede cambiar.</li>
+        <li>Te llega como "Formación recibida": con Usar se rellenan los desplegables y el set lo empiezas tú.</li></ul>
+      <p class="small"><b>No se publica ningún nombre de jugador</b>, solo dorsales. Se borra a los 2 días.</p>
+      <div class="row"><button class="primary" id="crearTab">Crear los enlaces</button><button class="ghost" data-cerrar>Cancelar</button></div>`);
+    $('crearTab').onclick = () => {
+      A.tablets = { mesa: ficha(32), ...fichasTablets(), creada: new Date().toISOString() };
+      guardar(); sbc().rpc('limpiar_mesas').then(() => {}, () => {});
+      publicarMesa(true); pintar(); hojaTablets();
+    };
+    return;
+  }
+  const t = A.tablets;
+  hoja(`<h2 id="hojaT">Tablets</h2><p class="small muted">Escanea el código con la tablet o pasa el enlace. Cada enlace solo sirve para lo suyo.</p>
+    <div class="tabs3">${ROLES_TABLET().map(([k, tit, txt]) => `<section class="tab-enl" data-rol="${k}"><h3>${k === 'arb' ? esc(tit) : `<span>Entrenador</span> · <span data-noi18n>${esc(tit)}</span>`}</h3><p class="small muted">${esc(txt)}</p>
+      <div class="qr" id="qr-${k}" role="img" aria-label="Código QR del enlace"></div>
+      <input type="text" readonly value="${esc(enlaceTablet(t[k]))}" aria-label="Enlace" data-url="${k}">
+      <div class="row"><button data-copiar="${k}">Copiar el enlace</button><a class="btn" href="${esc(enlaceTablet(t[k]))}" target="_blank" rel="noopener">Abrir</a></div></section>`).join('')}</div>
+    <div class="row"><button id="revocarTab">Revocar y crear enlaces nuevos</button><button id="pararTab">Dejar de compartir</button><button class="ghost" data-cerrar>Cerrar</button></div>`);
+  $('hoja').querySelector('.card').classList.add('ancha');
+  $('hojaC').querySelectorAll('[data-copiar]').forEach((b) => (b.onclick = async () => { const u = enlaceTablet(A.tablets[b.dataset.copiar]); try { await navigator.clipboard.writeText(u); toast('Enlace copiado.', true); } catch (e) { $('hojaC').querySelector(`[data-url="${b.dataset.copiar}"]`).select(); } }));
+  $('revocarTab').onclick = () => {
+    if (!confirmar('¿Revocar los 3 enlaces? Los que ya se han pasado dejarán de funcionar y habrá que pasar los nuevos.')) return;
+    Object.assign(A.tablets, fichasTablets()); guardar(); publicarMesa(true); hojaTablets(); toast('Enlaces nuevos creados.', true);
+  };
+  $('pararTab').onclick = async () => {
+    if (!confirmar('¿Dejar de compartir con las tablets? Los enlaces dejarán de funcionar.')) return;
+    await dejarDeCompartir(); cerrarHoja(); pintar(); toast('Ya no se comparte con las tablets.', true);
+  };
+  if (await cargarQr()) for (const [k] of ROLES_TABLET()) { const el = $('qr-' + k); if (el && !el.childNodes.length) { new QRCode(el, { text: enlaceTablet(t[k]), width: 168, height: 168, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); el.removeAttribute('title'); } }
+}
+async function dejarDeCompartir() {
+  if (!A?.tablets) return;
+  const id = A.tablets.mesa; A.tablets = null; FORM_RECIB = { L: null, V: null }; FORM_USADA = { L: null, V: null }; MESA_ERR = false; guardar();
+  try { await sbc().from('acta_mesa').delete().eq('id', id); } catch (e) {}
+}
+// Modo de la mesa (Ferran, 4-nov-2026): "Manual" = todo en un solo dispositivo (la tablet o el PC del árbitro o del
+// anotador), como siempre y sin conexión; "Conexión" = además, tablets de árbitros y entrenadores. Por defecto, manual.
+// En manual no sale nada de las tablets. Se elige en Datos y en el sorteo (el partido de prueba entra directo al sorteo).
+const modoConexion = () => A?.cfg?.modo === 'conexion';
+const selectorModo = () => `<div class="opts modo" role="radiogroup" aria-label="Modo de la mesa">${[['manual', 'Manual'], ['conexion', 'Conexión']].map(([k, t]) => `<label><input type="radio" name="modo" value="${k}"${(modoConexion() ? 'conexion' : 'manual') === k ? ' checked' : ''}><span>${t}</span></label>`).join('')}</div>
+  <p class="small muted" id="modoTxt" style="margin:6px 0 12px">${modoConexion() ? 'Conexión: los árbitros y los entrenadores siguen el partido en sus tablets y los entrenadores envían la formación inicial. Hace falta conexión y haber entrado con la cuenta de la app.' : 'Manual: todo se anota en este dispositivo (la tablet o el PC del árbitro o del anotador) y funciona sin conexión. Las formaciones iniciales se ponen a mano.'}</p>`;
+// Cambiar de modo se guarda al momento (sin repintar la pantalla: no se pierde lo que se está escribiendo).
+function enlazarModo(alCambiar) {
+  $('app').querySelectorAll('input[name="modo"]').forEach((r) => (r.onchange = async () => {
+    if (r.value === 'manual' && A.tablets && !confirmar('En modo manual se deja de compartir con las tablets: los enlaces dejarán de funcionar. ¿Seguir?')) { $('app').querySelector('input[name="modo"][value="conexion"]').checked = true; return; }
+    A.cfg = { ...A.cfg, modo: r.value }; guardar();
+    if (r.value === 'manual') await dejarDeCompartir();
+    const box = $('modoTxt'), tmp = document.createElement('div'); tmp.innerHTML = selectorModo();
+    if (box) box.replaceWith(tmp.querySelector('#modoTxt'));
+    alCambiar?.();
+    if (r.value === 'conexion') toast('Modo conexión: comparte el partido con el botón Tablets.', true);
+  }));
+}
+// Pantallas de sorteo y entre sets: cada 3 s se mira si ha llegado la formación del set que va a empezar. Solo se repinta
+// la tarjeta de cada equipo (no la pantalla: el anotador puede estar tocando los desplegables).
+function vigilarFormaciones(n) {
+  clearInterval(FORM_T);
+  pintarFormaciones(n);
+  if (!A?.tablets || !modoConexion()) return;
+  const mesa = A.tablets.mesa;
+  const mira = async () => {
+    if (A?.tablets?.mesa !== mesa || !$('app').querySelector('[data-formtab]')) { clearInterval(FORM_T); return; }
+    try {
+      const { data, error } = await sbc().from('acta_formacion').select('eq, set_n, jugadores, enviada_at').eq('mesa_id', mesa).eq('set_n', n);
+      if (error) throw error;
+      if (A?.tablets?.mesa !== mesa || M.setActual(ST).n !== n || !['preparacion', 'entreSets'].includes(ST.fase)) return;   // respuesta tardía de otra acta u otro set
+      let cambia = false;
+      for (const e of ['L', 'V']) {
+        const f = (data || []).find((x) => x.eq === e), nuevo = f ? { set: n, jugadores: f.jugadores.map(M.D), enviada: f.enviada_at } : null;
+        if (JSON.stringify(nuevo) !== JSON.stringify(FORM_RECIB[e])) { FORM_RECIB[e] = nuevo; cambia = true; }
+      }
+      if (cambia) { pintarFormaciones(n); publicarMesa(true); }
+    } catch (e) {}
+  };
+  mira(); FORM_T = setInterval(mira, 3000);
+}
+function pintarFormaciones(n) {
+  $('app').querySelectorAll('[data-formtab]').forEach((el) => {
+    const e = el.dataset.formtab, f = FORM_RECIB[e];
+    if (!A.tablets || !modoConexion()) { el.innerHTML = ''; return; }
+    if (!f || f.set !== n) { el.innerHTML = `<p class="small muted form-espera">Tablet del entrenador: todavía no ha enviado la formación del set ${n}.</p>`; return; }
+    const m = M.validar(A.cfg, A.datos, A.ev, { t: 'alineacion', eq: e, jugadores: f.jugadores });
+    el.innerHTML = `<div class="form-recib${m ? ' mal' : ''}" role="status"><div><b>Formación recibida del entrenador</b> <span class="muted" data-noi18n>(${esc(hora(f.enviada))})</span></div>
+      <div class="fr-pos" data-noi18n>${[3, 2, 1, 4, 5, 0].map((i) => `<span><small>${POS[i]}</small>${esc(f.jugadores[i])}</span>`).join('')}</div>
+      ${m ? `<p class="small" style="margin:0"><span>No se puede usar:</span> <span>${esc(m)}</span></p>` : `<button class="primary" data-usar="${e}">Usar</button>`}</div>`;
+    el.querySelector('[data-usar]')?.addEventListener('click', () => usarFormacion(e));
+  });
+}
+// Usar = rellenar los 6 desplegables con la formación recibida (nada más: el set lo empieza el anotador).
+function usarFormacion(e) {
+  const f = FORM_RECIB[e], box = $('app').querySelector(`[data-al="${e}"]`); if (!f || !box) return;
+  const sels = [...box.querySelectorAll('select')];
+  sels.forEach((x) => { x.value = ''; x.dataset.previa = f.jugadores[+x.dataset.pos]; });
+  sels[0].dispatchEvent(new Event('change', { bubbles: true }));
+  FORM_USADA[e] = [...f.jugadores];
+  toast(`Formación de ${eqNombre(e)} puesta: compruébala y empieza el set.`, true);
 }
 
 function hojaSancion(eq) {
@@ -902,10 +1098,10 @@ function pEntre() {
       ${desc > 0 && prev.fin ? '<p class="cuenta" id="cuenta" aria-live="off"></p>' : ''}
       ${s.golden ? `<p class="small muted">Desempate a un set: hay sorteo, se juega a ${ST.cfg.puntosDecisivo} y se cambia de campo cuando un equipo llega a ${ST.cfg.cambioDecisivo}. No cambia el resultado del partido.</p>` : s.decisivo ? '<p class="small muted">Set decisivo: hay sorteo, se juega a ' + ST.cfg.puntosDecisivo + ' y se cambia de campo cuando un equipo llega a ' + ST.cfg.cambioDecisivo + '.</p>' : `<p class="small muted">Cambio de campo. Saca primero ${esc(eqNombre(s.saqueInicial))}.</p>`}</section>
     ${s.decisivo ? `<section class="card"><h2>Sorteo del set decisivo</h2><fieldset><legend>Saca primero</legend>${opcionesEq('saca', s.saqueInicial)}</fieldset><fieldset><legend>A la izquierda del anotador</legend>${opcionesEq('izq', s.izq)}</fieldset></section>` : ''}
-    <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2>${selectorAlineacion('L', s.alineacion.L || prev.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2>${selectorAlineacion('V', s.alineacion.V || prev.alineacion.V)}</section></div>
+    <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2><div data-formtab="L"></div>${selectorAlineacion('L', s.alineacion.L || prev.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2><div data-formtab="V"></div>${selectorAlineacion('V', s.alineacion.V || prev.alineacion.V)}</section></div>
     ${ST.castigosPendientes.length ? `<p class="msg err">Al empezar el set: ${ST.castigosPendientes.map((c) => `punto para ${esc(eqNombre(c.eq))} (${esc(SANC[c.tipo]).toLowerCase()})`).join(' · ')}.</p>` : ''}
-    <div class="barra"><button class="primary" id="empezar">Empezar el set ${s.n}</button><button data-sanc-entre="L">Sanción ${esc(eqNombre('L'))}</button><button data-sanc-entre="V">Sanción ${esc(eqNombre('V'))}</button><button id="deshacer">Deshacer</button><button id="obs">Observación</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>`;
-  enlazarAlineacion();
+    <div class="barra"><button class="primary" id="empezar">Empezar el set ${s.n}</button><button data-sanc-entre="L">Sanción ${esc(eqNombre('L'))}</button><button data-sanc-entre="V">Sanción ${esc(eqNombre('V'))}</button>${botonTablets()}<button id="deshacer">Deshacer</button><button id="obs">Observación</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>`;
+  enlazarAlineacion(); vigilarFormaciones(s.n);
   $('empezar').onclick = () => empezarSet(s.decisivo);
   // Cuenta atrás del descanso (3 min, o lo puesto en Datos; entre el 2º y el 3º puede ser distinto). Pasado, en rojo.
   clearInterval(RELOJ);
