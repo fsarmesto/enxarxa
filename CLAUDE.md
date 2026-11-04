@@ -1067,6 +1067,15 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     apuntan en ambos lados"; turnos y PUNTS siguen donde iban; "Punts al canvi" = sus puntos al cambiar). El turno en
     curso al cambiar: en la parte 1 solo la "/" (abierto) y se cierra en la parte 3. El estado del cambio se saca
     reproduciendo el acta suceso a suceso hasta `cambioHecho`. Prueba: fcvb3.mjs (5 sets).
+    Paso 4 (`abajo`, `observaciones`, `annex`): sanciones (5 filas; número / E, 2E… / D por demora en A-C-E-D, equipo,
+    set, marcador; las que no caben, a observaciones), solicitud improcedente (X en A o B), cuadro de resultados (T S G
+    PUNTS por set y total; las sustituciones excepcionales suman, FIVB 15.7), HI / HF / TT, ganador "3 : x", RESULTATS
+    (L/V) junto a las "/" impresas. Observaciones en catalán (frases de las circulares: delegat, cadets, psicòleg…,
+    substitució excepcional, redesignació del lliure, no presentació, equip incomplet) + las del anotador, en las 4
+    líneas; lo que no cabe → "Continua al full annex" y 2ª página con el Format 5 (`fcvb/complement-observacions.svg`,
+    A4 vertical, `@page fcvbv`): temporada, competició, encontre, data i hora, població, 1r àrbitre y llicència,
+    comentaris y "població, a dia de mes de any". En pantalla se encoge con `zoom` (`escalarFcvb`). Desde el paso 4,
+    "Ver acta" abre el acta FCVB por defecto. Pendiente: firmas (Ferran: más adelante), acta de infantil.
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución

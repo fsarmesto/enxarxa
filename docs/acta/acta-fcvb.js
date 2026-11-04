@@ -10,12 +10,19 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const TINTA = '#0b2a6f';   // azul de bolígrafo, como el acta a mano
 
 // ---------- Utilidades de colocación ----------
+// Ancho estimado de un texto (Arial): las mayúsculas y cifras ocupan más que las minúsculas.
+const anchoTexto = (s, fs) => [...String(s)].reduce((t, c) => t + (/[A-ZÀ-ÖØ-Þ0-9]/.test(c) ? 0.68 : c === ' ' ? 0.28 : 0.52), 0) * fs;
+// Reparte un texto en líneas de ancho máximo `w` (pt).
+function enLineas(texto, w, fs) {
+  const out = []; let l = '';
+  for (const p of String(texto).split(/\s+/).filter(Boolean)) { const c = l ? l + ' ' + p : p; if (anchoTexto(c, fs) <= w || !l) l = c; else { out.push(l); l = p; } }
+  if (l) out.push(l); return out;
+}
 // Texto dentro de una caja (x, y = arriba-izquierda; w, h en pt). Se encoge si no cabe.
 function txt(x, y, w, h, t, o = {}) {
   if (t == null || t === '') return '';
   const s = String(t), fs = o.fs || Math.max(6.5, Math.min(h * 0.72, 9.5));
-  // Ancho estimado (Arial): las mayúsculas y cifras ocupan más que las minúsculas.
-  const ancho = [...s].reduce((t, c) => t + (/[A-ZÀ-ÖØ-Þ0-9]/.test(c) ? 0.68 : c === ' ' ? 0.28 : 0.52), 0) * fs;
+  const ancho = anchoTexto(s, fs);
   const k = ancho > w ? Math.max(0.55, w / ancho) : 1;      // estrecha el texto si es largo
   const al = o.al || 'left';
   return `<div class="f-t" style="left:${x}pt;top:${y}pt;width:${w}pt;height:${h}pt;font-size:${fs}pt;justify-content:${al === 'center' ? 'center' : al === 'right' ? 'flex-end' : 'flex-start'}${o.b ? ';font-weight:700' : ''}"><span style="transform:scaleX(${k.toFixed(3)});transform-origin:${al === 'right' ? 'right' : al === 'center' ? 'center' : 'left'} center">${esc(s)}</span></div>`;
@@ -194,6 +201,95 @@ function set5Bloque(A, st, s, M, out) {
     puntos: prog3.filter((p) => p.n > ptsCambio), total: prog3.length, punto: pn3.punto, reloj: s.fin ? pn3.reloj : null, tiempos: s.tiempos[X], T: T(S5.p3) }, out);
 }
 
+
+// ---------- Abajo: sanciones, solicitud improcedente, resultados, horas, ganador y observaciones ----------
+const CARGO = { E: 'E', E2: '2E', E3: '3E', F: 'F', M: 'M', PS: 'PS', PF: 'PF', MS: 'MS' };
+const COL_SANC = { amonestacion: 0, castigo: 1, expulsion: 2, descalificacion: 3, avisoRetraso: 0, castigoRetraso: 1 };
+const SANC_X = [8.3, 23.1, 37.8, 52.6, 67.4, 82.1, 96.9, 128.7], SANC_Y0 = 528.4, SANC_H = 12.0, SANC_FILAS = 5;
+const TAULA_X = [464.2, 483.9, 501.4, 518.9, 543.3, 567.8, 585.2, 602.8, 621.5], TAULA_Y = [467.8, 480.8, 493.7, 506.8, 519.7, 532.7, 546.2];
+const BARRAS_RES = [225.6, 277.4, 331.2, 386.4, 440.2];   // las "/" impresas de RESULTATS (L/V)
+const nomEq = (st, eq) => st.equipos[eq].nombre || '';
+// Observaciones que salen solas, en catalán (frases de las circulares de la FCVB) + las escritas por el anotador.
+function observaciones(A, st) {
+  const d = A.datos, o = [];
+  for (const eq of ['L', 'V']) {
+    const n = (eq === 'L' ? d.local : d.visitante) || nomEq(st, eq);
+    if (d['delegado' + eq]) o.push(`L'equip ${n} presenta delegat/da ${d['delegado' + eq]}.`);
+    const cad = st.equipos[eq].jugadores.filter((j) => j.cat === 'C').map((j) => j.num);
+    if (cad.length) o.push(`L'equip ${n} inscriu jugadors/es cadets: ${cad.join(', ')}.`);
+    for (const [rol, t] of [['PS', 'psicòleg/oga'], ['PF', 'preparador/a físic/a'], ['MS', 'massatgista']]) {
+      const x = st.equipos[eq].oficiales.find((z) => z.rol === rol && z.nombre); if (x) o.push(`L'equip ${n} inscriu ${t}: ${x.nombre}.`);
+    }
+    const f = st.equipos[eq].oficiales.find((z) => z.rol === 'F' && z.nombre), m = st.equipos[eq].oficiales.find((z) => z.rol === 'M' && z.nombre);
+    if (f && m) o.push(`L'equip ${n} inscriu metge/essa: ${m.nombre}.`);   // el T/M ya lleva al fisio
+  }
+  for (const s of st.sets) for (const eq of ['L', 'V']) for (const x of s.sust[eq].filter((z) => z.tipo === 'excepcional'))
+    o.push(`Set ${s.n}: substitució excepcional de l'equip ${nomEq(st, eq)}, surt el ${x.sale} i entra el ${x.entra} (${x.a}:${x.b}).`);
+  for (const eq of ['L', 'V']) for (const x of st.liberosFuera[eq])
+    o.push(x.nuevo ? `L'equip ${nomEq(st, eq)} redesigna com a lliure el núm. ${x.nuevo} al set ${x.set} (${x.a}:${x.b}) per la incapacitat del lliure ${x.libero}.`
+      : `El lliure ${x.libero} de l'equip ${nomEq(st, eq)} és declarat incapaç de jugar al set ${x.set} (${x.a}:${x.b}).`);
+  if (st.incompleto) o.push(st.incompleto.motivo === 'incomparecencia' ? `No presentació de l'equip ${nomEq(st, st.incompleto.eq)}.` : `L'equip ${nomEq(st, st.incompleto.eq)} queda incomplet al set ${st.incompleto.set} (${st.incompleto.a}:${st.incompleto.b}).`);
+  const sanc = st.sanciones.filter((x) => COL_SANC[x.tipo] != null);
+  if (sanc.length > SANC_FILAS) for (const x of sanc.slice(SANC_FILAS))
+    o.push(`Sanció (${{ amonestacion: 'amonestació', castigo: 'càstig', expulsion: 'expulsió', descalificacion: 'desqualificació', avisoRetraso: 'amonestació per demora', castigoRetraso: 'càstig per demora' }[x.tipo]}) a ${M_DORSAL(x.quien) ? 'el ' + x.quien : CARGO[x.quien] || x.quien} de l'equip ${nomEq(st, x.eq)}, set ${x.set} (${x.a}:${x.b}).`);
+  for (const x of st.observaciones) o.push(x.texto);
+  return o;
+}
+const M_DORSAL = (q) => /^\d{1,2}$/.test(String(q));
+function abajo(A, st, M, eqA, out) {
+  const d = A.datos, letra = (eq) => (eq === eqA ? 'A' : 'B'), eqB = eqA === 'L' ? 'V' : 'L';
+  // Sanciones: número (E, 2E… si es oficial; D si es por demora) en la columna A/C/E/D, equipo, set y marcador
+  st.sanciones.filter((x) => COL_SANC[x.tipo] != null).slice(0, SANC_FILAS).forEach((x, i) => {
+    const y = SANC_Y0 + i * SANC_H, c = COL_SANC[x.tipo];
+    const quien = /Retraso/.test(x.tipo) ? 'D' : M_DORSAL(x.quien) ? x.quien : CARGO[x.quien] || x.quien;
+    out.push(txt(SANC_X[c], y, SANC_X[c + 1] - SANC_X[c], SANC_H, quien, { al: 'center', fs: 8.5 }));
+    out.push(txt(SANC_X[4], y, SANC_X[5] - SANC_X[4], SANC_H, letra(x.eq), { al: 'center', fs: 8.5 }));
+    out.push(txt(SANC_X[5], y, SANC_X[6] - SANC_X[5], SANC_H, x.set, { al: 'center', fs: 8.5 }));
+    out.push(txt(SANC_X[6], y, 14.5, SANC_H, x.a, { al: 'right', fs: 8.5 }), txt(114.8, y, 13, SANC_H, x.b, { fs: 8.5 }));
+  });
+  // Solicitud improcedente: X sobre la A o la B
+  for (const eq of ['L', 'V']) if (st.impropias[eq] > 0) { const [cx, cy] = letra(eq) === 'A' ? [76.2, 508.9] : [114.5, 508.9]; out.push(raya(cx - 5, cy - 5, cx + 5, cy + 5), raya(cx + 5, cy - 5, cx - 5, cy + 5)); }
+  // Cuadro de resultados: A (T S G PUNTS) y B (PUNTS G S T) por set y total
+  const r = M.resultados(st);
+  out.push(txt(479, 442.2, 63, 12.7, st.__abrev[eqA], { b: true }), txt(556, 442.2, 64, 12.7, st.__abrev[eqB], { b: true }));
+  const fila = (i, a, b) => { const y = TAULA_Y[i], h = TAULA_Y[i + 1] - y, v = [a.tiempos, a.sust, a.gana, a.puntos, b.puntos, b.gana, b.sust, b.tiempos];
+    v.forEach((t, k) => out.push(txt(TAULA_X[k], y, TAULA_X[k + 1] - TAULA_X[k], h, t, { al: 'center', fs: 8.5 }))); };
+  r.filas.slice(0, 5).forEach((f, i) => fila(i, f[eqA], f[eqB]));
+  if (r.filas.length && st.fase === 'fin') fila(5, r.total[eqA], r.total[eqB]);
+  // HI, HF, TT (duración total hh:mm) y ganador "3 : x"
+  if (r.inicio) out.push(txt(479, 546.2, 35, 14.3, hora(r.inicio), { fs: 8.5 }));
+  if (r.fin) out.push(txt(528.5, 546.2, 43, 14.3, hora(r.fin), { fs: 8.5 }));
+  if (r.inicio && r.fin) { const m = Math.round((Date.parse(r.fin) - Date.parse(r.inicio)) / 60000); out.push(txt(585, 546.2, 36, 14.3, `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`, { fs: 8.5 })); }
+  if (r.ganador) { const g = r.ganador; out.push(txt(467, 572, 120, 14, g === 'L' ? d.local : d.visitante), txt(603, 572, 15, 14, String(Math.min(r.total.L.gana, r.total.V.gana)))); }
+  // RESULTATS (L/V): "25/20 ; 20/25…" alrededor de las barras impresas
+  st.sets.filter((s) => s.fin && !s.golden).slice(0, 5).forEach((s, i) => { const b = BARRAS_RES[i];
+    out.push(txt(b - 24, 574, 21, 14, s.puntos.L, { al: 'right', fs: 9 }), txt(b + 4, 574, 21, 14, s.puntos.V, { fs: 9 })); });
+  // Observaciones: 4 líneas; lo que no cabe, a la hoja anexa (Format 5)
+  const FS = 7.2, lineas = [[80, 442.2, 382], [11, 454.9, 451], [11, 467.9, 451], [11, 480.9, 451]];
+  const todas = observaciones(A, st).join(' · ');
+  const partes = []; let resto = todas;
+  for (let i = 0; i < lineas.length && resto; i++) {
+    const ult = i === lineas.length - 1, w = lineas[i][2] - (ult ? 80 : 0);
+    const ls = enLineas(resto, w, FS), l = ls[0] || ''; partes.push(l); resto = resto.slice(resto.indexOf(l) + l.length).trim();
+  }
+  partes.forEach((t, i) => out.push(txt(lineas[i][0], lineas[i][1], lineas[i][2], 13, t, { fs: FS })));
+  if (resto) out.push(txt(383, 480.9, 79, 13, 'Continua al full annex', { fs: 6.5, b: true }));
+  return resto;
+}
+// Hoja anexa "Format 5" (A4 vertical): ampliación de las observaciones
+const MESOS = ['gener', 'febrer', 'març', 'abril', 'maig', 'juny', 'juliol', 'agost', 'setembre', 'octubre', 'novembre', 'desembre'];
+function annex(A, resto) {
+  const d = A.datos, out = [], f = String(d.fecha || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (f) { const y = +f[1], mes = +f[2], ini = mes >= 8 ? y : y - 1; out.push(txt(116, 125.5, 14, 12, String(ini).slice(2), { al: 'center' }), txt(151.3, 125.5, 14, 12, String(ini + 1).slice(2), { al: 'center' })); }
+  out.push(txt(100, 171.5, 202, 12, [d.competicion, d.categoria].filter(Boolean).join(' · ')));
+  out.push(txt(89, 195.5, 215, 12, `${d.local || ''} - ${d.visitante || ''}`));
+  out.push(txt(100, 218.5, 203, 12, `${fecha(d.fecha)}${d.hora ? ' ' + d.hora : ''}`), txt(85, 241.5, 215, 12, d.ciudad || d.pabellon || ''));
+  out.push(txt(72, 288.5, 152, 12, cognomNom(d.r1)), txt(137, 302, 24, 12, d.r1Lic || '', { al: 'center' }));
+  enLineas('(continuació) ' + resto, 515, 9).slice(0, 10).forEach((l, i) => out.push(txt(36, 382 + i * 13.5, 520, 13, l, { fs: 9 })));
+  if (f) out.push(txt(305, 726.5, 60, 12, d.ciudad || '', { al: 'center' }), txt(380, 726.5, 14, 12, String(+f[3]), { al: 'center' }), txt(409, 726.5, 89, 12, MESOS[+f[2] - 1], { al: 'center' }), txt(513, 726.5, 33, 12, f[1], { al: 'center' }));
+  return `<div class="fcvb-pagina vertical" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/complement-observacions.svg" alt="">${out.join('')}</div>`;
+}
+
 function pagina(A, ST, M) {
   const d = A.datos, e = ST.equipos, out = [];
   const eqA = ST.sets[0]?.izq || null;                       // equipo A = el de la izquierda del anotador en el set 1
@@ -239,7 +335,8 @@ function pagina(A, ST, M) {
   if (eqA) for (const s of ST.sets) if (s.inicio && s.n <= 4 && !s.golden) setBloque(ST, s, s.n % 2 ? eqA : (eqA === 'L' ? 'V' : 'L'), out);
   const s5 = ST.sets.find((x) => x.n === 5 && x.decisivo && !x.golden && x.inicio);
   if (eqA && s5) set5Bloque(A, ST, s5, M, out);
-  return `<div class="fcvb-pagina" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/model-acta-estandard.svg" alt="">${out.join('')}</div>`;
+  const resto = eqA ? abajo(A, ST, M, eqA, out) : '';
+  return `<div class="fcvb-pagina" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/model-acta-estandard.svg" alt="">${out.join('')}</div>${resto ? annex(A, resto) : ''}`;
 }
 
 window.ActaFcvb = { pagina, abreviatura, cognomNom, W, H };
