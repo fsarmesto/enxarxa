@@ -26,5 +26,20 @@ la página y devuelve el valor), `size(ancho, alto, oscuro)`, `shot(nombre)` (PN
 directo: p. ej. `Page.printToPDF`, `DOM.setFileInputFiles`, `Target.createTarget`), `check(condición, texto)`, `resumen()`,
 `errores()` (excepciones de JS de la página), `fin()`.
 
+`pestana(url)` abre otra pestaña (otro "dispositivo": comparte `localStorage` y por tanto el Supabase simulado) y devuelve
+sus propias `go`, `ev`, `click`, `size`, `shot`, `errores`, `frente` y `cerrar`. Chrome arranca sin frenar los temporizadores
+de las pestañas de fondo (las tablets preguntan cada 2 s aunque no estén delante).
+
+## Tablets de árbitros y entrenadores (`tablets.mjs`)
+```bash
+node tools/pruebas-navegador/tablets.mjs              # castellano; capturas tab-*.png en OUT
+ACTA_CA=1 node tools/pruebas-navegador/tablets.mjs    # catalán: falla si queda algún texto castellano en las tablets
+```
+Necesita `npm i --no-save axe-core@4.10.2` (accesibilidad de las páginas nuevas). Anotador + entrenador local + entrenador
+visitante + árbitros a la vez; las 10 pruebas de la sección 6 del encargo (`specs/acta-tablets-alineacion.md`) y el modo
+Manual / Conexión. Dura unos 2 minutos (espera 17 s para la banda de "Sin datos del anotador"). Simulado: `acta_mesa`,
+`acta_formacion` y las RPC `tablet_estado`, `tablet_enviar_formacion` y `limpiar_mesas` (mismo contrato que la migración 039);
+`localStorage['mock-caido']` = `todo` (nadie llega al servidor) o `anotador` (solo falla lo del anotador).
+
 El Supabase simulado sale de `tools/prueba-accesibilidad.mjs` (se adapta al vuelo) más una tabla `acta_directo` en
 `localStorage`. Para funciones nuevas, añade su simulación en `base.mjs` con el mismo contrato que el SQL real.

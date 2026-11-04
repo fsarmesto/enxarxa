@@ -1182,6 +1182,47 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     durante el partido (Wake Lock), importar un acta (JSON).
   - **Catalán:** `docs/acta/acta-ca.js` (exact + rules + frags, como `i18n-ca.js`; selector ES/CA en la cabecera, idioma
     `liq-lang`; también en el directo y en las confirmaciones). Al cambiar textos en acta.js o motor.js, cambiar su clave.
+- **Tablets (árbitros y entrenadores) (4-nov-2026, encargo `specs/acta-tablets-alineacion.md`, PR #131):**
+  - **Modo de la mesa** (Ferran): `A.cfg.modo` = `manual` (por defecto: todo en un dispositivo, la tablet o el PC del árbitro o
+    del anotador, sin conexión, como siempre) o `conexion`. Se elige en Datos y en "Sorteo y formación inicial" (el partido de
+    prueba entra directo al sorteo); se guarda al momento sin repintar. En manual no sale nada de tablets ni se publica nada;
+    pasar a manual con enlaces activos pide confirmar y deja de compartir. Con el partido empezado no se cambia.
+  - En modo conexión, botón "Tablets" (sorteo, entre sets y juego; hace falta sesión de la app, como el Directo) → 3 enlaces
+    privados con QR (`vendor/qrcode-1.0.0.min.js`, cargado al abrir la hoja): árbitros (1º y 2º el mismo), entrenador local y
+    visitante. `A.tablets = {mesa, arb, entL, entV, creada}`; tokens de 32 [a-z0-9] con la letra del rol delante (`a`, `l`,
+    `v`: así uno no puede estar en 2 columnas ni en 2 mesas; lo encontró la revisión: con cuenta se podía crear una mesa con
+    el token de otra y suplantarla). "Revocar y crear enlaces nuevos" y "Dejar de compartir" (borra la mesa).
+  - Backend (migración 039): `acta_mesa` (estado < 30 kB, `updated_at` lo pone un trigger con la hora del SERVIDOR) y
+    `acta_formacion` (una por mesa, equipo y set; `cerrada` al empezar el set). Anon sin acceso a las tablas; el anotador ve y
+    escribe lo suyo (de `acta_formacion` solo puede cambiar `cerrada`). Las tablets SOLO por 2 funciones security definer:
+    `tablet_estado(tok)` → `{rol, estado, edad, formaciones}` (árbitros: las de los 2 equipos en cuanto llegan, decisión de
+    Ferran; entrenador: solo las suyas; null si el enlace no existe) y `tablet_enviar_formacion(tok, n, dorsales)` (dorsales
+    canónicos, 6 distintos, `estado.abierta = n`, una sola vez: `{ok}` o `{error: enlace|no valida|set empezado|ya enviada}`).
+    `limpiar_mesas()` al crear enlaces (2 días). Probado en PGlite (Postgres en WASM con `auth.uid()` y roles simulados): 38
+    comprobaciones (script en el PR).
+  - Lo publicado (`estadoMesa()`, en `publicarDirecto` → `publicarMesa`, 800 ms de agrupación, y latido cada 10 s salvo con
+    el partido acabado; caduca a los 2 días sin resucitar la mesa): equipos, colores, fase, set, marcador, sets, saque, `izq`,
+    por equipo plantilla `{num, cap, lib}` (SIN nombres), `noPuede`, `rot`, `libero`, tiempos, sustituciones, `parejas`/`cerradas`
+    (quién puede volver por quién), capitán en juego, sanciones, `ultimoTiempo`, `abierta` (el set que admite formaciones) y
+    `recibidas`. Un solo estado para los 3 roles (no 3 vistas como proponía el encargo): la formación de un set sin empezar no
+    está nunca en el estado del motor (solo entra con `empezarSet`), así que no hay nada que esconder; lo privado son las
+    formaciones enviadas y las filtra el SQL. ~1,6 kB con un partido normal. Si falla: botón "Tablets: sin conexión", sin toasts.
+  - Anotador: en sorteo y entre sets pregunta cada 3 s por las formaciones del set (`vigilarFormaciones`; descarta respuestas
+    tardías de otra acta u otro set) → tarjeta "Formación recibida del entrenador (hh:mm)" con [Usar], que SOLO rellena los
+    desplegables (el set lo empieza siempre el anotador); si el motor no la acepta (p. ej. un descalificado), el motivo y sin
+    Usar. El suceso `alineacion` lleva `origen: 'tablet'` si se usó tal cual (el motor lo ignora; no sale en el acta impresa).
+  - Página `docs/acta/tablet/?t=` (`tablet.js`; pregunta cada 2 s). Árbitros, fondo negro: marcador, cuenta atrás de 30 s del
+    tiempo de descanso, las 2 pistas vistas desde la mesa (como `pistaGrande`), por equipo tiempos y sustituciones (aviso en la
+    5ª y 6ª), lista de sustituciones, quién puede volver, líbero, capitán en juego, sanciones; antes de cada set, las formaciones
+    recibidas. Entrenador: antes de cada set, editor de la formación (tocar posición → dorsal; sin líberos ni descalificados;
+    propuesta = la del set anterior; validada con `motor.js`; confirmación "Una vez enviada no se puede cambiar (FIVB 7.3.4)";
+    luego "Enviada a las…" y "Recibida por el anotador"); durante el set, las 2 pistas y su panel. No ve la del rival antes de
+    empezar. Reloj del set, cuenta atrás y "Sin datos del anotador desde hace X s" (banda roja a los 15 s) con la `edad` del
+    servidor, no con el reloj de la tablet. Lector de pantalla: el marcador se anuncia desde `#anuncio` (se repinta entero).
+  - Pruebas: `tools/pruebas-navegador/tablets.mjs` (4 pestañas a la vez; las 10 pruebas del encargo, modo manual/conexión, axe y,
+    con `ACTA_CA=1`, el catalán): 65 OK en castellano y 70 en catalán. Revisión independiente (4 revisores + verificación)
+    antes del PR: 8 fallos reales arreglados (tokens, latido, respuesta tardía, más de 2 líberos tras re-designar, escapar el
+    estado en la tablet, contraste de la banda, mensajes de un set en el siguiente, aria-live).
 - Pruebas: `node --test tools/prueba-acta-motor.mjs` (21 casos de reglas). Banco de pruebas con Chrome: un solo perfil
   fijo en /tmp que se vacía al empezar (`tools/prueba-accesibilidad.mjs` igual): los perfiles temporales sin borrar, de
   ~180 MB cada uno, llenaron /tmp (tmpfs de 7,4 GB) el 3-nov. Partido completo con clics reales y axe: banco de la
