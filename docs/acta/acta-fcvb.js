@@ -36,6 +36,9 @@ const cruz = (x, y, w, h) => raya(x + 1.5, y + 1.5, x + w - 1.5, y + h - 1.5) + 
 // Reloj de arena sobre los puntos que sobran de una columna (de y1 a y2, entre x1 y x2).
 const reloj = (x1, y1, x2, y2) => raya(x1, y1, x2, y1) + raya(x1, y2, x2, y2) + raya(x1, y1, x2, y2) + raya(x2, y1, x1, y2);
 const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '');
+// Texto apoyado en la línea base `base` (pt), como la letra impresa del rótulo o encima de un renglón. Con line-height 1,
+// la línea base de Arial queda a 0,8465 × tamaño desde arriba.
+function linea(x, base, w, t, o = {}) { const fs = o.fs || 9.5; return txt(x, base - 0.8465 * fs, w, fs, t, { ...o, fs }); }
 const circulo = (cx, cy, r) => `<div class="f-c" style="left:${cx - r}pt;top:${cy - r}pt;width:${2 * r}pt;height:${2 * r}pt"></div>`;
 
 // ---------- Nombres ----------
@@ -142,16 +145,16 @@ function puntsNormal(x0, y0) {
   return { punto, reloj: [[1, 13, xc + 1, xc + 9.6], [14, 25, xc + 10.8, xc + 19.8], [26, 37, xc + 20.4, xc + 29.4]] };
 }
 const filasSet = (dy) => ({ alin: 79.1 + dy, entra: 92.2 + dy, mEntra: 105.1 + dy, mVuelve: 118.1 + dy, saque: 131.0 + dy });
-const hhmm = (iso, xh, xc, y) => { const [h, m] = hora(iso).split(':'); return h ? txt(xh, y, xc - xh - 1, 13, h, { al: 'right' }) + txt(xc + 2.5, y, 16, 13, m) : ''; };
+const hhmm = (iso, xh, xc, base) => { const [h, m] = hora(iso).split(':'); return h ? linea(xh, base, xc - xh - 1, h, { al: 'right', fs: 9 }) + linea(xc + 2.5, base, 16, m, { fs: 9 }) : ''; };
 const conNumero = (prog, eq, desde = 0) => prog.filter((p) => p.eq === eq && !p.anulado).map((p, i) => ({ ...p, n: i + 1 })).filter((p) => p.n > desde);
 
 function setBloque(st, s, eqIzq, out) {
   const [dx, dy] = SET.off[s.n], eqs = [eqIzq, eqIzq === 'L' ? 'V' : 'L'];
-  out.push(hhmm(s.inicio, dx + 46, dx + SET.inici[1], dy + SET.fila.cab), hhmm(s.fin, dx + 353.5, dx + SET.final[1], dy + SET.fila.cab));
+  out.push(hhmm(s.inicio, dx + 46, dx + SET.inici[1], dy + 64.5), hhmm(s.fin, dx + 353.5, dx + SET.final[1], dy + 63.7));
   if (s.inicio && s.fin) out.push(txt(dx + SET.min[0], dy + SET.min[1], SET.min[2], SET.min[3], String(Math.round((Date.parse(s.fin) - Date.parse(s.inicio)) / 60000)), { al: 'center' }));
   eqs.forEach((eq, k) => {
     const mx = dx + k * SET.mitad;
-    out.push(txt(dx + SET.abrev[k][0], dy + SET.fila.cab, SET.abrev[k][1], 13, st.__abrev[eq], { b: true }));
+    out.push(linea(dx + SET.abrev[k][0], dy + 64.9, SET.abrev[k][1], st.__abrev[eq], { b: true, fs: 9 }));
     const [sx1, sx2] = SET.sr[k], yS = dy + SET.fila.cab;
     out.push(s.saqueInicial === eq ? raya(dx + sx1 + 1, yS + 1, dx + sx2 - 1, yS + 6) : raya(dx + sx1 + 1, yS + 7.5, dx + sx2 - 1, yS + 12.5));
     const pn = puntsNormal(mx + 200.65, dy + 70.75), prog = conNumero(s.progreso, eq);
@@ -176,8 +179,8 @@ function set5Bloque(A, st, s, M, out) {
   const letra = (eq) => (eq === st.sets[0].izq ? 'A' : 'B');
   const enCirc = ([cx, cy], t) => txt(cx - 5, cy - 6, 10, 12, t, { al: 'center', b: true });
   out.push(enCirc(S5.circ.p1, letra(X)), enCirc(S5.circ.p2, letra(Y)), enCirc(S5.circ.p3, letra(X)));
-  out.push(txt(125, cab, 58, 13, st.__abrev[X], { b: true }), txt(266, cab, 112, 13, st.__abrev[Y], { b: true }));
-  out.push(hhmm(s.inicio, 47, 64.1, cab + 0.3), hhmm(s.fin, 561, 575.4, cab + 0.3));
+  out.push(linea(125, 324.5, 58, st.__abrev[X], { b: true, fs: 9 }), linea(266, 324.5, 112, st.__abrev[Y], { b: true, fs: 9 }));
+  out.push(hhmm(s.inicio, 47, 64.1, 324.0), hhmm(s.fin, 561, 575.4, 324.5));
   if (s.inicio && s.fin) out.push(txt(8.5, 426, 21.3, 16, String(Math.round((Date.parse(s.fin) - Date.parse(s.inicio)) / 60000)), { al: 'center' }));
   for (const [eq, x1, x2] of [[X, 185.5, 196.5], [Y, 381.2, 392.6]]) out.push(s.saqueInicial === eq ? raya(x1 + 1, cab + 1, x2 - 1, cab + 6) : raya(x1 + 1, cab + 7.5, x2 - 1, cab + 12.5));
   const cols = (d) => SET.col.map((c) => c + d), subs = (d) => SET.sub.map((c) => c + d), y = filasSet(dy), al = s.alineacion;
@@ -257,36 +260,38 @@ function abajo(A, st, M, eqA, out) {
   r.filas.slice(0, 5).forEach((f, i) => fila(i, f[eqA], f[eqB]));
   if (r.filas.length && st.fase === 'fin') fila(5, r.total[eqA], r.total[eqB]);
   // HI, HF, TT (duración total hh:mm) y ganador "3 : x"
-  if (r.inicio) out.push(txt(479, 546.2, 35, 14.3, hora(r.inicio), { fs: 8.5 }));
-  if (r.fin) out.push(txt(528.5, 546.2, 43, 14.3, hora(r.fin), { fs: 8.5 }));
-  if (r.inicio && r.fin) { const m = Math.round((Date.parse(r.fin) - Date.parse(r.inicio)) / 60000); out.push(txt(585, 546.2, 36, 14.3, `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`, { fs: 8.5 })); }
-  if (r.ganador) { const g = r.ganador; out.push(txt(467, 572, 120, 14, g === 'L' ? d.local : d.visitante), txt(603, 572, 15, 14, String(Math.min(r.total.L.gana, r.total.V.gana)))); }
+  if (r.inicio) out.push(linea(479, 557.9, 35, hora(r.inicio), { fs: 8.5 }));
+  if (r.fin) out.push(linea(528.5, 558.2, 43, hora(r.fin), { fs: 8.5 }));
+  if (r.inicio && r.fin) { const m = Math.round((Date.parse(r.fin) - Date.parse(r.inicio)) / 60000); out.push(linea(585, 558.2, 36, `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`, { fs: 8.5 })); }
+  if (r.ganador) { const g = r.ganador; out.push(linea(467, 582.0, 120, g === 'L' ? d.local : d.visitante), linea(603, 582.0, 15, String(Math.min(r.total.L.gana, r.total.V.gana)))); }
   // RESULTATS (L/V): "25/20 ; 20/25…" alrededor de las barras impresas
   st.sets.filter((s) => s.fin && !s.golden).slice(0, 5).forEach((s, i) => { const b = BARRAS_RES[i];
-    out.push(txt(b - 24, 574, 21, 14, s.puntos.L, { al: 'right', fs: 9 }), txt(b + 4, 574, 21, 14, s.puntos.V, { fs: 9 })); });
+    out.push(linea(b - 24, 584.8, 21, s.puntos.L, { al: 'right', fs: 9 }), linea(b + 4, 584.8, 21, s.puntos.V, { fs: 9 })); });
   // Observaciones: 4 líneas; lo que no cabe, a la hoja anexa (Format 5)
-  const FS = 7.2, lineas = [[80, 442.2, 382], [11, 454.9, 451], [11, 467.9, 451], [11, 480.9, 451]];
+  const FS = 7.2, lineas = [[80, 453.3, 382], [11, 465.6, 451], [11, 478.6, 451], [11, 491.6, 451]];   // [x, línea base, ancho]
   const todas = observaciones(A, st).join(' · ');
   const partes = []; let resto = todas;
   for (let i = 0; i < lineas.length && resto; i++) {
     const ult = i === lineas.length - 1, w = lineas[i][2] - (ult ? 80 : 0);
     const ls = enLineas(resto, w, FS), l = ls[0] || ''; partes.push(l); resto = resto.slice(resto.indexOf(l) + l.length).trim();
   }
-  partes.forEach((t, i) => out.push(txt(lineas[i][0], lineas[i][1], lineas[i][2], 13, t, { fs: FS })));
-  if (resto) out.push(txt(383, 480.9, 79, 13, 'Continua al full annex', { fs: 6.5, b: true }));
+  partes.forEach((t, i) => out.push(linea(lineas[i][0], lineas[i][1], lineas[i][2], t, { fs: FS })));
+  if (resto) out.push(linea(383, 491.6, 79, 'Continua al full annex', { fs: 6.5, b: true }));
   return resto;
 }
 // Hoja anexa "Format 5" (A4 vertical): ampliación de las observaciones
 const MESOS = ['gener', 'febrer', 'març', 'abril', 'maig', 'juny', 'juliol', 'agost', 'setembre', 'octubre', 'novembre', 'desembre'];
 function annex(A, resto) {
   const d = A.datos, out = [], f = String(d.fecha || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (f) { const y = +f[1], mes = +f[2], ini = mes >= 8 ? y : y - 1; out.push(txt(116, 125.5, 14, 12, String(ini).slice(2), { al: 'center' }), txt(151.3, 125.5, 14, 12, String(ini + 1).slice(2), { al: 'center' })); }
-  out.push(txt(100, 171.5, 202, 12, [d.competicion, d.categoria].filter(Boolean).join(' · ')));
-  out.push(txt(89, 195.5, 215, 12, `${d.local || ''} - ${d.visitante || ''}`));
-  out.push(txt(100, 218.5, 203, 12, `${fecha(d.fecha)}${d.hora ? ' ' + d.hora : ''}`), txt(85, 241.5, 215, 12, d.ciudad || d.pabellon || ''));
-  out.push(txt(72, 288.5, 152, 12, cognomNom(d.r1)), txt(137, 302, 24, 12, d.r1Lic || '', { al: 'center' }));
-  enLineas('(continuació) ' + resto, 515, 9).slice(0, 10).forEach((l, i) => out.push(txt(36, 382 + i * 13.5, 520, 13, l, { fs: 9 })));
-  if (f) out.push(txt(305, 726.5, 60, 12, d.ciudad || '', { al: 'center' }), txt(380, 726.5, 14, 12, String(+f[3]), { al: 'center' }), txt(409, 726.5, 89, 12, MESOS[+f[2] - 1], { al: 'center' }), txt(513, 726.5, 33, 12, f[1], { al: 'center' }));
+  if (f) { const y = +f[1], mes = +f[2], ini = mes >= 8 ? y : y - 1; out.push(linea(116, 134.9, 14, String(ini).slice(2), { al: 'center', fs: 10 }), linea(151.3, 134.9, 14, String(ini + 1).slice(2), { al: 'center', fs: 10 })); }
+  out.push(linea(100, 181.2, 202, [d.competicion, d.categoria].filter(Boolean).join(' · '), { fs: 10 }));
+  out.push(linea(89, 205.3, 215, `${d.local || ''} - ${d.visitante || ''}`, { fs: 10 }));
+  out.push(linea(100, 228.2, 203, `${fecha(d.fecha)}${d.hora ? ' ' + d.hora : ''}`, { fs: 10 }), linea(85, 251.3, 215, d.ciudad || d.pabellon || '', { fs: 10 }));
+  out.push(linea(72, 298.5, 152, cognomNom(d.r1), { fs: 10 }), linea(137, 312.0, 24, d.r1Lic || '', { al: 'center', fs: 10 }));
+  // Comentarios: un renglón por línea impresa (no van a distancia fija)
+  const RENGLONES = [397.5, 417.0, 432.7, 452.2, 470.2, 489.6];
+  enLineas('(continuació) ' + resto, 500, 9.5).slice(0, RENGLONES.length).forEach((l, i) => out.push(linea(38, RENGLONES[i] - 2, 500, l, { fs: 9.5 })));
+  if (f) out.push(linea(305, 736.3, 60, d.ciudad || '', { al: 'center', fs: 10 }), linea(380, 736.3, 14, String(+f[3]), { al: 'center', fs: 10 }), linea(409, 736.3, 89, MESOS[+f[2] - 1], { al: 'center', fs: 10 }), linea(513, 736.3, 33, f[1], { al: 'center', fs: 10 }));
   return `<div class="fcvb-pagina vertical" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/complement-observacions.svg" alt="">${out.join('')}</div>`;
 }
 
@@ -295,13 +300,13 @@ function pagina(A, ST, M) {
   const eqA = ST.sets[0]?.izq || null;                       // equipo A = el de la izquierda del anotador en el set 1
   const letra = (eq) => (eqA ? (eq === eqA ? 'A' : 'B') : '');
   // Cabecera
-  out.push(txt(...G.competicio, [d.competicion, d.categoria].filter(Boolean).join(' · ')));
-  out.push(txt(...G.data, fecha(d.fecha)));
+  out.push(linea(70, 18.0, 305, [d.competicion, d.categoria].filter(Boolean).join(' · ')));
+  out.push(linea(407, 20.1, 72, fecha(d.fecha)));
   const [hh, mm] = String(d.hora || '').split(':');
-  out.push(txt(...G.horaH, hh || '', { al: 'right' }), txt(...G.horaM, mm || ''));
-  out.push(txt(...G.equipL, d.local), txt(...G.equipV, d.visitante));
+  out.push(linea(512, 20.6, 20, hh || '', { al: 'right' }), linea(537, 20.6, 22, mm || ''));
+  out.push(linea(64, 34.4, 214, d.local), linea(337, 34.7, 222, d.visitante));
   if (eqA) { const l = G.letraL[letra('L')], v = G.letraV[letra('V')]; out.push(circulo(l[0], l[1], 5.2), circulo(v[0], v[1], 5.2)); }
-  out.push(txt(...G.terreny, [d.pabellon, d.ciudad].filter(Boolean).join(' - ')));
+  out.push(linea(91, 50.3, 465, [d.pabellon, d.ciudad].filter(Boolean).join(' - ')));
   // Plantillas
   for (const [eq, col, circ, ab] of [['L', G.colL, G.circL, G.abrevL], ['V', G.colV, G.circV, G.abrevV]]) {
     out.push(txt(circ[0] - 4.5, circ[1] - 5.5, 9, 11, letra(eq), { al: 'center', b: true }));
@@ -327,8 +332,8 @@ function pagina(A, ST, M) {
   }
   // Árbitros
   [[d.r1, d.r1Lic], [d.r2, d.r2Lic], [d.an, d.anLic]].forEach(([n, lic], i) => {
-    const [y, h] = G.arbFilas[i];
-    out.push(txt(G.arbNom[0], y, G.arbNom[1], h, cognomNom(n)), txt(G.arbLic[0], y + (i === 0 ? 5 : 0), G.arbLic[1], h - (i === 0 ? 5 : 0), lic, { al: 'center' })   /* la 1ª fila lleva el rótulo LLICÈNCIA arriba */);
+    const base = [507.6, 525.9, 546.5][i];
+    out.push(linea(G.arbNom[0], base, G.arbNom[1], cognomNom(n)), linea(G.arbLic[0], base + (i === 0 ? 2.8 : 0), G.arbLic[1], lic, { al: 'center', fs: i === 0 ? 8.5 : 9.5 }));   // la 1ª fila lleva el rótulo LLICÈNCIA arriba
   });
   // Sets 1 a 4 y el 5 (decisivo, en 3 partes). Equipo de la mitad izquierda: A en los sets 1 y 3, B en los 2 y 4.
   ST.__abrev = { L: d.abrevL || abreviatura(d.local), V: d.abrevV || abreviatura(d.visitante) };
