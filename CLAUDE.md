@@ -825,6 +825,13 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   la propuesta". Guardar varios = acción `lote` (hasta 300, con las comprobaciones de `asignar`). Excel con la columna
   "Pasado a iSquad". El mensaje de WhatsApp por árbitro se QUITÓ el 4-nov-2026 (Ferran: Albert no avisa por WhatsApp; la
   disponibilidad, por el formulario o por correo, que él añade a mano o importa).
+- **Por pabellón** (4-nov-2026, Ferran: Albert ya sabe qué pabellones hay y lo cerca que están; `pabellonesHtml` en
+  vistas.js): un `details` plegable por pabellón (orden: población y nombre) con resumen (partidos, R1 que faltan, un
+  cuadrito de color por partido). Dentro, bloques por día y franja: botones con quien puede hacer TODA la franja
+  (`quienPuedeBloque`: disponible, sin choques encadenando los de la franja, sin coche solo ≤ 12 km; orden por km, "va
+  justo" penaliza) → un clic = R1 en todos (`ponerR1`, la misma que "Franja →", con aviso si choca). Debajo, una línea
+  por partido (`article.m.fila`, con R1/R2/anotador y la casilla iSquad). Abrir/plegar va por el clic en el `summary`, no
+  por el evento `toggle` (salta también al repintar); si la búsqueda deja un solo pabellón, se enseña abierto.
 - **Excel de disponibilidad** (4-nov-2026, `docs/designa-admin/importar.js`): Albert puede seguir con su propio Excel.
   Importar (xlsx/xls/ods/csv) lee el fichero en el navegador, busca la fila de títulos (en las 10 primeras, en cualquier
   hoja) por palabras clave es/ca en cualquier orden (nombre, población/municipio, coche/cotxe, sábado/dissabte,
@@ -833,7 +840,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   motivo); la que dio el árbitro con la app no se toca. Acción `importar` (tandas de 15, 40 s, `origen: designador`).
   "Descargar plantilla" (con hoja de instrucciones) y "Exportar disponibilidad" con las mismas columnas: se reimporta
   tal cual. El Excel del plan lleva una 2ª hoja con la disponibilidad.
-- **Tutorial** (`docs/designa-admin/tutorial.js`): 14 pasos (versión 2) que señalan cada parte (hueco fijo `#tourHueco` encima, la
+- **Tutorial** (`docs/designa-admin/tutorial.js`): 15 pasos (versión 3) que señalan cada parte (hueco fijo `#tourHueco` encima, la
   sombra en el propio elemento queda recortada dentro de la cuadrícula). Se abre solo si `localStorage designa-tour` <
   `TOUR_VERSION`; botón "Cómo funciona". Ver la regla en "Reglas de interfaz".
 - **Recomendación** (en la web): disponible en esa franja; sin choque ni "poco margen"; sin coche y a más de 12 km = no
@@ -845,7 +852,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - Datos: `designa_disp`, `designa_asig` (migración 035) y `designa_hecho` (037, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
 - Pruebas: banco con supabase y `designa` simulados en `~/work/enxarxa-pruebas` (en la máquina del trabajo): `panel.mjs`,
-  `choques.mjs`, `visual.mjs` e `imptour.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
+  `choques.mjs`, `visual.mjs`, `imptour.mjs` y `pabellon.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
   `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote e importar).
 
 ## Acta electrónica (prototipo para la FCVB, 3-nov-2026)

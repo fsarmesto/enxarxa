@@ -115,6 +115,32 @@
 .capa .card{max-width:560px;width:100%} #ficha article.m{border:0;padding:0;margin:0;background:none} #ficha .cab{justify-content:flex-end;margin:-6px -8px 0 0}
 #frLista{margin:0 0 14px;padding-left:20px}
 .chk.hecho{margin-top:6px;font-size:13.5px;min-height:32px}
+/* Por pabellón (vistas.js, pabellonesHtml) */
+details.pab{border:1px solid var(--line);border-left:5px solid var(--yellow);border-radius:8px;margin:0 0 8px;background:var(--surface)}
+details.pab.ok{border-left-color:var(--ok)} details.pab.mal{border-left-color:var(--warn)}
+details.pab summary{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding:10px 12px;cursor:pointer;list-style:none}
+details.pab summary::-webkit-details-marker{display:none}
+details.pab summary::before{content:"▸";font-size:14px;color:var(--ink-2);transition:transform .15s} details.pab[open] summary::before{transform:rotate(90deg)}
+details.pab .pn{display:flex;flex-direction:column;min-width:180px;flex:1} details.pab .pn small{color:var(--ink-2)}
+details.pab .pc{font-size:13.5px;color:var(--ink-2)} details.pab .pc b{color:var(--ink)}
+details.pab .pts{display:flex;gap:3px;flex-wrap:wrap;max-width:240px}
+.pdot{width:12px;height:12px;border-radius:3px;border:1px solid;display:inline-block}
+.pdot.ok{background:var(--ok);border-color:var(--ok)} .pdot.falta{background:var(--yellow);border-color:#000} .pdot.mal{background:var(--warn);border-color:var(--warn)} .pdot.isq{background:var(--ink-3);border-color:var(--ink-3)}
+.pab-in{padding:0 12px 12px}
+.blo{border-top:1px solid var(--line);padding:8px 0 4px}
+.blo h3{font:700 18px/1.2 var(--display);margin:0 0 4px} .blo h3 small{font:400 13px Barlow,system-ui,sans-serif;color:var(--ink-2)}
+.ok-t{color:var(--ok);font-weight:700;margin:0 0 4px}
+article.m.fila{display:grid;grid-template-columns:52px minmax(150px,1.4fr) repeat(3,minmax(110px,1fr)) auto;gap:6px 8px;align-items:center;padding:6px 8px;margin:4px 0;border-left-width:4px}
+article.m.fila.ok{background:var(--ok-bg)} article.m.fila.falta{background:var(--y-bg)} article.m.fila.mal{background:var(--warn-bg);border-color:var(--warn)} article.m.fila.isq{background:var(--surface-2)}
+.fila .fh{font:700 17px/1 var(--display)} .fila .fe{display:flex;flex-direction:column;min-width:0;font-size:13.5px} .fila .fe small{color:var(--ink-2)}
+.fila .fs{display:flex;align-items:center;gap:2px;font-size:12px;font-weight:700;color:var(--ink-2);min-width:0}
+.fila .fs .fr-l{display:none}
+.fila select{margin:0;min-height:36px;padding:4px 6px;font-size:13.5px;min-width:0}
+.fila .fk{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--ink-2);cursor:pointer} .fila .fk input{width:18px;height:18px;accent-color:var(--ink)}
+@media (max-width:760px){
+  article.m.fila{grid-template-columns:44px 1fr auto} .fila .fs{grid-column:1/-1} .fila .fs .fr-l{display:inline;min-width:64px}
+  .fila .fk{grid-column:3;grid-row:1}
+}
 /* Importar (importar.js) y tutorial (tutorial.js) */
 .capa .card.ancha{max-width:920px}
 .imp-scroll{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:6px;margin:0 0 12px}
@@ -265,9 +291,11 @@ const T = {
     grpPisa:'Ya tienen un partido a esta hora', yaTiene:x=>`ya tiene ${x}`, justo:x=>`poco margen: ${x}`, enIsq:'iSquad', enIsqL:'En iSquad:',
     avPisa:(n,x)=>`${n} ya tiene el partido de las ${x}.`, avTit:'Ya tiene un partido a esa hora', avSi:'Ponerlo igualmente', avJusto:(n,x)=>`Ojo: ${n} tiene el partido de las ${x} y va justo de tiempo para el viaje.`,
     yaAqui:n=>`${n} ya está en este partido.`,
-    vRejilla:'Cuadrícula', vLista:'Lista', vMapa:'Mapa', vistaL:'Vista', hecho:'Pasado a iSquad', propuesto:'Propuesta',
+    vRejilla:'Cuadrícula', vPab:'Por pabellón', vLista:'Lista', vMapa:'Mapa', vistaL:'Vista', hecho:'Pasado a iSquad', propuesto:'Propuesta',
     progR1:(a,b)=>`${a} de ${b} con R1`, progHecho:(a,b)=>`${a} de ${b} pasados a iSquad`, progDisp:n=>n===1?'1 árbitro disponible':`${n} árbitros disponibles`, progSinIsq:n=>`${n} sin árbitro en iSquad`,
-    enIsqB:'en iSquad', leyenda:'Leyenda:', ayuda:'Cómo funciona',
+    enIsqB:'en iSquad', leyenda:'Leyenda:',
+    pabRes:(n,p)=>`${n} pabellones · ${p} con partidos sin R1. Abre uno para designarlo.`, pabFalta:n=>n===1?'falta 1 R1':`faltan ${n} R1`, pabOk:'completo',
+    pabPoner:n=>n===1?'R1 del partido que falta:':`R1 de los ${n} que faltan (toda la franja):`, pabJusto:'va justo', pabNadie:'Nadie puede hacer toda la franja: elige partido a partido.', pabCompleta:'Franja completa', ayuda:'Cómo funciona',
     iBoton:'Importar Excel', iPlantilla:'Descargar plantilla', iExportar:'Exportar disponibilidad', iFila:'Fila', iCoche:'Coche', xlsDisp:'Disponibilidad',
     iTit:n=>`Importar disponibilidad · ${n}`, iRes:(a,b,c)=>`${a} nuevas, ${b} se actualizan${c?`, ${c} con errores (no se importan)`:''}. Revisa la lista y pulsa Importar.`,
     iNueva:'nueva', iActualiza:'se actualiza', iImportar:n=>n===1?'Importar 1':`Importar ${n}`, iImportando:(a,b)=>`Importando… ${a} de ${b}`,
@@ -304,9 +332,11 @@ const T = {
     grpPisa:'Ja tenen un partit a aquesta hora', yaTiene:x=>`ja té ${x}`, justo:x=>`poc marge: ${x}`, enIsq:'iSquad', enIsqL:'A iSquad:',
     avPisa:(n,x)=>`${n} ja té el partit de les ${x}.`, avTit:'Ja té un partit a aquesta hora', avSi:'Posa\'l igualment', avJusto:(n,x)=>`Compte: ${n} té el partit de les ${x} i va just de temps per al viatge.`,
     yaAqui:n=>`${n} ja és en aquest partit.`,
-    vRejilla:'Graella', vLista:'Llista', vMapa:'Mapa', vistaL:'Vista', hecho:'Passat a iSquad', propuesto:'Proposta',
+    vRejilla:'Graella', vPab:'Per pavelló', vLista:'Llista', vMapa:'Mapa', vistaL:'Vista', hecho:'Passat a iSquad', propuesto:'Proposta',
     progR1:(a,b)=>`${a} de ${b} amb R1`, progHecho:(a,b)=>`${a} de ${b} passats a iSquad`, progDisp:n=>n===1?'1 àrbitre disponible':`${n} àrbitres disponibles`, progSinIsq:n=>`${n} sense àrbitre a iSquad`,
-    enIsqB:'a iSquad', leyenda:'Llegenda:', ayuda:'Com funciona',
+    enIsqB:'a iSquad', leyenda:'Llegenda:',
+    pabRes:(n,p)=>`${n} pavellons · ${p} amb partits sense R1. Obre'n un per designar-lo.`, pabFalta:n=>n===1?'falta 1 R1':`falten ${n} R1`, pabOk:'complet',
+    pabPoner:n=>n===1?'R1 del partit que falta:':`R1 dels ${n} que falten (tota la franja):`, pabJusto:'va just', pabNadie:'Ningú no pot fer tota la franja: tria partit a partit.', pabCompleta:'Franja completa', ayuda:'Com funciona',
     iBoton:'Importa Excel', iPlantilla:'Descarrega la plantilla', iExportar:'Exporta la disponibilitat', iFila:'Fila', iCoche:'Cotxe', xlsDisp:'Disponibilitat',
     iTit:n=>`Importa disponibilitat · ${n}`, iRes:(a,b,c)=>`${a} noves, ${b} s'actualitzen${c?`, ${c} amb errors (no s'importen)`:''}. Revisa la llista i prem Importa.`,
     iNueva:'nova', iActualiza:'s\'actualitza', iImportar:n=>n===1?'Importa 1':`Importa ${n}`, iImportando:(a,b)=>`Important… ${a} de ${b}`,

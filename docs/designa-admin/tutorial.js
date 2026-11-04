@@ -5,7 +5,7 @@
 // y, si el cambio es visible para Albert, subir TOUR_VERSION (le vuelve a salir con lo nuevo). La prueba visual.mjs
 // recorre todos los pasos y falla si alguno apunta a algo que ya no existe.
 
-const TOUR_VERSION = 2;   // 2 (4-nov-2026): sin el paso de WhatsApp; la disponibilidad, por formulario o correo
+const TOUR_VERSION = 3;   // 2 (4-nov-2026): sin el paso de WhatsApp; la disponibilidad, por formulario o correo. 3: vista Por pabellón
 // sel: lo que se señala (sin sel = ventana centrada). tab/vista: dónde tiene que estar la página para verlo.
 const PASOS = [
   { id: 'hola' },
@@ -13,13 +13,14 @@ const PASOS = [
   { id: 'disp', sel: '#impBar', tab: 'arb' },
   { id: 'progreso', sel: '#kpis', tab: 'part' },
   { id: 'vistas', sel: '#vistas', tab: 'part' },
+  { id: 'pab', sel: '#vistas label:nth-child(2)', tab: 'part' },
   { id: 'colores', sel: '.leyenda', tab: 'part', vista: 'rejilla' },
   { id: 'bloque', sel: '.blq', tab: 'part', vista: 'rejilla' },
   { id: 'choques' },
   { id: 'lado', sel: '#lado', tab: 'part' },
   { id: 'franja', sel: '[data-franja]', tab: 'part', vista: 'rejilla' },
   { id: 'proponer', sel: '#proponer', tab: 'part' },
-  { id: 'mapa', sel: '#vistas label:nth-child(3)', tab: 'part' },
+  { id: 'mapa', sel: '#vistas label:nth-child(4)', tab: 'part' },
   { id: 'excel', sel: '#exportar', tab: 'part' },
   { id: 'fin', sel: '#ayuda' },
 ];
@@ -29,7 +30,8 @@ const TOUR_TXT = {
     finde: ['Fin de semana', 'Elige si preparas este fin de semana o el siguiente.'],
     disp: ['Primero, quién puede', 'La disponibilidad entra de 3 maneras: los árbitros la dan con el enlace del formulario, la importas de tu propio Excel (descarga la plantilla para ver las columnas) o la añades a mano si te la mandan por correo. También la puedes exportar.'],
     progreso: ['Cómo vas', 'Cuántos partidos tienen ya R1 el sábado y el domingo, y cuántos has pasado ya a iSquad.'],
-    vistas: ['3 maneras de verlo', 'Cuadrícula: pabellones y horas de un vistazo. Lista: partido a partido. Mapa: dónde está cada pabellón y cada árbitro.'],
+    vistas: ['4 maneras de verlo', 'Cuadrícula: pabellones y horas de un vistazo. Por pabellón: designas pabellón a pabellón. Lista: partido a partido. Mapa: dónde está cada pabellón y cada árbitro.'],
+    pab: ['Por pabellón', 'Abre un pabellón y verás sus partidos por día y franja. En cada franja te salen los árbitros que pueden hacerla entera, del más cercano al más lejano: un clic y queda puesto de R1 en todos. Debajo puedes afinar partido a partido.'],
     colores: ['Los colores', 'Verde: tiene R1. Amarillo: le falta. Rojo: alguien está en 2 partidos a la vez. Gris: iSquad ya tiene árbitro. Discontinuo: propuesta sin guardar. ✓: ya pasado a iSquad.'],
     bloque: ['Cada partido', 'Tócalo para elegir R1, R2 y anotador. Debajo salen los recomendados (disponibles, cerca y sin otro partido) y la casilla "Pasado a iSquad".'],
     choques: ['Si alguien ya tiene partido', 'Si eliges a alguien que ya tiene un partido a esa hora (en el mismo pabellón, menos de 1 h; en otro, menos de 1 h 45 min), te aviso antes de guardarlo. Tú decides.'],
@@ -46,7 +48,8 @@ const TOUR_TXT = {
     finde: ['Cap de setmana', 'Tria si prepares aquest cap de setmana o el següent.'],
     disp: ['Primer, qui pot', 'La disponibilitat entra de 3 maneres: els àrbitres la donen amb l\'enllaç del formulari, la importes del teu propi Excel (descarrega la plantilla per veure les columnes) o l\'afegeixes a mà si te l\'envien per correu. També la pots exportar.'],
     progreso: ['Com vas', 'Quants partits ja tenen R1 dissabte i diumenge, i quants n\'has passat ja a iSquad.'],
-    vistas: ['3 maneres de veure-ho', 'Graella: pavellons i hores d\'un cop d\'ull. Llista: partit a partit. Mapa: on és cada pavelló i cada àrbitre.'],
+    vistas: ['4 maneres de veure-ho', 'Graella: pavellons i hores d\'un cop d\'ull. Per pavelló: designes pavelló a pavelló. Llista: partit a partit. Mapa: on és cada pavelló i cada àrbitre.'],
+    pab: ['Per pavelló', 'Obre un pavelló i veuràs els seus partits per dia i franja. A cada franja et surten els àrbitres que poden fer-la sencera, del més proper al més llunyà: un clic i queda posat de R1 a tots. A sota pots afinar partit a partit.'],
     colores: ['Els colors', 'Verd: té R1. Groc: li falta. Vermell: algú és a 2 partits alhora. Gris: iSquad ja té àrbitre. Discontinu: proposta sense desar. ✓: ja passat a iSquad.'],
     bloque: ['Cada partit', 'Toca\'l per triar R1, R2 i anotador. A sota surten els recomanats (disponibles, a prop i sense cap altre partit) i la casella "Passat a iSquad".'],
     choques: ['Si algú ja té partit', 'Si tries algú que ja té un partit a aquella hora (al mateix pavelló, menys d\'1 h; en un altre, menys d\'1 h 45 min), t\'aviso abans de desar-ho. Tu decideixes.'],

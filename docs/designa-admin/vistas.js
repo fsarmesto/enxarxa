@@ -39,13 +39,14 @@ function progresoHtml(plan, liga, disp) {
 /* ---------- Pestaña Partidos ---------- */
 function pintarVistaPartidos(plan) {
   $('vPart').classList.remove('hidden'); $('vArb').classList.add('hidden');
-  $('vistas').innerHTML = [['rejilla', t('vRejilla')], ['lista', t('vLista')], ['mapa', t('vMapa')]]
+  $('vistas').innerHTML = [['rejilla', t('vRejilla')], ['pab', t('vPab')], ['lista', t('vLista')], ['mapa', t('vMapa')]]
     .map(([v, l]) => `<label><input type="radio" name="vista" value="${v}"${v === VISTA ? ' checked' : ''}><span>${esc(l)}</span></label>`).join('');
   pintarProp(); pintarLado(plan);
   const ms = filtrados(plan);
   const cab = (D.disp.length ? '' : `<p class="msg err">${esc(t('sinArb'))}</p>`) + `<p class="small muted">${esc(t('planNota'))}</p>`;
   if (VISTA === 'lista') { pintarPartidos(plan, ms); $('lista').insertAdjacentHTML('afterbegin', cab); }
   else if (VISTA === 'mapa') $('lista').innerHTML = cab + mapaHtml(plan, ms);
+  else if (VISTA === 'pab') $('lista').innerHTML = cab + pabellonesHtml(plan, ms);
   else $('lista').innerHTML = cab + leyenda() + rejillaHtml(plan, ms);
   $('lista').classList.toggle('resalta', !!RESALTA);
   if (RESALTA) $('lista').querySelectorAll('[data-key]').forEach(el => el.classList.toggle('suyo', Object.values(plan[el.dataset.key] || {}).includes(RESALTA)));
@@ -159,18 +160,18 @@ function pintarFranja() {
   $('frSi').textContent = t('franjaAplicar')(pend.length); $('frSi').disabled = !pend.length || !cs.length;
 }
 function cerrarFranja() { const de = FR?.desde; FR = null; $('franja').classList.add('hidden'); if (de && de.focus) de.focus(); }
-$('fFranja').addEventListener('submit', async e => {
-  e.preventDefault();
-  const id = $('frArb').value, a = ARB()[id], pend = FR?.pend || [];
-  if (!a || !pend.length) return;
-  // Choques con otros partidos suyos, contando los de esta franja a medida que se le ponen.
+// Pone a un árbitro de R1 en varios partidos (una franja de un pabellón). Avisa antes si choca con otros suyos, contando
+// los de la propia franja a medida que se le ponen. antes() se llama solo si de verdad se guarda (p. ej. cerrar la ventana).
+async function ponerR1(id, pend, antes) {
+  const a = ARB()[id]; if (!a || !pend.length) return;
   let plan = PLAN(); const choques = [];
   for (const m of pend) { const ch = choque(a, m, plan); if (ch?.tipo === 'pisa') choques.push(`${m.d.slice(11, 16)} → ${ocTxt(ch.o)}`); plan = { ...plan, [m.key]: { ...(plan[m.key] || {}), r1: id } }; }
   let forzar = false;
   if (choques.length) { if (!(await confirmarChoque(t('franjaChoque')(choques.join('\n'))))) return; forzar = true; }
-  const items = pend.map(m => ({ key: m.key, rol: 'r1', disp_id: id }));
-  cerrarFranja(); await guardarLote(items, forzar);
-});
+  if (antes) antes();
+  await guardarLote(pend.map(m => ({ key: m.key, rol: 'r1', disp_id: id })), forzar);
+}
+$('fFranja').addEventListener('submit', e => { e.preventDefault(); ponerR1($('frArb').value, FR?.pend || [], cerrarFranja); });
 $('frNo').addEventListener('click', cerrarFranja);
 
 async function guardarLote(items, forzar) {
@@ -227,6 +228,72 @@ async function marcarHecho(key, si) {
   const r = await api({ action: 'hecho', finde: FINDE, key, si });
   if (!r.ok) { msg(r.error || t('red'), 'err'); cargar(); }
 }
+
+/* ---------- Por pabellón (4-nov-2026, Ferran: Albert ya sabe qué pabellones hay y lo cerca que están) ---------- */
+// Un bloque plegable por pabellón (orden: población y nombre), con sus partidos por día y franja. En cada franja con
+// partidos sin R1, botones con quien puede hacerla entera (disponible, sin choques, sin coche solo cerca), del más
+// cercano al más lejano: un clic = R1 en todos. Debajo, cada partido en una línea con R1, R2 y anotador.
+const PAB_ABIERTOS = new Set();
+function quienPuedeBloque(pend, plan) {
+  return D.disp.map(a => {
+    let q = plan, k = 0;
+    for (const m of pend) {
+      if (!disponible(a, m) || Object.values(q[m.key] || {}).includes(a.id) || choque(a, m, q)?.tipo === 'pisa') return null;
+      if (!a.coche && (km(a, m) == null || km(a, m) > 12)) return null;
+      q = { ...q, [m.key]: { ...(q[m.key] || {}), r1: a.id } }; k = km(a, m);
+    }
+    return { a, k, justo: pend.some(m => choque(a, m, plan)?.tipo === 'justo') };
+  }).filter(Boolean).sort((x, y) => (x.k ?? 999) - (y.k ?? 999) + (x.justo - y.justo) * 30 || cuantos(x.a, plan) - cuantos(y.a, plan));
+}
+function filaPartido(m, plan) {
+  const p = plan[m.key] || {}, arb = ARB(), st = estado(m, plan), prop = esPropuesta(m.key);
+  return `<article class="m fila ${st}${prop ? ' prop' : ''}" data-key="${esc(m.key)}"><span class="fh">${esc(m.d.slice(11, 16))}</span>`
+    + `<span class="fe"><b>${esc(corto(m.l))} – ${esc(corto(m.v))}</b><small>${esc(cat(m.cat))}${m.isquad === 'con' ? ' · ' + esc(t('isqCon')) : ''}${/-\s*(PISTA|SALA|CAMP|TERCIO|ANNEX)/i.test(m.pab) ? ' · ' + esc(corto(m.pab.replace(/^.*-\s*/, ''))) : ''}</small></span>`
+    + ['r1', 'r2', 'an'].map(rol => `<label class="fs">${chipArb(arb[p[rol]])}<span class="sr">${esc(t(rol))}</span><span class="fr-l" aria-hidden="true">${esc(t(rol))}</span><select data-rol="${rol}" aria-label="${esc(t(rol))} · ${esc(m.d.slice(11, 16))} ${esc(corto(m.l))} – ${esc(corto(m.v))}">${opciones(m, rol, plan)}</select></label>`).join('')
+    + `<label class="fk" title="${esc(t('hecho'))}"><input type="checkbox" data-hecho${HECHO().has(m.key) ? ' checked' : ''} aria-label="${esc(t('hecho'))} · ${esc(m.d.slice(11, 16))} ${esc(corto(m.l))}"><span aria-hidden="true">iSquad</span></label></article>`;
+}
+function pabellonesHtml(plan, ms) {
+  if (!ms.length) return `<p class="muted">${esc(t('sinPartidos'))}</p>`;
+  const grupos = new Map();
+  for (const m of ms) { const k = sinPista(m.pab); if (!grupos.has(k)) grupos.set(k, { k, pab: m.pab, pob: pobDe(m), dir: m.pista, ms: [] }); grupos.get(k).ms.push(m); }
+  const lista = [...grupos.values()].sort((a, b) => corto(a.pob).localeCompare(corto(b.pob)) || a.pab.localeCompare(b.pab));
+  const solo = lista.length === 1;
+  const pend = lista.filter(g => g.ms.some(m => !plan[m.key]?.r1)).length;
+  let html = `<p class="small muted">${esc(t('pabRes')(lista.length, pend))}</p>`;
+  for (const g of lista) {
+    const sts = g.ms.map(m => estado(m, plan)), falta = g.ms.filter(m => !plan[m.key]?.r1 && m.isquad !== 'con').length;
+    const abierto = solo || PAB_ABIERTOS.has(g.k);
+    const puntos = [...g.ms].sort((a, b) => a.d.localeCompare(b.d)).map(m => `<i class="pdot ${estado(m, plan)}" title="${esc(m.d.slice(11, 16))}"></i>`).join('');
+    html += `<details class="pab ${sts.includes('mal') ? 'mal' : falta ? 'falta' : 'ok'}" data-pk="${esc(g.k)}"${abierto ? ' open' : ''}><summary>`
+      + `<span class="pn"><b>${esc(pabCorto(g.pab))}</b><small>${esc(corto(g.pob))}</small></span>`
+      + `<span class="pc">${esc(t('cargaP')(g.ms.length))}${falta ? ` · <b>${esc(t('pabFalta')(falta))}</b>` : ` · ${esc(t('pabOk'))}`}</span><span class="pts" aria-hidden="true">${puntos}</span></summary>`;
+    if (abierto) {
+      html += `<div class="pab-in">`;
+      for (const d of [...new Set(g.ms.map(m => m.d.slice(0, 10)))]) for (const f of ['manana', 'tarde']) {
+        const bm = g.ms.filter(m => m.d.slice(0, 10) === d && franja(m) === f).sort((a, b) => mins(a) - mins(b));
+        if (!bm.length) continue;
+        const pen = bm.filter(m => !plan[m.key]?.r1 && m.isquad !== 'con'), dl = dia(bm[0]) === 'sab' ? t('sabado') : t('domingo');
+        const cs = pen.length && D.disp.length ? quienPuedeBloque(pen, plan).slice(0, 6) : [];
+        html += `<section class="blo"><h3>${esc(dl)} · ${esc(t(f).toLowerCase())} <small>${esc(t('cargaP')(bm.length))}</small></h3>`
+          + (pen.length ? `<div class="recs"><span class="l">${esc(t('pabPoner')(pen.length))}</span>${cs.length ? cs.map(c => `<button type="button" data-bloque="${esc(bm[0].d.slice(0, 10) + '|' + g.k + '|' + f)}" data-arb="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k != null ? esc(t('km')(c.k)) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.justo ? ' · ' + esc(t('pabJusto')) : ''}</small></button>`).join('') : `<span class="small muted">${esc(t('pabNadie'))}</span>`}</div>` : `<p class="small ok-t">✓ ${esc(t('pabCompleta'))}</p>`)
+          + bm.map(m => filaPartido(m, plan)).join('') + `</section>`;
+      }
+      html += `</div>`;
+    }
+    html += `</details>`;
+  }
+  return html;
+}
+// Abrir y plegar lo decide el clic (también Intro/Espacio en el resumen, que el navegador convierte en clic), no el evento
+// "toggle": ese salta también cuando la página se vuelve a pintar (p. ej. al buscar, que abre solo el único que queda).
+document.addEventListener('click', e => {
+  const sm = e.target.closest && e.target.closest('details.pab > summary'); if (!sm) return;
+  e.preventDefault();
+  const d = sm.parentElement, k = d.dataset.pk;
+  if (d.open) PAB_ABIERTOS.delete(k); else PAB_ABIERTOS.add(k);
+  pintar();
+  document.querySelector(`details.pab[data-pk="${CSS.escape(k)}"] summary`)?.focus();
+});
 
 /* ---------- Mapa ---------- */
 const proy = (lon, lat) => { const C = window.CATALUNYA; return [(lon - C.lon0) * C.cx * C.k, (C.lat0 - lat) * C.k]; };
@@ -289,6 +356,10 @@ document.addEventListener('click', e => {
   const el = e.target.closest ? e.target : e.target.parentElement;
   const v = el.closest('[data-ver]'); if (v) { abrirFicha(v.dataset.key); return; }
   const r = el.closest('[data-resalta]'); if (r) { RESALTA = r.dataset.resalta && r.dataset.resalta !== RESALTA ? r.dataset.resalta : null; pintar(); return; }
+  const bq = el.closest('[data-bloque]');
+  if (bq) { const [d, k, f] = bq.dataset.bloque.split('|'); const plan = PLAN();
+    const pend = D.partidos.filter(m => m.d.slice(0, 10) === d && sinPista(m.pab) === k && franja(m) === f && !plan[m.key]?.r1 && m.isquad !== 'con').sort((a, b) => mins(a) - mins(b));
+    ponerR1(bq.dataset.arb, pend); return; }
   const f = el.closest('[data-franja]'); if (f) { const v = f.dataset.franja, i = v.indexOf('|'); abrirFranja(v.slice(0, i), v.slice(i + 1)); return; }
   const p = el.closest('[data-pab]'); if (p) { MAPA_SEL = MAPA_SEL === p.dataset.pab ? null : p.dataset.pab; pintar(); return; }
   if (el.id === 'propSi') { const items = PROP.map(x => ({ key: x.key, rol: x.rol, disp_id: x.disp_id })); PROP = null; guardarLote(items, false); return; }
