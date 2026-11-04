@@ -807,7 +807,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   observaciones, partidos asignados y sus 3 partidos de liga sin R1 más cercanos; alta, edición y baja a mano (para quien
   avisa por teléfono). Exportar a Excel (lo filtrado). Copiar enlace del formulario.
 - **Choques** (4-nov-2026, Ferran): `choque()` en index.html. Mismo pabellón (cualquier pista): choque si los inicios
-  están a menos de 1 h. Otro pabellón: choque si no da tiempo de verdad = 2 h de partido (`DUR_OCUPA`) + viaje entre
+  están a menos de 1 h 30 (`PISA_MISMO`; Ferran: mínimo real entre partidos en el mismo pabellón; 2 h de partido sí). Otro pabellón: choque si no da tiempo de verdad = 2 h de partido (`DUR_OCUPA`) + viaje entre
   los 2 pabellones (≈ 1 min por km estimado + 10 de aparcar; sin ubicar, 45 min) + llegar 30 min antes (`ANTELACION`).
   Ferran, 4-nov: Terrassa 9:00 → La Torre de Claramunt 12:00 → Barcelona 14:30 "no es para nada factible" (antes solo se
   miraban 1 h 45 min entre inicios). Si se solapan (menos de 2 h) el aviso dice "ya tiene el partido de las…"; si no se

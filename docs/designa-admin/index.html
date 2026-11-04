@@ -455,14 +455,15 @@ const HECHO = () => new Set(D.hecho||[]);
 const ARB = () => Object.fromEntries(D.disp.map(a=>[a.id,a]));
 const disponible = (a, m) => { const v=a[dia(m)]; return v==='ambas' || v===franja(m); };
 // ¿Choca con otro partido suyo? (4-nov-2026, Ferran: nadie puede estar en 2 partidos a la vez.)
-// - 'pisa' = no le da tiempo: en el mismo pabellón, inicios a menos de 1 h; en otro, menos de lo que hace falta de verdad:
+// - 'pisa' = no le da tiempo: en el mismo pabellón, inicios a menos de 1 h 30 (Ferran, 4-nov: el mínimo real entre
+//   partidos en el mismo pabellón; antes 1 h); en otro, menos de lo que hace falta de verdad:
 //   2 h de partido + el viaje entre los 2 pabellones (≈ 1 min por km + 10 de aparcar; sin ubicar, 45 min) + llegar 30 min
 //   antes. (Ferran, 4-nov: Terrassa 9:00 → La Torre de Claramunt 12:00 → Barcelona 14:30 "no es para nada factible";
 //   antes solo se miraban 1 h 45 min entre inicios.) No se recomienda ni se propone; si se elige a mano, sale el aviso
 //   y el designador decide (aviso, no bloqueo). El servidor (choqueDe) es más permisivo (1 h 45 min): solo es la red.
 // - 'justo' = le da tiempo con menos de 30 min de margen → solo se indica.
 // Cuenta su plan en este panel y, si tiene cuenta en la app, lo que ya tiene designado en iSquad (a.isq).
-const PISA_MISMO=60, DUR_OCUPA=120, ANTELACION=30, HOLGURA=30;
+const PISA_MISMO=90, DUR_OCUPA=120, ANTELACION=30, HOLGURA=30;
 const sinPista = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*-\s*(PISTA|TERCIO|TERC|CAMP|SALA|ANNEX).*$/,'').replace(/\s+/g,' ').trim();
 const mismoPab = (a,b) => { const x=sinPista(a), y=sinPista(b); return !!x && !!y && (x===y || x.includes(y) || y.includes(x)); };
 function kmEntre(x, m){ return x.lat==null || m.lat==null ? null : km({lat:x.lat, lon:x.lon, coche:true}, m); }
