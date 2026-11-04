@@ -874,7 +874,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   de momento se corrige a mano) y si en infantil hay líbero (no se ha encontrado ninguna norma catalana que lo prohíba).
 - **"Mete todo" del e-Scoresheet (3-nov-2026):** `repeticion` (jugada repetida: sin punto ni cambio de saque; registro y
   observaciones del acta); `liberoNoPuede {eq, libero, nuevo?}` (FIVB 19.4: si queda otro líbero juega ese; si no, se puede
-  redesignar a un jugador que no esté en pista, nunca el capitán; el que no puede seguir no vuelve en el partido; si estaba en
+  redesignar a un jugador que no esté en pista (también el capitán, desde la regla de 2022); el que no puede seguir no vuelve en el partido; si estaba en
   pista le sustituye directamente). **Directo:** botón "Directo" (hace falta sesión de la app): `acta_directo` (migración
   036; lectura pública por id aleatorio, escritura solo su anotador, `limpiar_directos()` borra los de más de 2 días al abrir
   uno nuevo) con `resumenDirecto()` = equipos, competición, marcador, sets, saque y tiempos, **ningún nombre de jugador**;
@@ -934,6 +934,13 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     esconde en pantallas táctiles. En 375×667 Deshacer acaba en 527 px (Safari del iPhone SE deja ~550 visibles).
     **Doble toque sin zoom:** `touch-action: manipulation` en la página y los controles (el pellizco sigue; no se usa
     `user-scalable=no`). Prueba: ~/work/enxarxa-pruebas/movil-pantalla.mjs.
+  - **Partido de prueba (4-nov-2026, Ferran):** botón "Iniciar partido de prueba" en el inicio (`crearPrueba`, `PRUEBA`):
+    Equipo F – Equipo S con plantillas, entrenadores y árbitros puestos y directo al sorteo; `A.prueba` (sale como
+    "prueba" en Mis actas) y no se guarda como plantilla recordada. En el F, **Ferran Sanchís Armesto (7) es capitán y
+    líbero**; el S tiene capitán el 10 y 2 líberos (2 y 13). El resto de nombres son inventados.
+  - **El líbero puede ser capitán** (del equipo y en juego): FIVB, regla 5, aprobado por el Congreso en feb. 2021 y en
+    vigor desde el 1-1-2022 (fivb.com, "Changes to rules of the game approved by FIVB World Congress"). El motor ya no lo
+    prohíbe al inscribir ni al redesignar líbero. Prueba: ~/work/enxarxa-pruebas/prueba-partido.mjs.
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución

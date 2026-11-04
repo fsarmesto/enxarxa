@@ -146,7 +146,7 @@ function pInicio() {
   $('app').innerHTML = `
     <section class="card"><h2>Nueva acta</h2>
       <p class="small muted">Prototipo para la FCVB: el acta en papel sigue siendo la oficial. Todo se guarda en este dispositivo y funciona sin conexión.</p>
-      <div class="row"><button class="primary" id="nueva">Acta en blanco</button><label class="btn" style="cursor:pointer">Importar un acta (JSON)<input type="file" id="importar" accept="application/json,.json" class="sr"></label></div>
+      <div class="row"><button class="primary" id="nueva">Acta en blanco</button><button id="prueba">Iniciar partido de prueba</button><label class="btn" style="cursor:pointer">Importar un acta (JSON)<input type="file" id="importar" accept="application/json,.json" class="sr"></label></div>
       ${MIOS === null ? '<p class="small muted" style="margin-top:10px">Buscando tus partidos designados…</p>' : MIOS.length ? `<h3 style="margin:14px 0 6px;font-size:15px">O empieza desde uno de tus partidos</h3>
       <div class="row">${MIOS.map((m) => `<button data-desde="${esc(m.id)}">${esc(m.date.slice(8, 10) + '/' + m.date.slice(5, 7))} ${esc(m.time || '')} · ${esc(titulo(m.teams).replace(' Vs ', ' – '))}</button>`).join('')}</div>` : ''}
     </section>
@@ -154,9 +154,10 @@ function pInicio() {
       let st, r;
       try { st = M.reproducir(a.cfg, a.datos, a.ev); r = M.resultados(st); }
       catch (e) { return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(a.datos?.local || 'Local')} – ${esc(a.datos?.visitante || 'Visitante')}</b><br><span class="small" style="color:var(--warn)">No se puede abrir con esta versión: ${esc(e.message)}</span></span><span class="row"><button class="ghost" data-borrar="${esc(a.id)}">Borrar</button></span></div>`; }
-      return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(a.datos.local || 'Local')} – ${esc(a.datos.visitante || 'Visitante')}</b><br><span class="small muted">${esc(a.datos.fecha || '')} · ${st.fase === 'fin' ? `Final ${r.total.L.gana}-${r.total.V.gana}` : st.fase === 'preparacion' ? 'Sin empezar' : `En juego · sets ${st.ganados.L}-${st.ganados.V}`}</span></span>
+      return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(a.datos.local || 'Local')} – ${esc(a.datos.visitante || 'Visitante')}</b>${a.prueba ? ' <span class="chip">prueba</span>' : ''}<br><span class="small muted">${esc(a.datos.fecha || '')} · ${st.fase === 'fin' ? `Final ${r.total.L.gana}-${r.total.V.gana}` : st.fase === 'preparacion' ? 'Sin empezar' : `En juego · sets ${st.ganados.L}-${st.ganados.V}`}</span></span>
         <span class="row"><button data-abrir="${esc(a.id)}">Abrir</button><button class="ghost" data-borrar="${esc(a.id)}">Borrar</button></span></div>`; }).join('')}</section>` : ''}`;
   $('nueva').onclick = () => crear({});
+  $('prueba').onclick = crearPrueba;
   $('importar').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
     try {
@@ -187,6 +188,27 @@ function crear(datos) {
     ...(A_ORIGEN ? { origen: A_ORIGEN } : {}) };
   A_ORIGEN = null; reiniciar();
   guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
+}
+// Partido de prueba (Ferran, 4-nov-2026): Equipo F – Equipo S con las plantillas puestas (líberos incluidos) y directo al
+// sorteo. En el F, Ferran Sanchís Armesto es capitán y líbero; los demás nombres son inventados. No se guarda como
+// plantilla recordada de ningún equipo.
+const PRUEBA = {
+  L: { nombre: 'Equipo F', jugadores: [[1, 'Jordi Puig Vidal'], [3, 'Marc Ferrer Soler'], [4, 'Pau Roca Martí'], [5, 'Arnau Font Serra'], [6, 'Oriol Camps Riera'], [7, 'Ferran Sanchís Armesto', 'cl'], [8, 'Gerard Vila Costa'], [9, 'Àlex Mas Torrent'], [10, 'Biel Pons Rovira'], [11, 'Nil Sala Bosch'], [12, 'Roger Prat Coll'], [14, 'Eloi Vidal Ferrer']],
+    oficiales: [['E', 'Xavier Miró Pujol'], ['E2', 'Sergi Bosch Roca']] },
+  V: { nombre: 'Equipo S', jugadores: [[2, 'Adrià Soler Mas', 'l'], [3, 'Hugo Martín Vila'], [4, 'Pol Riera Font'], [5, 'Iker Serra Camps'], [6, 'Guillem Costa Pons'], [8, 'Martí Torrent Sala'], [9, 'Joel Rovira Prat'], [10, 'Bernat Coll Puig', 'c'], [11, 'Dani Vidal Roca'], [13, 'Lluc Ferrer Miró', 'l'], [15, 'Quim Bosch Serra'], [17, 'Ot Pujol Martí']],
+    oficiales: [['E', 'Carles Font Riera'], ['E2', 'Íngrid Sala Vives']] },
+};
+function crearPrueba() {
+  const ahora = new Date(), dos = (n) => String(n).padStart(2, '0');
+  const datos = { competicion: 'Partido de prueba', categoria: 'Sénior', partido: 'PRUEBA', fecha: `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`, hora: `${dos(ahora.getHours())}:${dos(ahora.getMinutes())}`,
+    pabellon: 'Pabellón de pruebas', ciudad: 'Vilaprova', local: PRUEBA.L.nombre, visitante: PRUEBA.V.nombre, r1: 'Marta Gil Roig', r2: 'Joan Pla Bosch', an: 'Núria Prats Vives', aa: 'Laura Camps Soler' };
+  const ev = ['L', 'V'].map((eq) => ({ t: 'equipo', eq, nombre: PRUEBA[eq].nombre,
+    jugadores: PRUEBA[eq].jugadores.map(([num, nombre, m = '']) => ({ num: String(num), nombre, ...(m.includes('c') ? { cap: true } : {}), ...(m.includes('l') ? { lib: true } : {}) })),
+    oficiales: PRUEBA[eq].oficiales.map(([rol, nombre]) => ({ rol, nombre })) }));
+  const m = M.validar(M.CONFIG, datos, [ev[0]], ev[1]) || M.validar(M.CONFIG, datos, [], ev[0]); if (m) { toast(m); return; }
+  A = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cfg: { ...M.CONFIG }, datos, ev, paso: 'sorteo', prueba: true, creada: ahora.toISOString() };
+  reiniciar(); guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
+  toast('Partido de prueba listo: haz el sorteo y la alineación.', true);
 }
 function reiniciar() { delete BORR.L; delete BORR.V; ISQ = { estado: null, msg: '' }; VER = false; }   // nada de un acta pasa a otra
 function abrir(id) { reiniciar(); try { A = reparar(JSON.parse(localStorage.getItem(clave(id)))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
@@ -658,7 +680,7 @@ function hojaLiberoNoPuede(eq) {
   let cual = s.libero[eq]?.num || libs[0]?.num, nuevo = null;
   const dibujar = () => {
     const quedan = libs.filter((j) => j.num !== cual);
-    const candidatos = ST.equipos[eq].jugadores.filter((j) => !j.lib && !j.cap && !s.rot[eq].includes(j.num) && !ST.fueraPartido[eq].has(j.num) && !ST.descalificados[eq].has(j.num));
+    const candidatos = ST.equipos[eq].jugadores.filter((j) => !j.lib && !s.rot[eq].includes(j.num) && !ST.fueraPartido[eq].has(j.num) && !ST.descalificados[eq].has(j.num));
     $('hojaC').innerHTML = `<h2 id="hojaT">Líbero que no puede seguir · ${esc(eqNombre(eq))}</h2>
       <p class="small muted">Lesión, enfermedad, expulsión o descalificación. El líbero que no puede seguir ya no vuelve en el partido.</p>
       <b>Líbero</b><div class="botones">${libs.map((j) => `<button data-cual="${esc(j.num)}" aria-pressed="${cual === j.num}">${esc(j.num)}</button>`).join('')}</div>
