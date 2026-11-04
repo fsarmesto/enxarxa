@@ -1019,8 +1019,9 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     C Cadete, I Infantil, A Alevín; `M.CATEGORIAS`, validada en el motor). En el acta impresa va entre paréntesis junto
     al nombre, con "(L)" para los líberos (como pide la circular), y los cadetes salen además en observaciones (RFEVB/
     CTNA: "reflejar en observaciones la participación de cadetes"). Se guarda en la plantilla recordada.
-  - **Frases hechas en "Observación" (FCVB, Circular 010):** `MACROS` (16: retrasos, CTA-1, DNI, fotografía, no
-    comparece, abandona, lesión, lesionado previo, uniformidad x3, mínimo de sets) con campos (equipo, jugador de la
+  - **Frases hechas en "Observación" (FCVB, Circular 010):** `MACROS` (17: retrasos, CTA-1, DNI, fotografía, no
+    comparece, abandona, lesión, lesionado previo, uniformidad x3, protocolo de recogepelotas de la Circular 012 —que
+    pide dejar constancia en el acta—, mínimo de sets) con campos (equipo, jugador de la
     plantilla, dorsales, minutos, texto); el tanteo y el set se ponen solos con el set en juego. En catalán, el texto de
     la circular; en castellano, su traducción. El texto queda editable; si falta un dato (___) pregunta antes de añadir.
     Prueba: ~/work/enxarxa-pruebas/macros.mjs (PC y `ANCHO=390`).
