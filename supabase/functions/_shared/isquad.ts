@@ -58,7 +58,12 @@ function marcas(html: string): string {
   return `«${t}» h:«${h2}»${lu2 ? " lu2:" + lu2 : ""}${/name="password"/.test(h) ? " pide-contraseña" : ""}${/name="codigo"|lu2-codigo/.test(h) ? " pide-código" : ""}${av ? " aviso:«" + av + "»" : ""}`;
 }
 // ¿Es la pantalla del segundo paso (código por correo, aviso en la app, QR) o de "dispositivo nuevo"?
-const segundoPaso = (html: string) => { const h = html.replace(/<script[\s\S]*?<\/script>/gi, ""); return /lu2-codigo|data-reto=|lu2-espera|lu2-paso/.test(h) && !/name="password"/.test(h); };
+// Solo en atributos de elementos (no en <style>/<script>: la hoja de estilos de TODAS las páginas lleva ".lu2-paso", y el
+// 4-nov-2026 eso hizo creer que "Tu área personal" era un segundo paso).
+const sinCodigo = (html: string) => html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "");
+const segundoPaso = (html: string) => { const h = sinCodigo(html); return /class="[^"]*\blu2-(codigo|espera)\b|data-reto="/.test(h) && !/name="password"/.test(h); };
+// Enlaces de una página (sin tokens), para saber por dónde se entra a cada área.
+const enlaces = (html: string) => [...new Set([...sinCodigo(html).matchAll(/href="([^"#][^"]*)"/g)].map((m) => ruta(m[1].replace(/&amp;/g, "&"))).filter((h) => /\.php/.test(h) && !/manifest|\.css/.test(h)))].slice(0, 30).join(" ");
 
 async function get(url: string, jar: Jar): Promise<Response> {
   let res = await fetch(url, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual", signal: T() });
@@ -115,7 +120,7 @@ async function loginUnico(jar: Jar, area: string, login: string, password: strin
     trace += ` · ${r.status} ${r.headers.get("location") ?? ""}`;
     const loc = r.headers.get("location");
     if (r.status === 200) {
-      const html = await r.text(); rastro.push(`  ${r.status} ` + marcas(html));
+      const html = await r.text(); rastro.push(`  ${r.status} ` + marcas(html), `  enlaces: ${enlaces(html)}`);
       if (segundoPaso(html)) throw new IsquadAuthError("doble");
     } else { await r.body?.cancel(); rastro.push(`  ${r.status} → ${ruta(loc)}`); if (/verificar|seguridad|reto/i.test(loc || "")) throw new IsquadAuthError("doble"); }
   }

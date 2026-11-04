@@ -16,10 +16,12 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
     if (b.get("csrf_token") !== "abc") return r("sin csrf", 400);
     if (escenario === "mala") return r(FORM + `<div class="lu-alerta lu-alerta--error" role="alert"><span class="ph"></span><span>Email o contraseña incorrectos. Te quedan 2 intentos antes de que se bloquee la cuenta.</span></div>`);
     if (escenario === "bloqueada") return r(FORM + `<div class="lu-alerta lu-alerta--error" role="alert"><span>Tu cuenta está bloqueada.</span></div>`);
-    return r("", 302, { location: "/index.php", "set-cookie": "PHPSESSID=s1; path=/" });
+    // Como iSquad el 4-nov-2026: vuelve a loginunico.php, que con sesión es "Tu área personal" (con ".lu2-paso" en los estilos)
+    return r("", 302, { location: "/loginunico.php", "set-cookie": "PHPSESSID=s1; path=/" });
   }
   if (url.pathname === "/loginunico.php") {
     const area = url.searchParams.get("area");
+    if (!area && cookie.includes("PHPSESSID=s1")) return r(`<style>.lu-login-neo .lu2-paso { x: 1 }</style><h2>Tu área personal</h2><a href="loginunico.php?area=arbitros">Árbitros</a>`);
     if (cookie.includes("PHPSESSID=s1") && area === "deportista" && escenario === "jugador")
       return r(`<div class="contact"><img src="/images/afiliacion/123/foto.jpg"><div class="contact-container">LAIA ESTEVE JUGADORA</div></div>`);
     if (cookie.includes("PHPSESSID=s1") && area === "entrenador" && escenario === "entrenador")
