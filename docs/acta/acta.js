@@ -252,9 +252,10 @@ function pDatos() {
   const c = A.cfg;
   $('app').innerHTML = pasos('datos') + `<form class="card" id="f"><h2>Datos del partido</h2>
     <div class="grid2">${campo('competicion', 'Competición')}${campo('categoria', 'Categoría')}${campo('partido', 'Nº de partido')}${campo('fecha', 'Fecha', 'date')}${campo('hora', 'Hora', 'time')}${campo('pabellon', 'Pabellón')}${campo('ciudad', 'Población')}</div>
-    <h3 style="font-size:16px;margin:8px 0">Equipos</h3><div class="grid2">${campo('local', 'Local')}${campo('visitante', 'Visitante')}</div>
+    <h3 style="font-size:16px;margin:8px 0">Equipos</h3><div class="grid2">${campo('local', 'Local')}${campo('visitante', 'Visitante')}${campo('abrevL', 'Abreviatura del local', 'text', `maxlength="4" placeholder="${esc(window.ActaFcvb?.abreviatura(A.datos.local) || '')}"`)}${campo('abrevV', 'Abreviatura del visitante', 'text', `maxlength="4" placeholder="${esc(window.ActaFcvb?.abreviatura(A.datos.visitante) || '')}"`)}</div>
+    <p class="small muted" style="margin:-4px 0 8px">Abreviaturas de la FCVB (temporada 26-27); vacío = la que se propone.</p>
     <div class="colores">${[['colorL', 'Color local'], ['colorLibL', 'Líbero local'], ['colorV', 'Color visitante'], ['colorLibV', 'Líbero visitante']].map(([k, t]) => `<label class="f color"><span>${esc(t)}</span><input type="color" data-d="${k}" value="${color(k.slice(-1), k.includes('Lib'))}"></label>`).join('')}</div>
-    <h3 style="font-size:16px;margin:8px 0">Árbitros y mesa</h3><div class="grid2">${campo('r1', '1er árbitro')}${campo('r2', '2º árbitro')}${campo('an', 'Anotador')}${campo('aa', 'Anotador asistente')}${campo('jl1', 'Juez de línea 1')}${campo('jl2', 'Juez de línea 2')}</div>
+    <h3 style="font-size:16px;margin:8px 0">Árbitros y mesa</h3><div class="grid2">${campo('r1', '1er árbitro')}${campo('r1Lic', 'Licencia del 1er árbitro', 'text', 'inputmode="numeric"')}${campo('r2', '2º árbitro')}${campo('r2Lic', 'Licencia del 2º árbitro', 'text', 'inputmode="numeric"')}${campo('an', 'Anotador')}${campo('anLic', 'Licencia del anotador', 'text', 'inputmode="numeric"')}${campo('aa', 'Anotador asistente')}${campo('jl1', 'Juez de línea 1')}${campo('jl2', 'Juez de línea 2')}</div>
     <h3 style="font-size:16px;margin:8px 0">Formato</h3><div class="grid2">
       <label class="f"><span>Partido al mejor de</span><select id="mejorDe"><option value="5"${c.mejorDe === 5 ? ' selected' : ''}>5 sets (gana quien llega a 3)</option><option value="3"${c.mejorDe === 3 ? ' selected' : ''}>3 sets (gana quien llega a 2)</option></select></label>
       <label class="f"><span>Puntos por set</span><input type="number" id="puntosSet" min="5" max="50" value="${c.puntosSet}"></label>
@@ -1052,12 +1053,31 @@ function actaHtml() {
     <div class="bloque"><table><tr>${FIRMAS_PRE.map(([k, t]) => firma(k, t + ' (antes)')).join('')}</tr><tr>${FIRMAS.map(([k, t]) => firma(k, t)).join('')}</tr></table></div>
     <p style="font-size:9px">Acta electrónica de Vòlei EnXarxa (prototipo, no oficial). Generada el ${new Date().toLocaleString('es-ES')}.</p>`;
 }
+// Ver e imprimir: el acta oficial de la FCVB (por defecto) o el resumen propio de la app.
+let VER_MODO = 'resumen';   // el acta FCVB se elige con su botón hasta que esté completa (sets, sanciones, resultados)
 function pVer() {
-  $('impresa').innerHTML = actaHtml();
-  $('app').innerHTML = `<div class="barra"><button class="primary" id="imprimir">Imprimir o guardar en PDF</button><button id="volverActa">Volver</button></div>`;
+  const fcvb = VER_MODO === 'fcvb' && window.ActaFcvb;
+  $('impresa').classList.toggle('fcvb', !!fcvb);
+  $('impresa').innerHTML = fcvb ? `<div class="fcvb-escala">${window.ActaFcvb.pagina(A, ST, M)}</div>` : actaHtml();
+  $('app').innerHTML = `<div class="barra"><button class="primary" id="imprimir">Imprimir o guardar en PDF</button>
+    <span class="opts" role="radiogroup" aria-label="Formato"><label><input type="radio" name="modo" value="fcvb"${fcvb ? ' checked' : ''}><span>Acta FCVB</span></label><label><input type="radio" name="modo" value="resumen"${fcvb ? '' : ' checked'}><span>Resumen</span></label></span>
+    <button id="volverActa">Volver</button></div>${fcvb ? '<p class="small muted">Acta de la FCVB (A4 apaisado). Al imprimir: sin márgenes y a tamaño real (100 %).</p>' : ''}`;
+  $('app').querySelectorAll('input[name=modo]').forEach((r) => (r.onchange = () => { VER_MODO = r.value; pVer(); }));
   $('imprimir').onclick = () => print();
-  $('volverActa').onclick = () => { VER = false; $('impresa').innerHTML = ''; pintar(); scrollTo(0, 0); };
+  $('volverActa').onclick = () => { VER = false; $('impresa').innerHTML = ''; $('impresa').classList.remove('fcvb'); pintar(); scrollTo(0, 0); };
+  escalarFcvb();
 }
+// En pantalla, el acta FCVB se encoge para que quepa a lo ancho (al imprimir va a tamaño real).
+function escalarFcvb(real) {
+  const e = document.querySelector('.fcvb-escala'), p = e?.querySelector('.fcvb-pagina'); if (!p) return;
+  if (real) { e.style.cssText = ''; p.style.transform = ''; return; }   // para imprimir: tamaño real
+  const px = window.ActaFcvb.W * 96 / 72, k = Math.min(1, (e.parentElement.clientWidth || innerWidth) / px);
+  p.style.transform = `scale(${k})`; p.style.transformOrigin = '0 0';
+  e.style.width = `${px * k}px`; e.style.height = `${window.ActaFcvb.H * 96 / 72 * k}px`; e.style.overflow = 'hidden';
+}
+addEventListener('resize', () => { if (VER) escalarFcvb(); });
+addEventListener('beforeprint', () => escalarFcvb(true));
+addEventListener('afterprint', () => { if (VER) escalarFcvb(); });
 
 /* ---------- Arranque ---------- */
 window.pepperLoader?.show('Cargando el acta…');

@@ -1038,6 +1038,25 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     pantalla también en el móvil: `#hoja.centro`) con la cuenta atrás de 30 s (FIVB 15.4.1; `cfg.duracionTiempo` si una
     competición lo cambia), barra y "Volver al partido" para acabarlo antes; a 0 se cierra sola, avisa y vibra si el
     móvil puede. Prueba: ~/work/enxarxa-pruebas/crono.mjs (PC y `ANCHO=390`).
+  - **Acta oficial de la FCVB impresa (desde 4-nov-2026, paso a paso con Ferran):** `docs/acta/acta-fcvb.js`
+    (`ActaFcvb.pagina(A, ST, M)`). Fondo = el modelo de la FCVB tal cual (`fcvb/model-acta-estandard.svg`, sacado del
+    PDF "MODEL-ACTA-ESTANDARD" que dio Ferran con `pdftocairo -svg`: líneas, logos y textos) y los datos encima en
+    posiciones absolutas en pt del PDF (841,92 × 595,32 = A4 apaisado; `@page fcvb` sin márgenes; `.fcvb-pagina`).
+    Coordenadas medidas con `pdftotext -bbox` y las líneas del SVG (rectángulos finos rellenos + trazos con la matriz
+    0,749144). Tinta azul bolígrafo. En "Ver acta", botones Acta FCVB / Resumen (por defecto Resumen hasta que el acta
+    FCVB esté completa). Decisiones de Ferran: local a la izquierda y visitante a la derecha en las plantillas (A/B en
+    el circulito); capitán con el número rodeado; (L) y categoría al final del nombre; oficiales 1r E / 2on / 2on / T/M
+    (psicólogo, preparador y masajista a observaciones); sustituciones excepcionales a observaciones; si no caben las
+    observaciones hay hoja anexa ("Format 5", COMPLEMENT-OBSERVACIONS-ACTA); los puntos anulados no se marcan.
+    Abreviaturas: `fcvb/abreviaturas.js` (FCVB 26-27, 178 clubes) → `A.datos.abrevL/abrevV`, propuesta por coincidencia
+    de palabras con el nombre del club. Licencias: `A.datos.r1Lic/r2Lic/anLic`.
+    Cómo se anota (Ferran): sustitución = número que entra y marcador "propio:rival" al entrar y al volver; turnos de
+    saque = marcador propio al perder el saque tachando el numerito con "/", X en la 1ª casilla del que recibe, círculo
+    en el marcador final; PUNTS: "/" en cada punto, círculo en los de castigo, los que sobran con un reloj de arena por
+    columna; S/R: se tacha la que toca; sanciones: el número (E, 2E… si es oficial; D si es por demora) en la columna
+    A/C/E/D, equipo, set y marcador; solicitud improcedente: X en la A o la B; set 5: la 3ª parte repite la formación
+    del 1er equipo y sigue numerando puntos donde iba; "Punts al canvi" = puntos de ese equipo al cambiar.
+    Hecho: paso 1 (cabecera, plantillas, oficiales, árbitros). Prueba: ~/work/enxarxa-pruebas/fcvb.mjs (genera el PDF).
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución
