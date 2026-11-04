@@ -1141,6 +1141,9 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     letra (DOS (2), U (1), ZERO (0); Ferran). Prueba: infantil-fcvb.mjs (partido real puesto como infantil).
     Set ganado en recepción: el último punto del ganador va en la casilla del siguiente sacador, rodeado y SIN "/" (no llegó
     a sacar; RFEVB/CTNA pág. 8, FIVB y papel de Ferran). El motor guarda `desde` (marcador al recuperar el saque) en cada turno.
+    Nombres (Ferran, 4-nov): árbitros, anotador y oficiales "PRIMER APELLIDO, NOMBRE" (`cognomNom`); jugadores solo el 1er
+    apellido; si 2 lo comparten, + inicial del 2º ("PINTO G."); si comparten los 2 (o no hay 2º), apellidos + inicial del
+    nombre ("VIDAL MAS, A."); partículas (de, del, la…) van con el apellido (`partes`). Prueba en fcvb.mjs.
     Sustitución deshecha (vuelve el titular): marcador de vuelta en su fila y el número del suplente rodeado (Ferran).
     "/" de los turnos de saque: trazo largo pegado al número que cruza el numerito impreso, como a mano (Ferran, 4-nov).
     Todo lo escrito "a mano" en el acta FCVB sale en MAYÚSCULAS (`txt` lo pasa a mayúsculas; Ferran, 4-nov). Plantillas por
