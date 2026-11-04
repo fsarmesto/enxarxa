@@ -582,6 +582,8 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 ## Avisos al momento (función vigilar, 21-oct-2026)
 
 - Cada 10 minutos, de 7:00 a 24:00 de Madrid, y solo para quien tiene notificaciones (`push_subs`):
+  (Miércoles, 4-nov-2026: cron extra `vigilar-miercoles` cada 2 min de 9:00 a 19:00 de Madrid, `8-17` UTC en invierno y
+  `7-16` en verano: CAMBIARLO a mano con el horario. Es el día del bloque de designaciones; las sueltas, con 10 min basta.)
   1. ficha pública de cada árbitro (sin login; ver "Coste" abajo) y, solo si ha cambiado, su sync rápido (función sync,
      modo `quick`: solo designaciones de la temporada en curso, sin recibos ni km, sin tocar `last_sync`);
      `designChanges` (en `_shared/sync.ts`) compara con lo guardado: nueva, cambio de fecha/hora/pabellón, suspendida,

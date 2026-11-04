@@ -91,6 +91,22 @@ select cron.schedule(
   $$
 );
 
+-- Miércoles (día en que la FCVB suelta las designaciones en bloque; decisión de Ferran, 4-nov-2026): vigilar cada 2 minutos
+-- de 9:00 a 18:58 de Madrid en horario de INVIERNO (8-17 UTC; en verano poner 7-16). Se salta los minutos del de cada 10
+-- para que nunca vayan 2 a la vez. Mismo comando que 'vigilar' (ficha pública, sin login salvo si cambia).
+select cron.schedule(
+  'vigilar-miercoles',
+  '2,4,6,8,12,14,16,18,22,24,26,28,32,34,36,38,42,44,46,48,52,54,56,58 8-17 * * 3',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/vigilar',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $$
+);
+
 -- Índice de plantillas de la web pública (función indexar): cada 15 minutos; solo trabaja con lo caducado (14 días).
 select cron.schedule(
   'indexar-plantillas',
