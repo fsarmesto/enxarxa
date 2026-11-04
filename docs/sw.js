@@ -2,7 +2,7 @@
 // abra sin cobertura. Solo se guarda lo propio de la app (mismo origen, GET): la red va siempre primero, así nunca
 // se queda una versión vieja si hay conexión; la caché solo se usa cuando la red falla. Las librerías de vendor/
 // (versionadas en el nombre) van de caché primero. Supabase y demás servidores externos no pasan por aquí.
-const CACHE = 'enxarxa-app-v10';
+const CACHE = 'enxarxa-app-v11';
 const PRECACHE = ['./', 'index.html', 'config.js', 'i18n-ca.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png',
   'apple-touch-icon.png', 'vendor/supabase-2.45.4.js', 'legal.css', 'legal.js', 'condiciones.html', 'privacidad.html', 'aviso-legal.html', 'eliminar-cuenta.html', 'ayuda.html',
   // Acta electrónica: tiene que abrir sin cobertura en el pabellón aunque no se haya abierto antes.
