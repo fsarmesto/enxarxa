@@ -389,3 +389,9 @@ test('normativa 2025-2028 / FCVB 2026-27', () => {
   p = preparado(); p.add({ t: 'sust', eq: 'L', sale: 3, entra: 8, tipo: 'excepcional' });
   assert.equal(set(p).nSust.L, 0); assert.equal(M.resultados(p.st()).filas[0].L.sust, 1);
 });
+
+test('categoría inferior (FCVB Circular 004)', () => {
+  const j = [1, 2, 3, 4, 5, 6].map((num) => ({ num }));
+  assert.equal(M.validar({}, {}, [], { t: 'equipo', eq: 'L', jugadores: [...j, { num: 7, cat: 'C' }, { num: 8, cat: 'J' }] }), null);
+  assert.match(M.validar({}, {}, [], { t: 'equipo', eq: 'L', jugadores: [...j, { num: 7, cat: 'X' }] }), /Categoría no válida para el 7/);
+});

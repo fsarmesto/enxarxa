@@ -1013,6 +1013,17 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     seguidos como mucho) no lo cubre esta acta de 6x6; marcas de categoría inferior junto al nombre (Y, J, C, I, A:
     FCVB Circ. 004); plantillas de observaciones de la Circ. 010; dorsales (FIVB 4.3.3 dice 1-20; aquí 0-99 y 00 por
     decisión de Ferran). Prueba de clics: ~/work/enxarxa-pruebas/normativa.mjs (PC y `ANCHO=390`).
+    Respuesta de Ferran (4-nov): la protesta, con "Observación" basta; alevín, nada de acta electrónica por ahora;
+    dorsales, como están. Hecho a continuación:
+  - **Categoría inferior por edad (FCVB, Circular 004):** columna "Cat." en la inscripción (`j.cat`: Y Júnior, J Juvenil,
+    C Cadete, I Infantil, A Alevín; `M.CATEGORIAS`, validada en el motor). En el acta impresa va entre paréntesis junto
+    al nombre, con "(L)" para los líberos (como pide la circular), y los cadetes salen además en observaciones (RFEVB/
+    CTNA: "reflejar en observaciones la participación de cadetes"). Se guarda en la plantilla recordada.
+  - **Frases hechas en "Observación" (FCVB, Circular 010):** `MACROS` (16: retrasos, CTA-1, DNI, fotografía, no
+    comparece, abandona, lesión, lesionado previo, uniformidad x3, mínimo de sets) con campos (equipo, jugador de la
+    plantilla, dorsales, minutos, texto); el tanteo y el set se ponen solos con el set en juego. En catalán, el texto de
+    la circular; en castellano, su traducción. El texto queda editable; si falta un dato (___) pregunta antes de añadir.
+    Prueba: ~/work/enxarxa-pruebas/macros.mjs (PC y `ANCHO=390`).
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución

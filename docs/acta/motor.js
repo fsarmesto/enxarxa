@@ -11,6 +11,7 @@
   // jugar al menos un set completo (FCVB, Circular 011: infantil y, a veces, alevín).
   const CONFIG = { mejorDe: 5, puntosSet: 25, puntosDecisivo: 15, tiempos: 2, sustituciones: 6, cambioDecisivo: 8, liberos: true, setObligatorio: false };
   // FIVB 4.1.1 (entrenador, 2 ayudantes, fisio, médico) + FCVB Circular 004 (psicólogo, preparador físico, masajista).
+  const CATEGORIAS = { Y: 'Júnior', J: 'Juvenil', C: 'Cadete', I: 'Infantil', A: 'Alevín' };
   const ROLES_OFICIALES = { E: 'Entrenador', E2: 'Segundo entrenador', E3: 'Entrenador ayudante', F: 'Fisioterapeuta', M: 'Médico', PS: 'Psicólogo', PF: 'Preparador físico', MS: 'Masajista' };
 
   // Dorsales: de 0 a 99 y además el 00 (distinto del 0). Se guardan como texto: "7", "0", "00" ("07" pasa a "7").
@@ -274,6 +275,9 @@
         const nums = ev.jugadores.map((j) => D(j.num));
         if (new Set(nums).size !== nums.length) no('Hay dorsales repetidos.');
         if (ev.jugadores.filter((j) => j.cap).length > 1) no('Solo puede haber un capitán.');
+        // Categoría inferior por edad junto al nombre (FCVB, Circular 004): Júnior Y, Juvenil J, Cadete C, Infantil I, Alevín A.
+        const malCat = ev.jugadores.find((j) => j.cat && !CATEGORIAS[j.cat]);
+        if (malCat) no(`Categoría no válida para el ${malCat.num}: tiene que ser Y, J, C, I o A.`);
         // El líbero puede ser capitán (del equipo y en juego): FIVB, regla 5, desde el 1-1-2022 (Congreso de feb. 2021).
         if (ev.jugadores.filter((j) => j.lib).length > 2) no('Como mucho 2 líberos.');
         // Máximo en el acta (FCVB, circulares 004 y 009 de 2026-27): 14 jugadores con 0, 1 o 2 líberos; 12 si la
@@ -479,6 +483,6 @@
     };
   }
 
-  const api = { necesitaCapitanJuego, D, dorsalValido, esDorsal, setsCompletos, CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
+  const api = { CATEGORIAS, necesitaCapitanJuego, D, dorsalValido, esDorsal, setsCompletos, CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.ActaMotor = api;
 })(typeof self !== 'undefined' ? self : this);
