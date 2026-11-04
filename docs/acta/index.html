@@ -262,6 +262,16 @@ button.p:hover,button.jug:focus-visible{border-color:var(--yellow)}
 }
 /* Acta para imprimir (A4 apaisado) */
 #impresa{display:none}
+/* Acta oficial de la FCVB (acta-fcvb.js): el modelo de fondo y los datos encima, en pt del PDF */
+.fcvb-pagina{position:relative;width:841.92pt;height:595.32pt;background:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden;page:fcvb;break-after:page}
+.fcvb-pagina:last-child{break-after:auto}
+#impresa .fcvb-fondo,.fcvb-fondo{position:absolute;left:0;top:0;width:100%;height:100%;max-width:none;max-height:none}
+.fcvb-pagina .f-t{position:absolute;display:flex;align-items:center;white-space:nowrap;line-height:1}
+.fcvb-pagina .f-t span{display:inline-block}
+.fcvb-pagina .f-c{position:absolute;border:0.8pt solid currentColor;border-radius:50%}
+.vista #impresa.fcvb{padding:0;background:none;overflow:visible}
+.fcvb-escala{transform-origin:0 0}
+@page fcvb{size:A4 landscape;margin:0}
 @media print{
   @page{size:A4 landscape;margin:8mm}
   body{background:#fff;color:#000;font-size:9.5px}
@@ -299,6 +309,8 @@ button.p:hover,button.jug:focus-visible{border-color:var(--yellow)}
 <script src="../vendor/supabase-2.45.4.js"></script>
 <script src="motor.js"></script>
 <script src="acta-ca.js"></script>
+<script src="fcvb/abreviaturas.js"></script>
+<script src="acta-fcvb.js"></script>
 <script src="acta.js"></script>
 </body>
 </html>
