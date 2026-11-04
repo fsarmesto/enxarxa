@@ -90,59 +90,108 @@ const SET = {
   inici: [31, 63.6], final: [338.5, 371.4], abrev: [[120, 64], [262, 63]], sr: [[185, 195.9], [326.4, 337.2]], min: [8.5, 166, 21.3, 16.5],
 };
 const COLS_PUNTS = [[1, 13], [14, 25], [26, 37]];
+// Una mitad de set (o una parte del set 5) para un equipo. `o`: dónde (columnas, filas, PUNTS, T) y qué (formación,
+// sustituciones, turnos, puntos, tiempos). Las sustituciones excepcionales no se escriben aquí (van a observaciones).
+function mitad(o, out) {
+  const { cols, subs, y, al } = o;
+  for (let i = 0; i < 6; i++) {
+    const x = cols[i], w = cols[i + 1] - cols[i], t = al[i];
+    out.push(txt(x, y.alin, w, 13, t, { al: 'center', fs: 9 }));
+    const entra = o.sust.find((z) => z.sale === t && z.tipo !== 'excepcional');
+    if (!entra) continue;
+    out.push(txt(x, y.entra, w, 13, entra.entra, { al: 'center', fs: 9 }), txt(x, y.mEntra, w, 13, `${entra.a}:${entra.b}`, { al: 'center', fs: 7.5 }));
+    const vuelve = o.sust.find((z) => z.entra === t && z.sale === entra.entra && z.tipo !== 'excepcional');
+    if (vuelve) out.push(txt(x, y.mVuelve, w, 13, `${vuelve.a}:${vuelve.b}`, { al: 'center', fs: 7.5 }));
+  }
+  // Turnos de saque: casilla siguiente de la columna (1-4 a la izquierda, 5-8 a la derecha)
+  const usadas = [0, 0, 0, 0, 0, 0];
+  const casilla = (c) => { const n = usadas[c]++; if (n >= 8) return null; const izq = n < 4, f = n % 4;
+    return { x: izq ? cols[c] : subs[c], x2: izq ? subs[c] : cols[c + 1], y: y.saque + f * SET.saqueH }; };
+  const tacha = (c) => raya(c.x2 - 3.6, c.y + SET.saqueH - 1.2, c.x2 - 0.6, c.y + 8.2, 0.7);
+  if (o.x) { const c = casilla(0); out.push(cruz(c.x, c.y, c.x2 - c.x, SET.saqueH)); }
+  o.turnos.forEach((tu, i) => {
+    if (tu.col < 0) return;
+    const c = casilla(tu.col); if (!c) return;
+    if (tu.abierto) { out.push(tacha(c)); return; }   // set 5: el turno que va en curso al cambiar se deja abierto
+    if (tu.hasta == null) return;
+    const w = c.x2 - c.x;
+    out.push(txt(c.x + 0.5, c.y + 0.5, w - 4, SET.saqueH - 1, tu.hasta, { fs: 8.5 }), tacha(c));
+    if (o.final && i === o.turnos.length - 1) out.push(circulo(c.x + w / 2 - 1.5, c.y + SET.saqueH / 2, 5.6));
+  });
+  // PUNTS: "/" en cada punto (círculo si es de castigo); reloj de arena en lo que sobra de cada columna
+  o.puntos.forEach((p) => { const q = o.punto(p.n); if (!q) return; const [x, yy] = q;
+    out.push(/castigo/i.test(p.motivo) ? circulo(x, yy, 3.3) : raya(x - 2.6, yy + 2.4, x + 2.6, yy - 2.4, 0.7)); });
+  if (o.reloj) for (const [a, b, x1, x2] of o.reloj) {
+    const desde = Math.max(a, o.total + 1); if (desde > b) continue;
+    out.push(reloj(x1, o.punto(desde)[1] - 3, x2, o.punto(b)[1] + 3));
+  }
+  o.tiempos.slice(0, 2).forEach((t, i) => out.push(txt(o.T[i][0], o.T[i][1], 30, o.T[i][2], `${t.a}:${t.b}`, { al: 'center', fs: 8.5 })));
+}
+// PUNTS normal (1-13, 14-25, 26-37) de una mitad cuyo "1" está en (x0, y0)
+function puntsNormal(x0, y0) {
+  const X = [x0, x0 + 9.1, x0 + 19.1], paso = [5.77, 6.28, 6.28];
+  const punto = (n) => { if (n < 1 || n > 37) return null; const c = n <= 13 ? 0 : n <= 25 ? 1 : 2, i = n - COLS_PUNTS[c][0]; return [X[c], y0 + i * paso[c]]; };
+  const xc = x0 - 4.75;   // borde izquierdo de la columna PUNTS
+  return { punto, reloj: [[1, 13, xc + 1, xc + 9.6], [14, 25, xc + 10.8, xc + 19.8], [26, 37, xc + 20.4, xc + 29.4]] };
+}
+const filasSet = (dy) => ({ alin: 79.1 + dy, entra: 92.2 + dy, mEntra: 105.1 + dy, mVuelve: 118.1 + dy, saque: 131.0 + dy });
+const hhmm = (iso, xh, xc, y) => { const [h, m] = hora(iso).split(':'); return h ? txt(xh, y, xc - xh - 1, 13, h, { al: 'right' }) + txt(xc + 2.5, y, 16, 13, m) : ''; };
+const conNumero = (prog, eq, desde = 0) => prog.filter((p) => p.eq === eq && !p.anulado).map((p, i) => ({ ...p, n: i + 1 })).filter((p) => p.n > desde);
+
 function setBloque(st, s, eqIzq, out) {
   const [dx, dy] = SET.off[s.n], eqs = [eqIzq, eqIzq === 'L' ? 'V' : 'L'];
-  // Hora de inicio (mitad izquierda) y de final (mitad derecha), separadas por los ":" impresos
-  const hhmm = (iso, [xl, xc]) => { const [h, m] = hora(iso).split(':'); return h ? txt(dx + xl + 15, dy + SET.fila.cab, xc - xl - 16, 13, h, { al: 'right' }) + txt(dx + xc + 2.5, dy + SET.fila.cab, 16, 13, m) : ''; };
-  out.push(hhmm(s.inicio, SET.inici), hhmm(s.fin, SET.final));
+  out.push(hhmm(s.inicio, dx + 46, dx + SET.inici[1], dy + SET.fila.cab), hhmm(s.fin, dx + 353.5, dx + SET.final[1], dy + SET.fila.cab));
   if (s.inicio && s.fin) out.push(txt(dx + SET.min[0], dy + SET.min[1], SET.min[2], SET.min[3], String(Math.round((Date.parse(s.fin) - Date.parse(s.inicio)) / 60000)), { al: 'center' }));
   eqs.forEach((eq, k) => {
-    const mx = dx + k * SET.mitad, rival = eqs[1 - k];
-    const abrev = st.__abrev[eq];
-    out.push(txt(dx + SET.abrev[k][0], dy + SET.fila.cab, SET.abrev[k][1], 13, abrev, { b: true }));
-    // S/R: se tacha la que toca (S el que saca primero)
-    const [sx1, sx2] = SET.sr[k], saca = s.saqueInicial === eq, yS = dy + SET.fila.cab;
-    out.push(saca ? raya(dx + sx1 + 1, yS + 1, dx + sx2 - 1, yS + 6) : raya(dx + sx1 + 1, yS + 7.5, dx + sx2 - 1, yS + 12.5));
-    const al = s.alineacion[eq] || [];
-    for (let i = 0; i < 6; i++) {
-      const x = mx + SET.col[i], w = SET.col[i + 1] - SET.col[i], t = al[i];
-      out.push(txt(x, dy + SET.fila.alin, w, 13, t, { al: 'center', fs: 9 }));
-      // Sustitución (no las excepcionales, que van a observaciones): quién entra, marcador al entrar y al volver
-      const entra = s.sust[eq].find((x) => x.sale === t && x.tipo !== 'excepcional');
-      if (entra) {
-        out.push(txt(x, dy + SET.fila.entra, w, 13, entra.entra, { al: 'center', fs: 9 }));
-        out.push(txt(x, dy + SET.fila.mEntra, w, 13, `${entra.a}:${entra.b}`, { al: 'center', fs: 7.5 }));
-        const vuelve = s.sust[eq].find((x) => x.entra === t && x.sale === entra.entra && x.tipo !== 'excepcional');
-        if (vuelve) out.push(txt(x, dy + SET.fila.mVuelve, w, 13, `${vuelve.a}:${vuelve.b}`, { al: 'center', fs: 7.5 }));
-      }
-    }
-    // Turnos de saque: casilla k de la columna (1-4 a la izquierda, 5-8 a la derecha); el que recibe, X en la 1ª de la I
-    const usadas = [0, 0, 0, 0, 0, 0];
-    const casilla = (c) => { const n = usadas[c]++; if (n >= 8) return null; const izq = n < 4, f = n % 4;
-      return { x: mx + (izq ? SET.col[c] : SET.sub[c]), x2: mx + (izq ? SET.sub[c] : SET.col[c + 1]), y: dy + SET.fila.saque + f * SET.saqueH }; };
-    if (s.saqueInicial && s.saqueInicial !== eq) { const c = casilla(0); out.push(cruz(c.x, c.y, c.x2 - c.x, SET.saqueH)); }
-    const turnos = s.turnos[eq];
-    turnos.forEach((tu, i) => {
-      if (tu.hasta == null || tu.col < 0) return;
-      const c = casilla(tu.col); if (!c) return;
-      const w = c.x2 - c.x, ultimo = i === turnos.length - 1 && s.fin;
-      out.push(txt(c.x + 0.5, c.y + 0.5, w - 4, SET.saqueH - 1, tu.hasta, { fs: 8.5 }));
-      out.push(raya(c.x2 - 3.6, c.y + SET.saqueH - 1.2, c.x2 - 0.6, c.y + 8.2, 0.7));                // tacha el numerito impreso
-      if (ultimo) out.push(circulo(c.x + w / 2 - 1.5, c.y + SET.saqueH / 2, 5.6));                   // marcador final del set
-    });
-    // PUNTS: "/" en cada punto (círculo si es de castigo) y reloj de arena en lo que sobra de cada columna
-    const px = dx + k * SET.mitad, prog = s.progreso.filter((x) => x.eq === eq && !x.anulado);
-    const pos = (n) => { const c = n <= 13 ? 0 : n <= 25 ? 1 : 2, i = n - COLS_PUNTS[c][0]; return [px + SET.puntsX[c], dy + SET.puntsY0 + i * SET.puntsPaso[c], c]; };
-    prog.forEach((p, i) => { if (i >= 37) return; const [x, y] = pos(i + 1);
-      out.push(/castigo/i.test(p.motivo) ? circulo(x, y, 3.3) : raya(x - 2.6, y + 2.4, x + 2.6, y - 2.4, 0.7)); });
-    if (s.fin) COLS_PUNTS.forEach(([a, b], c) => {
-      const desde = Math.max(a, prog.length + 1); if (desde > b) return;
-      const [, y1] = pos(desde), [, y2] = pos(b), x1 = px + SET.puntsCol[0] + 1 + (c === 0 ? 0 : c === 1 ? 9.8 : 19.4), x2 = x1 + (c === 0 ? 8.6 : 9);
-      out.push(reloj(x1, y1 - 3, x2, y2 + 3));
-    });
-    // Tiempos de descanso: marcador propio:rival
-    s.tiempos[eq].slice(0, 2).forEach((t, i) => out.push(txt(px + SET.puntsCol[0], dy + SET.T[i][0], 30, SET.T[i][1], `${t.a}:${t.b}`, { al: 'center', fs: 8.5 })));
+    const mx = dx + k * SET.mitad;
+    out.push(txt(dx + SET.abrev[k][0], dy + SET.fila.cab, SET.abrev[k][1], 13, st.__abrev[eq], { b: true }));
+    const [sx1, sx2] = SET.sr[k], yS = dy + SET.fila.cab;
+    out.push(s.saqueInicial === eq ? raya(dx + sx1 + 1, yS + 1, dx + sx2 - 1, yS + 6) : raya(dx + sx1 + 1, yS + 7.5, dx + sx2 - 1, yS + 12.5));
+    const pn = puntsNormal(mx + 200.65, dy + 70.75), prog = conNumero(s.progreso, eq);
+    mitad({ cols: SET.col.map((c) => c + mx), subs: SET.sub.map((c) => c + mx), y: filasSet(dy), al: s.alineacion[eq] || [], sust: s.sust[eq],
+      x: s.saqueInicial && s.saqueInicial !== eq, turnos: s.turnos[eq], final: !!s.fin, puntos: prog, total: prog.length, punto: pn.punto, reloj: s.fin ? pn.reloj : null,
+      tiempos: s.tiempos[eq], T: SET.T.map(([yy, hh]) => [mx + 195.9, dy + yy, hh]) }, out);
   });
+}
+
+// ---------- Set 5 (decisivo): 3 partes ----------
+// Parte 1: el equipo que empieza a la izquierda, hasta el cambio de campo (PUNTS solo 1-8). Parte 2: el otro equipo, entero.
+// Parte 3 (a la derecha del todo): el primer equipo después del cambio; se vuelve a escribir la formación, las
+// sustituciones y los tiempos de antes del cambio (se apuntan en ambos lados) y los turnos y puntos siguen donde iban.
+// El turno que va en curso al cambiar se deja abierto en la parte 1 (solo "/") y se cierra en la parte 3 (Ferran).
+const S5 = { dy: 259.4, dyP: 260.0, p1: 0.5, p2: 196.6, p3: 395.7, circ: { p1: [116.6, 319.0], p2: [258.2, 319.0], p3: [457.4, 319.0], canvi: [530.3, 319.0] } };
+function set5Bloque(A, st, s, M, out) {
+  const OT = (e) => (e === 'L' ? 'V' : 'L');
+  const X = s.cambioHecho ? OT(s.izq) : s.izq, Y = OT(X), dy = S5.dy, cab = 312.5;
+  // Estado justo al cambiar de campo: se reproduce el acta suceso a suceso hasta que el set 5 marca el cambio.
+  let sc = null;
+  if (s.cambioHecho) for (let k = 1; k <= A.ev.length; k++) { const t = M.reproducir(A.cfg, A.datos, A.ev.slice(0, k)), u = M.setActual(t); if (u.n === s.n && u.cambioHecho) { sc = u; break; } }
+  const letra = (eq) => (eq === st.sets[0].izq ? 'A' : 'B');
+  const enCirc = ([cx, cy], t) => txt(cx - 5, cy - 6, 10, 12, t, { al: 'center', b: true });
+  out.push(enCirc(S5.circ.p1, letra(X)), enCirc(S5.circ.p2, letra(Y)), enCirc(S5.circ.p3, letra(X)));
+  out.push(txt(125, cab, 58, 13, st.__abrev[X], { b: true }), txt(266, cab, 112, 13, st.__abrev[Y], { b: true }));
+  out.push(hhmm(s.inicio, 47, 64.1, cab + 0.3), hhmm(s.fin, 561, 575.4, cab + 0.3));
+  if (s.inicio && s.fin) out.push(txt(8.5, 426, 21.3, 16, String(Math.round((Date.parse(s.fin) - Date.parse(s.inicio)) / 60000)), { al: 'center' }));
+  for (const [eq, x1, x2] of [[X, 185.5, 196.5], [Y, 381.2, 392.6]]) out.push(s.saqueInicial === eq ? raya(x1 + 1, cab + 1, x2 - 1, cab + 6) : raya(x1 + 1, cab + 7.5, x2 - 1, cab + 12.5));
+  const cols = (d) => SET.col.map((c) => c + d), subs = (d) => SET.sub.map((c) => c + d), y = filasSet(dy), al = s.alineacion;
+  const T = (d) => SET.T.map(([yy, hh]) => [d + 195.9, yy + dy, hh]);
+  // Parte 2: el otro equipo, entero
+  const pn2 = puntsNormal(S5.p2 + 200.65, 70.75 + S5.dyP), prog2 = conNumero(s.progreso, Y);
+  mitad({ cols: cols(S5.p2), subs: subs(S5.p2), y, al: al[Y] || [], sust: s.sust[Y], x: s.saqueInicial !== Y, turnos: s.turnos[Y], final: !!s.fin,
+    puntos: prog2, total: prog2.length, punto: pn2.punto, reloj: s.fin ? pn2.reloj : null, tiempos: s.tiempos[Y], T: T(S5.p2) }, out);
+  // Parte 1: el primer equipo hasta el cambio
+  const pre = sc || s, ptsCambio = conNumero(pre.progreso, X).length;
+  const tPre = pre.turnos[X].map((t) => (t.hasta == null ? { ...t, abierto: true } : t));
+  const p1punto = (n) => (n >= 1 && n <= 8 ? [S5.p1 + 211.15, 333.35 + (n - 1) * 6.7] : null);
+  mitad({ cols: cols(S5.p1), subs: subs(S5.p1), y, al: al[X] || [], sust: pre.sust[X], x: s.saqueInicial !== X, turnos: tPre, final: !sc && !!s.fin,
+    puntos: conNumero(pre.progreso, X), total: ptsCambio, punto: p1punto, reloj: null, tiempos: pre.tiempos[X], T: T(S5.p1) }, out);
+  if (!sc) return;
+  out.push(enCirc(S5.circ.canvi, String(ptsCambio)));
+  // Parte 3: después del cambio (formación, sustituciones y tiempos de antes se vuelven a escribir)
+  const nCerrados = pre.turnos[X].filter((t) => t.hasta != null).length;
+  const pn3 = puntsNormal(S5.p3 + 200.65, 70.75 + S5.dyP), prog3 = conNumero(s.progreso, X);
+  mitad({ cols: cols(S5.p3), subs: subs(S5.p3), y, al: al[X] || [], sust: s.sust[X], x: false, turnos: s.turnos[X].slice(nCerrados), final: !!s.fin,
+    puntos: prog3.filter((p) => p.n > ptsCambio), total: prog3.length, punto: pn3.punto, reloj: s.fin ? pn3.reloj : null, tiempos: s.tiempos[X], T: T(S5.p3) }, out);
 }
 
 function pagina(A, ST, M) {
@@ -185,9 +234,11 @@ function pagina(A, ST, M) {
     const [y, h] = G.arbFilas[i];
     out.push(txt(G.arbNom[0], y, G.arbNom[1], h, cognomNom(n)), txt(G.arbLic[0], y + (i === 0 ? 5 : 0), G.arbLic[1], h - (i === 0 ? 5 : 0), lic, { al: 'center' })   /* la 1ª fila lleva el rótulo LLICÈNCIA arriba */);
   });
-  // Sets 1 a 4 (el 5 va en el paso siguiente). Equipo de la mitad izquierda: A en los sets 1 y 3, B en los 2 y 4.
+  // Sets 1 a 4 y el 5 (decisivo, en 3 partes). Equipo de la mitad izquierda: A en los sets 1 y 3, B en los 2 y 4.
   ST.__abrev = { L: d.abrevL || abreviatura(d.local), V: d.abrevV || abreviatura(d.visitante) };
   if (eqA) for (const s of ST.sets) if (s.inicio && s.n <= 4 && !s.golden) setBloque(ST, s, s.n % 2 ? eqA : (eqA === 'L' ? 'V' : 'L'), out);
+  const s5 = ST.sets.find((x) => x.n === 5 && x.decisivo && !x.golden && x.inicio);
+  if (eqA && s5) set5Bloque(A, ST, s5, M, out);
   return `<div class="fcvb-pagina" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/model-acta-estandard.svg" alt="">${out.join('')}</div>`;
 }
 
