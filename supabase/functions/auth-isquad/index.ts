@@ -1,7 +1,7 @@
 // Entrar con el usuario y contraseña de iSquad. Comprueba las credenciales contra iSquad,
 // crea la cuenta si es la primera vez, guarda la contraseña cifrada y devuelve un token de sesión.
 import { encrypt } from "../_shared/crypto.ts";
-import { fetchDesignaciones, IsquadAuthError, loginDeportista, ScrapedMatch } from "../_shared/isquad.ts";
+import { fetchDesignaciones, IsquadAuthError, loginDeportista, rastro, ScrapedMatch } from "../_shared/isquad.ts";
 import { POLICY_VERSION } from "../_shared/politica.ts";
 import { admin, background, cors, json, storeMatches, syncUser } from "../_shared/sync.ts";
 
@@ -61,6 +61,8 @@ Deno.serve(async (req) => {
   if (n.some((v, i) => v > topes[i].max)) return json({ error: "Demasiados intentos. Prueba de nuevo dentro de un rato." }, 429);
   const malas = () => json({ error: "iSquad no acepta ese usuario y contraseña" }, 401);
   // Lo que dice iSquad cuando no deja entrar (contraseña mala, cuenta bloqueada, verificación en 2 pasos).
+  // Diagnóstico (4-nov-2026, iSquad cambió el login): lo que respondió iSquad, sin usuario ni contraseña. Se guarda 3 días.
+  const diag = (motivo: string) => db0.from("pub_cache").upsert({ key: `diag-login:${new Date().toISOString()}`, data: { motivo, rastro: [...rastro] }, fetched_at: new Date().toISOString() }).then(() => {}, () => {});
   const porQue = (e: IsquadAuthError) =>
     e.motivo === "bloqueada" ? json({ error: "iSquad ha bloqueado tu cuenta por demasiados intentos. Desbloquéala desde iSquad (\"¿Has olvidado la contraseña?\") y vuelve a probar." }, 401)
     : e.motivo === "doble" ? json({ error: "Tu cuenta de iSquad pide un segundo paso de verificación y EnXarxa todavía no puede entrar así." }, 401)
@@ -96,7 +98,8 @@ Deno.serve(async (req) => {
   let matches: ScrapedMatch[];
   try { matches = await fetchDesignaciones(login, password); }
   catch (e) {
-    if (!(e instanceof IsquadAuthError)) return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
+    if (!(e instanceof IsquadAuthError)) { await diag("conexion: " + (e as Error).message); return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502)); }
+    await diag(e.motivo + (e.sesion ? " (con sesión)" : ""));
     // iSquad ha dicho que no (contraseña, bloqueo, 2 pasos): ahí se acaba. Si ha entrado pero no es árbitro, con la misma
     // sesión se mira si es jugador o entrenador (login único: un solo intento en iSquad).
     const no = porQue(e); if (no) return no;
@@ -105,7 +108,7 @@ Deno.serve(async (req) => {
     let dep;
     try { dep = await loginDeportista(e.sesion); }
     catch (e2) {
-      if (e2 instanceof IsquadAuthError) return porQue(e2) ?? malas();
+      if (e2 instanceof IsquadAuthError) { await diag("deportista: " + e2.motivo); return porQue(e2) ?? malas(); }
       return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
     }
     await devolver();

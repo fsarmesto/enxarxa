@@ -45,12 +45,28 @@ function keep(jar: Jar, res: Response) {
 }
 const cookie = (jar: Jar) => [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
 
+// Rastro del último login (sin usuario ni contraseña): códigos, rutas y marcas de cada página, para diagnosticar.
+export const rastro: string[] = [];
+const ruta = (u: string | null) => { if (!u) return "-"; try { const x = new URL(u, BASE); return x.pathname + x.search.replace(/(token|reto|confirmar|utr)=[^&]*/gi, "$1=…"); } catch { return "?"; } };
+// Lo que dice una página de iSquad: título, clases lu2-* (segundo paso), si pide contraseña, aviso de error.
+function marcas(html: string): string {
+  const h = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "");
+  const t = (h.match(/<title>([^<]*)<\/title>/i)?.[1] ?? "").trim();
+  const lu2 = [...new Set([...h.matchAll(/class="(lu2-[a-z0-9_-]+)/gi)].map((m) => m[1]))].slice(0, 8).join(",");
+  const av = (h.match(/class="lu-alerta[^"]*"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 140);
+  const h2 = (h.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/i)?.[1] ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  return `«${t}» h:«${h2}»${lu2 ? " lu2:" + lu2 : ""}${/name="password"/.test(h) ? " pide-contraseña" : ""}${/name="codigo"|lu2-codigo/.test(h) ? " pide-código" : ""}${av ? " aviso:«" + av + "»" : ""}`;
+}
+// ¿Es la pantalla del segundo paso (código por correo, aviso en la app, QR) o de "dispositivo nuevo"?
+const segundoPaso = (html: string) => { const h = html.replace(/<script[\s\S]*?<\/script>/gi, ""); return /lu2-codigo|data-reto=|lu2-espera|lu2-paso/.test(h) && !/name="password"/.test(h); };
+
 async function get(url: string, jar: Jar): Promise<Response> {
   let res = await fetch(url, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual", signal: T() });
   for (let n = 0; n < 5 && res.status >= 300 && res.status < 400; n++) {
     keep(jar, res); await res.body?.cancel();
     const loc = res.headers.get("location"); if (!loc) break;
     const next = new URL(loc, url).toString();
+    rastro.push(`  ${res.status} → ${ruta(next)}`);
     if (/login/i.test(next) && !/login/i.test(url)) return res; // nos manda al login: sesión no válida
     res = await fetch(next, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual", signal: T() });
   }
@@ -63,6 +79,8 @@ async function get(url: string, jar: Jar): Promise<Response> {
 // ("Email o contraseña incorrectos. Te quedan 2 intentos antes de que se bloquee la cuenta."); si vale, redirige.
 // Devuelve un rastro para diagnosticar.
 async function loginUnico(jar: Jar, area: string, login: string, password: string): Promise<string> {
+  rastro.length = 0;
+  rastro.push(`GET loginunico?area=${area}`);
   const form = await get(`${BASE}/loginunico.php?area=${area}`, jar);
   const html = await form.text();
   const csrf = html.match(/name="csrf_token"\s+value="([^"]+)"/)?.[1] ?? "";
@@ -76,9 +94,12 @@ async function loginUnico(jar: Jar, area: string, login: string, password: strin
   });
   keep(jar, res);
   let trace = `form ${form.status} csrf ${csrf ? "sí" : "no"} · post ${res.status} → ${res.headers.get("location")}`;
+  rastro.push(`  form ${form.status} csrf ${csrf ? "sí" : "no"} · cookies ${[...jar.keys()].join(",")}`, `POST ${res.status} → ${ruta(res.headers.get("location"))}`);
   if (res.status === 200) {
     // Sin los <script>: llevan el mismo aviso de error como plantilla ("No se ha podido cargar…").
-    const page = (await res.text()).replace(/<script[\s\S]*?<\/script>/gi, "");
+    const crudo = await res.text(); rastro.push("  " + marcas(crudo));
+    if (segundoPaso(crudo)) throw new IsquadAuthError("doble");
+    const page = crudo.replace(/<script[\s\S]*?<\/script>/gi, "");
     const aviso = (page.match(/class="lu-alerta lu-alerta--error"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
     if (/bloquead/i.test(aviso)) throw new IsquadAuthError("bloqueada", aviso);
     if (aviso) throw new IsquadAuthError("rechazada", aviso);
@@ -89,9 +110,14 @@ async function loginUnico(jar: Jar, area: string, login: string, password: strin
   // Tras el login, el área (si el login lleva a la pantalla de áreas).
   const after = res.headers.get("location");
   if (after) {
+    rastro.push(`GET ${ruta(after)}`);
     const r = await get(new URL(after, `${BASE}/`).toString(), jar);
     trace += ` · ${r.status} ${r.headers.get("location") ?? ""}`;
-    await r.body?.cancel();
+    const loc = r.headers.get("location");
+    if (r.status === 200) {
+      const html = await r.text(); rastro.push(`  ${r.status} ` + marcas(html));
+      if (segundoPaso(html)) throw new IsquadAuthError("doble");
+    } else { await r.body?.cancel(); rastro.push(`  ${r.status} → ${ruta(loc)}`); if (/verificar|seguridad|reto/i.test(loc || "")) throw new IsquadAuthError("doble"); }
   }
   return trace;
 }
@@ -99,8 +125,9 @@ const loginIsquad = (jar: Jar, login: string, password: string) => loginUnico(ja
 
 async function designaciones(jar: Jar, season?: string): Promise<string> {
   if (season) jar.set("TemporadaSelect", season); // la web de iSquad cambia de temporada con esta cookie
+  rastro.push(`GET arbitros_designaciones${season ? " " + season : ""}`);
   const page = await get(`${BASE}/arbitros_designaciones.php?rol=1`, jar);
-  if (page.status >= 300) { await page.body?.cancel(); throw new IsquadAuthError("login"); }
+  if (page.status >= 300) { await page.body?.cancel(); rastro.push(`  ${page.status} → ${ruta(page.headers.get("location"))}`); throw new IsquadAuthError("login"); }
   return await page.text();
 }
 
@@ -350,8 +377,10 @@ export async function loginDeportista(sesion: string): Promise<{ area: "jugador"
   for (const [path, area] of [["deportista", "jugador"], ["entrenador", "entrenador"]] as const) {
     const jar: Jar = new Map();
     for (const kv of sesion.split("; ")) { const i = kv.indexOf("="); if (i > 0) jar.set(kv.slice(0, i), kv.slice(i + 1)); }
+    rastro.push(`GET loginunico?area=${path} (con la sesión)`);
     const page = await get(`${BASE}/loginunico.php?area=${path}`, jar);
     const html = page.status === 200 ? await page.text() : (await page.body?.cancel(), "");
+    rastro.push(`  ${page.status} ${html ? marcas(html) : ruta(page.headers.get("location"))} contact:${/contact-container/.test(html)}`);
     if (!html || /name=["']password["']/.test(html)) continue;
     // deno-lint-ignore no-explicit-any
     const { document } = parseHTML(html) as any;
