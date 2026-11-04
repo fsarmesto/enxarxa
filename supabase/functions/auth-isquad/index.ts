@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
   const porQue = (e: IsquadAuthError) =>
     e.motivo === "bloqueada" ? json({ error: "iSquad ha bloqueado tu cuenta por demasiados intentos. Desbloquéala desde iSquad (\"¿Has olvidado la contraseña?\") y vuelve a probar." }, 401)
     : e.motivo === "doble" ? json({ error: "Tu cuenta de iSquad pide un segundo paso de verificación y EnXarxa todavía no puede entrar así." }, 401)
-    : e.motivo === "rechazada" ? json({ error: `iSquad no acepta ese usuario y contraseña${/quedan/i.test(e.aviso) ? ". " + e.aviso.replace(/^.*?(Te quedan)/i, "$1") : ""}` }, 401)
+    : e.motivo === "rechazada" ? json({ error: `iSquad no acepta ese usuario y contraseña${/te queda/i.test(e.aviso) ? ". " + e.aviso.replace(/^.*?(te queda)/i, "Te queda") : ""}` }, 401)
     : null;
   const devolver = async () => { await db0.from("pub_cache").delete().eq("key", topes[0].k); await sumar(db0, topes[1], -1).catch(() => 0); };
   // Lo que no es un fallo de contraseña (iSquad caído, petición incompleta) tampoco cuenta.
