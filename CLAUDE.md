@@ -977,6 +977,17 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   - **El líbero puede ser capitán** (del equipo y en juego): FIVB, regla 5, aprobado por el Congreso en feb. 2021 y en
     vigor desde el 1-1-2022 (fivb.com, "Changes to rules of the game approved by FIVB World Congress"). El motor ya no lo
     prohíbe al inscribir ni al redesignar líbero. Prueba: ~/work/enxarxa-pruebas/prueba-partido.mjs.
+  - **Salida del líbero con aviso (4-nov-2026, Ferran):** cuando el líbero pasa a la posición IV sale solo (como antes)
+    y ahora se abre la hoja "El líbero sale de pista" con quien vuelve. No se deja elegir: FIVB 19.3.2, al líbero solo
+    lo sustituye el jugador al que sustituía o el otro líbero (que tampoco puede jugar delante). Se apaga con "Avisos
+    del líbero" en Datos (`cfg.avisoLibero`, el mismo que el de entrada). Se detecta en `hacer()` con los
+    `st.auto` nuevos (`avisosTrasSuceso`).
+  - **Capitán en juego (FIVB 5.1.2):** suceso `capitanJuego {eq, num}` (solo con el capitán fuera de pista y `num` en
+    pista); `s.capJuego` se borra solo cuando el capitán vuelve o el capitán en juego sale (`revisarCapitan`, tras cada
+    suceso). `necesitaCapitanJuego(st, eq)`: capitán fuera, que NO sea líbero (Ferran: si es el líbero no se avisa) y
+    nadie marcado → aviso al salir (toast) y recuadro en el panel con los jugadores en pista para marcarlo. En la pista
+    lleva la C (blanca con borde), "CJ" en las listas y se anota en las observaciones del acta impresa.
+    Prueba: ~/work/enxarxa-pruebas/libero-capitan.mjs (PC y `ANCHO=390`).
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución

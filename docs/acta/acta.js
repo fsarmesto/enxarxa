@@ -70,7 +70,28 @@ function hacer(ev, silencio) {
   ev = { ...ev, h: ev.h || new Date().toISOString() };
   const m = M.validar(A.cfg, A.datos, A.ev, ev);
   if (m) { if (!silencio) toast(m); return m; }
-  A.ev.push(ev); guardar(); pintar(); publicarDirecto(); return null;
+  const autoAntes = ST?.auto.length ?? 0, capAntes = ST && ST.fase === 'juego' ? ['L', 'V'].map((e) => M.necesitaCapitanJuego(ST, e)) : [false, false];
+  A.ev.push(ev); guardar(); pintar(); publicarDirecto();
+  avisosTrasSuceso(autoAntes, capAntes);
+  return null;
+}
+// Tras cada suceso: si el líbero ha pasado delante (sale solo), se avisa con una hoja; si el capitán acaba de salir de
+// pista (y no es líbero), un aviso para que los árbitros pregunten quién es el capitán en juego.
+function avisosTrasSuceso(autoAntes, capAntes) {
+  if (!ST) return;
+  const sale = ST.auto.slice(autoAntes).filter((x) => x.t === 'liberoSaleAuto');
+  const capFuera = ['L', 'V'].filter((e, i) => !capAntes[i] && M.necesitaCapitanJuego(ST, e));
+  if (capFuera.length) { const c = ST.equipos[capFuera[0]].jugadores.find((j) => j.cap); toast(`El capitán de ${eqNombre(capFuera[0])} (${c.num}) ha salido de pista: hay que saber quién es el capitán en juego.`); }
+  if (sale.length && A.cfg.avisoLibero !== false) hojaLiberoSale(sale);
+}
+function hojaLiberoSale(sale) {
+  const nom = (eq, n) => ST.equipos[eq].jugadores.find((j) => j.num === n)?.nombre || '';
+  hoja(`<h2 id="hojaT">El líbero sale de pista</h2>
+    ${sale.map((x) => `<p><b>${esc(eqNombre(x.eq))}</b>: el líbero ${esc(x.libero)} pasa delante (posición IV) y tiene que salir.</p>
+      <b>Entra</b><div class="botones"><span class="fijo">${esc(x.vuelve)}<small>${esc(corto2(nom(x.eq, x.vuelve)))}</small></span></div>`).join('')}
+    <p class="small muted">Vuelve el jugador al que sustituía: es el único que puede entrar por el líbero (o el otro líbero, que tampoco puede jugar delante). FIVB 19.3.2.</p>
+    <div class="row"><button class="primary" id="okLibSale">Entendido</button></div>`, () => $('okLibSale').focus());
+  $('okLibSale').onclick = cerrarHoja;
 }
 function toast(msg, ok) { const t = $('toast'); t.textContent = msg; t.className = ok ? 'ok' : ''; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), 3200); }
 
@@ -231,7 +252,7 @@ function pDatos() {
       <label class="f"><span>Tiempos por set</span><input type="number" id="tiempos" min="0" max="5" value="${c.tiempos}"></label>
       <label class="f"><span>Descanso entre sets (min)</span><input type="number" id="descanso" min="0" max="30" value="${c.descanso ?? 3}"></label>
       <label class="f"><span>Descanso entre el 2º y el 3º (min)</span><input type="number" id="descanso23" min="0" max="30" value="${c.descanso23 ?? c.descanso ?? 3}"><span class="small muted">15 si el local pide el intermedio promocional.</span></label></div>
-    <label class="chk opcion"><input type="checkbox" id="cfgAvisoLib"${c.avisoLibero !== false ? ' checked' : ''}> <span><b>Avisar cuando puede entrar el líbero</b><br><span class="small muted">Cuando el equipo pasa a recibir, propone por quién entra.</span></span></label>
+    <label class="chk opcion"><input type="checkbox" id="cfgAvisoLib"${c.avisoLibero !== false ? ' checked' : ''}> <span><b>Avisos del líbero</b><br><span class="small muted">Cuando el equipo pasa a recibir, propone por quién entra; cuando pasa delante, avisa de que sale y quién vuelve.</span></span></label>
     <label class="chk opcion"><input type="checkbox" id="cfgLib"${c.liberos ? ' checked' : ''}> <span><b>Hay líbero</b><br><span class="small muted">Desactívalo en las categorías que juegan sin líbero.</span></span></label>
     <label class="chk opcion"><input type="checkbox" id="cfgSet"${c.setObligatorio ? ' checked' : ''}> <span><b>Set obligatorio por jugador</b><br><span class="small muted">Infantil (FCVB, Circular 011): cada jugador del acta tiene que jugar al menos un set completo. Al final se revisa y se puede corregir a mano.</span></span></label>
     <div class="row"><button type="button" class="ghost" id="volver">Mis actas</button><button class="primary">Siguiente: equipos</button></div></form>`;
@@ -450,7 +471,7 @@ function empezarSet(conSorteo) {
 /* ---------- 4. Partido ---------- */
 function pista(s, eq) {
   const r = M.enPista(s, eq), l = s.libero[eq], saca = s.saque === eq;
-  const celda = (i) => { const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n); return `<button type="button" class="p${l && l.pos === i ? ' lib' : ''}${saca && i === 0 ? ' saca' : ''}" style="${estiloColor(eq, l && l.pos === i)}" data-tocar="${eq}" data-num="${esc(n)}" title="Posición ${POS[i]} · tocar para cambiarlo" aria-label="${esc(n)}, posición ${POS[i]}: cambiarlo">${esc(n)}${j?.cap ? '<small>C</small>' : `<small>${POS[i]}</small>`}</button>`; };
+  const celda = (i) => { const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n); return `<button type="button" class="p${l && l.pos === i ? ' lib' : ''}${saca && i === 0 ? ' saca' : ''}" style="${estiloColor(eq, l && l.pos === i)}" data-tocar="${eq}" data-num="${esc(n)}" title="Posición ${POS[i]} · tocar para cambiarlo" aria-label="${esc(n)}, posición ${POS[i]}: cambiarlo">${esc(n)}${j?.cap || s.capJuego[eq] === n ? '<small>C</small>' : `<small>${POS[i]}</small>`}</button>`; };
   return `<div class="pista" aria-label="Posiciones de ${esc(eqNombre(eq))}"><div class="red" aria-hidden="true"></div>${[3, 2, 1, 4, 5, 0].map(celda).join('')}</div>`;
 }
 // Puntos que se van gastando (tiempos y cambios).
@@ -473,7 +494,7 @@ function mitad(s, eq) {
       ${ST.cfg.liberos ? `<button data-acc="libero" data-eq="${eq}">Líbero${l ? '<b>en pista</b>' : ''}</button>` : ''}
       <button data-acc="sancion" data-eq="${eq}">Sanción</button>
     </div>
-    ${pend.length ? '' : avisoLibero(s, eq)}
+    ${avisoCapitan(s, eq)}${pend.length ? '' : avisoLibero(s, eq)}
     <div class="m-info solo-pc">
       <div class="m-fila"><span>Tiempos</span>${gastados(s.tiempos[eq].length, ST.cfg.tiempos, 'Tiempos')}</div>
       <div class="m-fila"><span>Cambios</span>${gastados(s.nSust[eq], ST.cfg.sustituciones, 'Cambios')}</div>
@@ -482,6 +503,12 @@ function mitad(s, eq) {
       ${ST.cfg.setObligatorio ? (() => { const sc = Object.values(M.setsCompletos(ST)[eq]).filter((x) => !x.cumple); return `<h4>Les falta un set completo</h4><div class="chips">${sc.map((x) => `<span class="chip falta" title="${esc(x.nombre)}">${esc(x.num)}</span>`).join('') || '<span class="small muted">A nadie ✓</span>'}</div>`; })() : ''}
       ${sanc.length ? `<h4>Sanciones</h4><ul class="sancs">${sanc.map((x) => `<li><span class="tarjeta t-${x.tipo}" aria-hidden="true"></span>${esc(SANC[x.tipo])} · ${esc(quien(x.quien))} <span class="muted">set ${x.set}, ${x.a}:${x.b}</span></li>`).join('')}</ul>` : ''}
     </div></div>`;
+}
+// Capitán en juego: si el capitán no está en pista (y no es líbero) y nadie está marcado, se pide marcar a un jugador en pista.
+function avisoCapitan(s, eq) {
+  if (!M.necesitaCapitanJuego(ST, eq)) return '';
+  const c = ST.equipos[eq].jugadores.find((j) => j.cap);
+  return `<div class="aviso-cap" role="group" aria-label="Capitán en juego"><span>El capitán (${esc(c.num)}) no está en pista. Capitán en juego:</span>${M.enPista(s, eq).map((n) => `<button data-capj="${eq}|${esc(n)}">${esc(n)}</button>`).join('')}</div>`;
 }
 // Aviso de líbero (como el e-Scoresheet): cuando el equipo recibe y no tiene el líbero en pista, propone por qué zaguero
 // entra; primero, por el que entró la última vez en este set. Hace falta un rally completo entre dos cambios de líbero.
@@ -511,7 +538,7 @@ function listaJugadores(s, eq, nums, enPista) {
     else if (!enPista && parejas[j.num] != null) { const c = s.sust[eq].find((x) => x.sale === j.num); nota = c ? `salió ${c.a}-${c.b}` : ''; }
     else if (!enPista && s.jugados[eq].has(j.num)) nota = 'ya jugó';
     if (!enPista && l && l.por === j.num) nota = `por el líbero ${l.num}`;
-    return `<li class="${j.lib ? 'lib' : ''}${fuera ? ' fuera' : ''}"${j.lib ? ` style="${estiloColor(eq, true)}"` : ''}><span class="cap">${j.cap ? 'C' : j.lib ? 'L' : ''}</span><b>${esc(j.num)}</b><span class="nm">${esc(j.nombre || '')}</span><span class="nota">${esc(nota)}</span>${sanc.map((x) => `<span class="tarjeta t-${x.tipo}" title="${esc(SANC[x.tipo])}"></span>`).join('')}</li>`;
+    return `<li class="${j.lib ? 'lib' : ''}${fuera ? ' fuera' : ''}"${j.lib ? ` style="${estiloColor(eq, true)}"` : ''}><span class="cap">${j.cap ? 'C' : s.capJuego[eq] === j.num ? 'CJ' : j.lib ? 'L' : ''}</span><b>${esc(j.num)}</b><span class="nm">${esc(j.nombre || '')}</span><span class="nota">${esc(nota)}</span>${sanc.map((x) => `<span class="tarjeta t-${x.tipo}" title="${esc(SANC[x.tipo])}"></span>`).join('')}</li>`;
   });
   return filas.length ? `<ul class="lj">${filas.join('')}</ul>` : '<p class="small muted">—</p>';
 }
@@ -524,7 +551,7 @@ function pistaGrande(s) {
     const r = M.enPista(s, eq), l = s.libero[eq];
     return `<div class="campo" aria-label="${esc(eqNombre(eq))}">${orden.map((i) => {
       const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n), saca = s.saque === eq && i === 0;
-      return `<button type="button" class="jug${l && l.pos === i ? ' lib' : ''}${saca ? ' saca' : ''}" style="${estiloColor(eq, l && l.pos === i)}" data-tocar="${eq}" data-num="${esc(n)}" title="Posición ${POS[i]}${j ? ' · ' + esc(j.nombre) : ''} · tocar para cambiarlo" aria-label="${esc(n)}${j ? ' ' + esc(j.nombre) : ''}, posición ${POS[i]}: cambiarlo"><span class="n">${esc(n)}</span>${j?.cap ? '<span class="cap">C</span>' : ''}${saca ? '<span class="pelota" aria-hidden="true"></span>' : ''}<span class="nmb">${esc(corto2(j?.nombre))}</span><span class="pos">${POS[i]}</span></button>`;
+      return `<button type="button" class="jug${l && l.pos === i ? ' lib' : ''}${saca ? ' saca' : ''}" style="${estiloColor(eq, l && l.pos === i)}" data-tocar="${eq}" data-num="${esc(n)}" title="Posición ${POS[i]}${j ? ' · ' + esc(j.nombre) : ''} · tocar para cambiarlo" aria-label="${esc(n)}${j ? ' ' + esc(j.nombre) : ''}, posición ${POS[i]}: cambiarlo"><span class="n">${esc(n)}</span>${j?.cap || s.capJuego[eq] === n ? `<span class="cap${j?.cap ? '' : ' cj'}" title="${j?.cap ? 'Capitán' : 'Capitán en juego'}">C</span>` : ''}${saca ? '<span class="pelota" aria-hidden="true"></span>' : ''}<span class="nmb">${esc(corto2(j?.nombre))}</span><span class="pos">${POS[i]}</span></button>`;
     }).join('')}</div>`;
   };
   return `<div class="cancha"><div class="c-nom"><span>${esc(eqNombre(izq))}</span><span>${esc(eqNombre(der))}</span></div>
@@ -552,6 +579,7 @@ function describir(ev, st) {
     case 'obs': return 'Observación';
     case 'firma': return 'Firma';
     case 'goldenSet': return 'Golden set';
+    case 'capitanJuego': return `Capitán en juego ${n(ev.eq)}: el ${ev.num}`;
     case 'repeticion': return 'Repetición de la jugada';
     case 'faltaRotacion': return `Falta de rotación de ${n(ev.eq)}: punto para ${n(M.OTRO(ev.eq))}`;
     case 'incompleto': return ev.motivo === 'incomparecencia' ? `Incomparecencia de ${n(ev.eq)}` : `${n(ev.eq)}: equipo incompleto`;
@@ -594,6 +622,7 @@ function pJuego() {
   $('app').querySelectorAll('[data-acc]').forEach((b) => (b.onclick = () => ({ tiempo: () => hacer({ t: 'tiempo', eq: b.dataset.eq }), sust: () => hojaSust(b.dataset.eq), libero: () => hojaLibero(b.dataset.eq), sancion: () => hojaSancion(b.dataset.eq) })[b.dataset.acc]()));
   // Tocar a un jugador de la pista abre el cambio con él ya elegido (Ferran, 4-nov); si es el líbero, la hoja del líbero.
   $('app').querySelectorAll('[data-tocar]').forEach((b) => (b.onclick = () => { const eq = b.dataset.tocar, l = M.setActual(ST).libero[eq]; if (l && l.num === b.dataset.num) hojaLibero(eq); else hojaSust(eq, b.dataset.num); }));
+  $('app').querySelectorAll('[data-capj]').forEach((b) => (b.onclick = () => { const [eq, num] = b.dataset.capj.split('|'); if (!hacer({ t: 'capitanJuego', eq, num })) toast(`Capitán en juego: el ${num}.`, true); }));
   $('app').querySelectorAll('[data-libent]').forEach((b) => (b.onclick = () => { const [eq, libero, sale] = b.dataset.libent.split('|'); hacer({ t: 'liberoEntra', eq, libero, sale }); }));
   $('deshacer2')?.addEventListener('click', deshacer);
   // Reloj del set (desde el silbato del primer saque).
@@ -923,6 +952,7 @@ function actaHtml() {
       ...st.faltasRotacion.map((x) => `Set ${x.set} ${hora(x.h)}: falta de rotación de ${esc(st.equipos[x.eq].nombre || eqNombre(x.eq))} (${x.a}:${x.b}); punto para el rival.`),
       ...(st.incompleto ? [st.incompleto.motivo === 'incomparecencia' ? `Incomparecencia de ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))}: 0-3 (25-0).` : `Set ${st.incompleto.set} ${hora(st.incompleto.h)}: ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))} se queda con el equipo incompleto (${st.incompleto.a}:${st.incompleto.b}); el rival gana los puntos y sets que faltan.`] : []),
       ...['L', 'V'].flatMap((eq) => st.liberosFuera[eq].map((x) => `Set ${x.set} ${hora(x.h)}: el líbero ${esc(x.libero)} de ${esc(eqNombre(eq))} no puede seguir${x.nuevo ? `; nuevo líbero, el ${esc(x.nuevo)}` : ''} (${x.a}:${x.b}).`)),
+      ...st.capitanesJuego.map((x) => `Set ${x.set} ${hora(x.h)}: capitán en juego de ${esc(eqNombre(x.eq))}, el ${esc(x.num)} (${x.a}:${x.b}).`),
       ...st.observaciones.map((o) => `Set ${o.set} ${hora(o.h)}: ${esc(o.texto)}`)].join('<br>') || '—'}</td></tr></table></div>
     ${(A.correcciones || []).length ? `<div class="bloque"><table><tr><th class="izq">Correcciones del anotador (deshecho durante el partido)</th></tr><tr><td class="izq">${A.correcciones.map((x) => `${hora(x.h)} · set ${x.set} (${x.L}:${x.V}): ${esc(x.texto)}`).join('<br>')}</td></tr></table></div>` : ''}
     <div class="bloque"><table><tr>${FIRMAS_PRE.map(([k, t]) => firma(k, t + ' (antes)')).join('')}</tr><tr>${FIRMAS.map(([k, t]) => firma(k, t)).join('')}</tr></table></div>

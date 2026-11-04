@@ -45,7 +45,7 @@
       tiempos: { L: [], V: [] },              // { a, b }
       liberos: { L: [], V: [] },              // cambios de líbero, para el acta: { entra, sale, a, b }
       progreso: [],                            // cada punto: { eq, a, b, motivo }
-      golden: false, rallies: 0, repeticiones: [], ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
+      golden: false, capJuego: { L: null, V: null }, rallies: 0, repeticiones: [], ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
     };
   }
 
@@ -55,6 +55,7 @@
       equipos: { L: { nombre: '', jugadores: [], oficiales: [] }, V: { nombre: '', jugadores: [], oficiales: [] } },
       sorteos: [], sets: [nuevoSet(1)], ganados: { L: 0, V: 0 }, fin: null, inicio: null,
       golden: null,                            // golden set (desempate tras el partido): { set, ganador }
+      capitanesJuego: [],                      // capitán en juego marcado cuando el capitán no está en pista: { eq, num, set, a, b, h }
       sanciones: [],                           // { eq, quien, tipo, set, a, b }
       avisoConducta: { L: false, V: false }, avisoRetraso: { L: false, V: false }, impropias: { L: 0, V: 0 },
       descalificados: { L: new Set(), V: new Set() }, fueraPartido: { L: new Set(), V: new Set() },
@@ -243,8 +244,26 @@
     }
   }
 
+  // ---------- Capitán en juego (FIVB 5.1.2) ----------
+  // Si el capitán del equipo no está en pista, juega de capitán otro jugador en pista. Cuando el capitán vuelve, o el
+  // capitán en juego sale, la marca se borra. Si el capitán es líbero no se pide (Ferran, 4-nov-2026).
+  const capitan = (st, eq) => st.equipos[eq].jugadores.find((j) => j.cap) || null;
+  function revisarCapitan(st) {
+    const s = setActual(st); if (!s.inicio) return;
+    for (const eq of ['L', 'V']) {
+      const pista = enPista(s, eq), c = capitan(st, eq);
+      if ((c && pista.includes(c.num)) || (s.capJuego[eq] && !pista.includes(s.capJuego[eq]))) s.capJuego[eq] = null;
+    }
+  }
+  // ¿Hay que preguntar quién es el capitán en juego? (capitán fuera de pista, no es líbero, y nadie marcado)
+  function necesitaCapitanJuego(st, eq) {
+    const s = setActual(st), c = capitan(st, eq);
+    return st.fase === 'juego' && !!c && !c.lib && !enPista(s, eq).includes(c.num) && !s.capJuego[eq];
+  }
+
   // ---------- Reproducir ----------
-  function aplicar(st, ev0) {
+  function aplicar(st, ev0) { aplicar0(st, ev0); revisarCapitan(st); }
+  function aplicar0(st, ev0) {
     const ev = normalizar(ev0), h = ev.h || null, s = setActual(st);
     switch (ev.t) {
       case 'equipo': {   // { eq, nombre, jugadores:[{num,nombre,cap,lib}], oficiales:[{rol,nombre}] }
@@ -265,6 +284,15 @@
         if (st.golden) no('El golden set ya se ha jugado.');
         const g = nuevoSet(s.n + 1); g.decisivo = true; g.golden = true;
         st.sets.push(g); st.golden = { set: g.n, ganador: null }; st.fase = 'entreSets'; st.fin = null;
+        return;
+      }
+      case 'capitanJuego': {   // { eq, num }: el capitán no está en pista y el entrenador designa a otro jugador en pista
+        if (st.fase !== 'juego') no('El capitán en juego se marca con el set en marcha.');
+        const c = capitan(st, ev.eq);
+        if (!c) no('Este equipo no tiene capitán en el acta.');
+        if (enPista(s, ev.eq).includes(c.num)) no(`El capitán, el ${c.num}, está en pista: él es el capitán en juego.`);
+        if (!enPista(s, ev.eq).includes(ev.num)) no(`El ${ev.num} no está en pista.`);
+        s.capJuego[ev.eq] = ev.num; st.capitanesJuego.push({ eq: ev.eq, num: ev.num, set: s.n, ...marcador(s, ev.eq), h });
         return;
       }
       case 'sorteo': {   // { saca, izq }: antes del 1er set y antes del decisivo
@@ -430,6 +458,6 @@
     };
   }
 
-  const api = { D, dorsalValido, esDorsal, setsCompletos, CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
+  const api = { necesitaCapitanJuego, D, dorsalValido, esDorsal, setsCompletos, CONFIG, ROLES_OFICIALES, OTRO, ErrorActa, nuevo, aplicar, reproducir, validar, resultados, enPista, setActual, motivoSust };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.ActaMotor = api;
 })(typeof self !== 'undefined' ? self : this);
