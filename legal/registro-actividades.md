@@ -44,7 +44,8 @@ de tratamiento).
    Datos: nombre y apellidos, población y sus coordenadas aproximadas, coche (sí/no), disponibilidad del sábado y el
    domingo con observaciones, plan del designador (partido y puesto); sin cuenta, huella sha256 del código de edición.
    Con cuenta (4-nov-2026): hora y pabellón de sus designaciones de iSquad de ese fin de semana (tabla `matches`), solo
-   para que el panel no le ponga en 2 partidos a la vez.
+   para que el panel no le ponga en 2 partidos a la vez; y equipos donde juega o entrena (`fav_teams` con rol, de las
+   plantillas públicas) con sus partidos de ese fin de semana, solo para avisar al designador (no se impide nada).
    Origen (4-nov-2026): el propio árbitro (formulario) o el designador (a mano o importando su Excel; mismos datos).
    Interesados: árbitros, con cuenta de la app o sin ella. Destinatario: el designador (login propio, `DESIGNA_USERS`).
    Base: consentimiento (art. 6.1.a): lo envía el propio árbitro para eso; puede retirarlo desde el formulario.

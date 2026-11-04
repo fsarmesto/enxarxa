@@ -83,7 +83,7 @@ function rejillaHtml(plan, ms) {
     const pabw = innerWidth <= 900 ? 118 : 170, libre = ($('lista').clientWidth || 800) - pabw - 16;
     PX = Math.max(1.05, Math.min(1.6, libre / ((h1 - h0) * 60)));
     const filas = new Map();
-    for (const m of md) { const k = sinPista(m.pab); if (!filas.has(k)) filas.set(k, { k, pab: m.pab, pob: pobDe(m), ms: [] }); filas.get(k).ms.push(m); }
+    for (const m of md) { const k = pabK(m); if (!filas.has(k)) filas.set(k, { k, pab: m.pab, l: m.l, pob: pobDe(m), ms: [] }); filas.get(k).ms.push(m); }
     const orden = [...filas.values()].sort((a, b) => corto(a.pob).localeCompare(corto(b.pob)) || a.pab.localeCompare(b.pab));
     let horas = ''; for (let h = h0; h < h1; h++) horas += `<span style="left:${(h - h0) * 60 * PX}px">${h}:00</span>`;
     html += `<h2 class="dia-h">${esc(cap(fecha(d, 0, { weekday: 'long', day: 'numeric', month: 'long' })))}</h2>`
@@ -93,8 +93,8 @@ function rejillaHtml(plan, ms) {
       const fin = [], pos = [];
       for (const m of [...f.ms].sort((a, b) => mins(a) - mins(b))) { let c = fin.findIndex(x => x <= mins(m)); if (c < 0) { c = fin.length; fin.push(0); } fin[c] = mins(m) + DUR; pos.push([m, c]); }
       const pend = f.ms.some(m => !plan[m.key]?.r1);
-      html += `<div class="rej-fila" style="--n:${fin.length}"><div class="rej-pab"><b>${esc(pabCorto(f.pab))}</b>${f.pob ? `<small>${esc(corto(f.pob))}</small>` : ''}`
-        + `${pend && D.disp.length ? `<button type="button" class="mini" data-franja="${esc(d + '|' + f.k)}" aria-label="${esc(t('franjaT')(pabCorto(f.pab)))}">${esc(t('franjaB'))} →</button>` : ''}</div>`
+      html += `<div class="rej-fila" style="--n:${fin.length}"><div class="rej-pab"><b>${esc(pabNom(f))}</b>${f.pob ? `<small>${esc(corto(f.pob))}</small>` : ''}`
+        + `${pend && D.disp.length ? `<button type="button" class="mini" data-franja="${esc(d + '|' + f.k)}" aria-label="${esc(t('franjaT')(pabNom(f)))}">${esc(t('franjaB'))} →</button>` : ''}${botonUbicar(f)}</div>`
         + `<div class="rej-pista">${pos.map(([m, c]) => bloque(m, c, plan, h0, arb)).join('')}</div></div>`;
     }
     html += `</div></div>`;
@@ -118,7 +118,7 @@ function refrescarFicha(plan) {
 function cargaDe(a, plan) {
   const ms = D.partidos.filter(m => suyo(m, plan, a.id));
   // La FCVB paga 1 ida y vuelta por pabellón y franja: los km se cuentan así.
-  const viajes = new Map(); for (const m of ms) viajes.set(`${dia(m)}|${sinPista(m.pab)}|${franja(m)}`, m);
+  const viajes = new Map(); for (const m of ms) viajes.set(`${dia(m)}|${pabK(m)}|${franja(m)}`, m);
   const k = [...viajes.values()].reduce((s, m) => s + 2 * (km(a, m) || 0), 0);
   const fr = [['sab', 'manana', 'fSabM'], ['sab', 'tarde', 'fSabT'], ['dom', 'manana', 'fDomM'], ['dom', 'tarde', 'fDomT']].map(([d, f, l]) => {
     const puede = a[d] === 'ambas' || a[d] === f, ocup = ms.some(m => dia(m) === d && franja(m) === f);
@@ -140,12 +140,12 @@ function pintarLado(plan) {
 
 /* ---------- Toda una franja de un pabellón a un árbitro ---------- */
 function abrirFranja(d, k) {
-  const ms = D.partidos.filter(m => m.d.slice(0, 10) === d && sinPista(m.pab) === k);
+  const ms = D.partidos.filter(m => m.d.slice(0, 10) === d && pabK(m) === k);
   if (!ms.length) return;
   const plan = PLAN(), pend = f => ms.filter(m => franja(m) === f && !plan[m.key]?.r1).length;
   const f0 = pend('manana') >= pend('tarde') ? 'manana' : 'tarde';
   FR = { d, k, ms, f: f0, desde: document.activeElement };
-  $('frT').textContent = t('franjaT')(pabCorto(ms[0].pab));
+  $('frT').textContent = t('franjaT')(pabNom(ms[0]));
   $('frFranja').innerHTML = ['manana', 'tarde'].map(f => `<label><input type="radio" name="frF" value="${f}"${f === f0 ? ' checked' : ''}><span>${esc(t(f))} (${pend(f)})</span></label>`).join('');
   $('frArb').innerHTML = '';
   pintarFranja(); $('franja').classList.remove('hidden'); $('frArb').focus();
@@ -193,11 +193,11 @@ function proponer() {
   const plan = PLAN(), p = { ...plan };
   const objetivo = D.partidos.filter(m => m.liga && m.conf && !plan[m.key]?.r1 && m.isquad !== 'con' && (DIA === 'todo' || dia(m) === DIA));
   const bloques = new Map();
-  for (const m of objetivo) { const k = `${m.d.slice(0, 10)}|${sinPista(m.pab)}|${franja(m)}`; if (!bloques.has(k)) bloques.set(k, []); bloques.get(k).push(m); }
+  for (const m of objetivo) { const k = `${m.d.slice(0, 10)}|${pabK(m)}|${franja(m)}`; if (!bloques.has(k)) bloques.set(k, []); bloques.get(k).push(m); }
   const lista = [...bloques.values()].map(b => b.sort((x, y) => mins(x) - mins(y))).sort((a, b) => b.length - a.length || a[0].d.localeCompare(b[0].d));
   const puede = (a, m, q) => disponible(a, m) && (a.coche || (kmAct(a, m, q).k != null && kmAct(a, m, q).k <= 12)) && !Object.values(q[m.key] || {}).includes(a.id) && choque(a, m, q)?.tipo !== 'pisa';
   // km desde donde estará (kmAct): con lo ya propuesto, tiende a encadenar partidos de la misma zona.
-  const coste = (a, ms, q) => ms.reduce((s, m) => s + (kmAct(a, m, q).k ?? 60) + (choque(a, m, q)?.tipo === 'justo' ? 30 : 0), 0) / ms.length + cuantos(a, q) * 8;
+  const coste = (a, ms, q) => ms.reduce((s, m) => s + (kmAct(a, m, q).k ?? 60) + (choque(a, m, q)?.tipo === 'justo' ? 30 : 0) + (avisoJuega(a, m) ? 40 : 0), 0) / ms.length + cuantos(a, q) * 8;
   const poner = (a, m) => { p[m.key] = { ...(p[m.key] || {}), r1: a.id }; prop.push({ key: m.key, rol: 'r1', disp_id: a.id }); };
   const prop = []; let sinNadie = 0;
   for (const b of lista) {
@@ -245,8 +245,9 @@ function quienPuedeBloque(pend, plan) {
       if (k === undefined) { k = x.k; desde = x.desde; }
       q = { ...q, [m.key]: { ...(q[m.key] || {}), r1: a.id } };
     }
-    return { a, k, desde, justo: pend.some(m => choque(a, m, plan)?.tipo === 'justo') };
-  }).filter(Boolean).sort((x, y) => (x.k ?? 999) - (y.k ?? 999) + (x.justo - y.justo) * 30 || cuantos(x.a, plan) - cuantos(y.a, plan));
+    const jw = pend.map(m => avisoJuega(a, m)).find(Boolean) || null;   // juega o entrena: se avisa y va detrás, no se quita
+    return { a, k, desde, jw, justo: pend.some(m => choque(a, m, plan)?.tipo === 'justo') };
+  }).filter(Boolean).sort((x, y) => (x.k ?? 999) - (y.k ?? 999) + (x.justo - y.justo) * 30 + (!!x.jw - !!y.jw) * 40 || cuantos(x.a, plan) - cuantos(y.a, plan));
 }
 function filaPartido(m, plan) {
   const p = plan[m.key] || {}, arb = ARB(), st = estado(m, plan), prop = esPropuesta(m.key);
@@ -258,7 +259,7 @@ function filaPartido(m, plan) {
 function pabellonesHtml(plan, ms) {
   if (!ms.length) return `<p class="muted">${esc(t('sinPartidos'))}</p>`;
   const grupos = new Map();
-  for (const m of ms) { const k = sinPista(m.pab); if (!grupos.has(k)) grupos.set(k, { k, pab: m.pab, pob: pobDe(m), dir: m.pista, ms: [] }); grupos.get(k).ms.push(m); }
+  for (const m of ms) { const k = pabK(m); if (!grupos.has(k)) grupos.set(k, { k, pab: m.pab, l: m.l, pob: pobDe(m), dir: m.pista, ms: [] }); grupos.get(k).ms.push(m); }
   const lista = [...grupos.values()].sort((a, b) => corto(a.pob).localeCompare(corto(b.pob)) || a.pab.localeCompare(b.pab));
   const solo = lista.length === 1;
   const pend = lista.filter(g => g.ms.some(m => !plan[m.key]?.r1)).length;
@@ -268,17 +269,17 @@ function pabellonesHtml(plan, ms) {
     const abierto = solo || PAB_ABIERTOS.has(g.k);
     const puntos = [...g.ms].sort((a, b) => a.d.localeCompare(b.d)).map(m => `<i class="pdot ${estado(m, plan)}" title="${esc(m.d.slice(11, 16))}"></i>`).join('');
     html += `<details class="pab ${sts.includes('mal') ? 'mal' : falta ? 'falta' : 'ok'}" data-pk="${esc(g.k)}"${abierto ? ' open' : ''}><summary>`
-      + `<span class="pn"><b>${esc(pabCorto(g.pab))}</b><small>${esc(corto(g.pob))}</small></span>`
+      + `<span class="pn"><b>${esc(pabNom(g))}</b><small>${esc(corto(g.pob))}${g.ms.some(m => m.lat == null) ? ` <span class="tag r">${esc(t('sinUbicar'))}</span>` : g.ms.some(m => m.ubic === 'manual') ? ` <span class="tag">${esc(t('aMano'))}</span>` : ''}</small></span>`
       + `<span class="pc">${esc(t('cargaP')(g.ms.length))}${falta ? ` · <b>${esc(t('pabFalta')(falta))}</b>` : ` · ${esc(t('pabOk'))}`}</span><span class="pts" aria-hidden="true">${puntos}</span></summary>`;
     if (abierto) {
-      html += `<div class="pab-in">`;
+      html += `<div class="pab-in">${botonUbicar(g) ? `<p class="row">${botonUbicar(g)}</p>` : ''}`;
       for (const d of [...new Set(g.ms.map(m => m.d.slice(0, 10)))]) for (const f of ['manana', 'tarde']) {
         const bm = g.ms.filter(m => m.d.slice(0, 10) === d && franja(m) === f).sort((a, b) => mins(a) - mins(b));
         if (!bm.length) continue;
         const pen = bm.filter(m => !plan[m.key]?.r1 && m.isquad !== 'con'), dl = dia(bm[0]) === 'sab' ? t('sabado') : t('domingo');
         const cs = pen.length && D.disp.length ? quienPuedeBloque(pen, plan).slice(0, 6) : [];
         html += `<section class="blo"><h3>${esc(dl)} · ${esc(t(f).toLowerCase())} <small>${esc(t('cargaP')(bm.length))}</small></h3>`
-          + (pen.length ? `<div class="recs"><span class="l">${esc(t('pabPoner')(pen.length))}</span>${cs.length ? cs.map(c => `<button type="button" data-bloque="${esc(bm[0].d.slice(0, 10) + '|' + g.k + '|' + f)}" data-arb="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k != null ? esc(kmTxt(c.k, c.desde, pen[0])) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.justo ? ' · ' + esc(t('pabJusto')) : ''}</small></button>`).join('') : `<span class="small muted">${esc(t('pabNadie'))}</span>`}</div>` : `<p class="small ok-t">✓ ${esc(t('pabCompleta'))}</p>`)
+          + (pen.length ? `<div class="recs"><span class="l">${esc(t('pabPoner')(pen.length))}</span>${cs.length ? cs.map(c => `<button type="button" data-bloque="${esc(bm[0].d.slice(0, 10) + '|' + g.k + '|' + f)}" data-arb="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k != null ? esc(kmTxt(c.k, c.desde, pen[0])) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.justo ? ' · ' + esc(t('pabJusto')) : ''}${c.jw ? ' · ⚠ ' + esc(c.jw.txt) : ''}</small></button>`).join('') : `<span class="small muted">${esc(t('pabNadie'))}</span>`}</div>` : `<p class="small ok-t">✓ ${esc(t('pabCompleta'))}</p>`)
           + bm.map(m => filaPartido(m, plan)).join('') + `</section>`;
       }
       html += `</div>`;
@@ -298,6 +299,40 @@ document.addEventListener('click', e => {
   document.querySelector(`details.pab[data-pk="${CSS.escape(k)}"] summary`)?.focus();
 });
 
+/* ---------- Ubicar un pabellón a mano (4-nov-2026) ---------- */
+// g: {pab, l, ms}. Los partidos sin nombre de pabellón no se pueden ubicar (no hay nada estable que guardar).
+function botonUbicar(g) {
+  if (!g.pab) return '';
+  const falta = (g.ms || []).some(m => m.lat == null);
+  return `<button type="button" class="mini${falta ? ' ub-falta' : ' ghost'}" data-ubicar="${esc(g.pab)}">${falta ? '📍 ' : ''}${esc(t(falta ? 'ubicarB' : 'ubicarCambiar'))}</button>`;
+}
+let UB = null;
+function abrirUbicar(pab) {
+  UB = { pab, desde: document.activeElement };
+  const m = D.partidos.find(x => x.pab === pab);
+  $('ubT').textContent = t('ubicarT')(pabNom(m || { pab })); $('ubMsg').innerHTML = ''; $('ubTxt').value = '';
+  $('ubQuitar').classList.toggle('hidden', !D.partidos.some(x => sinPista(x.pab) === sinPista(pab) && x.ubic === 'manual'));
+  $('ubic').classList.remove('hidden'); $('ubTxt').focus();
+}
+function cerrarUbicar() { const de = UB?.desde; UB = null; $('ubic').classList.add('hidden'); if (de && de.isConnected && de.focus) de.focus(); }
+async function guardarUbicar(quitar) {
+  if (!UB) return;
+  const texto = $('ubTxt').value.trim();
+  if (!quitar && texto.length < 2) { $('ubMsg').innerHTML = `<p class="msg err">${esc(t('ubicarTxt'))}</p>`; return; }
+  $('ubSi').disabled = true;
+  const r = await api({ action: 'ubicar', pab: UB.pab, texto, quitar: !!quitar });
+  $('ubSi').disabled = false;
+  if (!r.ok) { $('ubMsg').innerHTML = `<p class="msg err">${esc(r.error || t('red'))}</p>`; return; }
+  const nom = $('ubT').textContent.replace(/^[^·]*·\s*/, '');
+  cerrarUbicar(); await cargar(); msg(t('ubicarOk')(nom), 'ok');
+}
+$('fUbic').addEventListener('submit', e => { e.preventDefault(); guardarUbicar(false); });
+$('ubNo').addEventListener('click', cerrarUbicar);
+$('ubQuitar').addEventListener('click', () => guardarUbicar(true));
+$('ubic').addEventListener('click', e => { if (e.target === $('ubic')) cerrarUbicar(); });
+$('ubic').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); cerrarUbicar(); } });
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-ubicar]'); if (b) { e.preventDefault(); e.stopPropagation(); abrirUbicar(b.dataset.ubicar); } }, true);
+
 /* ---------- Mapa ---------- */
 const proy = (lon, lat) => { const C = window.CATALUNYA; return [(lon - C.lon0) * C.cx * C.k, (C.lat0 - lat) * C.k]; };
 // Ciudades de referencia; las del área de Barcelona (true) solo salen con ese encuadre, si no se montan unas sobre otras.
@@ -310,7 +345,7 @@ function mapaHtml(plan, ms) {
   const vb = MAPA_ZONA === 'bcn' ? (() => { const [x0, y0] = proy(1.70, 41.72), [x1, y1] = proy(2.50, 41.22); return [x0, y0, x1 - x0, y1 - y0]; })() : [0, 0, C.w, C.h];
   const z = vb[2] / C.w, arb = ARB();
   const pabs = new Map(), sinUbicar = new Set();
-  for (const m of ms) { const k = sinPista(m.pab); if (m.lat == null) { sinUbicar.add(k); continue; } if (!pabs.has(k)) pabs.set(k, { k, pab: m.pab, lat: m.lat, lon: m.lon, ms: [] }); pabs.get(k).ms.push(m); }
+  for (const m of ms) { const k = pabK(m); if (m.lat == null) { sinUbicar.add(k); continue; } if (!pabs.has(k)) pabs.set(k, { k, pab: m.pab, l: m.l, lat: m.lat, lon: m.lon, ms: [] }); pabs.get(k).ms.push(m); }
   let svg = C.provincias.map(d => `<path class="prov" d="${d}" stroke-width="${1.5 * z}"/>`).join('');
   svg += CIUDADES.filter(c => MAPA_ZONA === 'bcn' || !c[3]).map(([n, lon, lat]) => { const [x, y] = proy(lon, lat); return `<text class="ciu" x="${x + 6 * z}" y="${y - 6 * z}" font-size="${13 * z}">${esc(n)}</text><circle class="ciu-p" cx="${x}" cy="${y}" r="${2 * z}"/>`; }).join('');
   // Líneas de cada árbitro a los pabellones donde tiene partido (con los filtros puestos).
@@ -326,7 +361,7 @@ function mapaHtml(plan, ms) {
   for (const p of orden) {
     const st = p.ms.map(m => estado(m, plan)), e = st.includes('mal') ? 'mal' : st.includes('falta') ? 'falta' : st.every(x => x === 'isq') ? 'isq' : 'ok';
     const [x, y] = proy(p.lon, p.lat), pend = p.ms.filter(m => !plan[m.key]?.r1).length;
-    const lbl = `${pabCorto(p.pab)} · ${t('cargaP')(p.ms.length)} · ${pend} ${t('lFalta')}`;
+    const lbl = `${pabNom(p)} · ${t('cargaP')(p.ms.length)} · ${pend} ${t('lFalta')}`;
     const cls = `pb ${e}${MAPA_SEL === p.k ? ' sel' : ''}${RESALTA && !p.ms.some(m => suyo(m, plan, RESALTA)) ? ' tenue' : ''}`;
     svg += `<circle class="${cls}" cx="${x}" cy="${y}" r="${(5 + Math.sqrt(p.ms.length) * 3) * z}" stroke-width="${1.5 * z}" data-pab="${esc(p.k)}" tabindex="0" role="button" aria-label="${esc(lbl)}"><title>${esc(lbl)}</title></circle>`;
   }
@@ -341,7 +376,9 @@ function mapaHtml(plan, ms) {
     + `<span class="small muted">${esc(t('mapaH'))}${sinUbicar.size ? ' · ' + esc(t('mapaSin')(sinUbicar.size)) : ''}</span></div>`
     + leyenda()
     + `<svg class="mapa" viewBox="${vb.join(' ')}" role="group" aria-label="${esc(t('vMapa'))}">${svg}</svg>`
-    + (sel ? `<h2 class="dia-h">${esc(pabCorto(sel.pab))}</h2>` + sel.ms.sort((a, b) => a.d.localeCompare(b.d)).map(m => tarjeta(m, plan)).join('') : '');
+    + (sel ? `<h2 class="dia-h">${esc(pabNom(sel))}</h2>` + sel.ms.sort((a, b) => a.d.localeCompare(b.d)).map(m => tarjeta(m, plan)).join('') : '')
+    + (sinUbicar.size ? `<h2 class="dia-h">${esc(t('mapaSin')(sinUbicar.size))}</h2><ul class="sin-ub">${[...sinUbicar].map(k => { const m = ms.find(x => pabK(x) === k);
+        return `<li><span><b>${esc(pabNom(m))}</b> <small>${esc(t('cargaP')(ms.filter(x => pabK(x) === k).length))}</small></span>${botonUbicar({ pab: m.pab, l: m.l, ms: [m] })}</li>`; }).join('')}</ul>` : '');
 }
 
 /* ---------- Eventos ---------- */
@@ -361,7 +398,7 @@ document.addEventListener('click', e => {
   const r = el.closest('[data-resalta]'); if (r) { RESALTA = r.dataset.resalta && r.dataset.resalta !== RESALTA ? r.dataset.resalta : null; pintar(); return; }
   const bq = el.closest('[data-bloque]');
   if (bq) { const [d, k, f] = bq.dataset.bloque.split('|'); const plan = PLAN();
-    const pend = D.partidos.filter(m => m.d.slice(0, 10) === d && sinPista(m.pab) === k && franja(m) === f && !plan[m.key]?.r1 && m.isquad !== 'con').sort((a, b) => mins(a) - mins(b));
+    const pend = D.partidos.filter(m => m.d.slice(0, 10) === d && pabK(m) === k && franja(m) === f && !plan[m.key]?.r1 && m.isquad !== 'con').sort((a, b) => mins(a) - mins(b));
     ponerR1(bq.dataset.arb, pend); return; }
   const f = el.closest('[data-franja]'); if (f) { const v = f.dataset.franja, i = v.indexOf('|'); abrirFranja(v.slice(0, i), v.slice(i + 1)); return; }
   const p = el.closest('[data-pab]'); if (p) { MAPA_SEL = MAPA_SEL === p.dataset.pab ? null : p.dataset.pab; pintar(); return; }

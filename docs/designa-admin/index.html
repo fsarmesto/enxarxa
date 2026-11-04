@@ -27,7 +27,7 @@
 .dia-h{font-family:var(--display);font-size:22px;margin:18px 0 8px}
 .m{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 8px;background:var(--surface)}
 .m.ok{border-left:5px solid var(--ok)} .m.falta{border-left:5px solid var(--yellow)} .m.mal{border-left-color:var(--warn)}
-.choque{margin:6px 0 0;font-size:13.5px;font-weight:600} .choque.pisa{color:var(--warn)} .choque.justo{color:var(--ink-2)}
+.choque{margin:6px 0 0;font-size:13.5px;font-weight:600} .choque.pisa{color:var(--warn)} .choque.justo{color:var(--ink-2)} .choque.juega{color:#9a6700} @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .choque.juega{color:#e3b341} } :root[data-theme="dark"] .choque.juega{color:#e3b341}
 .m .top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .m .hora{font:700 20px/1 var(--display)}
 .m .eq{font-weight:700}
@@ -115,6 +115,8 @@
 .capa .card{max-width:560px;width:100%} #ficha article.m{border:0;padding:0;margin:0;background:none} #ficha .cab{justify-content:flex-end;margin:-6px -8px 0 0}
 #frLista{margin:0 0 14px;padding-left:20px}
 .chk.hecho{margin-top:6px;font-size:13.5px;min-height:32px}
+.mini.ub-falta{border-color:var(--warn);color:var(--warn)}
+.sin-ub{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:6px} .sin-ub li{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:6px 10px} .sin-ub small{color:var(--ink-2)}
 /* Por pabellón (vistas.js, pabellonesHtml) */
 details.pab{border:1px solid var(--line);border-left:5px solid var(--yellow);border-radius:8px;margin:0 0 8px;background:var(--surface)}
 details.pab.ok{border-left-color:var(--ok)} details.pab.mal{border-left-color:var(--warn)}
@@ -261,6 +263,15 @@ article.m.fila.ok{background:var(--ok-bg)} article.m.fila.falta{background:var(-
     <div class="row"><button type="button" class="primary" id="impSi"></button><button type="button" id="impNo" data-t="cancelar">Cancelar</button></div>
   </div>
 </div>
+<div id="ubic" class="capa hidden" role="dialog" aria-modal="true" aria-labelledby="ubT">
+  <form class="card" id="fUbic" novalidate>
+    <h2 id="ubT"></h2>
+    <p class="small muted" data-t="ubicarH">Escribe la dirección o la población.</p>
+    <div id="ubMsg" role="status" aria-live="polite"></div>
+    <label class="f"><span data-t="ubicarTxt">Dirección o población</span><input type="text" id="ubTxt" maxlength="200" autocomplete="off"></label>
+    <div class="row"><button type="submit" class="primary" id="ubSi" data-t="guardar">Guardar</button><button type="button" id="ubNo" data-t="cancelar">Cancelar</button><button type="button" class="ghost hidden" id="ubQuitar" data-t="ubicarQuitar">Quitar la ubicación puesta a mano</button></div>
+  </form>
+</div>
 <div id="tourHueco" class="hidden" aria-hidden="true"></div>
 <div id="tour" class="hidden" role="dialog" aria-modal="false" aria-labelledby="tourT" aria-describedby="tourX">
   <p class="small muted" id="tourN"></p>
@@ -293,7 +304,9 @@ const T = {
     yaAqui:n=>`${n} ya está en este partido.`,
     vRejilla:'Cuadrícula', vPab:'Por pabellón', vLista:'Lista', vMapa:'Mapa', vistaL:'Vista', hecho:'Pasado a iSquad', propuesto:'Propuesta',
     progR1:(a,b)=>`${a} de ${b} con R1`, progHecho:(a,b)=>`${a} de ${b} pasados a iSquad`, progDisp:n=>n===1?'1 árbitro disponible':`${n} árbitros disponibles`, progSinIsq:n=>`${n} sin árbitro en iSquad`,
-    enIsqB:'en iSquad', leyenda:'Leyenda:', desde:p=>`desde ${p}`, sigue:'sigue en el pabellón',
+    enIsqB:'en iSquad', leyenda:'Leyenda:', sinPab:l=>`Sin pabellón (${l})`,
+    jJuega:'juega', jEntrena:'entrena', jPropio:r=>`${r} en este partido`, jHora:(r,h,p)=>`${r} a las ${h} (${p})`, jClub:c=>`es de su club (${c})`, jAviso:(n,x)=>`Ojo: ${n} ${x}.`, jLista:'Juega o entrena:',
+    ubicarB:'Ubicar', ubicarCambiar:'Cambiar ubicación', ubicarT:p=>`Ubicar · ${p}`, ubicarH:'Escribe la dirección (calle, número, código postal y población) o solo la población. Se guarda para siempre, para todos los fines de semana.', ubicarTxt:'Dirección o población', ubicarQuitar:'Quitar la ubicación puesta a mano', ubicarOk:p=>`${p}: ubicado.`, sinUbicar:'sin ubicar', aMano:'ubicado a mano', desde:p=>`desde ${p}`, sigue:'sigue en el pabellón',
     pabRes:(n,p)=>`${n} pabellones · ${p} con partidos sin R1. Abre uno para designarlo.`, pabFalta:n=>n===1?'falta 1 R1':`faltan ${n} R1`, pabOk:'completo',
     pabPoner:n=>n===1?'R1 del partido que falta:':`R1 de los ${n} que faltan (toda la franja):`, pabJusto:'va justo', pabNadie:'Nadie puede hacer toda la franja: elige partido a partido.', pabCompleta:'Franja completa', ayuda:'Cómo funciona',
     iBoton:'Importar Excel', iPlantilla:'Descargar plantilla', iExportar:'Exportar disponibilidad', iFila:'Fila', iCoche:'Coche', xlsDisp:'Disponibilidad',
@@ -334,7 +347,9 @@ const T = {
     yaAqui:n=>`${n} ja és en aquest partit.`,
     vRejilla:'Graella', vPab:'Per pavelló', vLista:'Llista', vMapa:'Mapa', vistaL:'Vista', hecho:'Passat a iSquad', propuesto:'Proposta',
     progR1:(a,b)=>`${a} de ${b} amb R1`, progHecho:(a,b)=>`${a} de ${b} passats a iSquad`, progDisp:n=>n===1?'1 àrbitre disponible':`${n} àrbitres disponibles`, progSinIsq:n=>`${n} sense àrbitre a iSquad`,
-    enIsqB:'a iSquad', leyenda:'Llegenda:', desde:p=>`des de ${p}`, sigue:'continua al pavelló',
+    enIsqB:'a iSquad', leyenda:'Llegenda:', sinPab:l=>`Sense pavelló (${l})`,
+    jJuega:'juga', jEntrena:'entrena', jPropio:r=>`${r} en aquest partit`, jHora:(r,h,p)=>`${r} a les ${h} (${p})`, jClub:c=>`és del seu club (${c})`, jAviso:(n,x)=>`Compte: ${n} ${x}.`, jLista:'Juga o entrena:',
+    ubicarB:'Situa', ubicarCambiar:'Canvia la ubicació', ubicarT:p=>`Situa · ${p}`, ubicarH:'Escriu l\'adreça (carrer, número, codi postal i població) o només la població. Es desa per sempre, per a tots els caps de setmana.', ubicarTxt:'Adreça o població', ubicarQuitar:'Treu la ubicació posada a mà', ubicarOk:p=>`${p}: situat.`, sinUbicar:'sense situar', aMano:'situat a mà', desde:p=>`des de ${p}`, sigue:'continua al pavelló',
     pabRes:(n,p)=>`${n} pavellons · ${p} amb partits sense R1. Obre'n un per designar-lo.`, pabFalta:n=>n===1?'falta 1 R1':`falten ${n} R1`, pabOk:'complet',
     pabPoner:n=>n===1?'R1 del partit que falta:':`R1 dels ${n} que falten (tota la franja):`, pabJusto:'va just', pabNadie:'Ningú no pot fer tota la franja: tria partit a partit.', pabCompleta:'Franja completa', ayuda:'Com funciona',
     iBoton:'Importa Excel', iPlantilla:'Descarrega la plantilla', iExportar:'Exporta la disponibilitat', iFila:'Fila', iCoche:'Cotxe', xlsDisp:'Disponibilitat',
@@ -481,22 +496,43 @@ function choque(a, m, plan){
   for(const o of ocupaciones(a, plan)){
     if(o.d.slice(0,10)!==m.d.slice(0,10)) continue;
     if(o.m && o.m.key===m.key) { if(o.isq) continue; if(o.plan) return {tipo:'pisa', o, aqui:true}; }
-    const gap=Math.abs(mins(o)-mins(m)), mismo=mismoPab(o.pab, m.pab);
-    if(mismo){ if(gap < PISA_MISMO) return {tipo:'pisa', o}; continue; }
-    const k = o.m ? kmEntre(o.m, m) : null, necesita = DUR_OCUPA + ANTELACION + (k==null ? 45 : k + 10);
-    if(gap < necesita) return {tipo:'pisa', o, viaje: gap >= DUR_OCUPA, k};   // viaje: no se solapan, pero no llega
-    if(gap < necesita + HOLGURA) justo ||= {tipo:'justo', o, k};
+    const c = conflicto(o, m);
+    if(c?.tipo==='pisa') return c;
+    if(c) justo ||= c;
   }
   return justo;
 }
+// Si estar en o (un partido suyo: {d, pab, m?}) le impide llegar a m: 'pisa', 'justo' o null.
+function conflicto(o, m){
+  const gap=Math.abs(mins(o)-mins(m)), mismo=mismoPab(o.pab, m.pab);
+  if(mismo) return gap < PISA_MISMO ? {tipo:'pisa', o} : null;
+  const k = o.m ? kmEntre(o.m, m) : null, necesita = DUR_OCUPA + ANTELACION + (k==null ? 45 : k + 10);
+  if(gap < necesita) return {tipo:'pisa', o, viaje: gap >= DUR_OCUPA, k};   // viaje: no se solapan, pero no llega
+  if(gap < necesita + HOLGURA) return {tipo:'justo', o, k};
+  return null;
+}
 const ocupado = (a, m, plan) => !!choque(a, m, plan);
+// Avisos de que juega o entrena (4-nov-2026, Ferran: "que avise, pero solo avise, no que bloquee"). Solo árbitros con
+// cuenta: a.juega = sus partidos del fin de semana (equipos de las plantillas públicas), a.clubs = sus clubs.
+function avisoJuega(a, m){
+  const rolTxt = j => t(j.rol==='entrenador' ? 'jEntrena' : 'jJuega');
+  const j = (a.juega||[]).find(x=>x.key===m.key);
+  if(j) return {tipo:'propio', txt:t('jPropio')(rolTxt(j))};
+  for(const x of a.juega||[]){
+    if(x.d.slice(0,10)!==m.d.slice(0,10)) continue;
+    const pm = D.partidos.find(p=>p.key===x.key) || null;
+    if(conflicto({d:x.d, pab:x.pab, m:pm}, m)) return {tipo:'hora', txt:t('jHora')(rolTxt(x), x.d.slice(11,16), pabNom(pm||{pab:x.pab, l:x.l}))};
+  }
+  const c = (a.clubs||[]).find(c=>c.id && (c.id===m.cl || c.id===m.cv));
+  return c ? {tipo:'club', txt:t('jClub')(corto(c.nombre))} : null;
+}
 const avisoTxt = (ch, a) => ch.tipo==='pisa' ? (ch.viaje ? t('avViaje')(corto(a.nombre), ocTxt(ch.o), ch.k) : t('avPisa')(corto(a.nombre), ocTxt(ch.o))) : t('avJusto')(corto(a.nombre), ocTxt(ch.o));
 const cuantos = (a, plan) => Object.values(plan).reduce((n,p)=>n+Object.values(p).filter(id=>id===a.id).length, 0);
 function candidatos(m, plan){
   const yaEn = new Set(Object.values(plan[m.key]||{}));
   return D.disp.filter(a=>!yaEn.has(a.id)).map(a=>{
-    const {k, desde}=kmAct(a,m,plan), disp=disponible(a,m), ch=choque(a,m,plan), pisa=ch?.tipo==='pisa', oc=disp && ch?.tipo==='justo', lejosSinCoche = !a.coche && (k==null || k>12);
-    return {a, k, desde, disp, ch, pisa, oc, lejosSinCoche, score:(k??60) + (lejosSinCoche?1000:0) + cuantos(a,plan)*5};
+    const {k, desde}=kmAct(a,m,plan), disp=disponible(a,m), ch=choque(a,m,plan), jw=avisoJuega(a,m), pisa=ch?.tipo==='pisa', oc=disp && ch?.tipo==='justo', lejosSinCoche = !a.coche && (k==null || k>12);
+    return {a, k, desde, jw, disp, ch, pisa, oc, lejosSinCoche, score:(k??60) + (lejosSinCoche?1000:0) + cuantos(a,plan)*5};
   }).sort((x,y)=>x.score-y.score || x.a.nombre.localeCompare(y.a.nombre));
 }
 const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
@@ -511,6 +547,9 @@ function cat(c){
 const pobDe = m => (m.pista.match(/\d{5}\s+([^,]+)/)?.[1] || '').trim();
 // "8:00 · Pavelló Congost (iSquad)" de una ocupación, para avisos y desplegables.
 const pabCorto = s => corto(String(s||'').replace(/\s*-\s*(PISTA|TERCIO|TERC|CAMP|SALA|ANNEX).*$/i,'').trim());   // sin la pista, con acentos
+// Clave y nombre de un pabellón; los partidos que iSquad da sin pabellón se agrupan por equipo local (no todos juntos).
+const pabK = m => sinPista(m.pab) || ('?' + sinPista(m.l||''));
+const pabNom = m => m.pab ? pabCorto(m.pab) : t('sinPab')(corto(m.l||''));
 const ocTxt = o => `${o.d.slice(11,16)} · ${pabCorto(o.pab)}${o.isq?' ('+t('enIsq')+')':''}`;
 
 /* ---------- Pintar ---------- */
@@ -536,7 +575,7 @@ function filtrados(plan){
 }
 function opciones(m, rol, plan){
   const sel = plan[m.key]?.[rol], arb=ARB(), cs=candidatos(m, plan);
-  const op = c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.pisa?' · '+esc((c.ch.viaje?t('noLlega'):t('yaTiene'))(ocTxt(c.ch.o))):''}${!c.pisa&&c.k!=null?' · '+esc(kmTxt(c.k,c.desde,m)):''}${!c.pisa&&!c.a.coche?' · '+esc(t('sinCoche')):''}${c.oc?' · '+esc(t('justo')(ocTxt(c.ch.o))):''}${!c.pisa&&!c.disp?' · '+esc(t('noDisp')):''}</option>`;
+  const op = c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.pisa?' · '+esc((c.ch.viaje?t('noLlega'):t('yaTiene'))(ocTxt(c.ch.o))):''}${!c.pisa&&c.k!=null?' · '+esc(kmTxt(c.k,c.desde,m)):''}${c.jw?' · ⚠ '+esc(c.jw.txt):''}${!c.pisa&&!c.a.coche?' · '+esc(t('sinCoche')):''}${c.oc?' · '+esc(t('justo')(ocTxt(c.ch.o))):''}${!c.pisa&&!c.disp?' · '+esc(t('noDisp')):''}</option>`;
   const rec=cs.filter(c=>c.disp&&!c.pisa&&!c.oc&&!c.lejosSinCoche), otros=cs.filter(c=>c.disp&&!c.pisa&&(c.oc||c.lejosSinCoche)), no=cs.filter(c=>!c.disp&&!c.pisa), pisan=cs.filter(c=>c.pisa);
   const actual = sel && arb[sel] ? `<option value="${sel}" selected>${esc(corto(arb[sel].nombre))}${(x=>x.k!=null?' · '+esc(kmTxt(x.k,x.desde,m)):'')(kmAct(arb[sel],m,plan))}</option>` : '';
   return `<option value="">${esc(t('nadie'))}</option>${actual}`
@@ -550,7 +589,8 @@ function tarjeta(m, plan){
   const p=plan[m.key]||{}, recs=candidatos(m,plan).filter(c=>c.disp&&!c.pisa&&!c.oc&&!c.lejosSinCoche).slice(0,4), arb=ARB();
   // Choques de los que ya están puestos (p. ej. confirmados con el aviso, o designados después en iSquad).
   const avisos=['r1','r2','an'].map(rol=>{ const a=arb[p[rol]]; if(!a) return ''; const sinEste={...plan, [m.key]:Object.fromEntries(Object.entries(p).filter(([r])=>r!==rol))}, ch=choque(a,m,sinEste);
-    return ch ? `<p class="choque ${ch.tipo}">${esc(avisoTxt(ch, a))}</p>` : ''; }).join('');
+    const jw = avisoJuega(a, m);
+    return (ch ? `<p class="choque ${ch.tipo}">${esc(avisoTxt(ch, a))}</p>` : '') + (jw ? `<p class="choque juega">⚠ ${esc(t('jAviso')(corto(a.nombre), jw.txt))}</p>` : ''); }).join('');
   const prop = esPropuesta(m.key), hecho = HECHO().has(m.key);
   return `<article class="m ${p.r1?'ok':'falta'}${avisos.includes('choque pisa')?' mal':''}${prop?' prop':''}" data-key="${esc(m.key)}">
       <div class="top"><span class="hora">${esc(m.d.slice(11,16))}</span><span class="tag" title="${esc(m.cat)}">${esc(cat(m.cat))}</span>${m.isquad==='con'?`<span class="tag g">${esc(t('isqCon'))}</span>`:m.isquad==='sin'?`<span class="tag r">${esc(t('isqSin'))}</span>`:''}${m.conf?'':`<span class="tag">${esc(t('aplazado'))}</span>`}${prop?`<span class="tag y">${esc(t('propuesto'))}</span>`:''}</div>
@@ -558,7 +598,7 @@ function tarjeta(m, plan){
       <div class="pab">${esc(corto(m.pab))}${pobDe(m)?' · '+esc(corto(pobDe(m))):''}</div>
       ${avisos}
       <div class="slots${p.r2||p.an?' mas':''}">${['r1','r2','an'].map(rol=>`<label class="s-${rol}">${chipArb(arb[p[rol]])}${esc(t(rol))}<select data-rol="${rol}" aria-label="${esc(t(rol))} · ${esc(corto(m.l))} – ${esc(corto(m.v))}">${opciones(m,rol,plan)}</select></label>`).join('')}<button type="button" class="ghost s-mas" data-mas>${esc(t('masRoles'))}</button></div>
-      ${D.disp.length?`<div class="recs"><span class="l">${esc(t('recomendados'))}</span>${recs.length?recs.map(c=>`<button type="button" data-pon="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k!=null?esc(kmTxt(c.k,c.desde,m)):''}${c.a.coche?'':' · '+esc(t('sinCoche'))}</small></button>`).join(''):`<span class="small muted">${esc(t('sinRec'))}</span>`}</div>`:''}
+      ${D.disp.length?`<div class="recs"><span class="l">${esc(t('recomendados'))}</span>${recs.length?recs.map(c=>`<button type="button" data-pon="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k!=null?esc(kmTxt(c.k,c.desde,m)):''}${c.a.coche?'':' · '+esc(t('sinCoche'))}${c.jw?' · ⚠ '+esc(c.jw.txt):''}</small></button>`).join(''):`<span class="small muted">${esc(t('sinRec'))}</span>`}</div>`:''}
       <label class="chk hecho"><input type="checkbox" data-hecho${hecho?' checked':''}> <span>${esc(t('hecho'))}</span></label>
     </article>`;
 }
@@ -582,6 +622,7 @@ function pintarArbitros(plan){
       .filter(x=>a.coche || x.k==null || x.k<=12).sort((x,y)=>(x.k??999)-(y.k??999)).slice(0,3);
     return `<article class="a"><div class="top">${chipArb(a)}<span class="n">${esc(corto(a.nombre))}</span><span class="tag">${esc(corto(a.poblacion))}</span>${a.coche?'':`<span class="tag r">${esc(t('sinCoche'))}</span>`}<span class="tag">${esc(a.origen==='designador'?t('porTi'):a.app?t('app'):t('mano'))}</span>${mios.length?`<span class="tag y">${esc(t('asignados')(mios.length))}</span>`:''}</div>
       <div class="d">${esc(t('sabado'))}: ${fr(a.sab,a.sab_obs)} · ${esc(t('domingo'))}: ${fr(a.dom,a.dom_obs)}</div>
+      ${(a.juega||[]).length?`<div class="d">⚠ ${esc(t('jLista'))} ${a.juega.map(x=>`${esc(cap(fecha(x.d.slice(0,10),0,{weekday:'short'})))} ${esc(x.d.slice(11,16))} · ${esc(corto(x.l))} – ${esc(corto(x.v))} · ${esc(pabNom({pab:x.pab, l:x.l}))} (${esc(t(x.rol==='entrenador'?'jEntrena':'jJuega'))})`).join(' · ')}</div>`:''}
       ${(a.isq||[]).length?`<div class="d">${esc(t('enIsqL'))} ${a.isq.map(o=>`${esc(cap(fecha(o.d.slice(0,10),0,{weekday:'short'})))} ${esc(o.d.slice(11,16))} · ${esc(pabCorto(o.pab))}`).join(' · ')}</div>`:''}
       ${mios.length?`<div class="d">${mios.map(m=>`${esc(cap(fecha(m.d.slice(0,10),0,{weekday:'short'})))} ${esc(m.d.slice(11,16))} · ${esc(corto(m.l))} – ${esc(corto(m.v))} (${esc(t(Object.entries(plan[m.key]).find(([,id])=>id===a.id)[0]))}) · <b>${esc(pabCorto(m.pab))}</b>${pobDe(m)?', '+esc(corto(pobDe(m))):''}`).join('<br>')}</div>`:''}
       <div class="recs"><span class="l">${esc(t('cercanos'))}</span>${libres.length?libres.map(x=>`<button type="button" data-asig="${esc(x.m.key)}" data-arb="${a.id}">${esc(cap(fecha(x.m.d.slice(0,10),0,{weekday:'short'})))} ${esc(x.m.d.slice(11,16))} · ${esc(corto(x.m.pab))} <small>${x.k!=null?esc(kmTxt(x.k,x.desde,x.m)):''}</small></button>`).join(''):`<span class="small muted">${esc(t('ninguno'))}</span>`}</div>
