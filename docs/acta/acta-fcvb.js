@@ -18,9 +18,42 @@ function enLineas(texto, w, fs) {
   for (const p of String(texto).split(/\s+/).filter(Boolean)) { const c = l ? l + ' ' + p : p; if (anchoTexto(c, fs) <= w || !l) l = c; else { out.push(l); l = p; } }
   if (l) out.push(l); return out;
 }
+// ---------- Modelo infantil ----------
+// El acta infantil (fcvb/model-acta-infantils.svg) es otro dibujo: las mismas casillas, algo más anchas y desplazadas. Todo
+// se calcula en coordenadas del estándar y se traslada al infantil por zonas: en cada una, rayas emparejadas de los dos
+// modelos (estándar → infantil, medidas en el PDF) y, fuera de ellas, la recta ajustada [pendiente, desplazamiento].
+// Plantillas, oficiales, casillas de equipo del set 5, HI/HF/TT y ganador se colocan con medidas propias (nativo()).
+const MAPA_INF = {
+  cab: { r: [0, 0, 842, 50], x: [1.01513, -7.646, [8.0, 0.5, 562.0, 562.88, 567.75, 568.62, 575.25, 576.25, 590.0, 591.38, 643.88, 646.12, 666.0, 668.38, 702.88, 705.88, 705.0, 708.0, 707.12, 710.12, 709.12, 712.12, 711.25, 714.25, 722.88, 726.0, 748.75, 752.38, 775.38, 779.5, 781.38, 785.62, 799.62, 804.25, 807.38, 812.0, 836.5, 841.5]], y: [1.00797, -1.78, [6.38, 4.62, 13.88, 12.25, 21.62, 20.0, 31.38, 29.88, 35.0, 33.5, 38.62, 37.12]] },
+  set1: { r: [0, 50, 421.5, 182], x: [1.01463, -7.6, [8.0, 0.25, 19.12, 12.5, 29.5, 22.25, 43.88, 36.88, 57.75, 51.0, 71.12, 64.62, 73.38, 66.75, 85.5, 79.12, 97.38, 91.12, 99.62, 93.5, 102.12, 96.0, 112.88, 107.0, 125.88, 120.0, 127.12, 121.38, 140.88, 135.38, 154.75, 149.38, 168.75, 163.5, 182.5, 177.62, 184.5, 179.5, 195.75, 190.88, 225.75, 221.38, 240.25, 236.12, 254.0, 250.25, 267.62, 263.88, 269.62, 266.0, 281.75, 278.25, 293.62, 290.38, 296.0, 292.75, 298.38, 295.25, 309.12, 306.0, 322.12, 319.25, 323.38, 320.5, 337.25, 334.5, 351.12, 348.75, 365.0, 362.75, 378.88, 376.75, 380.62, 378.62, 392.0, 390.25]], y: [1.00982, -1.777, [53.25, 51.88, 59.75, 58.62, 66.25, 65.12, 79.25, 78.25, 92.25, 91.5, 105.25, 104.5, 118.25, 117.62, 131.12, 130.62, 144.12, 143.75, 157.12, 156.88, 170.0, 169.88]] },
+  set2: { r: [421.5, 50, 842, 182], x: [1.01516, -8.383, [422.12, 420.62, 433.0, 430.75, 444.12, 442.5, 458.62, 457.25, 472.5, 471.25, 485.81, 484.88, 488.12, 487.12, 500.12, 499.5, 512.12, 511.5, 514.5, 513.75, 516.88, 516.38, 527.62, 527.25, 540.5, 540.38, 541.75, 541.62, 555.75, 555.75, 569.5, 569.75, 583.5, 583.88, 597.25, 598.0, 599.25, 599.88, 610.5, 611.25, 640.5, 641.75, 654.88, 656.5, 668.75, 670.5, 682.12, 684.06, 684.38, 686.38, 696.5, 698.62, 708.38, 710.62, 710.75, 713.0, 713.25, 715.62, 723.88, 726.5, 736.88, 739.62, 738.12, 740.88, 752.0, 754.88, 765.88, 769.12, 779.75, 783.12, 793.5, 797.12, 795.38, 799.0, 806.75, 810.62, 836.5, 841.38]], y: [1.00966, -1.74, [53.38, 51.88, 59.88, 58.62, 66.25, 65.12, 79.38, 78.25, 92.25, 91.5, 104.12, 104.5, 118.38, 117.62, 131.25, 130.62, 144.25, 143.75, 157.25, 156.88, 170.0, 169.88]] },
+  set3: { r: [0, 182, 421.5, 311], x: [1.01455, -7.576, [8.0, 0.25, 19.0, 12.62, 29.5, 22.25, 43.88, 36.88, 57.75, 51.0, 71.12, 64.62, 73.38, 66.75, 85.5, 79.12, 97.38, 91.12, 99.62, 93.5, 102.12, 96.0, 112.88, 107.0, 125.88, 120.0, 127.12, 121.38, 140.88, 135.38, 154.75, 149.38, 168.75, 163.5, 182.5, 177.62, 184.5, 179.5, 195.75, 190.88, 225.75, 221.38, 240.25, 236.12, 254.0, 250.25, 267.62, 263.88, 269.62, 266.0, 281.75, 278.25, 293.62, 290.38, 296.0, 292.75, 298.38, 295.25, 309.12, 306.0, 322.12, 319.25, 323.38, 320.5, 337.25, 334.5, 351.12, 348.75, 365.0, 362.75, 378.88, 376.75, 380.62, 378.62, 392.0, 390.25]], y: [1.01075, -1.363, [183.0, 183.12, 189.5, 190.38, 196.0, 196.88, 209.0, 210.0, 222.0, 223.12, 235.0, 236.12, 247.88, 249.25, 260.88, 262.38, 273.88, 275.38, 286.75, 288.5, 299.75, 301.5]] },
+  set4: { r: [421.5, 182, 842, 311], x: [1.01509, -8.33, [422.12, 420.62, 433.0, 430.75, 434.88, 433.38, 444.12, 442.5, 458.62, 457.25, 472.5, 471.25, 485.81, 484.88, 488.12, 487.12, 500.12, 499.5, 512.12, 511.5, 514.5, 513.75, 516.88, 516.38, 527.62, 527.25, 540.5, 540.38, 541.75, 541.62, 555.75, 555.75, 569.5, 569.75, 583.5, 583.88, 597.25, 598.0, 599.25, 599.88, 610.5, 611.25, 640.5, 641.75, 654.88, 656.5, 668.75, 670.5, 682.12, 684.06, 684.38, 686.38, 696.5, 698.62, 708.38, 710.62, 710.75, 713.0, 713.12, 715.62, 723.88, 726.5, 736.88, 739.62, 738.12, 740.88, 752.0, 754.88, 765.88, 769.12, 779.75, 783.12, 793.5, 797.12, 795.38, 799.0, 806.75, 810.62, 836.5, 841.38]], y: [1.01149, -1.779, [183.25, 183.12, 189.88, 190.38, 196.12, 196.88, 209.25, 210.0, 222.25, 223.12, 235.25, 236.12, 248.12, 249.25, 261.25, 262.38, 274.12, 275.38, 286.88, 288.5, 299.88, 301.5]] },
+  s5a: { r: [0, 311, 224, 441], x: [1.01304, -7.964, [8.38, 0.25, 19.5, 12.62, 29.88, 22.25, 44.5, 36.88, 58.38, 51.0, 71.62, 64.62, 73.88, 66.75, 86.0, 79.12, 97.88, 91.12, 100.25, 93.5, 102.62, 96.0, 113.5, 107.0, 126.38, 120.0, 127.5, 121.38, 141.5, 135.38, 155.38, 149.38, 169.25, 163.5, 183.12, 177.62, 185.0, 179.5, 196.25, 190.88]], y: [1.00977, -1.199, [312.75, 314.83, 319.38, 321.25, 326.0, 327.62, 338.88, 340.88, 351.88, 354.0, 364.25, 367.12, 377.75, 380.25, 390.75, 393.38, 403.62, 406.5, 416.75, 419.5, 429.75, 432.62]] },
+  s5b: { r: [224, 311, 421.5, 441], x: [1.01368, -7.868, [226.25, 221.38, 240.75, 236.12, 254.62, 250.25, 268.0, 263.88, 270.12, 266.0, 282.38, 278.25, 294.12, 290.38, 296.5, 292.75, 299.0, 295.25, 309.75, 306.0, 322.62, 319.25, 323.88, 320.5, 337.75, 334.5, 351.75, 348.75, 365.5, 362.75, 379.5, 376.54, 381.38, 378.62, 392.62, 390.25]], y: [1.00984, -1.271, [312.75, 314.83, 319.38, 321.25, 326.0, 327.62, 338.88, 340.88, 351.88, 354.0, 364.75, 367.12, 377.75, 380.25, 390.75, 393.38, 403.62, 406.5, 416.75, 419.5, 429.75, 432.62]] },
+  s5c: { r: [421.5, 311, 619, 441], x: [1.01518, -11.483, [425.5, 420.62, 440.12, 435.38, 454.0, 449.25, 467.38, 463.0, 469.5, 465.12, 481.62, 477.5, 493.5, 489.5, 495.75, 491.75, 498.38, 494.38, 509.0, 505.25, 521.88, 518.38, 523.25, 519.75, 537.12, 533.75, 551.0, 547.75, 564.88, 562.0, 578.75, 576.0, 580.5, 577.88, 591.75, 589.38]], y: [1.00987, -1.278, [312.75, 314.62, 326.0, 327.88, 338.88, 340.88, 351.88, 354.0, 364.75, 367.12, 377.75, 380.25, 390.75, 393.38, 403.62, 406.5, 416.75, 419.5, 429.75, 432.62]] },
+  abL: { r: [0, 441, 463.5, 595], x: [1.01457, -7.501, [8.0, 0.62, 22.75, 15.5, 37.5, 30.5, 52.25, 45.5, 61.38, 54.75, 67.0, 60.5, 81.75, 75.5, 96.5, 90.5, 128.38, 122.88, 272.25, 268.62, 296.5, 293.25, 320.75, 317.75, 346.75, 344.38, 464.38, 463.75]], y: [0.98319, 10.838, [442.75, 446.0, 455.38, 458.62, 468.5, 471.5, 481.5, 484.25, 494.5, 497.12, 514.38, 516.5, 516.0, 518.25, 529.0, 531.0, 531.62, 533.5, 541.0, 542.75, 551.5, 553.0, 553.0, 554.5, 565.0, 566.38, 571.62, 572.75, 577.0, 578.12, 589.0, 590.0]] },
+  abR: { r: [463.5, 441, 619, 595], x: [1.00934, -6.793, [484.0, 481.62, 501.5, 499.5, 519.0, 517.12, 543.5, 541.75, 568.0, 566.5, 585.5, 584.12, 603.0, 601.88]], y: [1.00422, 1.907, [442.75, 446.0, 455.5, 459.25, 468.25, 472.38, 481.38, 485.38, 494.25, 498.5, 507.38, 511.5, 520.38, 524.62, 533.25, 537.75, 546.75, 551.5, 561.25, 564.5]] }
+};
+let MAPA = null, NATIVO = false;
+const zonaDe = (x, y) => { for (const k in MAPA) { const r = MAPA[k].r; if (x >= r[0] && x < r[2] && y >= r[1] && y < r[3]) return MAPA[k]; } return null; };
+function eje([a, b, p], v) {
+  const n = p.length / 2; if (!n) return a * v + b;
+  if (v <= p[0]) return p[1] + a * (v - p[0]);
+  for (let i = 1; i < n; i++) if (v <= p[2 * i]) { const x0 = p[2 * i - 2], y0 = p[2 * i - 1], x1 = p[2 * i], y1 = p[2 * i + 1]; return y0 + (y1 - y0) * (v - x0) / (x1 - x0); }
+  return p[2 * n - 1] + a * (v - p[2 * n - 2]);
+}
+// Traslada (x, y) y, si se pasan, los otros puntos de la misma figura con la zona del primero.
+function mapear(x, y, ...mas) {
+  const z = MAPA && !NATIVO ? zonaDe(x, y) : null;
+  const f = (px, py) => (z ? [eje(z.x, px), eje(z.y, py)] : [px, py]);
+  return [f(x, y), ...mas.map(([px, py]) => f(px, py))];
+}
+const nativo = (fn) => { const a = NATIVO; NATIVO = true; try { return fn(); } finally { NATIVO = a; } };
 // Texto dentro de una caja (x, y = arriba-izquierda; w, h en pt). Se encoge si no cabe.
 function txt(x, y, w, h, t, o = {}) {
   if (t == null || t === '') return '';
+  { const [[a, b], [c, d]] = mapear(x, y, [x + w, y + h]); x = a; y = b; w = c - a; h = d - b; }
   const s = String(t).toUpperCase(), fs = o.fs || Math.max(6.5, Math.min(h * 0.72, 9.5));   // a mano, todo en mayúsculas (Ferran)
   const ancho = anchoTexto(s, fs);
   const k = ancho > w ? Math.max(0.55, w / ancho) : 1;      // estrecha el texto si es largo
@@ -29,6 +62,7 @@ function txt(x, y, w, h, t, o = {}) {
 }
 // Raya de (x1,y1) a (x2,y2): para tachar numeritos, la X, la S/R y el reloj de arena.
 function raya(x1, y1, x2, y2, g = 0.8) {
+  [[x1, y1], [x2, y2]] = mapear(x1, y1, [x2, y2]);
   const l = Math.hypot(x2 - x1, y2 - y1), a = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
   return `<div class="f-r" style="left:${x1}pt;top:${y1 - g / 2}pt;width:${l}pt;border-top-width:${g}pt;transform:rotate(${a.toFixed(2)}deg)"></div>`;
 }
@@ -39,7 +73,8 @@ const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-ES', { hour: '
 // Texto apoyado en la línea base `base` (pt), como la letra impresa del rótulo o encima de un renglón. Con line-height 1,
 // la línea base de Arial queda a 0,8465 × tamaño desde arriba.
 function linea(x, base, w, t, o = {}) { const fs = o.fs || 9.5; return txt(x, base - 0.8465 * fs, w, fs, t, { ...o, fs }); }
-const circulo = (cx, cy, r) => `<div class="f-c" style="left:${cx - r}pt;top:${cy - r}pt;width:${2 * r}pt;height:${2 * r}pt"></div>`;
+const circulo = (cx, cy, r) => { [[cx, cy]] = mapear(cx, cy); return circ0(cx, cy, r); };
+const circ0 = (cx, cy, r) => `<div class="f-c" style="left:${cx - r}pt;top:${cy - r}pt;width:${2 * r}pt;height:${2 * r}pt"></div>`;
 
 // ---------- Nombres ----------
 // "Ferran Sanchís Armesto" → "SANCHÍS ARMESTO, FERRAN" (se toma la primera palabra como nombre). Si ya viene con coma, se respeta.
@@ -72,7 +107,7 @@ function abreviatura(nombre) {
 }
 
 // ---------- Geometría del modelo (pt) ----------
-const G = {
+const G_EST = {
   competicio: [70, 9, 305, 13], data: [407, 11, 72, 12], horaH: [512, 11, 20, 12], horaM: [537, 11, 22, 12],
   equipL: [64, 25, 214, 12], equipV: [337, 25, 222, 12], terreny: [91, 41, 465, 12],
   // Letras "A o B" impresas de cada equipo de la cabecera (centro), para rodear la buena con un círculo
@@ -86,6 +121,13 @@ const G = {
   // Árbitros: 1r AR, 2on AR, ANOT. (filas) · nombre y licencia
   arbFilas: [[493.9, 19.8], [513.7, 17.3], [531.0, 19.8]], arbNom: [158, 136], arbLic: [297, 49],
 };
+// Infantil: 12 filas de 14,16 pt, columna estrecha de marcas (Circular 011) entre N. y el nombre, y oficiales en 3 filas
+// (1r E, 2on, T/M). Medido en el PDF del modelo; se coloca tal cual, sin trasladar.
+const G_INF = { ...G_EST, fila0: 337.25, filaH: 14.156, filas: 12,
+  colL: { num: [619.75, 15.25], marca: [635.0, 7.75], nom: [642.75, 87.75] }, colV: { num: [730.5, 14.4], marca: [744.9, 7.6], nom: [752.5, 88.7] },
+  circL: [706.5, 321.5], circV: [754.1, 321.5], abrevL: [624, 315, 70, 12], abrevV: [763, 315, 70, 12],
+  ofiFilas: [[513.0, 12.75], [525.75, 12.13], [537.88, 12.62]], ofiL: [622, 95], ofiV: [743.5, 96] };
+let G = G_EST;
 
 // ---------- Sets 1 a 4 ----------
 // Set 1 (arriba izquierda) medido en el PDF; el 2 está +414,3 pt a la derecha, el 3 +129,7 pt abajo y el 4 las dos cosas.
@@ -117,7 +159,8 @@ function mitad(o, out) {
   const usadas = [0, 0, 0, 0, 0, 0];
   const casilla = (c) => { const n = usadas[c]++; if (n >= 8) return null; const izq = n < 4, f = n % 4;
     return { x: izq ? cols[c] : subs[c], x2: izq ? subs[c] : cols[c + 1], y: y.saque + f * SET.saqueH }; };
-  const tacha = (c) => raya(c.x2 - 3.6, c.y + SET.saqueH - 1.2, c.x2 - 0.6, c.y + 8.2, 0.7);
+  // "/" de cada turno, como a mano: trazo largo pegado al número que cruza el numerito impreso y sube casi toda la casilla
+  const tacha = (c) => raya(c.x2 - 4.2, c.y + SET.saqueH - 1.2, c.x2 - 0.4, c.y + 3.8, 0.8);
   if (o.x) { const c = casilla(0); out.push(cruz(c.x, c.y, c.x2 - c.x, SET.saqueH)); }
   o.turnos.forEach((tu, i) => {
     if (tu.col < 0) return;
@@ -171,6 +214,7 @@ function setBloque(st, s, eqIzq, out) {
 // El turno que va en curso al cambiar se deja abierto en la parte 1 (solo "/") y se cierra en la parte 3 (Ferran).
 // Si el primer equipo llega al cambio con menos de 8 puntos, lo que sobra de su PUNTS 1-8 se cierra con el reloj (Ferran).
 const S5 = { dy: 259.4, dyP: 260.0, p1: 0.5, p2: 196.6, p3: 395.7, circ: { p1: [116.6, 319.0], p2: [258.2, 319.0], p3: [457.4, 319.0], canvi: [530.3, 319.0] } };
+const S5I = { p1: [106.5, 320.9], p2: [250.5, 320.9], p3: [449.8, 320.9], canvi: [520.6, 320.9] };
 function set5Bloque(A, st, s, M, out) {
   const OT = (e) => (e === 'L' ? 'V' : 'L');
   const X = s.cambioHecho ? OT(s.izq) : s.izq, Y = OT(X), dy = S5.dy, cab = 312.5;
@@ -178,10 +222,13 @@ function set5Bloque(A, st, s, M, out) {
   let sc = null;
   if (s.cambioHecho) for (let k = 1; k <= A.ev.length; k++) { const t = M.reproducir(A.cfg, A.datos, A.ev.slice(0, k)), u = M.setActual(t); if (u.n === s.n && u.cambioHecho) { sc = u; break; } }
   const letra = (eq) => (eq === st.sets[0].izq ? 'A' : 'B');
-  const enCirc = ([cx, cy], t) => txt(cx - 5, cy - 6, 10, 12, t, { al: 'center', b: true });
-  out.push(enCirc(S5.circ.p1, letra(X)), enCirc(S5.circ.p2, letra(Y)), enCirc(S5.circ.p3, letra(X)));
+  // Letra del equipo en el círculo (estándar) o en la casilla cuadrada (infantil, medida aparte)
+  const enCirc = (k, t) => { const [cx, cy] = (MAPA ? S5I : S5.circ)[k]; return (MAPA ? nativo : (f) => f())(() => txt(cx - 5, cy - 6, 10, 12, t, { al: 'center', b: true })); };
+  out.push(enCirc('p1', letra(X)), enCirc('p2', letra(Y)), enCirc('p3', letra(X)));
   out.push(linea(125, 324.5, 58, st.__abrev[X], { b: true, fs: 9 }), linea(266, 324.5, 112, st.__abrev[Y], { b: true, fs: 9 }));
-  out.push(hhmm(s.inicio, 47, 64.1, 324.0), hhmm(s.fin, 561, 575.4, 324.5));
+  // Infantil: el ":" de INICI está impreso fuera de sitio (en la fila de abajo), así que la hora va entera; FINAL, medido aparte.
+  if (MAPA) out.push(nativo(() => linea(46, 326.1, 30, hora(s.inicio), { fs: 9 }) + hhmm(s.fin, 552, 567.6, 326.8)));
+  else out.push(hhmm(s.inicio, 47, 64.1, 324.0), hhmm(s.fin, 561, 575.4, 324.5));
   if (s.inicio && s.fin) out.push(txt(8.5, 426, 21.3, 16, String(Math.round((Date.parse(s.fin) - Date.parse(s.inicio)) / 60000)), { al: 'center' }));
   for (const [eq, x1, x2] of [[X, 185.5, 196.5], [Y, 381.2, 392.6]]) out.push(s.saqueInicial === eq ? raya(x1 + 1, cab + 1, x2 - 1, cab + 6) : raya(x1 + 1, cab + 7.5, x2 - 1, cab + 12.5));
   const cols = (d) => SET.col.map((c) => c + d), subs = (d) => SET.sub.map((c) => c + d), y = filasSet(dy), al = s.alineacion;
@@ -197,7 +244,7 @@ function set5Bloque(A, st, s, M, out) {
   mitad({ cols: cols(S5.p1), subs: subs(S5.p1), y, al: al[X] || [], sust: pre.sust[X], x: s.saqueInicial !== X, turnos: tPre, final: !sc && !!s.fin,
     puntos: conNumero(pre.progreso, X), total: ptsCambio, punto: p1punto, reloj: sc ? [[1, 8, S5.p1 + 207.4, S5.p1 + 216]] : null, tiempos: pre.tiempos[X], T: T(S5.p1) }, out);
   if (!sc) return;
-  out.push(enCirc(S5.circ.canvi, String(ptsCambio)));
+  out.push(enCirc('canvi', String(ptsCambio)));
   // Parte 3: después del cambio (formación, sustituciones y tiempos de antes se vuelven a escribir)
   const nCerrados = pre.turnos[X].filter((t) => t.hasta != null).length;
   const pn3 = puntsNormal(S5.p3 + 200.65, 70.75 + S5.dyP), prog3 = conNumero(s.progreso, X);
@@ -261,10 +308,22 @@ function abajo(A, st, M, eqA, out) {
   r.filas.slice(0, 5).forEach((f, i) => fila(i, f[eqA], f[eqB]));
   if (r.filas.length && st.fase === 'fin') fila(5, r.total[eqA], r.total[eqB]);
   // HI, HF, TT (duración total hh:mm) y ganador "3 : x"
-  if (r.inicio) out.push(linea(479, 557.9, 35, hora(r.inicio), { fs: 8.5 }));
-  if (r.fin) out.push(linea(528.5, 558.2, 43, hora(r.fin), { fs: 8.5 }));
-  if (r.inicio && r.fin) { const m = Math.round((Date.parse(r.fin) - Date.parse(r.inicio)) / 60000); out.push(linea(585, 558.2, 36, `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`, { fs: 8.5 })); }
-  if (r.ganador) { const g = r.ganador; out.push(linea(467, 582.0, 120, g === 'L' ? d.local : d.visitante), linea(603, 582.0, 15, String(Math.min(r.total.L.gana, r.total.V.gana)))); }
+  const tt = r.inicio && r.fin ? Math.round((Date.parse(r.fin) - Date.parse(r.inicio)) / 60000) : null;
+  const ttTxt = tt == null ? '' : `${String(Math.floor(tt / 60)).padStart(2, '0')}:${String(tt % 60).padStart(2, '0')}`;
+  const perdedor = r.ganador ? Math.min(r.total.L.gana, r.total.V.gana) : null;
+  if (MAPA) nativo(() => {
+    // Infantil: HI, HF y TT llevan los ":" impresos (hora antes, minutos después). El ganador va en la línea de
+    // "GUANYADOR:" y, tras "TRES (3):", los sets del perdedor en letra: DOS (2), U (1) o ZERO (0) (Ferran).
+    for (const [iso, x1, x2] of [[r.inicio, 494.2, 496.3], [r.fin, 547.9, 550.1]]) { const [h, m] = hora(iso).split(':'); if (h) out.push(linea(x1 - 17, 561.8, 16, h, { al: 'right', fs: 9 }), linea(x2 + 1.5, 561.8, 16, m, { fs: 9 })); }
+    if (ttTxt) { const [h, m] = ttTxt.split(':'); out.push(linea(598.7 - 17, 561.8, 16, h, { al: 'right', fs: 9 }), linea(600.8 + 1.5, 561.8, 16, m, { fs: 9 })); }
+    if (r.ganador) out.push(linea(512, 573.6, 107, r.ganador === 'L' ? d.local : d.visitante, { fs: 8.5 }), linea(536, 586.6, 70, ['ZERO (0)', 'U (1)', 'DOS (2)'][perdedor] || String(perdedor), { fs: 8.5 }));
+  });
+  else {
+    if (r.inicio) out.push(linea(479, 557.9, 35, hora(r.inicio), { fs: 8.5 }));
+    if (r.fin) out.push(linea(528.5, 558.2, 43, hora(r.fin), { fs: 8.5 }));
+    if (ttTxt) out.push(linea(585, 558.2, 36, ttTxt, { fs: 8.5 }));
+    if (r.ganador) out.push(linea(467, 582.0, 120, r.ganador === 'L' ? d.local : d.visitante), linea(603, 582.0, 15, String(perdedor)));
+  }
   // RESULTATS (L/V): "25/20 ; 20/25…" alrededor de las barras impresas
   st.sets.filter((s) => s.fin && !s.golden).slice(0, 5).forEach((s, i) => { const b = BARRAS_RES[i];
     out.push(linea(b - 24, 584.8, 21, s.puntos.L, { al: 'right', fs: 9 }), linea(b + 4, 584.8, 21, s.puntos.V, { fs: 9 })); });
@@ -297,8 +356,11 @@ function annex(A, resto) {
   return `<div class="fcvb-pagina vertical" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/complement-observacions.svg" alt="">${out.join('')}</div>`;
 }
 
+// Acta infantil si la competición o la categoría lo dicen (como el resto de la app).
+const esInfantil = (d) => /INFANTIL/i.test(`${d.competicion || ''} ${d.categoria || ''}`);
 function pagina(A, ST, M) {
-  const d = A.datos, e = ST.equipos, out = [];
+  const d = A.datos, e = ST.equipos, out = [], inf = esInfantil(d);
+  MAPA = inf ? MAPA_INF : null; G = inf ? G_INF : G_EST;
   const eqA = ST.sets[0]?.izq || null;                       // equipo A = el de la izquierda del anotador en el set 1
   const letra = (eq) => (eqA ? (eq === eqA ? 'A' : 'B') : '');
   // Cabecera
@@ -327,7 +389,8 @@ function pagina(A, ST, M) {
     // Oficiales: 1r E = entrenador; 2on = entrenadores asistentes; T/M = fisioterapeuta o médico
     const of = (rol) => e[eq].oficiales.find((o) => o.rol === rol && o.nombre)?.nombre || '';
     const tm = [of('F'), of('M')].filter(Boolean).map(cognomNom).join(' / ');
-    [of('E'), of('E2'), of('E3')].map(cognomNom).concat([tm]).forEach((n, i) => {
+    const segundos = [of('E2'), of('E3')].filter(Boolean).map(cognomNom);
+    (G.ofiFilas.length === 3 ? [cognomNom(of('E')), segundos.join(' / '), tm] : [of('E'), of('E2'), of('E3')].map(cognomNom).concat([tm])).forEach((n, i) => {
       const [y, h] = G.ofiFilas[i], [x, w] = eq === 'L' ? G.ofiL : G.ofiV;
       out.push(txt(x, y, w, h, n));
     });
@@ -343,7 +406,7 @@ function pagina(A, ST, M) {
   const s5 = ST.sets.find((x) => x.n === 5 && x.decisivo && !x.golden && x.inicio);
   if (eqA && s5) set5Bloque(A, ST, s5, M, out);
   const resto = eqA ? abajo(A, ST, M, eqA, out) : '';
-  return `<div class="fcvb-pagina" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/model-acta-estandard.svg" alt="">${out.join('')}</div>${resto ? annex(A, resto) : ''}`;
+  return `<div class="fcvb-pagina" data-noi18n style="color:${TINTA}"><img class="fcvb-fondo" src="fcvb/${inf ? 'model-acta-infantils' : 'model-acta-estandard'}.svg" alt="">${out.join('')}</div>${resto ? nativo(() => annex(A, resto)) : ''}`;
 }
 
 window.ActaFcvb = { pagina, abreviatura, cognomNom, W, H };
