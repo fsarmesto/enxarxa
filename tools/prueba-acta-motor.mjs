@@ -332,3 +332,27 @@ test('golden set: después del partido, a 15 con sorteo y cambio a los 8; no cam
   const r = M.resultados(st); assert.equal(r.filas.length, 2); assert.equal(r.ganador, 'L'); assert.equal(r.golden.ganador, 'V'); assert.deepEqual(r.golden.puntos, { L: 0, V: 15 });
   assert.match(p.falla({ t: 'goldenSet' }), /ya se ha jugado/);
 });
+
+test('capitán en juego: aviso cuando el capitán sale (si no es líbero), marca y se borra al volver', () => {
+  const p = preparado();   // capitán: el 1 de cada equipo; L tiene líberos 12 y 13
+  assert.equal(M.necesitaCapitanJuego(p.st(), 'L'), false, 'con el capitán en pista, no');
+  assert.match(p.falla({ t: 'capitanJuego', eq: 'L', num: 2 }), /está en pista: él es el capitán/);
+  p.add({ t: 'sust', eq: 'L', sale: 1, entra: 7 });
+  assert.equal(M.necesitaCapitanJuego(p.st(), 'L'), true, 'sale el capitán: hay que marcar capitán en juego');
+  assert.match(p.falla({ t: 'capitanJuego', eq: 'L', num: 8 }), /no está en pista/);
+  p.add({ t: 'capitanJuego', eq: 'L', num: 3 });
+  let s = set(p); assert.equal(s.capJuego.L, '3'); assert.equal(M.necesitaCapitanJuego(p.st(), 'L'), false);
+  p.add({ t: 'sust', eq: 'L', sale: 3, entra: 8 });
+  s = set(p); assert.equal(s.capJuego.L, null, 'si sale el capitán en juego, se borra'); assert.equal(M.necesitaCapitanJuego(p.st(), 'L'), true);
+  p.add({ t: 'capitanJuego', eq: 'L', num: 2 });
+  p.add({ t: 'punto', eq: 'L' }); p.add({ t: 'sust', eq: 'L', sale: 7, entra: 1 });
+  s = set(p); assert.equal(s.capJuego.L, null, 'vuelve el capitán: se borra'); assert.equal(M.necesitaCapitanJuego(p.st(), 'L'), false);
+  assert.equal(p.st().capitanesJuego.length, 2);
+});
+
+test('capitán líbero: cuando sale de pista no se pide capitán en juego', () => {
+  const ev = [{ t: 'equipo', eq: 'L', nombre: 'L', jugadores: [1, 2, 3, 4, 5, 6, 7].map((num) => ({ num })).concat([{ num: 12, lib: true, cap: true }]) },
+    { t: 'equipo', eq: 'V', nombre: 'V', jugadores: [1, 2, 3, 4, 5, 6].map((num) => ({ num, cap: num === 1 })) },
+    { t: 'sorteo', saca: 'V', izq: 'L' }, { t: 'alineacion', eq: 'L', jugadores: [1, 2, 3, 4, 5, 6] }, { t: 'alineacion', eq: 'V', jugadores: [1, 2, 3, 4, 5, 6] }, { t: 'inicioSet' }];
+  assert.equal(M.necesitaCapitanJuego(M.reproducir({}, {}, ev), 'L'), false, 'capitán líbero en el banquillo: sin aviso');
+});
