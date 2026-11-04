@@ -1062,6 +1062,11 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     +196,1 pt); mitad izquierda = A en los sets 1 y 3, B en el 2 y el 4. Turnos: `s.turnos[eq]` (col = posición inicial)
     en la siguiente casilla libre de esa columna; la X del que recibe ocupa la 1ª de la I; el último turno, rodeado.
     PUNTS: `s.progreso` sin anulados; los de castigo rodeados. Pruebas: fcvb.mjs y fcvb2.mjs (partido simulado → PDF).
+    Paso 3 (set 5, `set5Bloque`): parte 1 = equipo que empieza a la izquierda hasta el cambio (PUNTS 1-8), parte 2 = el
+    otro entero, parte 3 = el primero después del cambio (formación, sustituciones y tiempos de antes se repiten: "se
+    apuntan en ambos lados"; turnos y PUNTS siguen donde iban; "Punts al canvi" = sus puntos al cambiar). El turno en
+    curso al cambiar: en la parte 1 solo la "/" (abierto) y se cierra en la parte 3. El estado del cambio se saca
+    reproduciendo el acta suceso a suceso hasta `cambioHecho`. Prueba: fcvb3.mjs (5 sets).
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución
