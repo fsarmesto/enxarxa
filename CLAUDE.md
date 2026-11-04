@@ -1056,7 +1056,12 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     columna; S/R: se tacha la que toca; sanciones: el número (E, 2E… si es oficial; D si es por demora) en la columna
     A/C/E/D, equipo, set y marcador; solicitud improcedente: X en la A o la B; set 5: la 3ª parte repite la formación
     del 1er equipo y sigue numerando puntos donde iba; "Punts al canvi" = puntos de ese equipo al cambiar.
-    Hecho: paso 1 (cabecera, plantillas, oficiales, árbitros). Prueba: ~/work/enxarxa-pruebas/fcvb.mjs (genera el PDF).
+    Hecho: paso 1 (cabecera, plantillas, oficiales, árbitros; jugadores solo con el 1er apellido, "Pinto, G." si se
+    repite). Paso 2 (sets 1-4, `setBloque`): set 1 medido (columnas, subcolumnas de saque, filas, PUNTS 1-13 / 14-25 /
+    26-37, T, MIN) y los demás por desplazamiento (+414,3 pt el 2 y el 4; +129,7 pt el 3 y el 4; mitad derecha
+    +196,1 pt); mitad izquierda = A en los sets 1 y 3, B en el 2 y el 4. Turnos: `s.turnos[eq]` (col = posición inicial)
+    en la siguiente casilla libre de esa columna; la X del que recibe ocupa la 1ª de la I; el último turno, rodeado.
+    PUNTS: `s.progreso` sin anulados; los de castigo rodeados. Pruebas: fcvb.mjs y fcvb2.mjs (partido simulado → PDF).
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución
