@@ -1109,6 +1109,9 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     lo que sobra de su PUNTS 1-8 se cierra con el reloj de arena (Ferran, 4-nov). Pruebas: fcvb3.mjs (5 sets) y
     real-0111.mjs (partido real SFR-VLF del 1-11-2026 transcrito de la foto del acta en papel: 238 sucesos, el acta
     generada coincide casilla a casilla con el papel).
+    Todo lo escrito "a mano" en el acta FCVB sale en MAYÚSCULAS (`txt` lo pasa a mayúsculas; Ferran, 4-nov). Plantillas por
+    orden de dorsal (Ferran). Cada observación se cierra con ".\\" (punto y doble barra invertida) y la siguiente va a
+    continuación en la misma línea. La capitana en juego no se apunta en papel.
     Paso 4 (`abajo`, `observaciones`, `annex`): sanciones (5 filas; número / E, 2E… / D por demora en A-C-E-D, equipo,
     set, marcador; las que no caben, a observaciones), solicitud improcedente (X en A o B), cuadro de resultados (T S G
     PUNTS por set y total; las sustituciones excepcionales suman, FIVB 15.7), HI / HF / TT, ganador "3 : x", RESULTATS
