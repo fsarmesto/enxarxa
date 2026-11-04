@@ -123,6 +123,7 @@ function pintar0() {
   if (A) calcular();
   const v = vista();
   document.body.classList.toggle('vista', v === 'ver');
+  document.body.classList.toggle('en-juego', v === 'juego');   // móvil: cabecera fina y todo lo principal en una pantalla
   $('sub').textContent = A ? `${A.datos.local || 'Local'} – ${A.datos.visitante || 'Visitante'}${A.datos.competicion ? ' · ' + A.datos.competicion : ''}` : 'Prototipo · reglas oficiales FIVB 6x6';
   ({ inicio: pInicio, datos: pDatos, equipos: pEquipos, sorteo: pSorteo, juego: pJuego, entre: pEntre, final: pFinal, ver: pVer })[v]();
 }
@@ -562,7 +563,8 @@ function pJuego() {
     <div class="j-izq">${mitad(s, izq)}</div>
     <div class="j-cancha">${pistaGrande(s)}</div>
     <div class="j-der">${mitad(s, der)}</div>
-    <div class="j-barra"><div class="barra"><button id="deshacer" class="solo-movil">Deshacer</button><button id="repe">Repetición</button><button id="incid">Incidencias</button><button id="obs">Observación</button><button id="directo"${A.directo ? ' class="en-directo"' : ''}>${A.directo ? '● En directo' : 'Directo'}</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
+    <div class="j-ult solo-movil">${(() => { const u = [...A.ev].reverse().find((e) => !['equipo', 'firma'].includes(e.t)); return `<div class="c-ultimo"><span>${u ? `<span class="muted">Último:</span> ${esc(describir(u, ST))}` : '<span class="muted">Todavía no hay nada que deshacer.</span>'}</span><button id="deshacer" class="deshacer"${u ? '' : ' disabled'}>Deshacer</button></div>`; })()}</div>
+    <div class="j-barra"><div class="barra"><button id="repe">Repetición</button><button id="incid">Incidencias</button><button id="obs">Observación</button><button id="directo"${A.directo ? ' class="en-directo"' : ''}>${A.directo ? '● En directo' : 'Directo'}</button><button id="ver">Ver acta</button><button class="ghost" id="mis">Mis actas</button></div>
       <p class="small muted teclas">Teclado: <kbd>←</kbd> punto a ${esc(eqNombre(izq))} · <kbd>→</kbd> punto a ${esc(eqNombre(der))} · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer</p></div>
     <div class="j-reg"><h3 class="solo-pc">Últimos sucesos</h3><div class="registro" aria-label="Últimos sucesos">${ultimos.map((e) => `<div><span class="h">${hora(e.h)}</span>${esc(describir(e, ST))}</div>`).join('')}</div></div>
   </div>`;

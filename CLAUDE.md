@@ -927,6 +927,13 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     nombre en el panel. El número va en negro o blanco según cuál contrasta más (`textoSobre`, luminancia > 0,18 =
     negro; por eso el verde por defecto lleva número negro). El que saca: anillo blanco y negro (el rojo no se veía
     sobre el rojo del local). Prueba: ~/work/enxarxa-pruebas/colores.mjs.
+  - **Móvil en una pantalla (4-nov-2026, Ferran: "mucho scroll"):** durante el juego (`body.en-juego`, < 1100 px) la
+    cabecera queda en una línea (sin título ni pasos) y lo principal cabe sin bajar: marcador, pistas, Punto (con el
+    nombre debajo en pequeño), acciones, aviso de líbero y "Último + Deshacer" (`.j-ult`, área `ult` del grid). Lo
+    secundario (Repetición, Incidencias, Observación, Directo, Ver acta, registro) va debajo; el texto del teclado se
+    esconde en pantallas táctiles. En 375×667 Deshacer acaba en 527 px (Safari del iPhone SE deja ~550 visibles).
+    **Doble toque sin zoom:** `touch-action: manipulation` en la página y los controles (el pellizco sigue; no se usa
+    `user-scalable=no`). Prueba: ~/work/enxarxa-pruebas/movil-pantalla.mjs.
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución

@@ -84,7 +84,10 @@ main.wide{max-width:1180px}
 .registro div{padding:2px 0}
 /* Pantalla de juego: en móvil y tablet, marcador arriba y dos mitades; en PC (desde 1100 px), 3 columnas con la pista real
    en el centro y el panel de cada equipo a su lado. */
-.juego{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"marc marc" "izq der" "barra barra" "reg reg";gap:10px}
+.juego{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"marc marc" "izq der" "ult ult" "barra barra" "reg reg";gap:10px}
+.j-ult{grid-area:ult;min-width:0} .j-ult .c-ultimo{margin:0}
+/* Doble toque: sin el zoom del navegador (el de pellizcar con 2 dedos sigue funcionando) */
+html,body,button,a,input,select,label{touch-action:manipulation}
 .j-marc{grid-area:marc;min-width:0}.j-izq{grid-area:izq;min-width:0}.j-der{grid-area:der;min-width:0}.j-cancha{grid-area:cancha;display:none;min-width:0}.j-barra{grid-area:barra}.j-reg{grid-area:reg}
 .juego .marcador{margin:0;border:1px solid #2E2E2E}   /* que se vea en el tema oscuro */
 .marcador .pts .p-g{opacity:.5;margin:0 .12em}
@@ -221,8 +224,25 @@ button.p:hover,button.jug:focus-visible{border-color:var(--yellow)}
 .firmas{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .firmas .f{border:1px solid var(--line);border-radius:8px;padding:8px}
 .firmas img{width:100%;height:70px;object-fit:contain;background:#fff;border-radius:4px}
+/* Móvil y tablet en juego: cabecera fina y sin pasos, para que marcador, pistas, Punto, acciones y Deshacer quepan en
+   una pantalla; lo secundario (barra, teclado, registro) queda debajo. */
+@media (max-width:1099px){
+  body.en-juego .board{padding:6px 12px 8px;border-bottom-width:3px} body.en-juego .board h1,body.en-juego .board .sub{display:none}
+  body.en-juego .board .lang{top:-2px} body.en-juego .board .lang button{padding:2px 8px;font-size:12px;min-height:0;line-height:1.3}
+  body.en-juego .pasos{display:none}
+  body.en-juego main{padding-top:8px}
+  .juego{gap:8px}
+  .mitad .btnPunto{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1}
+  .mitad .btnPunto .solo-movil-i{display:block;font:600 12px/1.1 Barlow,sans-serif;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.9}
+  .c-ultimo{padding:6px 6px 6px 10px;font-size:13px}
+  .c-ultimo .deshacer{min-height:44px}
+}
+@media (hover:none){ .teclas{display:none} }
 @media (max-width:520px){
-  .marcador .pts{font-size:44px} .pista .p{min-height:40px;font-size:18px} .btnPunto{min-height:66px;font-size:22px}
+  .marcador{padding:4px 10px} .marcador .eq{font-size:13px} body.en-juego .marcador .pts{font-size:38px} .marcador .sets{font-size:16px}
+  body.en-juego .acts button{min-height:40px} body.en-juego .acts{gap:5px} body.en-juego .pista{margin-bottom:6px;padding:5px} body.en-juego .pista .p{min-height:38px}
+  .aviso-lib{font-size:12px;padding:4px 6px;gap:4px;margin:6px 0 0} .aviso-lib button{min-width:38px;min-height:38px;font-size:16px;padding:2px 6px}
+  .marcador .pts{font-size:44px} .pista .p{min-height:40px;font-size:18px} .btnPunto{min-height:62px;font-size:24px}
   .acts button{font-size:13px;flex-direction:column;gap:0;line-height:1.15;min-width:0;padding:4px 2px}
   .acts button b{margin:0;font-size:12px}
   .mitad{padding:6px}
