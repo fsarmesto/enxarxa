@@ -1407,7 +1407,8 @@ function renderOffline(){
 }
 // Pausa de iSquad (4-nov-2026, APP_CONFIG.ISQUAD_PAUSA): aviso fijo arriba y nota en la pantalla de entrar.
 const ISQUAD_PAUSA = !!(window.APP_CONFIG && window.APP_CONFIG.ISQUAD_PAUSA);
-if(ISQUAD_PAUSA){ $('pausaBar').classList.remove('hidden'); $('pausaLogin').classList.remove('hidden'); const g=$('aGuest').closest('label'); if(g) g.classList.add('hidden'); }
+// Cierre (4-nov-2026): con la pausa no se pide la contraseña de iSquad; el formulario no se muestra.
+if(ISQUAD_PAUSA){ $('pausaBar').classList.remove('hidden'); $('pausaLogin').classList.remove('hidden'); $('authForm').classList.add('hidden'); $('authNote').classList.add('hidden'); }
 // Las acciones que escriben en el servidor no valen sin red: se avisa en vez de fallar en silencio.
 function blockOffline(){
   if(!isOffline()) return false;
