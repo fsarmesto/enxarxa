@@ -154,7 +154,7 @@ function pintarFranja() {
   const plan = PLAN(), pend = FR.ms.filter(m => franja(m) === FR.f && !plan[m.key]?.r1).sort((a, b) => mins(a) - mins(b));
   FR.pend = pend;
   const prev = $('frArb').value, cs = pend[0] ? candidatos(pend[0], plan).filter(c => c.disp) : [];
-  $('frArb').innerHTML = cs.map(c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.k != null ? ' · ' + esc(kmTxt(c.k, c.desde, pend[0])) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.pisa ? ' · ' + esc(t('yaTiene')(ocTxt(c.ch.o))) : ''}</option>`).join('');
+  $('frArb').innerHTML = cs.map(c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.k != null ? ' · ' + esc(kmTxt(c.k, c.desde, pend[0])) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.pisa ? ' · ' + esc((c.ch.viaje ? t('noLlega') : t('yaTiene'))(ocTxt(c.ch.o))) : ''}</option>`).join('');
   if (cs.some(c => c.a.id === prev)) $('frArb').value = prev;
   $('frLista').innerHTML = pend.length ? pend.map(m => `<li>${esc(m.d.slice(11, 16))} · ${esc(cat(m.cat))} · ${esc(corto(m.l))} – ${esc(corto(m.v))}</li>`).join('') : `<li>${esc(t('franjaNada'))}</li>`;
   $('frSi').textContent = t('franjaAplicar')(pend.length); $('frSi').disabled = !pend.length || !cs.length;

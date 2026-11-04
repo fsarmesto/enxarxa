@@ -288,8 +288,8 @@ const T = {
     ubicando:n=>`Ubicando ${n} pabellones en el mapa… las distancias se completan solas.`, kPart:'partidos', kR1:'con R1 en el plan', kDisp:'árbitros disponibles', kSinIsq:'sin árbitro en iSquad',
     r1:'R1', r2:'R2', an:'Anotador', masRoles:'+ R2 y anotador', nadie:'—', recomendados:'Recomendados:', sinRec:'Nadie disponible a esta hora.', sinCoche:'sin coche', km:k=>`≈ ${k} km`,
     grpRec:'Recomendados', grpOtros:'Disponibles (lejos o con poco margen)', grpNo:'No disponibles a esta hora', ocupado:'otro partido', noDisp:'no disponible',
-    grpPisa:'Ya tienen un partido a esta hora', yaTiene:x=>`ya tiene ${x}`, justo:x=>`poco margen: ${x}`, enIsq:'iSquad', enIsqL:'En iSquad:',
-    avPisa:(n,x)=>`${n} ya tiene el partido de las ${x}.`, avTit:'Ya tiene un partido a esa hora', avSi:'Ponerlo igualmente', avJusto:(n,x)=>`Ojo: ${n} tiene el partido de las ${x} y va justo de tiempo para el viaje.`,
+    grpPisa:'Ya tienen un partido a esta hora o no llegan', yaTiene:x=>`ya tiene ${x}`, justo:x=>`poco margen: ${x}`, enIsq:'iSquad', enIsqL:'En iSquad:',
+    avPisa:(n,x)=>`${n} ya tiene el partido de las ${x}.`, avViaje:(n,x,k)=>`${n} tiene el partido de las ${x}: no le da tiempo a acabarlo, ir${k!=null?` (≈ ${k} km)`:''} y llegar 30 min antes.`, noLlega:x=>`no llega: ${x}`, avTit:'Ya tiene un partido a esa hora', avSi:'Ponerlo igualmente', avJusto:(n,x)=>`Ojo: ${n} tiene el partido de las ${x} y va justo de tiempo para el viaje.`,
     yaAqui:n=>`${n} ya está en este partido.`,
     vRejilla:'Cuadrícula', vPab:'Por pabellón', vLista:'Lista', vMapa:'Mapa', vistaL:'Vista', hecho:'Pasado a iSquad', propuesto:'Propuesta',
     progR1:(a,b)=>`${a} de ${b} con R1`, progHecho:(a,b)=>`${a} de ${b} pasados a iSquad`, progDisp:n=>n===1?'1 árbitro disponible':`${n} árbitros disponibles`, progSinIsq:n=>`${n} sin árbitro en iSquad`,
@@ -329,8 +329,8 @@ const T = {
     ubicando:n=>`Situant ${n} pavellons al mapa… les distàncies es completen soles.`, kPart:'partits', kR1:'amb R1 al pla', kDisp:'àrbitres disponibles', kSinIsq:'sense àrbitre a iSquad',
     r1:'R1', r2:'R2', an:'Anotador', masRoles:'+ R2 i anotador', nadie:'—', recomendados:'Recomanats:', sinRec:'Ningú disponible a aquesta hora.', sinCoche:'sense cotxe', km:k=>`≈ ${k} km`,
     grpRec:'Recomanats', grpOtros:'Disponibles (lluny o amb poc marge)', grpNo:'No disponibles a aquesta hora', ocupado:'un altre partit', noDisp:'no disponible',
-    grpPisa:'Ja tenen un partit a aquesta hora', yaTiene:x=>`ja té ${x}`, justo:x=>`poc marge: ${x}`, enIsq:'iSquad', enIsqL:'A iSquad:',
-    avPisa:(n,x)=>`${n} ja té el partit de les ${x}.`, avTit:'Ja té un partit a aquesta hora', avSi:'Posa\'l igualment', avJusto:(n,x)=>`Compte: ${n} té el partit de les ${x} i va just de temps per al viatge.`,
+    grpPisa:'Ja tenen un partit a aquesta hora o no hi arriben', yaTiene:x=>`ja té ${x}`, justo:x=>`poc marge: ${x}`, enIsq:'iSquad', enIsqL:'A iSquad:',
+    avPisa:(n,x)=>`${n} ja té el partit de les ${x}.`, avViaje:(n,x,k)=>`${n} té el partit de les ${x}: no li dona temps d'acabar-lo, anar-hi${k!=null?` (≈ ${k} km)`:''} i arribar 30 min abans.`, noLlega:x=>`no hi arriba: ${x}`, avTit:'Ja té un partit a aquesta hora', avSi:'Posa\'l igualment', avJusto:(n,x)=>`Compte: ${n} té el partit de les ${x} i va just de temps per al viatge.`,
     yaAqui:n=>`${n} ja és en aquest partit.`,
     vRejilla:'Graella', vPab:'Per pavelló', vLista:'Llista', vMapa:'Mapa', vistaL:'Vista', hecho:'Passat a iSquad', propuesto:'Proposta',
     progR1:(a,b)=>`${a} de ${b} amb R1`, progHecho:(a,b)=>`${a} de ${b} passats a iSquad`, progDisp:n=>n===1?'1 àrbitre disponible':`${n} àrbitres disponibles`, progSinIsq:n=>`${n} sense àrbitre a iSquad`,
@@ -454,13 +454,15 @@ const PLAN = () => { const p={}; for(const x of D.asig) (p[x.match_key] ||= {})[
 const HECHO = () => new Set(D.hecho||[]);
 const ARB = () => Object.fromEntries(D.disp.map(a=>[a.id,a]));
 const disponible = (a, m) => { const v=a[dia(m)]; return v==='ambas' || v===franja(m); };
-// ¿Choca con otro partido suyo? (4-nov-2026, Ferran: nadie puede estar en 2 partidos a la vez.) Misma regla que el
-// servidor (supabase/functions/designa, choqueDe):
-// - 'pisa': inicios a menos de 1 h en el mismo pabellón, o de 1 h 45 min en otro → al elegirlo sale un aviso y el
-//   designador decide (4-nov-2026, Ferran: aviso, no bloqueo); el servidor solo lo guarda si se ha confirmado (forzar).
-// - 'justo': otro pabellón sin margen para el viaje (1 h 45 min + ≈1 min por km + 15 min; sin distancia, 2 h 30 min) → solo aviso.
+// ¿Choca con otro partido suyo? (4-nov-2026, Ferran: nadie puede estar en 2 partidos a la vez.)
+// - 'pisa' = no le da tiempo: en el mismo pabellón, inicios a menos de 1 h; en otro, menos de lo que hace falta de verdad:
+//   2 h de partido + el viaje entre los 2 pabellones (≈ 1 min por km + 10 de aparcar; sin ubicar, 45 min) + llegar 30 min
+//   antes. (Ferran, 4-nov: Terrassa 9:00 → La Torre de Claramunt 12:00 → Barcelona 14:30 "no es para nada factible";
+//   antes solo se miraban 1 h 45 min entre inicios.) No se recomienda ni se propone; si se elige a mano, sale el aviso
+//   y el designador decide (aviso, no bloqueo). El servidor (choqueDe) es más permisivo (1 h 45 min): solo es la red.
+// - 'justo' = le da tiempo con menos de 30 min de margen → solo se indica.
 // Cuenta su plan en este panel y, si tiene cuenta en la app, lo que ya tiene designado en iSquad (a.isq).
-const PISA=105, PISA_MISMO=60;
+const PISA_MISMO=60, DUR_OCUPA=120, ANTELACION=30, HOLGURA=30;
 const sinPista = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s*-\s*(PISTA|TERCIO|TERC|CAMP|SALA|ANNEX).*$/,'').replace(/\s+/g,' ').trim();
 const mismoPab = (a,b) => { const x=sinPista(a), y=sinPista(b); return !!x && !!y && (x===y || x.includes(y) || y.includes(x)); };
 function kmEntre(x, m){ return x.lat==null || m.lat==null ? null : km({lat:x.lat, lon:x.lon, coche:true}, m); }
@@ -479,12 +481,15 @@ function choque(a, m, plan){
     if(o.d.slice(0,10)!==m.d.slice(0,10)) continue;
     if(o.m && o.m.key===m.key) { if(o.isq) continue; if(o.plan) return {tipo:'pisa', o, aqui:true}; }
     const gap=Math.abs(mins(o)-mins(m)), mismo=mismoPab(o.pab, m.pab);
-    if(gap < (mismo?PISA_MISMO:PISA)) return {tipo:'pisa', o};
-    if(!mismo){ const k=o.m?kmEntre(o.m,m):null; if(gap < (k==null?150:PISA+k+15)) justo ||= {tipo:'justo', o}; }
+    if(mismo){ if(gap < PISA_MISMO) return {tipo:'pisa', o}; continue; }
+    const k = o.m ? kmEntre(o.m, m) : null, necesita = DUR_OCUPA + ANTELACION + (k==null ? 45 : k + 10);
+    if(gap < necesita) return {tipo:'pisa', o, viaje: gap >= DUR_OCUPA, k};   // viaje: no se solapan, pero no llega
+    if(gap < necesita + HOLGURA) justo ||= {tipo:'justo', o, k};
   }
   return justo;
 }
 const ocupado = (a, m, plan) => !!choque(a, m, plan);
+const avisoTxt = (ch, a) => ch.tipo==='pisa' ? (ch.viaje ? t('avViaje')(corto(a.nombre), ocTxt(ch.o), ch.k) : t('avPisa')(corto(a.nombre), ocTxt(ch.o))) : t('avJusto')(corto(a.nombre), ocTxt(ch.o));
 const cuantos = (a, plan) => Object.values(plan).reduce((n,p)=>n+Object.values(p).filter(id=>id===a.id).length, 0);
 function candidatos(m, plan){
   const yaEn = new Set(Object.values(plan[m.key]||{}));
@@ -530,7 +535,7 @@ function filtrados(plan){
 }
 function opciones(m, rol, plan){
   const sel = plan[m.key]?.[rol], arb=ARB(), cs=candidatos(m, plan);
-  const op = c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.pisa?' · '+esc(t('yaTiene')(ocTxt(c.ch.o))):''}${!c.pisa&&c.k!=null?' · '+esc(kmTxt(c.k,c.desde,m)):''}${!c.pisa&&!c.a.coche?' · '+esc(t('sinCoche')):''}${c.oc?' · '+esc(t('justo')(ocTxt(c.ch.o))):''}${!c.pisa&&!c.disp?' · '+esc(t('noDisp')):''}</option>`;
+  const op = c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.pisa?' · '+esc((c.ch.viaje?t('noLlega'):t('yaTiene'))(ocTxt(c.ch.o))):''}${!c.pisa&&c.k!=null?' · '+esc(kmTxt(c.k,c.desde,m)):''}${!c.pisa&&!c.a.coche?' · '+esc(t('sinCoche')):''}${c.oc?' · '+esc(t('justo')(ocTxt(c.ch.o))):''}${!c.pisa&&!c.disp?' · '+esc(t('noDisp')):''}</option>`;
   const rec=cs.filter(c=>c.disp&&!c.pisa&&!c.oc&&!c.lejosSinCoche), otros=cs.filter(c=>c.disp&&!c.pisa&&(c.oc||c.lejosSinCoche)), no=cs.filter(c=>!c.disp&&!c.pisa), pisan=cs.filter(c=>c.pisa);
   const actual = sel && arb[sel] ? `<option value="${sel}" selected>${esc(corto(arb[sel].nombre))}${(x=>x.k!=null?' · '+esc(kmTxt(x.k,x.desde,m)):'')(kmAct(arb[sel],m,plan))}</option>` : '';
   return `<option value="">${esc(t('nadie'))}</option>${actual}`
@@ -544,7 +549,7 @@ function tarjeta(m, plan){
   const p=plan[m.key]||{}, recs=candidatos(m,plan).filter(c=>c.disp&&!c.pisa&&!c.oc&&!c.lejosSinCoche).slice(0,4), arb=ARB();
   // Choques de los que ya están puestos (p. ej. confirmados con el aviso, o designados después en iSquad).
   const avisos=['r1','r2','an'].map(rol=>{ const a=arb[p[rol]]; if(!a) return ''; const sinEste={...plan, [m.key]:Object.fromEntries(Object.entries(p).filter(([r])=>r!==rol))}, ch=choque(a,m,sinEste);
-    return ch ? `<p class="choque ${ch.tipo}">${esc((ch.tipo==='pisa'?t('avPisa'):t('avJusto'))(corto(a.nombre), ocTxt(ch.o)))}</p>` : ''; }).join('');
+    return ch ? `<p class="choque ${ch.tipo}">${esc(avisoTxt(ch, a))}</p>` : ''; }).join('');
   const prop = esPropuesta(m.key), hecho = HECHO().has(m.key);
   return `<article class="m ${p.r1?'ok':'falta'}${avisos.includes('choque pisa')?' mal':''}${prop?' prop':''}" data-key="${esc(m.key)}">
       <div class="top"><span class="hora">${esc(m.d.slice(11,16))}</span><span class="tag" title="${esc(m.cat)}">${esc(cat(m.cat))}</span>${m.isquad==='con'?`<span class="tag g">${esc(t('isqCon'))}</span>`:m.isquad==='sin'?`<span class="tag r">${esc(t('isqSin'))}</span>`:''}${m.conf?'':`<span class="tag">${esc(t('aplazado'))}</span>`}${prop?`<span class="tag y">${esc(t('propuesto'))}</span>`:''}</div>
@@ -577,7 +582,7 @@ function pintarArbitros(plan){
     return `<article class="a"><div class="top">${chipArb(a)}<span class="n">${esc(corto(a.nombre))}</span><span class="tag">${esc(corto(a.poblacion))}</span>${a.coche?'':`<span class="tag r">${esc(t('sinCoche'))}</span>`}<span class="tag">${esc(a.origen==='designador'?t('porTi'):a.app?t('app'):t('mano'))}</span>${mios.length?`<span class="tag y">${esc(t('asignados')(mios.length))}</span>`:''}</div>
       <div class="d">${esc(t('sabado'))}: ${fr(a.sab,a.sab_obs)} · ${esc(t('domingo'))}: ${fr(a.dom,a.dom_obs)}</div>
       ${(a.isq||[]).length?`<div class="d">${esc(t('enIsqL'))} ${a.isq.map(o=>`${esc(cap(fecha(o.d.slice(0,10),0,{weekday:'short'})))} ${esc(o.d.slice(11,16))} · ${esc(pabCorto(o.pab))}`).join(' · ')}</div>`:''}
-      ${mios.length?`<div class="d">${mios.map(m=>`${esc(cap(fecha(m.d.slice(0,10),0,{weekday:'short'})))} ${esc(m.d.slice(11,16))} · ${esc(corto(m.l))} – ${esc(corto(m.v))} (${esc(t(Object.entries(plan[m.key]).find(([,id])=>id===a.id)[0]))})`).join('<br>')}</div>`:''}
+      ${mios.length?`<div class="d">${mios.map(m=>`${esc(cap(fecha(m.d.slice(0,10),0,{weekday:'short'})))} ${esc(m.d.slice(11,16))} · ${esc(corto(m.l))} – ${esc(corto(m.v))} (${esc(t(Object.entries(plan[m.key]).find(([,id])=>id===a.id)[0]))}) · <b>${esc(pabCorto(m.pab))}</b>${pobDe(m)?', '+esc(corto(pobDe(m))):''}`).join('<br>')}</div>`:''}
       <div class="recs"><span class="l">${esc(t('cercanos'))}</span>${libres.length?libres.map(x=>`<button type="button" data-asig="${esc(x.m.key)}" data-arb="${a.id}">${esc(cap(fecha(x.m.d.slice(0,10),0,{weekday:'short'})))} ${esc(x.m.d.slice(11,16))} · ${esc(corto(x.m.pab))} <small>${x.k!=null?esc(kmTxt(x.k,x.desde,x.m)):''}</small></button>`).join(''):`<span class="small muted">${esc(t('ninguno'))}</span>`}</div>
       <div class="acts row"><button type="button" data-edit="${a.id}">${esc(t('editarB'))}</button><button type="button" class="ghost" data-quitar="${a.id}">${esc(t('quitar'))}</button></div></article>`;
   }).join('');
@@ -599,7 +604,7 @@ async function asignar(key, rol, id){
   if(id){ const a=ARB()[id], m=D.partidos.find(x=>x.key===key), plan=PLAN(); if(plan[key]) plan[key]={...plan[key]}, delete plan[key][rol];
     const ch = a && m && choque(a, m, plan);
     if(ch?.aqui){ msg(t('yaAqui')(corto(a.nombre)),'err'); pintar(); return; }
-    if(ch?.tipo==='pisa'){ if(!(await confirmarChoque(t('avPisa')(corto(a.nombre), ocTxt(ch.o))))){ pintar(); return; } forzar=true; } }
+    if(ch?.tipo==='pisa'){ if(!(await confirmarChoque(avisoTxt(ch, a)))){ pintar(); return; } forzar=true; } }
   // Al momento en pantalla; si el servidor falla, se recarga lo guardado.
   D.asig = D.asig.filter(x=>!(x.match_key===key && x.rol===rol)); if(id) D.asig.push({match_key:key, rol, disp_id:id});
   pintar();

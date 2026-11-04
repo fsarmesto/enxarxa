@@ -806,12 +806,18 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   con otro partido, no disponibles) y hasta 4 recomendados (clic = primer puesto libre). Pestaña Árbitros: franjas,
   observaciones, partidos asignados y sus 3 partidos de liga sin R1 más cercanos; alta, edición y baja a mano (para quien
   avisa por teléfono). Exportar a Excel (lo filtrado). Copiar enlace del formulario.
-- **Choques** (4-nov-2026, Ferran): partidos del mismo día con inicios a menos de 1 h en el mismo pabellón (cualquier
-  pista) o de 1 h 45 min en otro = choque. NO es bloqueo: al elegirlo sale una ventana ("Ponerlo igualmente"/"Cancelar") y
-  el servidor solo lo guarda con `forzar` (si no, 409; `choqueDe`). El mismo árbitro en 2 puestos del mismo partido se
-  rechaza siempre. Otro pabellón sin margen de viaje (1 h 45 + ≈1 min/km + 15; sin distancia, 2 h 30) = "poco margen",
-  solo indicado. Cuenta las designaciones de iSquad (tabla `matches`) de los árbitros con cuenta (hora y pabellón; en la
-  privacidad desde el 4-nov). Prueba del servidor: `tools/prueba-designa-choques.ts` (deno; necesita las VAPID_* de verdad).
+- **Choques** (4-nov-2026, Ferran): `choque()` en index.html. Mismo pabellón (cualquier pista): choque si los inicios
+  están a menos de 1 h. Otro pabellón: choque si no da tiempo de verdad = 2 h de partido (`DUR_OCUPA`) + viaje entre
+  los 2 pabellones (≈ 1 min por km estimado + 10 de aparcar; sin ubicar, 45 min) + llegar 30 min antes (`ANTELACION`).
+  Ferran, 4-nov: Terrassa 9:00 → La Torre de Claramunt 12:00 → Barcelona 14:30 "no es para nada factible" (antes solo se
+  miraban 1 h 45 min entre inicios). Si se solapan (menos de 2 h) el aviso dice "ya tiene el partido de las…"; si no se
+  solapan pero no llega, "no le da tiempo a acabarlo, ir (≈ N km) y llegar 30 min antes" ("no llega" en los
+  desplegables). Con menos de 30 min de margen (`HOLGURA`) = "poco margen", solo indicado. Un choque NO se recomienda ni
+  se propone ni sale en los botones de franja; si se elige a mano, ventana "Ponerlo igualmente"/"Cancelar" y se guarda
+  con `forzar`. El servidor (`choqueDe`) es más permisivo (1 h mismo pabellón, 1 h 45 min otro): solo es la red; el
+  mismo árbitro en 2 puestos del mismo partido se rechaza siempre. Cuenta las designaciones de iSquad (tabla `matches`)
+  de los árbitros con cuenta (hora y pabellón; en la privacidad desde el 4-nov). Prueba del servidor:
+  `tools/prueba-designa-choques.ts` (deno; necesita las VAPID_* de verdad). Caso de Ferran en el banco: `ferran.mjs`.
 - **Lo visual** (4-nov-2026, `docs/designa-admin/vistas.js` + `catalunya.js`): vistas Cuadrícula (filas = pabellón sin
   pista, columnas = horas, bloque de 1 h 30 por partido, carriles si se solapan; colores: verde con R1, amarillo sin R1,
   rojo choque, gris ya con árbitro en iSquad, discontinuo = propuesta; tocar = ficha con la tarjeta), Lista (la de antes)
@@ -858,7 +864,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - Datos: `designa_disp`, `designa_asig` (migración 035) y `designa_hecho` (037, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
 - Pruebas: banco con supabase y `designa` simulados en `~/work/enxarxa-pruebas` (en la máquina del trabajo): `panel.mjs`,
-  `choques.mjs`, `visual.mjs`, `imptour.mjs`, `pabellon.mjs` y `origen.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
+  `choques.mjs`, `visual.mjs`, `imptour.mjs`, `pabellon.mjs`, `origen.mjs` y `ferran.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
   `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote e importar).
 
 ## Acta electrónica (prototipo para la FCVB, 3-nov-2026)
