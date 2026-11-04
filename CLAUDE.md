@@ -1076,6 +1076,10 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     A4 vertical, `@page fcvbv`): temporada, competició, encontre, data i hora, població, 1r àrbitre y llicència,
     comentaris y "població, a dia de mes de any". En pantalla se encoge con `zoom` (`escalarFcvb`). Desde el paso 4,
     "Ver acta" abre el acta FCVB por defecto. Pendiente: firmas (Ferran: más adelante), acta de infantil.
+    Alineación (4-nov, Ferran): lo que va en línea (cabecera, árbitros, horas de set, observaciones, RESULTATS, HI/HF/TT,
+    ganador y todos los campos del anexo) se coloca por LÍNEA BASE con `linea(x, base, w, t)` (base = la del rótulo
+    impreso, medida con pdftotext -bbox: yMax − 0,21 × alto); los renglones de comentarios del anexo no van a distancia
+    fija (397,5 · 417,0 · 432,7 · 452,2 · 470,2 · 489,6 pt).
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución
