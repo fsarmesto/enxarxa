@@ -19,6 +19,9 @@ de tratamiento).
 
 1. **Cuenta y lectura de iSquad.** Identificar al usuario y leer sus designaciones y recibos.
    Datos: email de iSquad, nombre, foto de afiliado (URL), tipo (árbitro o deportista); contraseña y sesión de iSquad
+   Alta por un administrador (desde el 4-nov-2026, cuando iSquad no deja entrar al servidor): email de iSquad, nombre,
+   población e id de la ficha pública de árbitro de la FCVB (comprobado en la lista pública); sin contraseña. Origen:
+   el administrador y la web pública de la FCVB; el interesado acepta las condiciones al abrir el enlace de acceso.
    cifradas (solo árbitros); partidos (fecha, hora, pabellón, competición, equipos, rol, equipo arbitral con nombres),
    recibos e importes; población de origen y sus coordenadas, km, peajes, IRPF, marcas de cobrado.
    Base: consentimiento (art. 6.1.a) al crear la cuenta; para los nombres del equipo arbitral, interés legítimo

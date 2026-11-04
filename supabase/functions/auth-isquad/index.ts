@@ -3,7 +3,8 @@
 import { encrypt } from "../_shared/crypto.ts";
 import { fetchDesignaciones, IsquadAuthError, loginDeportista, rastro, ScrapedMatch } from "../_shared/isquad.ts";
 import { POLICY_VERSION } from "../_shared/politica.ts";
-import { admin, background, cors, json, storeMatches, syncUser } from "../_shared/sync.ts";
+import { admin, background, cors, json, storeMatches, syncUser, userFromRequest } from "../_shared/sync.ts";
+import { aceptarAlta } from "../_shared/alta.ts";
 
 // Tope de intentos (revisión de seguridad, 27-oct-2026): sin él, cualquiera podría usar esta función para probar
 // contraseñas de iSquad sin límite desde nuestros servidores. Cuenta los fallos por usuario (2 en 15 min: desde el
@@ -49,8 +50,14 @@ async function entrarDeportista(key: string, login: string, dep: { area: string;
 Deno.serve(async (req) => {
   const started = Date.now();
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  let body: { login?: string; password?: string; origin?: string; consent?: boolean; age14?: boolean; save?: boolean };
+  let body: { login?: string; password?: string; origin?: string; consent?: boolean; age14?: boolean; save?: boolean; action?: string };
   try { body = await req.json(); } catch { return json({ error: "Petición no válida" }, 400); }
+  // Cuenta dada de alta por un administrador (_shared/alta.ts): al abrir su enlace acepta las condiciones.
+  if (body.action === "aceptar") {
+    const db = admin(), user = await userFromRequest(db, req);
+    if (!user) return json({ error: "El enlace ha caducado o ya se ha usado. Pide otro a quien te dio de alta." }, 401);
+    return json(await aceptarAlta(db, user.id, body));
+  }
   const login = (body.login || "").trim(), password = body.password || "";
   if (!login || !password) return json({ error: "Escribe tu usuario y contraseña de iSquad" }, 400);
   const key = login.toLowerCase();

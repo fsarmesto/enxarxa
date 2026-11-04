@@ -1,6 +1,8 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 import { decrypt, encrypt } from "./crypto.ts";
-import { fetchDesignaciones, IsquadAuthError, ScrapedMatch, venueLabel, WithStaff } from "./isquad.ts";
+import { fetchDesignaciones, IsquadAuthError, ScrapedMatch, venueKey, venueLabel, WithStaff } from "./isquad.ts";
+import { FICHA_VALE, getLatin, idArbitro, idPartido, matchOfficials, PUB } from "./publico.ts";
+import { cortesEquipos, idSinPartido, parseFicha, staffDe } from "./fichapub.ts";
 import { sendToUser } from "./push.ts";
 import type { Aviso, Textos } from "./textos.ts";
 import { checkResultados } from "./resultados.ts";
@@ -475,8 +477,10 @@ const contarLogin = (db: SupabaseClient) => db.rpc("contar_login").then(() => {}
 
 export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: "wait" | "background" | "none"; deadline: number; quick?: boolean; notify?: boolean }) {
   const { data: cred } = await db.from("isquad_credentials").select("secret, session, session_at").eq("user_id", userId).maybeSingle();
-  const { data: prof } = await db.from("profiles").select("isquad_login, last_error").eq("user_id", userId).maybeSingle();
-  if (!cred || !prof) return { ok: false, error: "sin_credenciales" };
+  const { data: prof } = await db.from("profiles").select("isquad_login, last_error, tipo").eq("user_id", userId).maybeSingle();
+  if (!prof) return { ok: false, error: "sin_credenciales" };
+  // Cuenta sin contraseña de iSquad (alta hecha por nosotros): solo la ficha pública.
+  if (!cred) return prof.tipo === "deportista" ? { ok: false, error: "sin_credenciales" } : await syncPublico(db, userId, opts);
   // iSquad ya rechazó la contraseña guardada: las pasadas automáticas no la vuelven a probar (iSquad bloquea la cuenta al
   // 3r fallo). Se vuelve a intentar cuando el árbitro entra de nuevo en la app (auth-isquad borra last_error).
   if (opts.notify && prof.last_error === "credenciales") return { ok: false, error: "credenciales" };
@@ -516,6 +520,7 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
       deadline: opts.deadline,
       onName: (n, f) => { nombre = n; foto = f; },
     });
+    await fundirPublicos(db, userId, matches);   // lo leído de la ficha pública mientras el área privada no respondía
     if (newSession) await db.from("isquad_credentials").update({ session: await encrypt(newSession), ...(fresh ? { session_at: new Date().toISOString() } : {}) }).eq("user_id", userId);
     if (fresh) await contarLogin(db);
     if (nombre) await db.from("profiles").update({ nombre, ...(foto ? { foto } : {}) }).eq("user_id", userId);
@@ -536,6 +541,85 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     const code = e instanceof IsquadAuthError && ["rechazada", "bloqueada", "doble"].includes(e.motivo) ? "credenciales" : "conexion";
     if (code === "credenciales") await db.from("isquad_credentials").update({ session: null, session_at: null }).eq("user_id", userId);
     await db.from("profiles").update({ last_error: code }).eq("user_id", userId);
+    // El área privada no responde (403 desde el 4-nov-2026, caída, cambio de diseño): las próximas, de la ficha pública.
+    if (code === "conexion") { const r = await syncPublico(db, userId, opts); if (r.ok) return r; }
     return { ok: false, error: code };
+  }
+}
+
+// ---------- Respaldo: la ficha pública del árbitro ----------
+// Lee "próximos partidos que arbitrará" y los guarda como designaciones. Lo que ya está guardado (del área privada) se
+// reconoce por el partido público (id_partido) o, si no, por fecha, hora y pabellón: solo se actualizan fecha, hora y
+// pabellón si han cambiado (y se avisa). Lo nuevo entra con id "PUB-…" (y se avisa). Solo se quitan las "PUB-…" que dejan
+// de salir (las del área privada no: la ficha no es la fuente de verdad). profiles.last_error = "publico".
+// deno-lint-ignore no-explicit-any
+const MATCH_COLS = "id, id_partido, date, time, venue, venue_key, comp, teams, role, staff_checked, estado, missing_since";
+export async function syncPublico(db: SupabaseClient, userId: string, opts: { notify?: boolean; deadline?: number } = {}) {
+  try {
+    const { data: prof } = await db.from("profiles").select("nombre, foto, id_arbitro").eq("user_id", userId).maybeSingle();
+    if (!prof?.nombre) return { ok: false, error: "sin_ficha" };
+    let id = prof.id_arbitro as string | null;
+    if (!id) { id = await idArbitro(db, prof.nombre, prof.foto); if (id) await db.from("profiles").update({ id_arbitro: id }).eq("user_id", userId); }
+    if (!id) return { ok: false, error: "sin_ficha" };
+    const html = await getLatin(`${PUB}/partidos_arbitro.php?id_arbitro=${id}&id_superficie=1`, FICHA_VALE);
+    const ficha = parseFicha(html);
+    const ayer = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    const { data: guardadas } = await db.from("matches").select(MATCH_COLS).eq("user_id", userId).gte("date", ayer);
+    // Copias: lo que se compara para los avisos es lo de antes de actualizar.
+    const prev = (guardadas || []).map((r) => ({ ...r })) as Prev[] & { id_partido: string | null; venue_key: string }[];
+    const nuevas: WithStaff[] = [], ahora: WithStaff[] = [], tocadas: Prev[] = [];
+    for (const d of ficha) {
+      if (opts.deadline && Date.now() > opts.deadline - 5000) break;
+      let pid: string | null = null, l = d.equipos, v = "";
+      for (const [a, b] of cortesEquipos(d.equipos)) {
+        pid = await idPartido(db, a, b, `${d.date} ${d.time}`).catch(() => null);
+        if (!v) { l = a; v = b; }
+        if (pid) { l = a; v = b; break; }
+      }
+      const vk = venueKey(d.venue, d.addr);
+      // deno-lint-ignore no-explicit-any
+      const ya = (prev as any[]).find((m) => pid && m.id_partido === pid) || (prev as any[]).find((m) => m.date === d.date && m.time === d.time && m.venue_key === vk);
+      const oficiales = pid ? await matchOfficials(db, pid, false).catch(() => []) : [];
+      const staff = staffDe(oficiales, prof.nombre, d.funcion);
+      if (ya) {
+        tocadas.push(ya);
+        const m = { ...ya, date: d.date, time: d.time, venue: ya.venue_key === vk ? ya.venue : d.venue } as unknown as WithStaff;
+        ahora.push(m);
+        if (ya.date !== d.date || ya.time !== d.time || ya.venue_key !== vk) {
+          await db.from("matches").update({ date: d.date, time: d.time, ...(ya.venue_key === vk ? {} : { venue: d.venue, addr: d.addr, venue_key: vk }) })
+            .eq("user_id", userId).eq("id", ya.id);
+        }
+        continue;
+      }
+      const m: WithStaff = {
+        id: pid ? `PUB-${pid}` : idSinPartido(d), comp: d.comp, phase: "", teams: v ? `${l} vs ${v}` : l, estado: "PENDIENTE",
+        date: d.date, time: d.time, venue: d.venue, addr: d.addr, venue_key: vk, desig_id: null, id_partido: pid, staff,
+      };
+      nuevas.push(m); ahora.push(m);
+    }
+    // Las "PUB-…" próximas guardadas también cuentan como "antes": si dejan de salir, se quitan (2 lecturas seguidas).
+    const hoy = new Date().toISOString().slice(0, 10);
+    const antes = [...tocadas, ...prev.filter((m) => m.id.startsWith("PUB-") && m.date > hoy && !tocadas.includes(m))];
+    if (nuevas.length) await storeMatches(db, userId, nuevas, { quick: true });
+    const avisos = opts.notify ? await notifyChanges(db, userId, antes, ahora).catch(() => 0) : 0;
+    await db.from("profiles").update({ last_error: "publico" }).eq("user_id", userId);
+    return { ok: true, publico: true, count: ficha.length, nuevas: nuevas.length, avisos };
+  } catch (e) {
+    return { ok: false, error: "publico: " + (e as Error).message };
+  }
+}
+
+// Cuando el área privada vuelve a responder: las "PUB-…" se borran y lo puesto a mano en ellas (pagado, km, dieta…)
+// pasa a la designación de verdad (mismo partido público o misma fecha, hora y pabellón).
+export async function fundirPublicos(db: SupabaseClient, userId: string, privadas: ScrapedMatch[]) {
+  const { data: pubs } = await db.from("matches").select(`id, id_partido, date, time, venue_key, ${MANUAL.join(",")}`).eq("user_id", userId).like("id", "PUB-%");
+  // deno-lint-ignore no-explicit-any
+  for (const p of (pubs || []) as any[]) {
+    const real = privadas.find((m) => p.id_partido && m.id_partido === p.id_partido) || privadas.find((m) => m.date === p.date && m.time === p.time && m.venue_key === p.venue_key);
+    if (real) {
+      const keep = Object.fromEntries(MANUAL.map((k) => [k, p[k]]).filter(([k, v]) => v != null && v !== false && !(k === "tolls" && +v === 0)));
+      if (Object.keys(keep).length) await db.from("matches").update(keep).eq("user_id", userId).eq("id", real.id);
+    }
+    await db.from("matches").delete().eq("user_id", userId).eq("id", p.id);
   }
 }
