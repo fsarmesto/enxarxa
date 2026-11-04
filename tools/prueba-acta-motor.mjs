@@ -117,7 +117,7 @@ test('líbero: solo zagueros, no por el que saca, rally entre cambios, sale al p
   assert.match(p.falla({ t: 'liberoEntra', eq: 'L', libero: 7, sale: 5 }), /no está inscrito como líbero/);
   p.add({ t: 'liberoEntra', eq: 'V', libero: 12, sale: 5 });   // V recibe: su V (posición V) por el líbero
   assert.deepEqual(M.enPista(set(p), 'V'), S([1, 2, 3, 4, 12, 6]));
-  assert.match(p.falla({ t: 'liberoSale', eq: 'V' }), /rally completo/);
+  assert.match(p.falla({ t: 'liberoSale', eq: 'V' }), /jugada completada/);
   assert.match(p.falla({ t: 'sust', eq: 'V', sale: 5, entra: 7 }), /primero tiene que salir el líbero/);
   p.add({ t: 'punto', eq: 'V' });   // V gana el saque y rota: el líbero pasa de V a IV y sale solo
   let s = set(p);
@@ -126,7 +126,7 @@ test('líbero: solo zagueros, no por el que saca, rally entre cambios, sale al p
   assert.equal(p.st().auto.filter((a) => a.t === 'liberoSaleAuto').length, 1);
   // Líbero por el zaguero VI de L y cambio de líbero por líbero tras un rally.
   p.add({ t: 'liberoEntra', eq: 'L', libero: 12, sale: 6 });
-  assert.match(p.falla({ t: 'liberoEntra', eq: 'L', libero: 13, sale: 12 }), /rally completo/);
+  assert.match(p.falla({ t: 'liberoEntra', eq: 'L', libero: 13, sale: 12 }), /jugada completada/);
   p.add({ t: 'punto', eq: 'V' });
   p.add({ t: 'liberoEntra', eq: 'L', libero: 13, sale: 12 });
   s = set(p); assert.equal(s.libero.L.num, '13'); assert.equal(s.libero.L.por, '6');
@@ -156,9 +156,9 @@ test('sanciones: amonestación una vez, castigo da punto y saque, retrasos', () 
   assert.match(p.falla({ t: 'sancion', eq: 'L', quien: 'E', tipo: 'amonestacion' }), /ya ha tenido su amonestación/);
   p.add({ t: 'sancion', eq: 'L', quien: 'E', tipo: 'castigo' });   // L sacaba: punto y saque para V
   let s = set(p); assert.deepEqual(s.puntos, { L: 0, V: 1 }); assert.equal(s.saque, 'V'); assert.equal(s.progreso[0].motivo, 'castigo');
-  assert.equal(p.falla({ t: 'sancion', eq: 'V', quien: 'equipo', tipo: 'castigoRetraso' }), 'El primer retraso es un aviso por retraso.');
+  assert.equal(p.falla({ t: 'sancion', eq: 'V', quien: 'equipo', tipo: 'castigoRetraso' }), 'La primera demora es una amonestación por demora.');
   p.add({ t: 'sancion', eq: 'V', quien: 'equipo', tipo: 'avisoRetraso' });
-  assert.match(p.falla({ t: 'sancion', eq: 'V', quien: 'equipo', tipo: 'avisoRetraso' }), /ya tiene el aviso/);
+  assert.match(p.falla({ t: 'sancion', eq: 'V', quien: 'equipo', tipo: 'avisoRetraso' }), /ya tiene la amonestación por demora/);
   p.add({ t: 'sancion', eq: 'V', quien: 'equipo', tipo: 'castigoRetraso' });
   s = set(p); assert.deepEqual(s.puntos, { L: 1, V: 1 });
   const st = p.st(); assert.equal(st.sanciones.length, 4); assert.deepEqual([st.sanciones[1].a, st.sanciones[1].b], [0, 0], 'marcador antes del castigo');
@@ -362,9 +362,9 @@ test('normativa 2025-2028 / FCVB 2026-27', () => {
   let p = preparado();
   p.add({ t: 'punto', eq: 'L' }); p.add({ t: 'punto', eq: 'V' });   // V rota y saca; L recibe
   p.add({ t: 'liberoEntra', eq: 'L', libero: 12, sale: set(p).rot.L[5] });   // VI: al rotar pasa a V, sigue en la zaga
-  assert.match(p.falla({ t: 'liberoSale', eq: 'L' }), /rally completo/);
+  assert.match(p.falla({ t: 'liberoSale', eq: 'L' }), /jugada completada/);
   p.add({ t: 'sancion', eq: 'V', quien: 2, tipo: 'castigo' });
-  assert.equal(p.falla({ t: 'liberoSale', eq: 'L' }), null, 'tras un castigo ya hay rally completo');
+  assert.equal(p.falla({ t: 'liberoSale', eq: 'L' }), null, 'tras un castigo ya hay jugada completada');
   // Máximo de jugadores: 14 con líbero, 12 sin líbero
   const jug = (n) => Array.from({ length: n }, (_, i) => ({ num: i + 1 }));
   assert.match(M.validar({}, {}, [], { t: 'equipo', eq: 'L', jugadores: jug(15) }), /Como mucho 14/);

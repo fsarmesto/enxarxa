@@ -9,9 +9,9 @@ const OTRO = M.OTRO;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const POS = ['I', 'II', 'III', 'IV', 'V', 'VI'];
-const SANC = { amonestacion: 'Amonestación', castigo: 'Castigo', expulsion: 'Expulsión', descalificacion: 'Descalificación', avisoRetraso: 'Aviso por retraso', castigoRetraso: 'Castigo por retraso', impropia: 'Petición improcedente' };
+const SANC = { amonestacion: 'Amonestación', castigo: 'Castigo', expulsion: 'Expulsión', descalificacion: 'Descalificación', avisoRetraso: 'Amonestación por demora', castigoRetraso: 'Castigo por demora', impropia: 'Solicitud improcedente' };
 // Al final firma primero el anotador (y el ayudante), después los capitanes y por último los árbitros (FIVB 27.2.3.3).
-const FIRMAS = [['an', 'Anotador'], ['aa', 'Anotador ayudante'], ['capL', 'Capitán local'], ['capV', 'Capitán visitante'], ['r2', '2º árbitro'], ['r1', '1er árbitro']];
+const FIRMAS = [['an', 'Anotador'], ['aa', 'Anotador asistente'], ['capL', 'Capitán local'], ['capV', 'Capitán visitante'], ['r2', '2º árbitro'], ['r1', '1er árbitro']];
 const FIRMAS_PRE = [['preCapL', 'Capitán local'], ['preEL', 'Entrenador local'], ['preCapV', 'Capitán visitante'], ['preEV', 'Entrenador visitante']];
 // Confirmación nativa, traducida si el acta está en catalán (acta-ca.js).
 // Aprobar y cerrar el acta (como el e-Scoresheet): anotador, capitanes y 1er árbitro con su contraseña. De momento, la
@@ -84,8 +84,8 @@ function avisosTrasSuceso(autoAntes, capAntes, ev) {
   const avisos = [];   // si hay varios a la vez, salen juntos (uno no tapa al otro)
   if (ev && ST.fase === 'juego' && ['tiempo', 'sust'].includes(ev.t)) {
     const s = M.setActual(ST), n = ev.t === 'tiempo' ? s.tiempos[ev.eq].length : s.nSust[ev.eq], max = ev.t === 'tiempo' ? ST.cfg.tiempos : ST.cfg.sustituciones;
-    if (ev.t === 'tiempo' && n === max) avisos.push(`${eqNombre(ev.eq)}: ${n}º tiempo, el último del set.`);
-    if (ev.t === 'sust' && ev.tipo !== 'excepcional' && n >= max - 1) avisos.push(`${eqNombre(ev.eq)}: ${n}º cambio${n === max ? ', el último del set' : ''}.`);
+    if (ev.t === 'tiempo' && n === max) avisos.push(`${eqNombre(ev.eq)}: ${n}º tiempo de descanso, el último del set.`);
+    if (ev.t === 'sust' && ev.tipo !== 'excepcional' && n >= max - 1) avisos.push(`${eqNombre(ev.eq)}: ${n}ª sustitución${n === max ? ', la última del set' : ''}.`);
   }
   const sale = ST.auto.slice(autoAntes).filter((x) => x.t === 'liberoSaleAuto');
   const capFuera = ['L', 'V'].filter((e, i) => !capAntes[i] && M.necesitaCapitanJuego(ST, e));
@@ -108,7 +108,7 @@ function toast(msg, ok) { const t = $('toast'); t.textContent = msg; t.className
 
 /* ---------- Hoja (diálogo) ---------- */
 function hoja(html, alAbrir) { $('hojaC').innerHTML = html; $('hoja').classList.remove('hidden'); (alAbrir || (() => $('hojaC').querySelector('button,input,select,textarea')?.focus()))(); }
-function cerrarHoja() { $('hoja').classList.add('hidden'); $('hojaC').innerHTML = ''; }
+function cerrarHoja() { clearInterval(TIEMPO_T); $('hoja').classList.remove('centro'); $('hoja').classList.add('hidden'); $('hojaC').innerHTML = ''; }
 $('hoja').addEventListener('click', (e) => { if (e.target.id === 'hoja' || e.target.closest('[data-cerrar]')) cerrarHoja(); });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('hoja').classList.contains('hidden')) { cerrarHoja(); return; }
@@ -127,7 +127,7 @@ function vista() {
   return { juego: 'juego', entreSets: 'entre', fin: 'final' }[ST.fase];
 }
 function pasos(on) {
-  const P = [['datos', 'Datos'], ['equipos', 'Equipos'], ['sorteo', 'Sorteo y alineación'], ['juego', 'Partido'], ['final', 'Firmas']];
+  const P = [['datos', 'Datos'], ['equipos', 'Equipos'], ['sorteo', 'Sorteo y formación inicial'], ['juego', 'Partido'], ['final', 'Firmas']];
   const i = P.findIndex(([k]) => k === (on === 'entre' ? 'juego' : on));
   return `<div class="pasos">${P.map(([k, t], j) => `<span class="${j === i ? 'on' : j < i ? 'ok' : ''}">${j < i ? '<span aria-hidden="true">✓ </span>' : ''}<span>${esc(t)}</span></span>`).join('')}</div>`;
 }
@@ -240,7 +240,7 @@ function crearPrueba() {
   const m = M.validar(M.CONFIG, datos, [ev[0]], ev[1]) || M.validar(M.CONFIG, datos, [], ev[0]); if (m) { toast(m); return; }
   A = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), cfg: { ...M.CONFIG }, datos, ev, paso: 'sorteo', prueba: true, creada: ahora.toISOString() };
   reiniciar(); guardar(); history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0);
-  toast('Partido de prueba listo: haz el sorteo y la alineación.', true);
+  toast('Partido de prueba listo: haz el sorteo y la formación inicial.', true);
 }
 function reiniciar() { delete BORR.L; delete BORR.V; ISQ = { estado: null, msg: '' }; VER = false; }   // nada de un acta pasa a otra
 function abrir(id) { reiniciar(); try { A = reparar(JSON.parse(localStorage.getItem(clave(id)))); } catch (e) { A = null; } if (!A) { toast('No se encuentra esa acta.'); return; } history.replaceState(null, '', '?acta=' + A.id); pintar(); scrollTo(0, 0); }
@@ -254,15 +254,15 @@ function pDatos() {
     <div class="grid2">${campo('competicion', 'Competición')}${campo('categoria', 'Categoría')}${campo('partido', 'Nº de partido')}${campo('fecha', 'Fecha', 'date')}${campo('hora', 'Hora', 'time')}${campo('pabellon', 'Pabellón')}${campo('ciudad', 'Población')}</div>
     <h3 style="font-size:16px;margin:8px 0">Equipos</h3><div class="grid2">${campo('local', 'Local')}${campo('visitante', 'Visitante')}</div>
     <div class="colores">${[['colorL', 'Color local'], ['colorLibL', 'Líbero local'], ['colorV', 'Color visitante'], ['colorLibV', 'Líbero visitante']].map(([k, t]) => `<label class="f color"><span>${esc(t)}</span><input type="color" data-d="${k}" value="${color(k.slice(-1), k.includes('Lib'))}"></label>`).join('')}</div>
-    <h3 style="font-size:16px;margin:8px 0">Árbitros y mesa</h3><div class="grid2">${campo('r1', '1er árbitro')}${campo('r2', '2º árbitro')}${campo('an', 'Anotador')}${campo('aa', 'Anotador ayudante')}${campo('jl1', 'Juez de línea 1')}${campo('jl2', 'Juez de línea 2')}</div>
+    <h3 style="font-size:16px;margin:8px 0">Árbitros y mesa</h3><div class="grid2">${campo('r1', '1er árbitro')}${campo('r2', '2º árbitro')}${campo('an', 'Anotador')}${campo('aa', 'Anotador asistente')}${campo('jl1', 'Juez de línea 1')}${campo('jl2', 'Juez de línea 2')}</div>
     <h3 style="font-size:16px;margin:8px 0">Formato</h3><div class="grid2">
       <label class="f"><span>Partido al mejor de</span><select id="mejorDe"><option value="5"${c.mejorDe === 5 ? ' selected' : ''}>5 sets (gana quien llega a 3)</option><option value="3"${c.mejorDe === 3 ? ' selected' : ''}>3 sets (gana quien llega a 2)</option></select></label>
       <label class="f"><span>Puntos por set</span><input type="number" id="puntosSet" min="5" max="50" value="${c.puntosSet}"></label>
       <label class="f"><span>Puntos del set decisivo</span><input type="number" id="puntosDecisivo" min="5" max="50" value="${c.puntosDecisivo}"></label>
-      <label class="f"><span>Cambios por set</span><input type="number" id="sustituciones" min="1" max="20" value="${c.sustituciones}"></label>
-      <label class="f"><span>Tiempos por set</span><input type="number" id="tiempos" min="0" max="5" value="${c.tiempos}"></label>
-      <label class="f"><span>Descanso entre sets (min)</span><input type="number" id="descanso" min="0" max="30" value="${c.descanso ?? 3}"></label>
-      <label class="f"><span>Descanso entre el 2º y el 3º (min)</span><input type="number" id="descanso23" min="0" max="10" value="${c.descanso23 ?? c.descanso ?? 3}"><span class="small muted">Se puede alargar hasta 10 si lo pide el organizador (FIVB 18.1).</span></label></div>
+      <label class="f"><span>Sustituciones por set</span><input type="number" id="sustituciones" min="1" max="20" value="${c.sustituciones}"></label>
+      <label class="f"><span>Tiempos de descanso por set</span><input type="number" id="tiempos" min="0" max="5" value="${c.tiempos}"></label>
+      <label class="f"><span>Intervalo entre sets (min)</span><input type="number" id="descanso" min="0" max="30" value="${c.descanso ?? 3}"></label>
+      <label class="f"><span>Intervalo entre el 2º y el 3º set (min)</span><input type="number" id="descanso23" min="0" max="10" value="${c.descanso23 ?? c.descanso ?? 3}"><span class="small muted">Se puede alargar hasta 10 si lo pide el organizador (FIVB 18.1).</span></label></div>
     <label class="chk opcion"><input type="checkbox" id="cfgAvisoLib"${c.avisoLibero !== false ? ' checked' : ''}> <span><b>Avisos del líbero</b><br><span class="small muted">Cuando el equipo pasa a recibir, propone por quién entra; cuando pasa delante, avisa de que sale y quién vuelve.</span></span></label>
     <label class="chk opcion"><input type="checkbox" id="cfgLib"${c.liberos ? ' checked' : ''}> <span><b>Hay líbero</b><br><span class="small muted">Desactívalo en las categorías que juegan sin líbero.</span></span></label>
     <label class="chk opcion"><input type="checkbox" id="cfgSet"${c.setObligatorio ? ' checked' : ''}> <span><b>Set obligatorio por jugador</b><br><span class="small muted">Infantil (FCVB, Circular 011): cada jugador del acta tiene que jugar al menos un set completo. Al final se revisa y se puede corregir a mano.</span></span></label>
@@ -367,7 +367,7 @@ function pEquipos() {
   $('app').innerHTML = pasos('equipos') + aviso + `<p class="small muted">Dorsales y nombres tal como en la licencia. Marca el capitán${A.cfg.liberos ? ' y los líberos (como mucho 2)' : ' (en este partido no hay líbero)'}.${A.origen ? ' <button type="button" class="ghost" id="recargar">Volver a cargar de iSquad</button>' : ''}</p>
     <div class="dos">${tablaEquipo('L')}${tablaEquipo('V')}</div>
     <section class="card"><h2>Firmas antes del partido</h2><p class="small muted">Capitanes y entrenadores firman la plantilla.</p>${firmasHtml(FIRMAS_PRE)}</section>
-    <div class="row"><button type="button" class="ghost" id="atras">Atrás</button><button class="primary" id="sig">Siguiente: sorteo y alineación</button></div>`;
+    <div class="row"><button type="button" class="ghost" id="atras">Atrás</button><button class="primary" id="sig">Siguiente: sorteo y formación inicial</button></div>`;
   for (const eq of ['L', 'V']) {
     const sec = $('app').querySelector(`[data-eq="${eq}"]`);
     sec.querySelector('[data-mas]').onclick = () => { leerEquipo('L'); leerEquipo('V'); borrador(eq).jugadores.push({ num: '', nombre: '' }); pEquipos(); };
@@ -464,11 +464,11 @@ function pSorteo() {
       <fieldset><legend>Saca primero</legend>${opcionesEq('saca', s.saqueInicial)}</fieldset>
       <fieldset><legend>A la izquierda del anotador (equipo A)</legend>${opcionesEq('izq', s.izq)}</fieldset></section>
     <div class="grid2"><section class="card"><h2>${esc(A.datos.local)}</h2>${selectorAlineacion('L', s.alineacion.L)}</section><section class="card"><h2>${esc(A.datos.visitante)}</h2>${selectorAlineacion('V', s.alineacion.V)}</section></div>
-    <div class="row"><button class="ghost" id="atras">Atrás</button><button class="primary" id="empezar">Empezar el set 1</button><button class="ghost" id="noPresentado">Incomparecencia…</button></div>`;
+    <div class="row"><button class="ghost" id="atras">Atrás</button><button class="primary" id="empezar">Empezar el set 1</button><button class="ghost" id="noPresentado">No presentación…</button></div>`;
   enlazarAlineacion();
   $('atras').onclick = () => { A.paso = 'equipos'; guardar(); pintar(); };
   $('empezar').onclick = () => empezarSet(true);
-  $('noPresentado').onclick = () => hoja(`<h2 id="hojaT">Incomparecencia</h2><p class="small">El equipo que no se presenta pierde 0-3 (25-0 en cada set) y queda anotado en el acta.</p>
+  $('noPresentado').onclick = () => hoja(`<h2 id="hojaT">No presentación</h2><p class="small">El equipo que no se presenta pierde el partido 0-3 y cada set 0-25, y queda anotado en el acta (FIVB 6.4).</p>
     <div class="row">${['L', 'V'].map((eq) => `<button data-np="${eq}">No se presenta ${esc(eqNombre(eq))}</button>`).join('')}<button class="ghost" data-cerrar>Cancelar</button></div>`, () => {
     $('hojaC').querySelectorAll('[data-np]').forEach((b) => (b.onclick = () => { if (!hacer({ t: 'incompleto', eq: b.dataset.np, motivo: 'incomparecencia' })) cerrarHoja(); }));
   });
@@ -477,7 +477,7 @@ function empezarSet(conSorteo) {
   const q = (n) => $('app').querySelector(`input[name="${n}"]:checked`)?.value;
   const evs = [];
   if (conSorteo) { if (!q('saca') || !q('izq')) { toast('Indica quién saca y quién está a la izquierda.'); return; } evs.push({ t: 'sorteo', saca: q('saca'), izq: q('izq') }); }
-  for (const eq of ['L', 'V']) { const a = leerAlineacion(eq); if (a.some((n) => !n)) { toast(`Falta completar la alineación de ${eqNombre(eq)}.`); return; } evs.push({ t: 'alineacion', eq, jugadores: a }); }
+  for (const eq of ['L', 'V']) { const a = leerAlineacion(eq); if (a.some((n) => !n)) { toast(`Falta completar la formación inicial de ${eqNombre(eq)}.`); return; } evs.push({ t: 'alineacion', eq, jugadores: a }); }
   evs.push({ t: 'inicioSet' });
   // Todo o nada: se valida la secuencia entera antes de guardarla.
   const prueba = [...A.ev], h = new Date().toISOString();
@@ -506,15 +506,15 @@ function mitad(s, eq) {
     <div class="solo-movil">${pista(s, eq)}</div>
     <button class="btnPunto solo-movil" data-punto="${eq}">Punto <span class="solo-movil-i">${esc(eqNombre(eq).split(' ').slice(0, 2).join(' '))}</span></button>
     <div class="acts">
-      <button data-acc="tiempo" data-eq="${eq}">Tiempo<b>${s.tiempos[eq].length}/${ST.cfg.tiempos}</b></button>
-      <button data-acc="sust" data-eq="${eq}">Cambio<b>${s.nSust[eq]}/${ST.cfg.sustituciones}</b></button>
+      <button data-acc="tiempo" data-eq="${eq}">Tiempo de descanso<b>${s.tiempos[eq].length}/${ST.cfg.tiempos}</b></button>
+      <button data-acc="sust" data-eq="${eq}">Sustitución<b>${s.nSust[eq]}/${ST.cfg.sustituciones}</b></button>
       ${ST.cfg.liberos ? `<button data-acc="libero" data-eq="${eq}">Líbero${l ? '<b>en pista</b>' : ''}</button>` : ''}
       <button data-acc="sancion" data-eq="${eq}">Sanción</button>
     </div>
     ${avisoCapitan(s, eq)}${pend.length ? '' : avisoLibero(s, eq)}
     <div class="m-info solo-pc">
-      <div class="m-fila"><span>Tiempos</span>${gastados(s.tiempos[eq].length, ST.cfg.tiempos, 'Tiempos')}</div>
-      <div class="m-fila"><span>Cambios</span>${gastados(s.nSust[eq], ST.cfg.sustituciones, 'Cambios')}</div>
+      <div class="m-fila"><span>Tiempos de descanso</span>${gastados(s.tiempos[eq].length, ST.cfg.tiempos, 'Tiempos de descanso')}</div>
+      <div class="m-fila"><span>Sustituciones</span>${gastados(s.nSust[eq], ST.cfg.sustituciones, 'Sustituciones')}</div>
       <h4>En pista</h4>${listaJugadores(s, eq, [...enP], true)}
       <h4>Banquillo</h4>${listaJugadores(s, eq, banco.map((j) => j.num), false)}
       ${ST.cfg.setObligatorio ? (() => { const sc = Object.values(M.setsCompletos(ST)[eq]).filter((x) => !x.cumple); return `<h4>Les falta un set completo</h4><div class="chips">${sc.map((x) => `<span class="chip falta" title="${esc(x.nombre)}">${esc(x.num)}</span>`).join('') || '<span class="small muted">A nadie ✓</span>'}</div>`; })() : ''}
@@ -576,31 +576,31 @@ function pistaGrande(s) {
     <div class="c-mesa">Mesa del anotador</div></div>
     <div class="c-ultimo"><span>${ultimo ? `<span class="muted">Último:</span> ${esc(describir(ultimo, ST))}` : '<span class="muted">Todavía no hay nada que deshacer.</span>'}</span><button id="deshacer2" class="deshacer"${ultimo ? '' : ' disabled'}>Deshacer</button></div>
     <div class="c-puntos">${[izq, der].map((eq, k) => `<button class="btnPunto" data-punto="${eq}"><span>Punto</span><small>${esc(eqNombre(eq))} <kbd>${k ? '→' : '←'}</kbd></small></button>`).join('')}</div>
-    <table class="c-resumen"><thead><tr><th>C</th><th>T</th><th>Pt</th><th>Set</th><th>Min</th><th>Pt</th><th>T</th><th>C</th></tr></thead><tbody>
+    <table class="c-resumen"><thead><tr><th title="Sustituciones">S</th><th title="Tiempos de descanso">T</th><th>Pt</th><th>Set</th><th>Min</th><th>Pt</th><th title="Tiempos de descanso">T</th><th title="Sustituciones">S</th></tr></thead><tbody>
       ${M.resultados(ST).filas.map((f) => `<tr${f.set === s.n && !s.fin ? ' class="actual"' : ''}><td>${f[izq].sust}</td><td>${f[izq].tiempos}</td><td><b>${f[izq].puntos}</b></td><td class="set">${f.set}</td><td>${f.duracion ?? (f.set === s.n ? '<span id="relojMin">…</span>' : '')}</td><td><b>${f[der].puntos}</b></td><td>${f[der].tiempos}</td><td>${f[der].sust}</td></tr>`).join('')}
     </tbody></table>`;
 }
 function describir(ev, st) {
   const n = (eq) => eqNombre(eq);
   switch (ev.t) {
-    case 'punto': return `Punto ${n(ev.eq)}${ev.motivo && ev.motivo !== 'rally' ? ' (' + ev.motivo + ')' : ''}`;
-    case 'tiempo': return `Tiempo ${n(ev.eq)}`;
-    case 'sust': return `${ev.tipo === 'excepcional' ? 'Sustitución excepcional' : 'Cambio'} ${n(ev.eq)}: sale ${ev.sale}, entra ${ev.entra}`;
+    case 'punto': return `Punto ${n(ev.eq)}${ev.motivo && ev.motivo !== 'rally' ? ' (' + ({ castigo: 'castigo', castigoRetraso: 'castigo por demora', rotacion: 'falta de rotación' }[ev.motivo] || ev.motivo) + ')' : ''}`;
+    case 'tiempo': return `Tiempo de descanso ${n(ev.eq)}`;
+    case 'sust': return `${ev.tipo === 'excepcional' ? 'Sustitución excepcional' : 'Sustitución'} ${n(ev.eq)}: sale ${ev.sale}, entra ${ev.entra}`;
     case 'liberoEntra': return `Líbero ${n(ev.eq)}: entra ${ev.libero} por ${ev.sale}`;
     case 'liberoSale': return `Líbero ${n(ev.eq)}: sale`;
     case 'sancion': return `${SANC[ev.tipo]} ${M.esDorsal(ev.quien) ? 'al ' + ev.quien : ev.quien === 'equipo' ? 'al equipo' : 'al ' + M.ROLES_OFICIALES[ev.quien].toLowerCase()} (${n(ev.eq)})`;
-    case 'impropia': return `Petición improcedente (${n(ev.eq)})`;
+    case 'impropia': return `Solicitud improcedente (${n(ev.eq)})`;
     case 'inicioSet': return 'Empieza el set';
     case 'sorteo': return 'Sorteo';
-    case 'alineacion': return `Alineación ${n(ev.eq)}`;
+    case 'alineacion': return `Formación inicial ${n(ev.eq)}`;
     case 'obs': return 'Observación';
     case 'firma': return 'Firma';
     case 'goldenSet': return 'Golden set';
     case 'capitanJuego': return `Capitán en juego ${n(ev.eq)}: el ${ev.num}`;
     case 'repeticion': return 'Repetición de la jugada';
     case 'faltaRotacion': return `Falta de rotación de ${n(ev.eq)}: punto para ${n(M.OTRO(ev.eq))}${ev.desde != null ? ` (anulados sus puntos desde el ${ev.desde})` : ''}`;
-    case 'incompleto': return ev.motivo === 'incomparecencia' ? `Incomparecencia de ${n(ev.eq)}` : `${n(ev.eq)}: equipo incompleto`;
-    case 'liberoNoPuede': return `Líbero ${ev.libero} de ${n(ev.eq)} no puede seguir${ev.nuevo ? ` · nuevo líbero: ${ev.nuevo}` : ''}`;
+    case 'incompleto': return ev.motivo === 'incomparecencia' ? `No presentación de ${n(ev.eq)}` : `${n(ev.eq)}: equipo incompleto`;
+    case 'liberoNoPuede': return `Líbero ${ev.libero} de ${n(ev.eq)} impedido de jugar${ev.nuevo ? ` · re-designado como líbero: ${ev.nuevo}` : ''}`;
     case 'setCompleto': return `Set ${ev.set} del ${ev.num} (${n(ev.eq)}) ${ev.si ? 'marcado' : 'desmarcado'} como completo`;
     case 'equipo': return `Plantilla ${n(ev.eq)}`;
     default: return ev.t;
@@ -636,7 +636,7 @@ function pJuego() {
     <div class="j-reg"><h3 class="solo-pc">Últimos sucesos</h3><div class="registro" aria-label="Últimos sucesos">${ultimos.map((e) => `<div><span class="h">${hora(e.h)}</span>${esc(describir(e, ST))}</div>`).join('')}</div></div>
   </div>`;
   $('app').querySelectorAll('[data-punto]').forEach((b) => (b.onclick = () => hacer({ t: 'punto', eq: b.dataset.punto })));
-  $('app').querySelectorAll('[data-acc]').forEach((b) => (b.onclick = () => ({ tiempo: () => hacer({ t: 'tiempo', eq: b.dataset.eq }), sust: () => hojaSust(b.dataset.eq), libero: () => hojaLibero(b.dataset.eq), sancion: () => hojaSancion(b.dataset.eq) })[b.dataset.acc]()));
+  $('app').querySelectorAll('[data-acc]').forEach((b) => (b.onclick = () => ({ tiempo: () => { if (!hacer({ t: 'tiempo', eq: b.dataset.eq })) hojaTiempo(b.dataset.eq); }, sust: () => hojaSust(b.dataset.eq), libero: () => hojaLibero(b.dataset.eq), sancion: () => hojaSancion(b.dataset.eq) })[b.dataset.acc]()));
   // Tocar a un jugador de la pista abre el cambio con él ya elegido (Ferran, 4-nov); si es el líbero, la hoja del líbero.
   $('app').querySelectorAll('[data-tocar]').forEach((b) => (b.onclick = () => { const eq = b.dataset.tocar, l = M.setActual(ST).libero[eq]; if (l && l.num === b.dataset.num) hojaLibero(eq); else hojaSust(eq, b.dataset.num); }));
   $('app').querySelectorAll('[data-capj]').forEach((b) => (b.onclick = () => { const [eq, num] = b.dataset.capj.split('|'); if (!hacer({ t: 'capitanJuego', eq, num })) toast(`Capitán en juego: el ${num}.`, true); }));
@@ -657,6 +657,28 @@ function barraComun() {
   $('obs')?.addEventListener('click', hojaObs);
   $('ver')?.addEventListener('click', () => { VER = true; pintar(); scrollTo(0, 0); });
   $('mis')?.addEventListener('click', salir);
+}
+// Tiempo de descanso: ventana con la cuenta atrás de 30 segundos (FIVB 15.4.1; `cfg.duracionTiempo` si una competición
+// lo cambia). "Volver al partido" lo acaba antes; al llegar a 0 se cierra solo.
+let TIEMPO_T = null;
+function hojaTiempo(eq) {
+  const s = M.setActual(ST), n = s.tiempos[eq].length, max = ST.cfg.tiempos, dur = A.cfg.duracionTiempo || 30, hasta = Date.now() + dur * 1000;
+  hoja(`<h2 id="hojaT">Tiempo de descanso · ${esc(eqNombre(eq))}</h2>
+    <p class="small muted">${n}º de ${max} de este set${n === max ? ' (el último)' : ''} · ${esc(eqNombre('L'))} ${s.puntos.L}-${s.puntos.V} ${esc(eqNombre('V'))}</p>
+    <div class="crono" id="crono" role="timer" aria-live="off">${dur}</div>
+    <div class="crono-barra"><i id="cronoB"></i></div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="primary" id="volverPartido">Volver al partido</button></div>`, () => $('volverPartido').focus());
+  $('hoja').classList.add('centro');   // en el móvil, en medio de la pantalla y no abajo (que el botón se vea)
+  const fin = () => { clearInterval(TIEMPO_T); if (!$('crono')) return; cerrarHoja(); toast('Fin del tiempo de descanso.', true); try { navigator.vibrate?.([200, 100, 200]); } catch (e) {} };
+  const tic = () => {
+    const c = $('crono'); if (!c) { clearInterval(TIEMPO_T); return; }
+    const resto = Math.max(0, Math.ceil((hasta - Date.now()) / 1000));
+    c.textContent = resto; c.classList.toggle('ultimos', resto <= 5);
+    $('cronoB').style.width = `${(100 * (hasta - Date.now())) / (dur * 1000)}%`;
+    if (resto <= 0) fin();
+  };
+  $('volverPartido').onclick = () => { clearInterval(TIEMPO_T); cerrarHoja(); };
+  clearInterval(TIEMPO_T); tic(); TIEMPO_T = setInterval(tic, 250);
 }
 function deshacer() {
   if (A.aprobada) { toast(CERRADA); return; }
@@ -680,13 +702,13 @@ function hojaSust(eq, elegido) {
   const dibujar = () => {
     const banco = ST.equipos[eq].jugadores.filter((j) => !j.lib && !s.rot[eq].includes(j.num));
     const motivo = (n) => (exc ? null : sale == null ? 'Elige primero quién sale.' : M.motivoSust(ST, s, eq, sale, n));
-    $('hojaC').innerHTML = `<h2 id="hojaT">Cambio · ${esc(eqNombre(eq))}</h2>
+    $('hojaC').innerHTML = `<h2 id="hojaT">Sustitución · ${esc(eqNombre(eq))}</h2>
       <p class="small muted">Sustituciones en este set: ${s.nSust[eq]} de ${ST.cfg.sustituciones}.</p>
       <b>Sale</b><div class="botones">${enPista.map((n) => `<button data-sale="${n}" aria-pressed="${sale === n}">${n}</button>`).join('')}</div>
       <b>Entra</b><div class="botones">${banco.map((j) => { const m = motivo(j.num); return `<button data-entra="${j.num}" aria-pressed="${entra === j.num}"${m ? ` disabled title="${esc(m)}"` : ''}>${j.num}${j.nombre ? `<small>${esc(corto2(j.nombre))}</small>` : ''}</button>`; }).join('') || '<span class="small muted">No hay nadie en el banquillo.</span>'}</div>
-      ${sale != null && !exc && banco.every((j) => motivo(j.num)) ? `<p class="motivo">Nadie puede entrar por el ${sale} con un cambio normal.</p>` : ''}
-      <label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="exc"${exc ? ' checked' : ''}> Sustitución excepcional (lesión, o expulsado sin cambio legal posible)</label>
-      <div class="row"><button class="primary" id="ok"${sale == null || entra == null ? ' disabled' : ''}>Hacer el cambio</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
+      ${sale != null && !exc && banco.every((j) => motivo(j.num)) ? `<p class="motivo">Nadie puede entrar por el ${sale} con una sustitución regular.</p>` : ''}
+      <label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="exc"${exc ? ' checked' : ''}> Sustitución excepcional (lesión/enfermedad, expulsión o descalificación sin sustitución legal posible)</label>
+      <div class="row"><button class="primary" id="ok"${sale == null || entra == null ? ' disabled' : ''}>Hacer la sustitución</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
     $('hojaC').querySelectorAll('[data-sale]').forEach((b) => (b.onclick = () => { sale = b.dataset.sale; entra = null; dibujar(); }));
     $('hojaC').querySelectorAll('[data-entra]').forEach((b) => (b.onclick = () => { entra = b.dataset.entra; dibujar(); }));
     $('exc').onchange = (e) => { exc = e.target.checked; entra = null; dibujar(); };
@@ -700,7 +722,7 @@ function hojaLibero(eq) {
   if (l) {
     const otro = libs.find((j) => j.num !== l.num);
     hoja(`<h2 id="hojaT">Líbero · ${esc(eqNombre(eq))}</h2><p>En pista: el ${l.num}, por el ${l.por}.</p>
-      <div class="row"><button class="primary" id="sale">Sale el líbero (vuelve el ${l.por})</button>${otro ? `<button id="cambia">Cambiar por el ${otro.num}</button>` : ''}<button id="noPuede">No puede seguir…</button><button class="ghost" data-cerrar>Cancelar</button></div>`);
+      <div class="row"><button class="primary" id="sale">Sale el líbero (vuelve el ${l.por})</button>${otro ? `<button id="cambia">Reemplazo por el otro líbero, el ${otro.num}</button>` : ''}<button id="noPuede">Impedido de jugar…</button><button class="ghost" data-cerrar>Cancelar</button></div>`);
     $('noPuede').onclick = () => hojaLiberoNoPuede(eq);
     $('sale').onclick = () => { if (!hacer({ t: 'liberoSale', eq })) cerrarHoja(); };
     if (otro) $('cambia').onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: otro.num, sale: l.num })) cerrarHoja(); };
@@ -712,7 +734,7 @@ function hojaLibero(eq) {
     $('hojaC').innerHTML = `<h2 id="hojaT">Líbero · ${esc(eqNombre(eq))}</h2>
       ${libs.length > 1 ? `<b>Líbero</b><div class="botones">${libs.map((j) => `<button data-lib="${j.num}" aria-pressed="${lib === j.num}">${j.num}</button>`).join('')}</div>` : ''}
       <b>Entra por (solo zagueros)</b><div class="botones">${zagueros.map(({ i, n }) => { const m = M.validar(A.cfg, A.datos, A.ev, { t: 'liberoEntra', eq, libero: lib, sale: n, h: new Date().toISOString() }); return `<button data-por="${n}"${m ? ` disabled title="${esc(m)}"` : ''}>${n} <small>(${POS[i]})</small></button>`; }).join('')}</div>
-      <div class="row"><button id="noPuede">Un líbero no puede seguir…</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
+      <div class="row"><button id="noPuede">Un líbero impedido de jugar…</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
     $('noPuede').onclick = () => hojaLiberoNoPuede(eq);
     $('hojaC').querySelectorAll('[data-lib]').forEach((b) => (b.onclick = () => { lib = b.dataset.lib; dibujar(); }));
     $('hojaC').querySelectorAll('[data-por]').forEach((b) => (b.onclick = () => { if (!hacer({ t: 'liberoEntra', eq, libero: lib, sale: b.dataset.por })) cerrarHoja(); }));
@@ -727,10 +749,10 @@ function hojaLiberoNoPuede(eq) {
   const dibujar = () => {
     const quedan = libs.filter((j) => j.num !== cual);
     const candidatos = ST.equipos[eq].jugadores.filter((j) => !j.lib && !s.rot[eq].includes(j.num) && !ST.fueraPartido[eq].has(j.num) && !ST.descalificados[eq].has(j.num));
-    $('hojaC').innerHTML = `<h2 id="hojaT">Líbero que no puede seguir · ${esc(eqNombre(eq))}</h2>
-      <p class="small muted">Lesión, enfermedad, expulsión o descalificación. El líbero que no puede seguir ya no vuelve en el partido.</p>
+    $('hojaC').innerHTML = `<h2 id="hojaT">Líbero impedido de jugar · ${esc(eqNombre(eq))}</h2>
+      <p class="small muted">Lesión, enfermedad, expulsión, descalificación o decisión del entrenador (FIVB 19.4.1). El líbero impedido de jugar ya no vuelve en el partido.</p>
       <b>Líbero</b><div class="botones">${libs.map((j) => `<button data-cual="${esc(j.num)}" aria-pressed="${cual === j.num}">${esc(j.num)}</button>`).join('')}</div>
-      ${quedan.length ? `<p class="msg ok small">Sigue jugando el otro líbero, el ${esc(quedan[0].num)}.</p>` : `<b>Redesignar como líbero a</b> <span class="small muted">(un jugador que no esté en pista; o ninguno y se sigue sin líbero)</span>
+      ${quedan.length ? `<p class="msg ok small">Sigue jugando el otro líbero, el ${esc(quedan[0].num)}.</p>` : `<b>Re-designar como líbero a</b> <span class="small muted">(un jugador que no esté en pista; o ninguno y se sigue sin líbero)</span>
         <div class="botones"><button data-nuevo="" aria-pressed="${nuevo === null}" style="font-size:15px">Ninguno</button>${candidatos.map((j) => `<button data-nuevo="${esc(j.num)}" aria-pressed="${nuevo === j.num}">${esc(j.num)}</button>`).join('')}</div>`}
       <div class="row"><button class="primary" id="ok">Confirmar</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
     $('hojaC').querySelectorAll('[data-cual]').forEach((b) => (b.onclick = () => { cual = b.dataset.cual; nuevo = null; dibujar(); }));
@@ -801,9 +823,10 @@ function hojaSancion(eq) {
     const js = ST.equipos[eq].jugadores, ofi = ST.equipos[eq].oficiales.map((o) => o.rol);
     const quienes = tipo === 'avisoRetraso' || tipo === 'castigoRetraso' || tipo === 'impropia' ? [['equipo', 'Equipo']] : [...js.map((j) => [j.num, String(j.num)]), ...ofi.map((r) => [r, M.ROLES_OFICIALES[r]])];
     $('hojaC').innerHTML = `<h2 id="hojaT">Sanción · ${esc(eqNombre(eq))}</h2>
-      <b>Tipo</b><div class="botones">${Object.entries(SANC).map(([k, t]) => `<button data-tipo="${k}" aria-pressed="${tipo === k}" style="font-size:15px">${esc(t)}</button>`).join('')}</div>
+      ${[['Conducta incorrecta (FIVB 21)', ['amonestacion', 'castigo', 'expulsion', 'descalificacion']], ['Sanciones por demora (FIVB 16)', ['avisoRetraso', 'castigoRetraso']], ['Solicitudes improcedentes (FIVB 15.11)', ['impropia']]]
+        .map(([g, ks]) => `<b>${esc(g)}</b><div class="botones">${ks.map((k) => `<button data-tipo="${k}" aria-pressed="${tipo === k}" style="font-size:15px">${esc(SANC[k])}</button>`).join('')}</div>`).join('')}
       ${tipo ? `<b>A quién</b><div class="botones">${quienes.map(([k, t]) => `<button data-quien="${k}" aria-pressed="${String(quien) === String(k)}" style="font-size:15px">${esc(t)}</button>`).join('')}</div>` : ''}
-      <p class="motivo">${tipo === 'castigo' || tipo === 'castigoRetraso' ? 'Da un punto y el saque al rival.' : tipo === 'expulsion' ? 'Fuera el resto del set: hay que sustituirlo.' : tipo === 'descalificacion' ? 'Fuera el resto del partido: hay que sustituirlo.' : tipo === 'impropia' ? 'Se anota sin sanción; si se repite en el partido, es retraso.' : ''}</p>
+      <p class="motivo">${tipo === 'castigo' || tipo === 'castigoRetraso' ? 'Da un punto y el saque al rival.' : tipo === 'expulsion' ? 'Fuera el resto del set: hay que sustituirlo.' : tipo === 'descalificacion' ? 'Fuera el resto del partido: hay que sustituirlo.' : tipo === 'impropia' ? 'Se anota sin sanción; si el equipo la repite en el partido, es una demora (FIVB 15.11.3).' : ''}</p>
       <div class="row"><button class="primary" id="ok"${!tipo || quien == null ? ' disabled' : ''}>Anotar</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
     $('hojaC').querySelectorAll('[data-tipo]').forEach((b) => (b.onclick = () => { tipo = b.dataset.tipo; quien = ['avisoRetraso', 'castigoRetraso', 'impropia'].includes(tipo) ? 'equipo' : null; dibujar(); }));
     $('hojaC').querySelectorAll('[data-quien]').forEach((b) => (b.onclick = () => { quien = b.dataset.quien; dibujar(); }));
@@ -886,7 +909,7 @@ function pEntre() {
   clearInterval(RELOJ);
   if ($('cuenta')) {
     const hasta = Date.parse(prev.fin) + desc * 60000, mmss = (seg) => `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`;
-    const tic = () => { const c = $('cuenta'); if (!c) { clearInterval(RELOJ); return; } const seg = Math.round((hasta - Date.now()) / 1000); c.classList.toggle('pasado', seg < 0); c.textContent = seg >= 0 ? `Descanso: ${mmss(seg)}` : `Descanso acabado hace ${mmss(-seg)}`; };
+    const tic = () => { const c = $('cuenta'); if (!c) { clearInterval(RELOJ); return; } const seg = Math.round((hasta - Date.now()) / 1000); c.classList.toggle('pasado', seg < 0); c.textContent = seg >= 0 ? `Intervalo: ${mmss(seg)}` : `Intervalo acabado hace ${mmss(-seg)}`; };
     tic(); RELOJ = setInterval(tic, 1000);
   }
   $('app').querySelectorAll('[data-sanc-entre]').forEach((b) => (b.onclick = () => hojaSancion(b.dataset.sancEntre)));
@@ -897,7 +920,7 @@ function pEntre() {
 function tablaResultados() {
   const r = M.resultados(ST);
   return `<table class="lista"><thead><tr><th>Set</th><th>Min.</th><th colspan="2">${esc(A.datos.local)}</th><th colspan="2">${esc(A.datos.visitante)}</th></tr></thead><tbody>
-    ${r.filas.map((f) => `<tr><td>${f.set}</td><td>${f.duracion ?? ''}</td><td><b>${f.L.puntos}</b></td><td class="small muted">T ${f.L.tiempos} · S ${f.L.sust}</td><td><b>${f.V.puntos}</b></td><td class="small muted">T ${f.V.tiempos} · S ${f.V.sust}</td></tr>`).join('')}
+    ${r.filas.map((f) => `<tr><td>${f.set}</td><td>${f.duracion ?? ''}</td><td><b>${f.L.puntos}</b></td><td class="small muted">TD ${f.L.tiempos} · S ${f.L.sust}</td><td><b>${f.V.puntos}</b></td><td class="small muted">TD ${f.V.tiempos} · S ${f.V.sust}</td></tr>`).join('')}
     <tr><td><b>Total</b></td><td>${r.total.duracion}</td><td><b>${r.total.L.gana}</b></td><td></td><td><b>${r.total.V.gana}</b></td><td></td></tr></tbody></table>
     <p class="small muted">Inicio ${hora(r.inicio)} · fin ${hora(r.fin)} · duración del partido ${r.duracionPartido ?? ''} min.</p>
     ${r.golden ? `<p><b>Golden set</b>: ${r.golden.ganador ? `gana ${esc(eqNombre(r.golden.ganador))} · ` : ''}${esc(A.datos.local)} ${r.golden.puntos.L} – ${r.golden.puntos.V} ${esc(A.datos.visitante)}${r.golden.duracion != null ? ` · ${r.golden.duracion} min` : ''}</p>` : ''}`;
@@ -906,13 +929,13 @@ function pFinal() {
   pantallaEncendida(false);
   const r = M.resultados(ST);
   const inc = ST.incompleto;
-  $('app').innerHTML = pasos('final') + `<section class="card"><h2>Gana ${esc(eqNombre(r.ganador))} ${Math.max(r.total.L.gana, r.total.V.gana)}-${Math.min(r.total.L.gana, r.total.V.gana)}</h2>${inc ? `<p class="msg err">${inc.motivo === 'incomparecencia' ? `Por incomparecencia de ${esc(eqNombre(inc.eq))}.` : `${esc(eqNombre(inc.eq))} se queda con el equipo incompleto en el set ${inc.set} (${inc.a}-${inc.b}).`}</p>` : ''}${tablaResultados()}</section>
+  $('app').innerHTML = pasos('final') + `<section class="card"><h2>Gana ${esc(eqNombre(r.ganador))} ${Math.max(r.total.L.gana, r.total.V.gana)}-${Math.min(r.total.L.gana, r.total.V.gana)}</h2>${inc ? `<p class="msg err">${inc.motivo === 'incomparecencia' ? `Por no presentación de ${esc(eqNombre(inc.eq))}.` : `${esc(eqNombre(inc.eq))} se queda con el equipo incompleto en el set ${inc.set} (${inc.a}-${inc.b}).`}</p>` : ''}${tablaResultados()}</section>
     ${ST.cfg.setObligatorio ? setObligatorioHtml() : ''}
     ${!A.aprobada && !ST.golden && !inc ? '<section class="card"><h2>Golden set</h2><p class="small muted">Solo si hay que desempatar (por ejemplo, una eliminatoria a doble partido igualada): un set más a 15, con sorteo. No cambia el resultado de este partido.</p><button id="golden">Jugar el golden set</button></section>' : ''}
     <section class="card"><h2>Espectadores</h2><label class="f" style="max-width:220px"><span>Número de espectadores</span><input type="number" id="espect" min="0" max="100000" inputmode="numeric" value="${esc(A.datos.espectadores ?? '')}"${A.aprobada ? ' disabled' : ''}></label></section>
     <section class="card"><h2>Observaciones</h2>${ST.observaciones.length ? ST.observaciones.map((o) => `<p class="small">Set ${o.set} · ${hora(o.h)}: ${esc(o.texto)}</p>`).join('') : '<p class="small muted">Ninguna.</p>'}${A.aprobada ? '' : '<button id="obs">Añadir observación</button>'}</section>
     ${correccionesHtml()}
-    <section class="card"><h2>Firmas</h2><p class="small muted">Por este orden: anotador (y ayudante), capitanes, 2º árbitro y 1er árbitro (FIVB 27.2.3.3).</p>${firmasHtml(FIRMAS)}</section>
+    <section class="card"><h2>Firmas</h2><p class="small muted">Por este orden: anotador (y asistente), capitanes, 2º árbitro y 1er árbitro (FIVB 27.2.3.3).</p>${firmasHtml(FIRMAS)}</section>
     ${aprobarHtml()}
     <div class="barra"><button class="primary" id="ver">Ver e imprimir el acta</button><button id="json">Descargar los datos (JSON)</button>${A.aprobada ? '' : '<button id="deshacer">Deshacer el último punto</button>'}<button class="ghost" id="mis">Mis actas</button></div>`;
   enlazarFirmas(); barraComun(); enlazarAprobar();
@@ -988,9 +1011,9 @@ function actaHtml() {
       return `<table><tr><th colspan="7">${ab(eq)} · ${esc(eqNombre(eq))} ${s.saqueInicial === eq ? '(saca)' : '(recibe)'}</th></tr>
         <tr><th></th>${POS.map((p) => `<th>${p}</th>`).join('')}</tr>
         <tr><th>Titular</th>${al.map((n) => `<td><b>${n}</b></td>`).join('')}</tr>
-        <tr><th>Cambios</th>${subs.map((x) => `<td>${x}</td>`).join('')}</tr>
+        <tr><th>Sustituciones</th>${subs.map((x) => `<td>${x}</td>`).join('')}</tr>
         <tr><th>Saque</th>${turnos.map((x) => `<td>${x}</td>`).join('')}</tr>
-        <tr><th>Tiempos</th><td colspan="6" class="izq">${s.tiempos[eq].map(marc).join(' · ') || '—'}</td></tr>
+        <tr><th>Tiempos de descanso</th><td colspan="6" class="izq">${s.tiempos[eq].map(marc).join(' · ') || '—'}</td></tr>
         <tr><th>Líbero</th><td colspan="6" class="izq">${s.liberos[eq].map((x) => `${x.entra}↔${x.sale} ${marc(x)}`).join(' · ') || '—'}</td></tr>
         <tr><th>Puntos</th><td colspan="6" class="izq">${pts}</td></tr></table>`;
     };
@@ -1005,7 +1028,7 @@ function actaHtml() {
       <tr><th>Pabellón</th><td class="izq" colspan="3">${esc(d.pabellon)}</td><th>Población</th><td colspan="3">${esc(d.ciudad)}</td><th>Formato</th><td>Mejor de ${st.cfg.mejorDe}</td></tr>
       <tr><th>Espectadores</th><td>${esc(d.espectadores ?? '')}</td><th>Estado</th><td class="izq" colspan="7">${A.aprobada ? `Aprobada y cerrada el ${new Date(A.aprobada.h).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })} (anotador, capitanes y 1er árbitro)` : 'Sin aprobar'}</td></tr></table>
     <div class="cols"><div>${equipoTabla(eqA)}</div><div>${equipoTabla(eqB)}</div></div>
-    <table><tr><th>1er árbitro</th><td>${esc(d.r1)}</td><th>2º árbitro</th><td>${esc(d.r2)}</td><th>Anotador</th><td>${esc(d.an)}</td><th>Anot. ayudante</th><td>${esc(d.aa)}</td><th>Jueces de línea</th><td>${esc([d.jl1, d.jl2].filter(Boolean).join(', '))}</td></tr></table>
+    <table><tr><th>1er árbitro</th><td>${esc(d.r1)}</td><th>2º árbitro</th><td>${esc(d.r2)}</td><th>Anotador</th><td>${esc(d.an)}</td><th>Anot. asistente</th><td>${esc(d.aa)}</td><th>Jueces de línea</th><td>${esc([d.jl1, d.jl2].filter(Boolean).join(', '))}</td></tr></table>
     <table><tr><th>Sorteos</th><td class="izq">${st.sorteos.map((x) => `Set ${x.set}: saca ${esc(eqNombre(x.saca))}; a la izquierda ${esc(eqNombre(x.izq))}`).join(' · ')}</td></tr></table>
     ${st.sets.map(setBloque).join('')}
     <div class="bloque"><table><tr><th colspan="7">Sanciones</th></tr><tr><th>Tipo</th><th>Equipo</th><th>Quién</th><th>Set</th><th>Marcador</th><th>Hora</th></tr>
@@ -1021,8 +1044,8 @@ function actaHtml() {
       ...['L', 'V'].filter((eq) => st.equipos[eq].jugadores.some((j) => j.cat === 'C')).map((eq) => `${esc(eqNombre(eq))} inscribe jugadores cadetes: ${st.equipos[eq].jugadores.filter((j) => j.cat === 'C').map((j) => esc(j.num)).join(', ')}.`),
       ...['L', 'V'].filter((eq) => d['delegado' + eq]).map((eq) => `${esc(eqNombre(eq))} presenta delegado/a: ${esc(d['delegado' + eq])}.`),
       ...st.faltasRotacion.map((x) => `Set ${x.set} ${hora(x.h)}: falta de rotación de ${esc(st.equipos[x.eq].nombre || eqNombre(x.eq))} (${x.a}:${x.b}); punto para el rival${x.anulados ? `; anulados ${x.anulados} puntos suyos desde el momento de la falta` : ''}.`),
-      ...(st.incompleto ? [st.incompleto.motivo === 'incomparecencia' ? `Incomparecencia de ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))}: 0-3 (25-0).` : `Set ${st.incompleto.set} ${hora(st.incompleto.h)}: ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))} se queda con el equipo incompleto (${st.incompleto.a}:${st.incompleto.b}); el rival gana los puntos y sets que faltan.`] : []),
-      ...['L', 'V'].flatMap((eq) => st.liberosFuera[eq].map((x) => `Set ${x.set} ${hora(x.h)}: el líbero ${esc(x.libero)} de ${esc(eqNombre(eq))} no puede seguir${x.nuevo ? `; nuevo líbero, el ${esc(x.nuevo)}` : ''} (${x.a}:${x.b}).`)),
+      ...(st.incompleto ? [st.incompleto.motivo === 'incomparecencia' ? `No presentación de ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))}: pierde 0-3 y cada set 0-25.` : `Set ${st.incompleto.set} ${hora(st.incompleto.h)}: ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))} se queda con el equipo incompleto (${st.incompleto.a}:${st.incompleto.b}); el rival gana los puntos y sets que faltan.`] : []),
+      ...['L', 'V'].flatMap((eq) => st.liberosFuera[eq].map((x) => `Set ${x.set} ${hora(x.h)}: el líbero ${esc(x.libero)} de ${esc(eqNombre(eq))} queda impedido de jugar${x.nuevo ? `; se re-designa como líbero al ${esc(x.nuevo)}` : ''} (${x.a}:${x.b}).`)),
       ...st.capitanesJuego.map((x) => `Set ${x.set} ${hora(x.h)}: capitán en juego de ${esc(eqNombre(x.eq))}, el ${esc(x.num)} (${x.a}:${x.b}).`),
       ...st.observaciones.map((o) => `Set ${o.set} ${hora(o.h)}: ${esc(o.texto)}`)].join('<br>') || '—'}</td></tr></table></div>
     ${(A.correcciones || []).length ? `<div class="bloque"><table><tr><th class="izq">Correcciones del anotador (deshecho durante el partido)</th></tr><tr><td class="izq">${A.correcciones.map((x) => `${hora(x.h)} · set ${x.set} (${x.L}:${x.V}): ${esc(x.texto)}`).join('<br>')}</td></tr></table></div>` : ''}

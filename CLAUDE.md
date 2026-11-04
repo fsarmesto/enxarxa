@@ -1024,6 +1024,20 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     plantilla, dorsales, minutos, texto); el tanteo y el set se ponen solos con el set en juego. En catalán, el texto de
     la circular; en castellano, su traducción. El texto queda editable; si falta un dato (___) pregunta antes de añadir.
     Prueba: ~/work/enxarxa-pruebas/macros.mjs (PC y `ANCHO=390`).
+  - **Vocabulario del reglamento (4-nov-2026, Ferran: "intenta usar palabras del reglamento siempre"):** en castellano,
+    los términos de las Reglas Oficiales FIVB 2025-2028 en español: tiempo de descanso (no "tiempo"), sustitución (no
+    "cambio"; "cambio de campo" sí), formación inicial (no "alineación"), intervalo entre sets (no "descanso"),
+    amonestación/castigo por demora (antes "aviso/castigo por retraso"; agrupados como "Sanciones por demora", FIVB 16),
+    solicitud improcedente (antes "petición"), no presentación (antes "incomparecencia"; pierde 0-3 y cada set 0-25),
+    reemplazo del líbero, jugada completada, re-designar, líbero impedido de jugar, anotador asistente, entrenador
+    asistente. "Acta" se queda (es lo que dice la FCVB; el reglamento dice "hoja de anotación"). Los identificadores
+    internos no cambian (`avisoRetraso`, `impropia`, `incomparecencia`…) para que las actas guardadas se sigan abriendo.
+    En catalán, los de las circulares de la FCVB: lliure (cambiado al final de `tr()`), substitució, reemplaçament,
+    demora, sol·licitud improcedent, jugada completada, re-designació, incapaç de jugar; "temps mort" para el tiempo.
+  - **Cronómetro del tiempo de descanso (4-nov-2026, Ferran):** al anotar un tiempo se abre una ventana (en medio de la
+    pantalla también en el móvil: `#hoja.centro`) con la cuenta atrás de 30 s (FIVB 15.4.1; `cfg.duracionTiempo` si una
+    competición lo cambia), barra y "Volver al partido" para acabarlo antes; a 0 se cierra sola, avisa y vibra si el
+    móvil puede. Prueba: ~/work/enxarxa-pruebas/crono.mjs (PC y `ANCHO=390`).
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución
