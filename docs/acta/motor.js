@@ -225,7 +225,9 @@
     if (tipo === 'avisoRetraso' && st.avisoRetraso[eq]) no('Este equipo ya tiene el aviso por retraso: el siguiente retraso es castigo por retraso.');
     if (tipo === 'castigoRetraso' && !st.avisoRetraso[eq]) no('El primer retraso es un aviso por retraso.');
     st.sanciones.push({ eq, quien, tipo, set: s.n, ...marcador(s, eq), h });
-    if (tipo === 'amonestacion' || tipo === 'castigo' || tipo === 'expulsion' || tipo === 'descalificacion') st.avisoConducta[eq] = true;
+    // La amonestación (tarjeta amarilla) se enseña una sola vez por equipo y partido. Un castigo, expulsión o
+    // descalificación antes NO la gasta (Casebook FIVB, cap. 6; e-Scoresheet y el partido de prueba de Swiss Volley).
+    if (tipo === 'amonestacion') st.avisoConducta[eq] = true;
     if (tipo === 'avisoRetraso') st.avisoRetraso[eq] = true;
     // Castigo: punto y saque al rival; entre sets o antes del partido, al empezar el set siguiente (FIVB).
     if (tipo === 'castigo' || tipo === 'castigoRetraso') { if (st.fase === 'juego') punto(st, OTRO(eq), tipo, h); else st.castigosPendientes.push({ eq: OTRO(eq), tipo }); }

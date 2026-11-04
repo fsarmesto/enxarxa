@@ -141,6 +141,15 @@ test('tiempos: 2 por set', () => {
   const s = set(p); assert.deepEqual(s.tiempos.L[0], { a: 0, b: 1, h: s.tiempos.L[0].h }, 'marcador: primero el del que lo pide');
 });
 
+test('amonestación después de un castigo o una expulsión de otro jugador del mismo equipo (Casebook FIVB)', () => {
+  const p = preparado();
+  p.add({ t: 'sancion', eq: 'L', quien: 5, tipo: 'castigo' });
+  p.add({ t: 'sancion', eq: 'L', quien: 7, tipo: 'expulsion' });
+  assert.equal(p.falla({ t: 'sancion', eq: 'L', quien: 3, tipo: 'amonestacion' }), null, 'la amarilla sigue disponible');
+  p.add({ t: 'sancion', eq: 'L', quien: 3, tipo: 'amonestacion' });
+  assert.match(p.falla({ t: 'sancion', eq: 'L', quien: 'E', tipo: 'amonestacion' }), /ya ha tenido su amonestación/, 'pero solo una por equipo');
+});
+
 test('sanciones: amonestación una vez, castigo da punto y saque, retrasos', () => {
   const p = preparado();
   p.add({ t: 'sancion', eq: 'L', quien: 4, tipo: 'amonestacion' });

@@ -893,6 +893,13 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     punto a punto, de github.com/awosoga/volleydata): 114 idénticos y el sacador coincide en el 99,5 % de 20.139 puntos; lo
     demás son incoherencias entre los 2 archivos reales. Un partido real de 5 sets jugado en la pantalla con 292 clics
     (PC y móvil) deja el acta igual que la realidad en cada acción.
+  - **Partido de prueba del e-Scoresheet (4-nov-2026):** `tools/prueba-acta-suiza.mjs` baja el "Test-Match eScoresheet #1"
+    de Swiss Volley (2021, v5.0: 5 sets, 421 pasos con el marcador esperado tras cada uno) y lo reproduce en el motor:
+    coinciden los 421. Diferencias de manejo, no de resultado: el e-Scoresheet anota a mano la salida del líbero al pasar
+    a delantero (40 veces; nosotros, sola), el "replay" del árbitro que revisa su decisión QUITA el último punto (aquí:
+    Deshacer + Repetición) y el líbero redesignado entra en el mismo paso. Encontró un fallo: un castigo/expulsión
+    gastaba la amarilla del equipo; ahora solo la gasta otra amarilla (Casebook FIVB cap. 6).
+    Manuales leídos: eScorMan (Data Project 2014), CTNA RFEVB 2017, Swiss Volley 2021, Finlandia 2024.
   - **Simulación masiva:** `tools/prueba-acta-azar.mjs [partidos] [semilla]`: partidos al azar con todas las acciones y
     comprobación de las reglas que nunca se pueden romper tras cada una (saca la I, líbero nunca delante ni sacando, sin
     repetidos ni expulsados en pista, contadores, fin de set, cambio a los 8, deshacer exacto). Encontró: la sustitución
