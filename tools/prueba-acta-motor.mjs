@@ -315,3 +315,20 @@ test('incomparecencia: 3-0 con 25-0; equipo incompleto a mitad: el rival gana lo
   const p2 = preparado(); puntos(p2, 'L', 24); puntos(p2, 'V', 23); p2.add({ t: 'incompleto', eq: 'L' });
   assert.deepEqual(p2.st().sets[0].puntos, { L: 24, V: 26 });
 });
+
+test('golden set: después del partido, a 15 con sorteo y cambio a los 8; no cambia el resultado del partido', () => {
+  const p = preparado({ mejorDe: 3, puntosSet: 5, puntosDecisivo: 15 });
+  assert.match(p.falla({ t: 'goldenSet' }), /cuando el partido ha acabado/);
+  const alin = () => { p.add({ t: 'alineacion', eq: 'L', jugadores: [1, 2, 3, 4, 5, 6] }); p.add({ t: 'alineacion', eq: 'V', jugadores: [1, 2, 3, 4, 5, 6] }); };
+  puntos(p, 'L', 5); alin(); p.add({ t: 'inicioSet' }); puntos(p, 'L', 5);
+  let st = p.st(); assert.equal(st.fase, 'fin'); assert.deepEqual(st.ganados, { L: 2, V: 0 });
+  p.add({ t: 'goldenSet' });
+  st = p.st(); assert.equal(st.fase, 'entreSets'); const g = M.setActual(st); assert.ok(g.golden && g.decisivo); assert.equal(g.n, 3);
+  alin(); assert.match(p.falla({ t: 'inicioSet' }), /sorteo/);
+  p.add({ t: 'sorteo', saca: 'V', izq: 'L' }); p.add({ t: 'inicioSet' });
+  puntos(p, 'V', 8); assert.equal(M.setActual(p.st()).izq, 'V', 'cambio de campo a los 8');
+  puntos(p, 'V', 7);
+  st = p.st(); assert.equal(st.fase, 'fin'); assert.deepEqual(st.golden, { set: 3, ganador: 'V' }); assert.deepEqual(st.ganados, { L: 2, V: 0 }, 'el partido sigue 2-0');
+  const r = M.resultados(st); assert.equal(r.filas.length, 2); assert.equal(r.ganador, 'L'); assert.equal(r.golden.ganador, 'V'); assert.deepEqual(r.golden.puntos, { L: 0, V: 15 });
+  assert.match(p.falla({ t: 'goldenSet' }), /ya se ha jugado/);
+});

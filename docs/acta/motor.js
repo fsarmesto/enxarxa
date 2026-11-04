@@ -45,7 +45,7 @@
       tiempos: { L: [], V: [] },              // { a, b }
       liberos: { L: [], V: [] },              // cambios de líbero, para el acta: { entra, sale, a, b }
       progreso: [],                            // cada punto: { eq, a, b, motivo }
-      rallies: 0, repeticiones: [], ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
+      golden: false, rallies: 0, repeticiones: [], ultLibero: { L: -1, V: -1 }, cambioHecho: false, ganador: null, pendienteSust: { L: [], V: [] }, nSust: { L: 0, V: 0 },
     };
   }
 
@@ -54,6 +54,7 @@
       cfg: { ...CONFIG, ...(config || {}) }, datos: datos || {},
       equipos: { L: { nombre: '', jugadores: [], oficiales: [] }, V: { nombre: '', jugadores: [], oficiales: [] } },
       sorteos: [], sets: [nuevoSet(1)], ganados: { L: 0, V: 0 }, fin: null, inicio: null,
+      golden: null,                            // golden set (desempate tras el partido): { set, ganador }
       sanciones: [],                           // { eq, quien, tipo, set, a, b }
       avisoConducta: { L: false, V: false }, avisoRetraso: { L: false, V: false }, impropias: { L: 0, V: 0 },
       descalificados: { L: new Set(), V: new Set() }, fueraPartido: { L: new Set(), V: new Set() },
@@ -118,6 +119,7 @@
 
   function finSet(st, s, eq, h) {
     s.ganador = eq; s.fin = h; cerrarTurno(s, 'L'); cerrarTurno(s, 'V');
+    if (s.golden) { st.golden.ganador = eq; st.fase = 'fin'; st.fin = h; return; }   // no cuenta en los sets del partido
     st.ganados[eq]++;
     if (st.ganados[eq] === ganarPartido(st)) { st.fase = 'fin'; st.fin = h; return; }
     const sig = nuevoSet(s.n + 1);
@@ -225,8 +227,10 @@
     if (tipo === 'avisoRetraso' && st.avisoRetraso[eq]) no('Este equipo ya tiene el aviso por retraso: el siguiente retraso es castigo por retraso.');
     if (tipo === 'castigoRetraso' && !st.avisoRetraso[eq]) no('El primer retraso es un aviso por retraso.');
     st.sanciones.push({ eq, quien, tipo, set: s.n, ...marcador(s, eq), h });
-    // La amonestación (tarjeta amarilla) se enseña una sola vez por equipo y partido. Un castigo, expulsión o
-    // descalificación antes NO la gasta (Casebook FIVB, cap. 6; e-Scoresheet y el partido de prueba de Swiss Volley).
+    // La amonestación (tarjeta amarilla) se enseña una sola vez por equipo y partido, y solo la gasta otra amarilla.
+    // Tras una expulsión se puede amonestar a otro miembro del equipo: Casebook FIVB, caso 6.07 (regla 21). Tras un
+    // castigo el Casebook no lo dice: se deduce del 6.07 y del partido de prueba del e-Scoresheet de Swiss Volley (2021),
+    // donde un equipo con castigo y expulsión del 7 recibe después la amarilla del 3.
     if (tipo === 'amonestacion') st.avisoConducta[eq] = true;
     if (tipo === 'avisoRetraso') st.avisoRetraso[eq] = true;
     // Castigo: punto y saque al rival; entre sets o antes del partido, al empezar el set siguiente (FIVB).
@@ -254,6 +258,13 @@
         if (ev.jugadores.filter((j) => j.lib).length > 2) no('Como mucho 2 líberos.');
         if (!st.cfg.liberos && ev.jugadores.some((j) => j.lib)) no('En este partido no hay líbero (está desactivado en el formato).');
         st.equipos[ev.eq] = { nombre: ev.nombre || st.equipos[ev.eq].nombre, jugadores: ev.jugadores.map((j) => ({ ...j, num: D(j.num) })), oficiales: (ev.oficiales || []).map((o) => ({ ...o })) };
+        return;
+      }
+      case 'goldenSet': {   // desempate a un set (p. ej. eliminatoria a doble partido igualada): a 15, con sorteo
+        if (st.fase !== 'fin' || st.incompleto) no('El golden set se juega cuando el partido ha acabado.');
+        if (st.golden) no('El golden set ya se ha jugado.');
+        const g = nuevoSet(s.n + 1); g.decisivo = true; g.golden = true;
+        st.sets.push(g); st.golden = { set: g.n, ganador: null }; st.fase = 'entreSets'; st.fin = null;
         return;
       }
       case 'sorteo': {   // { saca, izq }: antes del 1er set y antes del decisivo
@@ -388,7 +399,7 @@
       for (const j of st.equipos[eq].jugadores) {
         const sets = [];
         for (const s of st.sets) {
-          if (!s.inicio) continue;
+          if (!s.inicio || s.golden) continue;   // el golden set no cuenta para el set obligatorio
           const auto = !!s.fin && (s.alineacion[eq] || []).includes(j.num) && !s.sust[eq].some((x) => x.sale === j.num);
           const mano = st.marcasSet[eq][j.num]?.[s.n];
           sets.push({ set: s.n, auto, mano: mano ?? null, completo: mano ?? auto, enJuego: !s.fin });
@@ -402,7 +413,9 @@
   // Cuadro de resultados del acta.
   const minutos = (a, b) => (a && b ? Math.round((Date.parse(b) - Date.parse(a)) / 60000) : null);
   function resultados(st) {
-    const filas = st.sets.filter((s) => s.inicio).map((s) => ({
+    const g = st.sets.find((s) => s.golden && s.inicio);
+    const golden = g ? { set: g.n, duracion: minutos(g.inicio, g.fin), ganador: g.ganador, puntos: { ...g.puntos } } : null;
+    const filas = st.sets.filter((s) => s.inicio && !s.golden).map((s) => ({
       set: s.n, duracion: minutos(s.inicio, s.fin),
       L: { tiempos: s.tiempos.L.length, sust: s.sust.L.filter((x) => x.tipo !== 'excepcional').length, gana: s.ganador === 'L' ? 1 : 0, puntos: s.puntos.L },
       V: { tiempos: s.tiempos.V.length, sust: s.sust.V.filter((x) => x.tipo !== 'excepcional').length, gana: s.ganador === 'V' ? 1 : 0, puntos: s.puntos.V },
@@ -412,8 +425,9 @@
       filas, total: { duracion: filas.reduce((t, f) => t + (f.duracion || 0), 0),
         L: { tiempos: suma('L', 'tiempos'), sust: suma('L', 'sust'), gana: st.ganados.L, puntos: suma('L', 'puntos') },
         V: { tiempos: suma('V', 'tiempos'), sust: suma('V', 'sust'), gana: st.ganados.V, puntos: suma('V', 'puntos') } },
-      inicio: st.inicio, fin: st.fin, duracionPartido: minutos(st.inicio, st.fin),
-      ganador: st.fase === 'fin' ? (st.ganados.L > st.ganados.V ? 'L' : 'V') : null,
+      inicio: st.inicio, fin: (st.sets.filter((s) => !s.golden && s.fin).at(-1) || {}).fin || null, golden,
+      duracionPartido: minutos(st.inicio, (st.sets.filter((s) => !s.golden && s.fin).at(-1) || {}).fin),
+      ganador: st.fase === 'fin' || st.golden ? (st.ganados.L > st.ganados.V ? 'L' : 'V') : null,
     };
   }
 

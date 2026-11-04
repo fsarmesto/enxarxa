@@ -71,8 +71,9 @@ main.wide{max-width:1180px}
 .pista{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:0 0 8px;background:var(--surface-2);border-radius:6px;padding:6px;position:relative}
 .pista .p{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:46px;border-radius:5px;background:var(--bg);border:1px solid var(--line);font:700 20px/1 var(--display)}
 .pista .p small{font:600 10px/1 Barlow,sans-serif;color:var(--ink-3);margin-top:2px}
-.pista .p.lib{background:var(--yellow);color:#000;border-color:var(--yellow)}
-.pista .p.saca{outline:3px solid var(--red);outline-offset:-3px}
+.pista .p{background:var(--c,var(--bg));color:var(--ct,inherit);border-color:rgba(0,0,0,.25)} .pista .p small{color:inherit}
+.pista .p.lib{border-width:2px;border-style:dashed}
+.pista .p.saca{box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 6px #000}
 .pista .red{grid-column:1/-1;height:4px;background:var(--ink);border-radius:2px;margin:1px 0}
 .btnPunto{width:100%;min-height:76px;font:700 26px/1 var(--display);border-radius:10px;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);margin:0 0 8px}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -97,6 +98,15 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
 .dots i{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink-3)}
 .dots i.on{background:var(--ink);border-color:var(--ink)}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
+.colores{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:4px 0 8px}
+.f.color input{height:44px;padding:2px;cursor:pointer}
+.muestra{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:6px;vertical-align:1px;border:1px solid rgba(0,0,0,.3)}
+/* Aviso de líbero, cuenta atrás del descanso y correcciones (4-nov-2026) */
+.aviso-lib{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0;padding:6px 8px;border-radius:8px;background:var(--yellow);color:#000;font-weight:600;font-size:14px}
+.aviso-lib button{min-width:44px;min-height:40px;padding:4px 10px;font:700 18px/1 var(--display)}
+.cuenta{font:700 34px/1.1 var(--display);margin:6px 0}
+.cuenta.pasado{color:var(--warn)}
+.correc{margin:0;padding-left:18px;font-size:14px} .correc .h{color:var(--ink-3);font-variant-numeric:tabular-nums}
 .chip{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:30px;padding:0 6px;border-radius:15px;border:1px solid var(--line);font:700 15px/1 var(--display);background:var(--surface)}
 .chip.lib{background:var(--yellow);border-color:var(--yellow);color:#000}
 .chip.fuera{text-decoration:line-through;opacity:.5}
@@ -117,9 +127,9 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
 .campo:last-child{background:linear-gradient(90deg,transparent 33.3%,rgba(255,255,255,.9) 33.3%,rgba(255,255,255,.9) calc(33.3% + 2px),transparent calc(33.3% + 2px))}
 .c-pista .red{background:repeating-linear-gradient(0deg,#111 0 3px,#eee 3px 6px);border-left:2px solid #111;border-right:2px solid #111;margin:-10px 0;border-radius:2px}
 .jug{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
-.jug .n{display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:#fff;color:#000;font:700 30px/1 var(--display);box-shadow:0 2px 6px rgba(0,0,0,.25)}
-.jug.lib .n{background:var(--yellow)}
-.jug.saca .n{outline:4px solid var(--red);outline-offset:2px}
+.jug .n{display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:var(--c,#fff);color:var(--ct,#000);font:700 30px/1 var(--display);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.jug.lib .n{border:3px dashed var(--ct,#000)}
+.jug.saca .n{box-shadow:0 0 0 3px #fff,0 0 0 7px #000}
 .jug .cap{position:absolute;top:calc(50% - 44px);right:calc(50% - 40px);background:#000;color:#fff;font:700 11px/18px Barlow,sans-serif;width:18px;height:18px;border-radius:50%;text-align:center}
 .jug .pelota{position:absolute;top:calc(50% - 46px);left:calc(50% - 44px);width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 30%,var(--yellow) 31%);border:2px solid #000}
 .jug .pos{font:600 11px/1 Barlow,sans-serif;color:#fff;margin-top:5px;text-shadow:0 1px 2px rgba(0,0,0,.4)}
@@ -166,8 +176,8 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
 .lj li b{font:700 17px/1 var(--display);text-align:right;padding-right:4px}
 .lj li .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lj li .nota{font-size:12px;color:var(--ink-3);white-space:nowrap}
-.lj li.lib{background:var(--yellow);color:#000;border-radius:4px}
-.lj li.lib .nota,.lj li.lib .cap{color:#000}
+.lj li.lib{background:var(--c,var(--yellow));color:var(--ct,#000);border-radius:4px}
+.lj li.lib .nota,.lj li.lib .cap{color:inherit}
 .lj li.fuera{opacity:.5;text-decoration:line-through}
 .jug .nmb{font:600 12px/1 Barlow,sans-serif;color:#fff;margin-top:5px;max-width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.4)}
 .jug .pos{opacity:.75;margin-top:2px}
