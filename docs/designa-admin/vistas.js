@@ -154,7 +154,7 @@ function pintarFranja() {
   const plan = PLAN(), pend = FR.ms.filter(m => franja(m) === FR.f && !plan[m.key]?.r1).sort((a, b) => mins(a) - mins(b));
   FR.pend = pend;
   const prev = $('frArb').value, cs = pend[0] ? candidatos(pend[0], plan).filter(c => c.disp) : [];
-  $('frArb').innerHTML = cs.map(c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.k != null ? ' · ' + esc(t('km')(c.k)) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.pisa ? ' · ' + esc(t('yaTiene')(ocTxt(c.ch.o))) : ''}</option>`).join('');
+  $('frArb').innerHTML = cs.map(c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.k != null ? ' · ' + esc(kmTxt(c.k, c.desde, pend[0])) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.pisa ? ' · ' + esc(t('yaTiene')(ocTxt(c.ch.o))) : ''}</option>`).join('');
   if (cs.some(c => c.a.id === prev)) $('frArb').value = prev;
   $('frLista').innerHTML = pend.length ? pend.map(m => `<li>${esc(m.d.slice(11, 16))} · ${esc(cat(m.cat))} · ${esc(corto(m.l))} – ${esc(corto(m.v))}</li>`).join('') : `<li>${esc(t('franjaNada'))}</li>`;
   $('frSi').textContent = t('franjaAplicar')(pend.length); $('frSi').disabled = !pend.length || !cs.length;
@@ -195,8 +195,9 @@ function proponer() {
   const bloques = new Map();
   for (const m of objetivo) { const k = `${m.d.slice(0, 10)}|${sinPista(m.pab)}|${franja(m)}`; if (!bloques.has(k)) bloques.set(k, []); bloques.get(k).push(m); }
   const lista = [...bloques.values()].map(b => b.sort((x, y) => mins(x) - mins(y))).sort((a, b) => b.length - a.length || a[0].d.localeCompare(b[0].d));
-  const puede = (a, m, q) => disponible(a, m) && (a.coche || (km(a, m) != null && km(a, m) <= 12)) && !Object.values(q[m.key] || {}).includes(a.id) && choque(a, m, q)?.tipo !== 'pisa';
-  const coste = (a, ms, q) => ms.reduce((s, m) => s + (km(a, m) ?? 60) + (choque(a, m, q)?.tipo === 'justo' ? 30 : 0), 0) / ms.length + cuantos(a, q) * 8;
+  const puede = (a, m, q) => disponible(a, m) && (a.coche || (kmAct(a, m, q).k != null && kmAct(a, m, q).k <= 12)) && !Object.values(q[m.key] || {}).includes(a.id) && choque(a, m, q)?.tipo !== 'pisa';
+  // km desde donde estará (kmAct): con lo ya propuesto, tiende a encadenar partidos de la misma zona.
+  const coste = (a, ms, q) => ms.reduce((s, m) => s + (kmAct(a, m, q).k ?? 60) + (choque(a, m, q)?.tipo === 'justo' ? 30 : 0), 0) / ms.length + cuantos(a, q) * 8;
   const poner = (a, m) => { p[m.key] = { ...(p[m.key] || {}), r1: a.id }; prop.push({ key: m.key, rol: 'r1', disp_id: a.id }); };
   const prop = []; let sinNadie = 0;
   for (const b of lista) {
@@ -236,13 +237,15 @@ async function marcarHecho(key, si) {
 const PAB_ABIERTOS = new Set();
 function quienPuedeBloque(pend, plan) {
   return D.disp.map(a => {
-    let q = plan, k = 0;
+    let q = plan, k, desde = null;
     for (const m of pend) {
       if (!disponible(a, m) || Object.values(q[m.key] || {}).includes(a.id) || choque(a, m, q)?.tipo === 'pisa') return null;
-      if (!a.coche && (km(a, m) == null || km(a, m) > 12)) return null;
-      q = { ...q, [m.key]: { ...(q[m.key] || {}), r1: a.id } }; k = km(a, m);
+      const x = kmAct(a, m, q);   // el 1º de la franja, desde donde estará; los siguientes, desde el mismo pabellón
+      if (!a.coche && (x.k == null || x.k > 12)) return null;
+      if (k === undefined) { k = x.k; desde = x.desde; }
+      q = { ...q, [m.key]: { ...(q[m.key] || {}), r1: a.id } };
     }
-    return { a, k, justo: pend.some(m => choque(a, m, plan)?.tipo === 'justo') };
+    return { a, k, desde, justo: pend.some(m => choque(a, m, plan)?.tipo === 'justo') };
   }).filter(Boolean).sort((x, y) => (x.k ?? 999) - (y.k ?? 999) + (x.justo - y.justo) * 30 || cuantos(x.a, plan) - cuantos(y.a, plan));
 }
 function filaPartido(m, plan) {
@@ -275,7 +278,7 @@ function pabellonesHtml(plan, ms) {
         const pen = bm.filter(m => !plan[m.key]?.r1 && m.isquad !== 'con'), dl = dia(bm[0]) === 'sab' ? t('sabado') : t('domingo');
         const cs = pen.length && D.disp.length ? quienPuedeBloque(pen, plan).slice(0, 6) : [];
         html += `<section class="blo"><h3>${esc(dl)} · ${esc(t(f).toLowerCase())} <small>${esc(t('cargaP')(bm.length))}</small></h3>`
-          + (pen.length ? `<div class="recs"><span class="l">${esc(t('pabPoner')(pen.length))}</span>${cs.length ? cs.map(c => `<button type="button" data-bloque="${esc(bm[0].d.slice(0, 10) + '|' + g.k + '|' + f)}" data-arb="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k != null ? esc(t('km')(c.k)) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.justo ? ' · ' + esc(t('pabJusto')) : ''}</small></button>`).join('') : `<span class="small muted">${esc(t('pabNadie'))}</span>`}</div>` : `<p class="small ok-t">✓ ${esc(t('pabCompleta'))}</p>`)
+          + (pen.length ? `<div class="recs"><span class="l">${esc(t('pabPoner')(pen.length))}</span>${cs.length ? cs.map(c => `<button type="button" data-bloque="${esc(bm[0].d.slice(0, 10) + '|' + g.k + '|' + f)}" data-arb="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k != null ? esc(kmTxt(c.k, c.desde, pen[0])) : ''}${c.a.coche ? '' : ' · ' + esc(t('sinCoche'))}${c.justo ? ' · ' + esc(t('pabJusto')) : ''}</small></button>`).join('') : `<span class="small muted">${esc(t('pabNadie'))}</span>`}</div>` : `<p class="small ok-t">✓ ${esc(t('pabCompleta'))}</p>`)
           + bm.map(m => filaPartido(m, plan)).join('') + `</section>`;
       }
       html += `</div>`;

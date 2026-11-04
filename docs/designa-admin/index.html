@@ -293,7 +293,7 @@ const T = {
     yaAqui:n=>`${n} ya está en este partido.`,
     vRejilla:'Cuadrícula', vPab:'Por pabellón', vLista:'Lista', vMapa:'Mapa', vistaL:'Vista', hecho:'Pasado a iSquad', propuesto:'Propuesta',
     progR1:(a,b)=>`${a} de ${b} con R1`, progHecho:(a,b)=>`${a} de ${b} pasados a iSquad`, progDisp:n=>n===1?'1 árbitro disponible':`${n} árbitros disponibles`, progSinIsq:n=>`${n} sin árbitro en iSquad`,
-    enIsqB:'en iSquad', leyenda:'Leyenda:',
+    enIsqB:'en iSquad', leyenda:'Leyenda:', desde:p=>`desde ${p}`, sigue:'sigue en el pabellón',
     pabRes:(n,p)=>`${n} pabellones · ${p} con partidos sin R1. Abre uno para designarlo.`, pabFalta:n=>n===1?'falta 1 R1':`faltan ${n} R1`, pabOk:'completo',
     pabPoner:n=>n===1?'R1 del partido que falta:':`R1 de los ${n} que faltan (toda la franja):`, pabJusto:'va justo', pabNadie:'Nadie puede hacer toda la franja: elige partido a partido.', pabCompleta:'Franja completa', ayuda:'Cómo funciona',
     iBoton:'Importar Excel', iPlantilla:'Descargar plantilla', iExportar:'Exportar disponibilidad', iFila:'Fila', iCoche:'Coche', xlsDisp:'Disponibilidad',
@@ -334,7 +334,7 @@ const T = {
     yaAqui:n=>`${n} ja és en aquest partit.`,
     vRejilla:'Graella', vPab:'Per pavelló', vLista:'Llista', vMapa:'Mapa', vistaL:'Vista', hecho:'Passat a iSquad', propuesto:'Proposta',
     progR1:(a,b)=>`${a} de ${b} amb R1`, progHecho:(a,b)=>`${a} de ${b} passats a iSquad`, progDisp:n=>n===1?'1 àrbitre disponible':`${n} àrbitres disponibles`, progSinIsq:n=>`${n} sense àrbitre a iSquad`,
-    enIsqB:'a iSquad', leyenda:'Llegenda:',
+    enIsqB:'a iSquad', leyenda:'Llegenda:', desde:p=>`des de ${p}`, sigue:'continua al pavelló',
     pabRes:(n,p)=>`${n} pavellons · ${p} amb partits sense R1. Obre'n un per designar-lo.`, pabFalta:n=>n===1?'falta 1 R1':`falten ${n} R1`, pabOk:'complet',
     pabPoner:n=>n===1?'R1 del partit que falta:':`R1 dels ${n} que falten (tota la franja):`, pabJusto:'va just', pabNadie:'Ningú no pot fer tota la franja: tria partit a partit.', pabCompleta:'Franja completa', ayuda:'Com funciona',
     iBoton:'Importa Excel', iPlantilla:'Descarrega la plantilla', iExportar:'Exporta la disponibilitat', iFila:'Fila', iCoche:'Cotxe', xlsDisp:'Disponibilitat',
@@ -430,6 +430,25 @@ function km(a, m){
   const h = Math.sin(dLa/2)**2 + Math.cos(r(a.lat))*Math.cos(r(m.lat))*Math.sin(dLo/2)**2;
   return Math.round(2*R*Math.asin(Math.sqrt(h))*1.25);
 }
+// Desde dónde sale (4-nov-2026, Ferran: "si me designan en Terrassa, el siguiente no se cuenta desde Capellades"): si ese
+// día ya tiene otro partido (en el plan o en iSquad) que empieza a menos de 4 h de este, desde ese pabellón; si hay más
+// rato, vuelve a casa. Se toma el más cercano en hora, antes o después (ir de A a B o de B a A son los mismos km).
+const VUELVE_CASA = 240;
+function origen(a, m, plan){
+  let mejor=null;
+  for(const o of ocupaciones(a, plan)){
+    if(o.d.slice(0,10)!==m.d.slice(0,10) || (o.m && o.m.key===m.key)) continue;
+    const gap=Math.abs(mins(o)-mins(m)); if(gap>=VUELVE_CASA) continue;
+    if(!mejor || gap<mejor.gap) mejor={o, gap};
+  }
+  return mejor && mejor.o.m && mejor.o.m.lat!=null ? mejor.o : null;   // sin ubicar ese pabellón: desde casa
+}
+function kmAct(a, m, plan){ const o=origen(a, m, plan); return o ? {k:km({lat:o.m.lat, lon:o.m.lon}, m), desde:o} : {k:km(a, m), desde:null}; }
+// "≈ 12 km · desde Terrassa" / "≈ 0 km · sigue en el pabellón" / "≈ 30 km"
+function kmTxt(k, desde, m){
+  if(k==null) return '';
+  return t('km')(k) + (desde ? ' · ' + (mismoPab(desde.pab, m.pab) ? t('sigue') : t('desde')(corto(pobDe(desde.m)||'') || pabCorto(desde.pab))) : '');
+}
 // Plan guardado + la propuesta automática que se está revisando (PROP, en vistas.js), sin pisar lo guardado.
 const PLAN = () => { const p={}; for(const x of D.asig) (p[x.match_key] ||= {})[x.rol]=x.disp_id; for(const x of PROP||[]) { const q=(p[x.key] ||= {}); if(!q[x.rol]) q[x.rol]=x.disp_id; } return p; };
 const HECHO = () => new Set(D.hecho||[]);
@@ -470,8 +489,8 @@ const cuantos = (a, plan) => Object.values(plan).reduce((n,p)=>n+Object.values(p
 function candidatos(m, plan){
   const yaEn = new Set(Object.values(plan[m.key]||{}));
   return D.disp.filter(a=>!yaEn.has(a.id)).map(a=>{
-    const k=km(a,m), disp=disponible(a,m), ch=choque(a,m,plan), pisa=ch?.tipo==='pisa', oc=disp && ch?.tipo==='justo', lejosSinCoche = !a.coche && (k==null || k>12);
-    return {a, k, disp, ch, pisa, oc, lejosSinCoche, score:(k??60) + (lejosSinCoche?1000:0) + cuantos(a,plan)*5};
+    const {k, desde}=kmAct(a,m,plan), disp=disponible(a,m), ch=choque(a,m,plan), pisa=ch?.tipo==='pisa', oc=disp && ch?.tipo==='justo', lejosSinCoche = !a.coche && (k==null || k>12);
+    return {a, k, desde, disp, ch, pisa, oc, lejosSinCoche, score:(k??60) + (lejosSinCoche?1000:0) + cuantos(a,plan)*5};
   }).sort((x,y)=>x.score-y.score || x.a.nombre.localeCompare(y.a.nombre));
 }
 const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
@@ -511,9 +530,9 @@ function filtrados(plan){
 }
 function opciones(m, rol, plan){
   const sel = plan[m.key]?.[rol], arb=ARB(), cs=candidatos(m, plan);
-  const op = c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.pisa?' · '+esc(t('yaTiene')(ocTxt(c.ch.o))):''}${!c.pisa&&c.k!=null?' · '+esc(t('km')(c.k)):''}${!c.pisa&&!c.a.coche?' · '+esc(t('sinCoche')):''}${c.oc?' · '+esc(t('justo')(ocTxt(c.ch.o))):''}${!c.pisa&&!c.disp?' · '+esc(t('noDisp')):''}</option>`;
+  const op = c => `<option value="${c.a.id}">${esc(corto(c.a.nombre))}${c.pisa?' · '+esc(t('yaTiene')(ocTxt(c.ch.o))):''}${!c.pisa&&c.k!=null?' · '+esc(kmTxt(c.k,c.desde,m)):''}${!c.pisa&&!c.a.coche?' · '+esc(t('sinCoche')):''}${c.oc?' · '+esc(t('justo')(ocTxt(c.ch.o))):''}${!c.pisa&&!c.disp?' · '+esc(t('noDisp')):''}</option>`;
   const rec=cs.filter(c=>c.disp&&!c.pisa&&!c.oc&&!c.lejosSinCoche), otros=cs.filter(c=>c.disp&&!c.pisa&&(c.oc||c.lejosSinCoche)), no=cs.filter(c=>!c.disp&&!c.pisa), pisan=cs.filter(c=>c.pisa);
-  const actual = sel && arb[sel] ? `<option value="${sel}" selected>${esc(corto(arb[sel].nombre))}${km(arb[sel],m)!=null?' · '+esc(t('km')(km(arb[sel],m))):''}</option>` : '';
+  const actual = sel && arb[sel] ? `<option value="${sel}" selected>${esc(corto(arb[sel].nombre))}${(x=>x.k!=null?' · '+esc(kmTxt(x.k,x.desde,m)):'')(kmAct(arb[sel],m,plan))}</option>` : '';
   return `<option value="">${esc(t('nadie'))}</option>${actual}`
     + (rec.length?`<optgroup label="${esc(t('grpRec'))}">${rec.map(op).join('')}</optgroup>`:'')
     + (otros.length?`<optgroup label="${esc(t('grpOtros'))}">${otros.map(op).join('')}</optgroup>`:'')
@@ -533,7 +552,7 @@ function tarjeta(m, plan){
       <div class="pab">${esc(corto(m.pab))}${pobDe(m)?' · '+esc(corto(pobDe(m))):''}</div>
       ${avisos}
       <div class="slots${p.r2||p.an?' mas':''}">${['r1','r2','an'].map(rol=>`<label class="s-${rol}">${chipArb(arb[p[rol]])}${esc(t(rol))}<select data-rol="${rol}" aria-label="${esc(t(rol))} · ${esc(corto(m.l))} – ${esc(corto(m.v))}">${opciones(m,rol,plan)}</select></label>`).join('')}<button type="button" class="ghost s-mas" data-mas>${esc(t('masRoles'))}</button></div>
-      ${D.disp.length?`<div class="recs"><span class="l">${esc(t('recomendados'))}</span>${recs.length?recs.map(c=>`<button type="button" data-pon="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k!=null?esc(t('km')(c.k)):''}${c.a.coche?'':' · '+esc(t('sinCoche'))}</small></button>`).join(''):`<span class="small muted">${esc(t('sinRec'))}</span>`}</div>`:''}
+      ${D.disp.length?`<div class="recs"><span class="l">${esc(t('recomendados'))}</span>${recs.length?recs.map(c=>`<button type="button" data-pon="${c.a.id}">${chipArb(c.a)}${esc(corto(c.a.nombre))} <small>${c.k!=null?esc(kmTxt(c.k,c.desde,m)):''}${c.a.coche?'':' · '+esc(t('sinCoche'))}</small></button>`).join(''):`<span class="small muted">${esc(t('sinRec'))}</span>`}</div>`:''}
       <label class="chk hecho"><input type="checkbox" data-hecho${hecho?' checked':''}> <span>${esc(t('hecho'))}</span></label>
     </article>`;
 }
@@ -553,13 +572,13 @@ function pintarArbitros(plan){
   const fr = (v,obs)=>`${esc(v==='no'?t('noPuede'):t(v))}${obs?` <span class="muted">(${esc(obs)})</span>`:''}`;
   $('arbs').innerHTML = D.disp.map(a=>{
     const mios = D.partidos.filter(m=>Object.entries(plan[m.key]||{}).some(([,id])=>id===a.id));
-    const libres = D.partidos.filter(m=>m.liga && !plan[m.key]?.r1 && disponible(a,m) && !ocupado(a,m,plan)).map(m=>({m,k:km(a,m)}))
+    const libres = D.partidos.filter(m=>m.liga && !plan[m.key]?.r1 && disponible(a,m) && !ocupado(a,m,plan)).map(m=>({m,...kmAct(a,m,plan)}))
       .filter(x=>a.coche || x.k==null || x.k<=12).sort((x,y)=>(x.k??999)-(y.k??999)).slice(0,3);
     return `<article class="a"><div class="top">${chipArb(a)}<span class="n">${esc(corto(a.nombre))}</span><span class="tag">${esc(corto(a.poblacion))}</span>${a.coche?'':`<span class="tag r">${esc(t('sinCoche'))}</span>`}<span class="tag">${esc(a.origen==='designador'?t('porTi'):a.app?t('app'):t('mano'))}</span>${mios.length?`<span class="tag y">${esc(t('asignados')(mios.length))}</span>`:''}</div>
       <div class="d">${esc(t('sabado'))}: ${fr(a.sab,a.sab_obs)} · ${esc(t('domingo'))}: ${fr(a.dom,a.dom_obs)}</div>
       ${(a.isq||[]).length?`<div class="d">${esc(t('enIsqL'))} ${a.isq.map(o=>`${esc(cap(fecha(o.d.slice(0,10),0,{weekday:'short'})))} ${esc(o.d.slice(11,16))} · ${esc(pabCorto(o.pab))}`).join(' · ')}</div>`:''}
       ${mios.length?`<div class="d">${mios.map(m=>`${esc(cap(fecha(m.d.slice(0,10),0,{weekday:'short'})))} ${esc(m.d.slice(11,16))} · ${esc(corto(m.l))} – ${esc(corto(m.v))} (${esc(t(Object.entries(plan[m.key]).find(([,id])=>id===a.id)[0]))})`).join('<br>')}</div>`:''}
-      <div class="recs"><span class="l">${esc(t('cercanos'))}</span>${libres.length?libres.map(x=>`<button type="button" data-asig="${esc(x.m.key)}" data-arb="${a.id}">${esc(cap(fecha(x.m.d.slice(0,10),0,{weekday:'short'})))} ${esc(x.m.d.slice(11,16))} · ${esc(corto(x.m.pab))} <small>${x.k!=null?esc(t('km')(x.k)):''}</small></button>`).join(''):`<span class="small muted">${esc(t('ninguno'))}</span>`}</div>
+      <div class="recs"><span class="l">${esc(t('cercanos'))}</span>${libres.length?libres.map(x=>`<button type="button" data-asig="${esc(x.m.key)}" data-arb="${a.id}">${esc(cap(fecha(x.m.d.slice(0,10),0,{weekday:'short'})))} ${esc(x.m.d.slice(11,16))} · ${esc(corto(x.m.pab))} <small>${x.k!=null?esc(kmTxt(x.k,x.desde,x.m)):''}</small></button>`).join(''):`<span class="small muted">${esc(t('ninguno'))}</span>`}</div>
       <div class="acts row"><button type="button" data-edit="${a.id}">${esc(t('editarB'))}</button><button type="button" class="ghost" data-quitar="${a.id}">${esc(t('quitar'))}</button></div></article>`;
   }).join('');
 }
@@ -645,7 +664,7 @@ $('exportar').addEventListener('click', async ()=>{
   if(!window.XLSX) await new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src='../vendor/xlsx-0.18.5.full.min.js'; s.onload=ok; s.onerror=ko; document.head.appendChild(s); });
   const plan=PLAN(), arb=ARB(), n = id => id&&arb[id] ? corto(arb[id].nombre) : '';
   const rows = filtrados(plan).map(m=>{ const p=plan[m.key]||{}; return { Fecha:m.d.slice(0,10), Hora:m.d.slice(11,16), Categoría:cat(m.cat), Local:corto(m.l), Visitante:corto(m.v),
-    Pabellón:corto(m.pab), Dirección:m.pista, R1:n(p.r1), R2:n(p.r2), Anotador:n(p.an), 'Km R1 (aprox.)': p.r1&&arb[p.r1] ? km(arb[p.r1], m) ?? '' : '', [t('hecho')]: HECHO().has(m.key) ? '✓' : '' }; });
+    Pabellón:corto(m.pab), Dirección:m.pista, R1:n(p.r1), R2:n(p.r2), Anotador:n(p.an), 'Km R1 (aprox.)': p.r1&&arb[p.r1] ? kmAct(arb[p.r1], m, plan).k ?? '' : '', [t('hecho')]: HECHO().has(m.key) ? '✓' : '' }; });
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), t('xlsHoja'));
   XLSX.utils.book_append_sheet(wb, hojaDisp(filasDisp()), t('xlsDisp'));   // la disponibilidad, como la plantilla de importar
   XLSX.writeFile(wb, `designaciones-${FINDE}.xlsx`);

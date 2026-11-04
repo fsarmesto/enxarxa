@@ -843,6 +843,12 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - **Tutorial** (`docs/designa-admin/tutorial.js`): 15 pasos (versión 3) que señalan cada parte (hueco fijo `#tourHueco` encima, la
   sombra en el propio elemento queda recortada dentro de la cuadrícula). Se abre solo si `localStorage designa-tour` <
   `TOUR_VERSION`; botón "Cómo funciona". Ver la regla en "Reglas de interfaz".
+- **Km desde donde estará** (4-nov-2026, Ferran: "si me designan en Terrassa, el siguiente no se cuenta desde
+  Capellades"): `origen()`/`kmAct()` en index.html. Si ese día tiene otro partido (plan o iSquad) que empieza a menos de
+  4 h (`VUELVE_CASA`), los km salen de ese pabellón (el más cercano en hora, antes o después); si no, o si ese pabellón no
+  está ubicado, de casa. Se usa en recomendaciones, desplegables ("≈ 52 km · desde Manresa", "sigue en el pabellón"),
+  "Más cercanos", "Por pabellón", "Franja →", la propuesta automática (encadena zonas) y la columna de km del Excel. Los km
+  de la barra lateral siguen desde casa (son de ida y vuelta por pabellón y franja, como paga la FCVB).
 - **Recomendación** (en la web): disponible en esa franja; sin choque ni "poco margen"; sin coche y a más de 12 km = no
   recomendado. Orden: km + 5 por partido ya asignado.
   Km = línea recta × 1,25 entre la población del árbitro y el pabellón (Photon vía `geocode`/`locate`, sin gastar rutas
@@ -852,7 +858,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - Datos: `designa_disp`, `designa_asig` (migración 035) y `designa_hecho` (037, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
 - Pruebas: banco con supabase y `designa` simulados en `~/work/enxarxa-pruebas` (en la máquina del trabajo): `panel.mjs`,
-  `choques.mjs`, `visual.mjs`, `imptour.mjs` y `pabellon.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
+  `choques.mjs`, `visual.mjs`, `imptour.mjs`, `pabellon.mjs` y `origen.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
   `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote e importar).
 
 ## Acta electrónica (prototipo para la FCVB, 3-nov-2026)
