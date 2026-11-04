@@ -135,3 +135,19 @@ select cron.schedule(
   );
   $$
 );
+
+-- Pabellones del panel del designador (4-nov-2026): ubicados de antemano para toda la temporada (función designa,
+-- acción precargar). Cada pasada ~50 s (Photon, 1 por segundo); de 1 a 6 UTC cada hora: la primera noche ubica los ~220
+-- de la temporada y después solo los nuevos (y vuelve a probar los no encontrados a los 30 días).
+select cron.schedule(
+  'designa-pabellones',
+  '20 1-6 * * *',
+  $$
+  select net.http_post(
+    url     := 'https://TU_PROYECTO.supabase.co/functions/v1/designa',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "TU_CRON_SECRET"}'::jsonb,
+    body    := '{"action":"precargar"}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $$
+);

@@ -166,43 +166,65 @@ async function retirar(db: Db, req: Request, b: { finde?: string; codigo?: strin
 // ---------- Panel del designador ----------
 const matchKey = (p: Partido) => `${p.d}|${norm(p.l)}|${norm(p.v)}`;
 const relevante = (cat: string) => !/ALEVI|AMATEUR|MASTER|VETERA|BENJAMI/.test(norm(cat));
-// Coordenadas de los pabellones del fin de semana, guardadas en pub_cache (designa-geo2:<sábado>) para no volver a
-// buscarlas. El listado de la federación no trae la calle (solo "PABELLÓN - PISTA 2"): la dirección sale de las
-// designaciones de los árbitros de la app (matches.addr, la de iSquad), por el nombre sin la pista. Photon va a 1
-// consulta por segundo: si hay muchos nuevos, se ubican por tandas (hasta la hora límite) y la web vuelve a pedir el panel.
+// Nombre del pabellón sin la pista ("PAVELLÓ X - PISTA 2" → "PAVELLO X"): la clave de designa_pab.
 const sinPista = (s: string) => norm(s).replace(/\s*-\s*(PISTA|TERCIO|TERC|CAMP|SALA|ANNEX|PISTA\s*\d).*$/, "").replace(/\s*-\s*$/, "").trim();
+// Direcciones de las designaciones de los árbitros de la app (matches.addr, la de iSquad), por el nombre sin la pista.
 async function direcciones(db: Db): Promise<Map<string, { addr: string; venue: string }>> {
   const rows = await todas<{ venue: string | null; addr: string | null }>(() => db.from("matches").select("venue, addr").not("addr", "is", null).order("user_id").order("id"));
   const m = new Map<string, { addr: string; venue: string }>();
   for (const r of rows) if (r.venue && r.addr && /\d{5}/.test(r.addr)) m.set(sinPista(r.venue), { addr: r.addr, venue: r.venue });
   return m;
 }
-async function pabellones(db: Db, finde: string, ps: Partido[], hasta: number) {
-  const key = `designa-geo2:${finde}`;
-  const { data } = await db.from("pub_cache").select("data").eq("key", key).maybeSingle();
-  const geo: Record<string, [number, number] | null> = data?.data || {};
-  const kOf = (p: Partido) => sinPista(p.pab);
-  let nuevos = 0, dirs: Map<string, { addr: string; venue: string }> | null = null;
-  for (const p of ps) {
-    const k = kOf(p);
-    if (k in geo) continue;
+// Por el nombre del pabellón en el mapa (4-nov-2026; el listado público no trae dirección ni población): solo si el pueblo
+// del resultado sale en el nombre de algún equipo local de ese pabellón o en el del propio pabellón ("PAVELLÓ PACO MARTIN"
+// de "VOLEI VILASSAR" → Vilassar de Mar sí; "PAVELLÓ MUNICIPAL SANT JORDI" de Torredembarra → el Perelló no). Probado
+// con 15 pabellones reales: todos los aceptados, bien. Lo que no, lo ubica el designador a mano (designa_pab).
+const GEN_POB = /^(SANT|SANTA|SANTS|DE|DEL|DELS|LA|LES|EL|ELS|L|D|I|VALLES|MAR|CAMP|VALL|BAIX|ALT)$/;
+async function porNombre(db: Db, p: Partido, ps: Partido[]) {
+  const k = sinPista(p.pab);
+  const pistas = norm([k, ...ps.filter((x) => sinPista(x.pab) === k).map((x) => x.l)].join(" ")).split(/[^A-Z0-9]+/);
+  const ok = (h: { properties?: Record<string, string> }) => {
+    const pr = h.properties || {};
+    if (!/^(leisure|building|amenity)$/.test(pr.osm_key || "")) return false;
+    const pob = norm(pr.city || pr.locality || pr.county || "").split(/[^A-Z0-9]+/).filter((w) => w.length > 2 && !GEN_POB.test(w));
+    return pob.length > 0 && pob.some((w) => pistas.includes(w) || (w === "BARCELONA" && pistas.includes("BCN")));
+  };
+  const r = await geocode(db, k, false, ok);
+  return r === "error" ? "error" : r ? { at: r.at } : null;
+}
+// Pabellones ya ubicados (tabla designa_pab, toda la temporada; 4-nov-2026, Ferran: "tendrían que ir pre-cargados").
+// Ubica los que falten de ps (los nuevos, y los automáticos no encontrados hace más de 30 días) hasta la hora límite:
+// Photon va a 1 consulta por segundo. Lo usan el panel (normalmente ya no falta ninguno) y la acción precargar (cron).
+type Pab = { pab_key: string; origen: string; lon: number | null; lat: number | null; buscado_at: string };
+const REBUSCAR_MS = 30 * 864e5;
+async function ubicarPendientes(db: Db, ps: Partido[], hasta: number) {
+  const tabla = new Map<string, Pab>((await todas<Pab>(() => db.from("designa_pab").select("pab_key, origen, lon, lat, buscado_at").order("pab_key"))).map((x) => [x.pab_key, x]));
+  const porKey = new Map<string, Partido>(); for (const p of ps) { const k = sinPista(p.pab); if (k && !porKey.has(k)) porKey.set(k, p); }
+  const pend = [...porKey.keys()].filter((k) => { const t = tabla.get(k); return !t || (t.origen === "auto" && t.lon == null && Date.now() - Date.parse(t.buscado_at) > REBUSCAR_MS); });
+  let hechos = 0, dirs: Map<string, { addr: string; venue: string }> | null = null;
+  for (const k of pend) {
     if (Date.now() > hasta) break;
+    const p = porKey.get(k)!;
     dirs ??= await direcciones(db);
     const d = dirs.get(k);
-    const r = d ? await locate(db, d.addr, d.venue) : (/\d{5}/.test(p.pista) ? await locate(db, p.pista, p.pab) : null);
+    let r: { at: [number, number] } | null | "error" = null, fuente: string | null = null;
+    if (d) { r = await locate(db, d.addr, d.venue); fuente = "isquad"; }
+    else if (/\d{5}/.test(p.pista)) { r = await locate(db, p.pista, p.pab); fuente = "cp"; }
+    if (!r && r !== "error") { r = await porNombre(db, p, ps); fuente = "nombre"; }
     if (r === "error") break;
-    geo[k] = r ? r.at : null; nuevos++;
+    const fila = { pab_key: k, nombre: p.pab, origen: "auto", fuente: r ? fuente : null, lon: r ? r.at[0] : null, lat: r ? r.at[1] : null, buscado_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    await db.from("designa_pab").upsert(fila);
+    tabla.set(k, fila); hechos++;
   }
-  if (nuevos) await db.from("pub_cache").upsert({ key, data: geo, fetched_at: new Date().toISOString() });
-  const falta = ps.filter((p) => !(kOf(p) in geo)).length;
-  return { geo, falta, kOf };
+  return { tabla, hechos, falta: pend.length - hechos };
 }
 
 async function panel(db: Db, b: { finde?: string }, t0: number) {
   const finde = validFinde(b.finde), dom = masDias(finde, 1);
   limpiar(db).then(() => {}, () => {});
   const ps = (await feed(db)).filter((p) => p.d.slice(0, 10) === finde || p.d.slice(0, 10) === dom).sort((a, b) => a.d.localeCompare(b.d) || a.pab.localeCompare(b.pab));
-  const { geo, falta, kOf } = await pabellones(db, finde, ps, t0 + 40_000);
+  // Los pabellones ya están ubicados de antemano (precargar); aquí solo se unen los partidos a ellos.
+  const { tabla, falta } = await ubicarPendientes(db, ps, t0 + 40_000);
   // Si iSquad ya tiene árbitro: cálculo semanal del panel de Administración (desig-global, solo la semana en curso).
   const { data: g } = await db.from("pub_cache").select("data").eq("key", "desig-global").maybeSingle();
   const r = g?.data as { desde?: string; hasta?: string; pendientes?: { d: string; l: string; v: string }[] } | undefined;
@@ -210,22 +232,71 @@ async function panel(db: Db, b: { finde?: string }, t0: number) {
   const sinArb = new Set((cubre ? r!.pendientes! : []).map((x) => `${x.d}|${norm(x.l)}|${norm(x.v)}`));
   const { data: disp } = await db.from("designa_disp").select("*").eq("finde", finde).order("nombre");
   const isq = await designacionesIsquad(db, finde, (disp || []).map((d: { user_id: string | null }) => d.user_id).filter(Boolean));
+  const juega = await equiposDe(db, (disp || []).map((d: { user_id: string | null }) => d.user_id).filter(Boolean), ps);
   const { data: asig } = await db.from("designa_asig").select("match_key, rol, disp_id").eq("finde", finde);
   const { data: hecho } = await db.from("designa_hecho").select("match_key").eq("finde", finde);
   return {
     ok: true, finde, findes: findes(), falta, estadoIsquad: cubre,
     partidos: ps.map((p) => {
-      const k = matchKey(p), at = geo[kOf(p)];
-      return { key: k, d: p.d, conf: p.c, l: p.l, v: p.v, cat: p.cat, comp: p.comp, pab: p.pab, pista: p.pista, lon: at?.[0] ?? null, lat: at?.[1] ?? null,
+      const k = matchKey(p), u = tabla.get(sinPista(p.pab)), ok = u && u.lon != null;
+      return { key: k, d: p.d, conf: p.c, l: p.l, v: p.v, cl: p.cl, cv: p.cv, cat: p.cat, comp: p.comp, pab: p.pab, pista: p.pista, lon: ok ? u.lon : null, lat: ok ? u.lat : null,
+        ubic: ok ? (u.origen === "manual" ? "manual" : "auto") : null,
         liga: relevante(p.cat), isquad: cubre && relevante(p.cat) ? (sinArb.has(k) ? "sin" : "con") : null };
     }),
     disp: (disp || []).map((d: Record<string, unknown>) => ({ id: d.id, nombre: d.nombre, poblacion: d.poblacion, lon: d.lon, lat: d.lat, coche: d.coche,
       sab: d.sab, sab_obs: d.sab_obs, dom: d.dom, dom_obs: d.dom_obs, app: !!d.user_id, origen: d.origen, updated_at: d.updated_at,
       // Lo que ya tiene designado en iSquad ese fin de semana (hora y pabellón; solo árbitros con cuenta): para los choques.
-      isq: d.user_id ? (isq.get(d.user_id as string) || []).map((o) => ({ d: o.d, pab: o.pab })) : [] })),
+      isq: d.user_id ? (isq.get(d.user_id as string) || []).map((o) => ({ d: o.d, pab: o.pab })) : [],
+      // Equipos donde juega o entrena y sus partidos del fin de semana (solo con cuenta): para avisar, no para impedir.
+      ...(d.user_id ? juega.get(d.user_id as string) || { clubs: [], juega: [] } : { clubs: [], juega: [] }) })),
     asig: asig || [],
     hecho: (hecho || []).map((h: { match_key: string }) => h.match_key),
   };
+}
+
+// ---------- Equipos de cada árbitro (4-nov-2026, Ferran: avisar, no impedir) ----------
+// fav_teams con rol jugador/entrenador (la app los encuentra en las plantillas públicas por la foto de afiliado).
+async function equiposDe(db: Db, users: string[], ps: Partido[]) {
+  const out = new Map<string, { clubs: { id: string; nombre: string }[]; juega: { key: string; d: string; l: string; v: string; pab: string; rol: string }[] }>();
+  if (!users.length) return out;
+  const { data } = await db.from("fav_teams").select("user_id, club_id, club, team, cat, rol").in("user_id", users).in("rol", ["jugador", "entrenador"]).eq("activo", true).eq("oculto", false);
+  for (const f of data || []) {
+    const o = out.get(f.user_id) ?? out.set(f.user_id, { clubs: [], juega: [] }).get(f.user_id)!;
+    if (!o.clubs.some((c) => c.id === f.club_id)) o.clubs.push({ id: f.club_id, nombre: f.club || f.team });
+    const cat = norm(f.cat || "");
+    for (const p of ps) {
+      const suyo = (p.cl === f.club_id && norm(p.l) === norm(f.team)) || (p.cv === f.club_id && norm(p.v) === norm(f.team));
+      if (suyo && (!cat || norm(p.cat).startsWith(cat)) && !o.juega.some((x) => x.key === matchKey(p))) o.juega.push({ key: matchKey(p), d: p.d, l: p.l, v: p.v, pab: p.pab, rol: f.rol });
+    }
+  }
+  return out;
+}
+
+// ---------- Ubicar un pabellón a mano (4-nov-2026) ----------
+// El designador escribe una dirección ("C. del Congost 1, 08243 Manresa") o una población; se guarda para siempre.
+async function ubicar(db: Db, b: { pab?: string; texto?: string; quitar?: boolean }) {
+  const nombre = limpio(b.pab, 120), texto = limpio(b.texto, 200), k = sinPista(nombre);
+  if (!k) return json({ error: "Petición no válida" }, 400);
+  // Quitar = se borra y la próxima vez se vuelve a ubicar automáticamente.
+  if (b.quitar) { await db.from("designa_pab").delete().eq("pab_key", k); return json({ ok: true }); }
+  if (texto.length < 2) return json({ error: "Escribe la dirección o la población." }, 400);
+  let at: [number, number] | null = null;
+  const r = /\d{5}|,/.test(texto) ? await locate(db, texto, nombre) : null;
+  if (r === "error") return json({ error: "No se ha podido buscar ahora. Inténtalo de nuevo en un momento." }, 503);
+  if (r) at = r.at;
+  if (!at) {
+    const t = await geocode(db, texto, true);
+    if (t === "error") return json({ error: "No se ha podido buscar ahora. Inténtalo de nuevo en un momento." }, 503);
+    if (t) at = t.at;
+  }
+  if (!at) {
+    const t = await geocode(db, texto, false);
+    if (t === "error") return json({ error: "No se ha podido buscar ahora. Inténtalo de nuevo en un momento." }, 503);
+    if (t) at = t.at;
+  }
+  if (!at) return json({ error: `No encuentro "${texto}" en Catalunya. Prueba con la población o con calle, número, código postal y población.` }, 400);
+  const { error } = await db.from("designa_pab").upsert({ pab_key: k, nombre, origen: "manual", fuente: null, texto, lon: at[0], lat: at[1], buscado_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true, lon: at[0], lat: at[1] });
 }
 
 // ---------- Choques (4-nov-2026, Ferran: nadie puede estar en 2 partidos a la vez) ----------
@@ -365,6 +436,13 @@ Deno.serve(async (req) => {
     if (a === "form") return json(await form(db, req, b));
     if (a === "enviar") return await enviar(db, req, b as DispIn);
     if (a === "retirar") return await retirar(db, req, b);
+    // Pabellones de toda la temporada, de antemano (cron de cada noche, x-cron-secret): unos 50 s por pasada.
+    if (a === "precargar") {
+      const sec = Deno.env.get("CRON_SECRET");
+      if (!sec || req.headers.get("x-cron-secret") !== sec) return json({ error: "No autorizado" }, 401);
+      const r = await ubicarPendientes(db, await feed(db), t0 + 50_000);
+      return json({ ok: true, pabellones: r.tabla.size, ubicados: [...r.tabla.values()].filter((x) => x.lon != null).length, hechos: r.hechos, falta: r.falta });
+    }
     // Designador.
     if (a === "login") {
       const usuario = limpio(b.usuario, 60), clave = String(b.clave || "");
@@ -383,6 +461,7 @@ Deno.serve(async (req) => {
     if (a === "lote") return await lote(db, b);
     if (a === "hecho") return await marcarHecho(db, b);
     if (a === "importar") return await importar(db, b);
+    if (a === "ubicar") return await ubicar(db, b);
     if (a === "alta") return await altaManual(db, b as DispIn);
     if (a === "quitar") { await db.from("designa_disp").delete().eq("id", String(b.id || "")).eq("finde", validFinde(b.finde)); return json({ ok: true }); }
     return json({ error: "Acción desconocida" }, 400);

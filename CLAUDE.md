@@ -808,12 +808,18 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   con otro partido, no disponibles) y hasta 4 recomendados (clic = primer puesto libre). Pestaña Árbitros: franjas,
   observaciones, partidos asignados y sus 3 partidos de liga sin R1 más cercanos; alta, edición y baja a mano (para quien
   avisa por teléfono). Exportar a Excel (lo filtrado). Copiar enlace del formulario.
-- **Choques** (4-nov-2026, Ferran): partidos del mismo día con inicios a menos de 1 h en el mismo pabellón (cualquier
-  pista) o de 1 h 45 min en otro = choque. NO es bloqueo: al elegirlo sale una ventana ("Ponerlo igualmente"/"Cancelar") y
-  el servidor solo lo guarda con `forzar` (si no, 409; `choqueDe`). El mismo árbitro en 2 puestos del mismo partido se
-  rechaza siempre. Otro pabellón sin margen de viaje (1 h 45 + ≈1 min/km + 15; sin distancia, 2 h 30) = "poco margen",
-  solo indicado. Cuenta las designaciones de iSquad (tabla `matches`) de los árbitros con cuenta (hora y pabellón; en la
-  privacidad desde el 4-nov). Prueba del servidor: `tools/prueba-designa-choques.ts` (deno; necesita las VAPID_* de verdad).
+- **Choques** (4-nov-2026, Ferran): `choque()` en index.html. Mismo pabellón (cualquier pista): choque si los inicios
+  están a menos de 1 h 30 (`PISA_MISMO`; Ferran: mínimo real entre partidos en el mismo pabellón; 2 h de partido sí). Otro pabellón: choque si no da tiempo de verdad = 2 h de partido (`DUR_OCUPA`) + viaje entre
+  los 2 pabellones (≈ 1 min por km estimado + 10 de aparcar; sin ubicar, 45 min) + llegar 30 min antes (`ANTELACION`).
+  Ferran, 4-nov: Terrassa 9:00 → La Torre de Claramunt 12:00 → Barcelona 14:30 "no es para nada factible" (antes solo se
+  miraban 1 h 45 min entre inicios). Si se solapan (menos de 2 h) el aviso dice "ya tiene el partido de las…"; si no se
+  solapan pero no llega, "no le da tiempo a acabarlo, ir (≈ N km) y llegar 30 min antes" ("no llega" en los
+  desplegables). Con menos de 30 min de margen (`HOLGURA`) = "poco margen", solo indicado. Un choque NO se recomienda ni
+  se propone ni sale en los botones de franja; si se elige a mano, ventana "Ponerlo igualmente"/"Cancelar" y se guarda
+  con `forzar`. El servidor (`choqueDe`) es más permisivo (1 h mismo pabellón, 1 h 45 min otro): solo es la red; el
+  mismo árbitro en 2 puestos del mismo partido se rechaza siempre. Cuenta las designaciones de iSquad (tabla `matches`)
+  de los árbitros con cuenta (hora y pabellón; en la privacidad desde el 4-nov). Prueba del servidor:
+  `tools/prueba-designa-choques.ts` (deno; necesita las VAPID_* de verdad). Caso de Ferran en el banco: `ferran.mjs`.
 - **Lo visual** (4-nov-2026, `docs/designa-admin/vistas.js` + `catalunya.js`): vistas Cuadrícula (filas = pabellón sin
   pista, columnas = horas, bloque de 1 h 30 por partido, carriles si se solapan; colores: verde con R1, amarillo sin R1,
   rojo choque, gris ya con árbitro en iSquad, discontinuo = propuesta; tocar = ficha con la tarjeta), Lista (la de antes)
@@ -827,6 +833,13 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   la propuesta". Guardar varios = acción `lote` (hasta 300, con las comprobaciones de `asignar`). Excel con la columna
   "Pasado a iSquad". El mensaje de WhatsApp por árbitro se QUITÓ el 4-nov-2026 (Ferran: Albert no avisa por WhatsApp; la
   disponibilidad, por el formulario o por correo, que él añade a mano o importa).
+- **Por pabellón** (4-nov-2026, Ferran: Albert ya sabe qué pabellones hay y lo cerca que están; `pabellonesHtml` en
+  vistas.js): un `details` plegable por pabellón (orden: población y nombre) con resumen (partidos, R1 que faltan, un
+  cuadrito de color por partido). Dentro, bloques por día y franja: botones con quien puede hacer TODA la franja
+  (`quienPuedeBloque`: disponible, sin choques encadenando los de la franja, sin coche solo ≤ 12 km; orden por km, "va
+  justo" penaliza) → un clic = R1 en todos (`ponerR1`, la misma que "Franja →", con aviso si choca). Debajo, una línea
+  por partido (`article.m.fila`, con R1/R2/anotador y la casilla iSquad). Abrir/plegar va por el clic en el `summary`, no
+  por el evento `toggle` (salta también al repintar); si la búsqueda deja un solo pabellón, se enseña abierto.
 - **Excel de disponibilidad** (4-nov-2026, `docs/designa-admin/importar.js`): Albert puede seguir con su propio Excel.
   Importar (xlsx/xls/ods/csv) lee el fichero en el navegador, busca la fila de títulos (en las 10 primeras, en cualquier
   hoja) por palabras clave es/ca en cualquier orden (nombre, población/municipio, coche/cotxe, sábado/dissabte,
@@ -835,20 +848,45 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   motivo); la que dio el árbitro con la app no se toca. Acción `importar` (tandas de 15, 40 s, `origen: designador`).
   "Descargar plantilla" (con hoja de instrucciones) y "Exportar disponibilidad" con las mismas columnas: se reimporta
   tal cual. El Excel del plan lleva una 2ª hoja con la disponibilidad.
-- **Tutorial** (`docs/designa-admin/tutorial.js`): 14 pasos (versión 2) que señalan cada parte (hueco fijo `#tourHueco` encima, la
+- **Tutorial** (`docs/designa-admin/tutorial.js`): 15 pasos (versión 3) que señalan cada parte (hueco fijo `#tourHueco` encima, la
   sombra en el propio elemento queda recortada dentro de la cuadrícula). Se abre solo si `localStorage designa-tour` <
   `TOUR_VERSION`; botón "Cómo funciona". Ver la regla en "Reglas de interfaz".
+- **Juega o entrena** (4-nov-2026, Ferran: "que avise, pero solo avise, no que bloquee"): `equiposDe` en designa lee
+  `fav_teams` (rol jugador/entrenador, activo, no oculto) de los árbitros con cuenta y busca sus partidos del fin de semana
+  en el listado (mismo club e id, mismo nombre de equipo, categoría que empieza igual) → `disp.juega` y `disp.clubs`.
+  `avisoJuega()` en la web: "entrena/juega en este partido" > "juega a las 17:00 (pabellón)" (si no llegaría, misma regla
+  que los choques) > "es de su club (X)". Se marca con ⚠ en desplegables, recomendados, botones de franja, tarjeta y
+  pestaña Árbitros; NO se quita de las recomendaciones (va detrás en franja y propuesta: +40). En la privacidad (4-nov).
+- **Pabellones de antemano** (4-nov-2026, Ferran: "tendrían que ir pre-cargados; solo que se unan los partidos a los
+  pabellones"): tabla `designa_pab` (migración 038) con TODOS los pabellones de la temporada, clave = nombre sin pista.
+  `origen 'auto'`: los ubica `ubicarPendientes` (acción `precargar`, cron `designa-pabellones` de 1 a 6 UTC cada hora,
+  ~50 s por pasada; y el panel, al momento, si sale uno nuevo); `lon/lat` null = no encontrado, se reintenta a los 30
+  días. `origen 'manual'`: botón "Ubicar"/"Cambiar ubicación" del designador (acción `ubicar`: dirección con `locate`, si
+  no población, si no lugar); manda y no se vuelve a buscar; "Quitar" lo borra y se vuelve a ubicar solo. El panel solo
+  une partidos y pabellones. El listado público solo trae el NOMBRE del pabellón (ni dirección ni población; la ficha
+  del club tampoco). Orden automático: dirección de las designaciones de iSquad (`matches.addr`) → código postal →
+  `porNombre`: Photon por el nombre, aceptado solo si es un lugar (leisure/building/amenity) y una palabra propia de su
+  población sale en el nombre de algún equipo local del pabellón o del propio pabellón (probado con 15 reales: aciertos
+  aceptados; el Perelló/Amposta rechazados). Los partidos sin nombre de pabellón (425 en la temporada) se agrupan por
+  equipo local ("Sin pabellón (CV Granollers)", `pabK`/`pabNom`) y no se pueden ubicar. (La caché `designa-geo2/3` de
+  pub_cache ya no se usa.)
+- **Km desde donde estará** (4-nov-2026, Ferran: "si me designan en Terrassa, el siguiente no se cuenta desde
+  Capellades"): `origen()`/`kmAct()` en index.html. Si ese día tiene otro partido (plan o iSquad) que empieza a menos de
+  4 h (`VUELVE_CASA`), los km salen de ese pabellón (el más cercano en hora, antes o después); si no, o si ese pabellón no
+  está ubicado, de casa. Se usa en recomendaciones, desplegables ("≈ 52 km · desde Manresa", "sigue en el pabellón"),
+  "Más cercanos", "Por pabellón", "Franja →", la propuesta automática (encadena zonas) y la columna de km del Excel. Los km
+  de la barra lateral siguen desde casa (son de ida y vuelta por pabellón y franja, como paga la FCVB).
 - **Recomendación** (en la web): disponible en esa franja; sin choque ni "poco margen"; sin coche y a más de 12 km = no
   recomendado. Orden: km + 5 por partido ya asignado.
   Km = línea recta × 1,25 entre la población del árbitro y el pabellón (Photon vía `geocode`/`locate`, sin gastar rutas
   ORS); se enseñan como "≈". El listado de la federación no trae la calle: la dirección sale de `matches.addr` (designaciones
   de los árbitros de la app) por el nombre del pabellón sin "- PISTA n" (`sinPista`). 3-nov: 443 de 707 partidos ubicados.
-  Pabellones en `pub_cache designa-geo2:<sábado>`, por tandas de 40 s (la web repite).
-- Datos: `designa_disp`, `designa_asig` (migración 035) y `designa_hecho` (037, sin acceso desde la web: todo por la función `designa`,
+  Pabellones: ver "Pabellones de antemano" (tabla `designa_pab`).
+- Datos: `designa_disp`, `designa_asig` (migración 035), `designa_hecho` (037) y `designa_pab` (038, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
 - Pruebas: banco con supabase y `designa` simulados en `~/work/enxarxa-pruebas` (en la máquina del trabajo): `panel.mjs`,
-  `choques.mjs`, `visual.mjs` e `imptour.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
-  `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote e importar).
+  `choques.mjs`, `visual.mjs`, `imptour.mjs`, `pabellon.mjs`, `origen.mjs`, `ferran.mjs` y `ubicjuega.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
+  `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote, importar, ubicar por nombre y a mano, precargar, equipos).
 
 ## Acta electrónica (prototipo para la FCVB, 3-nov-2026)
 
