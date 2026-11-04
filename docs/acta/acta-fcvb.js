@@ -169,7 +169,10 @@ function mitad(o, out) {
     if (tu.abierto) { out.push(tacha(c)); return; }   // set 5: el turno que va en curso al cambiar se deja abierto
     if (tu.hasta == null) return;
     const w = c.x2 - c.x;
-    out.push(txt(c.x + 0.5, c.y + 0.5, w - 4, SET.saqueH - 1, tu.hasta, { fs: 8.5 }), tacha(c));
+    // Set ganado en recepción: el último punto va en la casilla del siguiente sacador, rodeado y sin "/" (no llegó a sacar;
+    // RFEVB/CTNA pág. 8, FIVB, y así en papel)
+    const ultimo = o.final && i === o.turnos.length - 1, sinSacar = ultimo && o.gana && tu.desde != null && tu.desde === tu.hasta;
+    out.push(txt(c.x + 0.5, c.y + 0.5, w - 4, SET.saqueH - 1, tu.hasta, { fs: 8.5 }), sinSacar ? '' : tacha(c));
     if (o.final && i === o.turnos.length - 1) out.push(circulo(c.x + w / 2 - 1.5, c.y + SET.saqueH / 2, 5.6));
   });
   // PUNTS: "/" en cada punto (círculo si es de castigo); reloj de arena en lo que sobra de cada columna
@@ -203,7 +206,7 @@ function setBloque(st, s, eqIzq, out) {
     out.push(s.saqueInicial === eq ? raya(dx + sx1 + 1, yS + 1, dx + sx2 - 1, yS + 6) : raya(dx + sx1 + 1, yS + 7.5, dx + sx2 - 1, yS + 12.5));
     const pn = puntsNormal(mx + 200.65, dy + 70.75), prog = conNumero(s.progreso, eq);
     mitad({ cols: SET.col.map((c) => c + mx), subs: SET.sub.map((c) => c + mx), y: filasSet(dy), al: s.alineacion[eq] || [], sust: s.sust[eq],
-      x: s.saqueInicial && s.saqueInicial !== eq, turnos: s.turnos[eq], final: !!s.fin, puntos: prog, total: prog.length, punto: pn.punto, reloj: s.fin ? pn.reloj : null,
+      x: s.saqueInicial && s.saqueInicial !== eq, turnos: s.turnos[eq], final: !!s.fin, gana: s.ganador === eq, puntos: prog, total: prog.length, punto: pn.punto, reloj: s.fin ? pn.reloj : null,
       tiempos: s.tiempos[eq], T: SET.T.map(([yy, hh]) => [mx + 195.9, dy + yy, hh]) }, out);
   });
 }
@@ -236,7 +239,7 @@ function set5Bloque(A, st, s, M, out) {
   const T = (d) => SET.T.map(([yy, hh]) => [d + 195.9, yy + dy, hh]);
   // Parte 2: el otro equipo, entero
   const pn2 = puntsNormal(S5.p2 + 200.65, 70.75 + S5.dyP), prog2 = conNumero(s.progreso, Y);
-  mitad({ cols: cols(S5.p2), subs: subs(S5.p2), y, al: al[Y] || [], sust: s.sust[Y], x: s.saqueInicial !== Y, turnos: s.turnos[Y], final: !!s.fin,
+  mitad({ cols: cols(S5.p2), subs: subs(S5.p2), y, al: al[Y] || [], sust: s.sust[Y], x: s.saqueInicial !== Y, turnos: s.turnos[Y], final: !!s.fin, gana: s.ganador === Y,
     puntos: prog2, total: prog2.length, punto: pn2.punto, reloj: s.fin ? pn2.reloj : null, tiempos: s.tiempos[Y], T: T(S5.p2) }, out);
   // Parte 1: el primer equipo hasta el cambio
   const pre = sc || s, ptsCambio = conNumero(pre.progreso, X).length;
@@ -249,7 +252,7 @@ function set5Bloque(A, st, s, M, out) {
   // Parte 3: después del cambio (formación, sustituciones y tiempos de antes se vuelven a escribir)
   const nCerrados = pre.turnos[X].filter((t) => t.hasta != null).length;
   const pn3 = puntsNormal(S5.p3 + 200.65, 70.75 + S5.dyP), prog3 = conNumero(s.progreso, X);
-  mitad({ cols: cols(S5.p3), subs: subs(S5.p3), y, al: al[X] || [], sust: s.sust[X], x: false, turnos: s.turnos[X].slice(nCerrados), final: !!s.fin,
+  mitad({ cols: cols(S5.p3), subs: subs(S5.p3), y, al: al[X] || [], sust: s.sust[X], x: false, turnos: s.turnos[X].slice(nCerrados), final: !!s.fin, gana: s.ganador === X,
     puntos: prog3.filter((p) => p.n > ptsCambio), total: prog3.length, punto: pn3.punto, reloj: s.fin ? pn3.reloj : null, tiempos: s.tiempos[X], T: T(S5.p3) }, out);
 }
 

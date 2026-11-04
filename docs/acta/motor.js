@@ -92,7 +92,7 @@
   }
   function abrirTurno(s, eq) {
     const num = s.rot[eq][0], col = s.alineacion[eq].indexOf(num);
-    s.turnos[eq].push({ col: col >= 0 ? col : colDeSuplente(s, eq, num), num, hasta: null });
+    s.turnos[eq].push({ col: col >= 0 ? col : colDeSuplente(s, eq, num), num, hasta: null, desde: s.puntos[eq] });   // desde: marcador al recuperar el saque
   }
   // Un suplente saca en la columna (posición inicial) del titular por el que entró.
   function colDeSuplente(s, eq, num) {
