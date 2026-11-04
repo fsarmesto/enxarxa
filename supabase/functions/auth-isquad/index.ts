@@ -97,11 +97,13 @@ Deno.serve(async (req) => {
   try { matches = await fetchDesignaciones(login, password); }
   catch (e) {
     if (!(e instanceof IsquadAuthError)) return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));
-    // iSquad ha dicho que no (contraseña, bloqueo, 2 pasos): no se prueba como jugador, que gastaría otro intento.
+    // iSquad ha dicho que no (contraseña, bloqueo, 2 pasos): ahí se acaba. Si ha entrado pero no es árbitro, con la misma
+    // sesión se mira si es jugador o entrenador (login único: un solo intento en iSquad).
     const no = porQue(e); if (no) return no;
+    if (!e.sesion) return malas();
     // No es árbitro (o no entra en esa área): ¿jugador o entrenador? Misma cuenta de iSquad.
     let dep;
-    try { dep = await loginDeportista(login, password); }
+    try { dep = await loginDeportista(e.sesion); }
     catch (e2) {
       if (e2 instanceof IsquadAuthError) return porQue(e2) ?? malas();
       return await noCuenta(json({ error: "No se ha podido conectar con iSquad. Prueba en unos minutos." }, 502));

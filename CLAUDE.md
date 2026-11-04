@@ -103,7 +103,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Login: login único, `loginunico.php?area=arbitros|deportista|entrenador` (GET para el `csrf_token`; POST `csrf_token`,
   `login`, `password`, `lu_disp`). Contraseña mala → 200 con el aviso `lu-alerta--error` ("Te quedan N intentos");
   buena → redirección. **iSquad bloquea la cuenta al 3r fallo**: no se reintenta nunca una contraseña rechazada (motivo
-  "rechazada"/"bloqueada" en `IsquadAuthError`; las pasadas automáticas se saltan a quien tiene `last_error=credenciales`;
+  "rechazada"/"bloqueada" en `IsquadAuthError`; **un solo envío de la contraseña**: si entra pero no es árbitro, la misma sesión (`IsquadAuthError.sesion`) mira si es jugador o entrenador, `tools/prueba-login-unico.ts`; las pasadas automáticas se saltan a quien tiene `last_error=credenciales`;
   tope de 2 fallos en 15 min en auth-isquad). Designaciones en `arbitros_designaciones.php?rol=1`.
 - **Hay que enviar siempre la cookie `TemporadaSelect`** (p. ej. `2627`). Sin ella el desplegable marca la temporada
   en curso pero la tabla llega vacía. Se leen la temporada en curso y la anterior.

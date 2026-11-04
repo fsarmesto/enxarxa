@@ -11,8 +11,10 @@ const T = () => AbortSignal.timeout(20_000);
 // motivo: "rechazada" (iSquad dice que el usuario o la contraseña no son buenos), "bloqueada" (iSquad ha bloqueado la
 // cuenta por intentos), "doble" (pide un segundo paso de verificación), "login" (no entra en el área: no es árbitro o la
 // sesión no vale) o "ilegible". Con "rechazada" y "bloqueada" NO se reintenta: iSquad bloquea la cuenta tras 3 fallos.
+// sesion: si la contraseña SÍ ha entrado pero no es árbitro, las cookies de esa sesión (login único: sirven para mirar
+// si es jugador o entrenador sin volver a enviar la contraseña).
 export class IsquadAuthError extends Error {
-  constructor(public motivo = "login", public aviso = "") { super(motivo); }
+  constructor(public motivo = "login", public aviso = "", public sesion = "") { super(motivo); }
 }
 
 export type ScrapedMatch = {
@@ -185,9 +187,11 @@ export async function fetchDesignaciones(
   const fresh = !html;
   if (fresh) {
     jar.clear();
-    await loginIsquad(jar, login, password);
-    html = await designaciones(jar);
-    if (!parseDesignaciones(html)) throw new IsquadAuthError("ilegible");   // entra pero la tabla no se lee (cambio de diseño, mantenimiento… o no es árbitro)
+    await loginIsquad(jar, login, password);   // contraseña mala, bloqueo o 2 pasos: sale de aquí con su motivo
+    // Ha entrado: si no es árbitro, se devuelve la sesión para mirar si es jugador o entrenador sin otro login.
+    try { html = await designaciones(jar); }
+    catch (e) { if (e instanceof IsquadAuthError) throw new IsquadAuthError(e.motivo, "", cookie(jar)); throw e; }
+    if (!parseDesignaciones(html)) throw new IsquadAuthError("ilegible", "", cookie(jar));   // entra pero la tabla no se lee (cambio de diseño, mantenimiento… o no es árbitro)
   }
   opts.onSession?.(cookie(new Map([...jar].filter(([k]) => k !== "TemporadaSelect"))), fresh);
   const { current, previous } = seasons(html);
@@ -338,14 +342,14 @@ export function parseDesignaciones(html: string): ScrapedMatch[] | null {
   return out;
 }
 
-// Jugadores y entrenadores: la misma cuenta de iSquad entra en la Plataforma de Jugadores (área "deportista") o en la de
-// Entrenadores (área "entrenador"). Para quien no es árbitro solo hace falta saber quién es: nombre y foto de
+// Jugadores y entrenadores: con el login único, la misma sesión entra en la Plataforma de Jugadores (área "deportista")
+// o en la de Entrenadores (área "entrenador"). Se usa la sesión del login que ya se hizo (un solo intento en iSquad: no
+// se vuelve a enviar la contraseña). Para quien no es árbitro solo hace falta saber quién es: nombre y foto de
 // afiliado de la cabecera (con la foto se le encuentra en las plantillas públicas). No se lee nada más.
-// Solo se llama cuando la contraseña ya ha entrado (como árbitro no se rechazó): así no gasta intentos de iSquad.
-export async function loginDeportista(login: string, password: string): Promise<{ area: "jugador" | "entrenador"; nombre: string; foto: string }> {
+export async function loginDeportista(sesion: string): Promise<{ area: "jugador" | "entrenador"; nombre: string; foto: string }> {
   for (const [path, area] of [["deportista", "jugador"], ["entrenador", "entrenador"]] as const) {
     const jar: Jar = new Map();
-    await loginUnico(jar, path, login, password);       // "rechazada", "bloqueada" o "doble": se corta aquí (excepción)
+    for (const kv of sesion.split("; ")) { const i = kv.indexOf("="); if (i > 0) jar.set(kv.slice(0, i), kv.slice(i + 1)); }
     const page = await get(`${BASE}/loginunico.php?area=${path}`, jar);
     const html = page.status === 200 ? await page.text() : (await page.body?.cancel(), "");
     if (!html || /name=["']password["']/.test(html)) continue;
