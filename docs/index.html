@@ -1450,7 +1450,7 @@ function tariff(m){
 }
 // Estado del cobro según los recibos de iSquad. El pago se pide en iSquad y solo hasta el día siguiente al partido
 // ("Fin cambios"); si no, "PLAZO SOLICITUD PAGO TERMINADO" y no se cobra.
-const ISQUAD_RECIBOS = 'https://voleibol.misquad.es/arbitros_listado_recibos.php';
+const ISQUAD_RECIBOS = 'https://voleibol.isquad.es/arbitros_listado_recibos.php';
 const ymd = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const today = () => ymd(new Date());
 const addDays = (ds,n) => { const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()+n); return ymd(d); };

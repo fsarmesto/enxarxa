@@ -1,12 +1,19 @@
-// Lectura de designaciones de iSquad (voleibol.misquad.es) con las credenciales del árbitro.
+// Lectura de designaciones de iSquad (voleibol.isquad.es; hasta el 4-nov-2026, voleibol.misquad.es) con las credenciales del árbitro.
 import { parseHTML } from "npm:linkedom@0.18.5";
 
-const BASE = "https://voleibol.misquad.es";
+// El 4-nov-2026 iSquad pasó de voleibol.misquad.es a voleibol.isquad.es: el viejo redirige (303) y el POST del login se
+// perdía por el camino (se convierte en GET), así que nadie podía entrar aunque la contraseña fuera buena.
+const BASE = "https://voleibol.isquad.es";
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
 // Ninguna llamada a iSquad puede colgar la sincronización.
 const T = () => AbortSignal.timeout(20_000);
 
-export class IsquadAuthError extends Error {}
+// motivo: "rechazada" (iSquad dice que el usuario o la contraseña no son buenos), "bloqueada" (iSquad ha bloqueado la
+// cuenta por intentos), "doble" (pide un segundo paso de verificación), "login" (no entra en el área: no es árbitro o la
+// sesión no vale) o "ilegible". Con "rechazada" y "bloqueada" NO se reintenta: iSquad bloquea la cuenta tras 3 fallos.
+export class IsquadAuthError extends Error {
+  constructor(public motivo = "login", public aviso = "") { super(motivo); }
+}
 
 export type ScrapedMatch = {
   id: string; comp: string; phase: string; teams: string; estado: string;
@@ -49,37 +56,35 @@ async function get(url: string, jar: Jar): Promise<Response> {
   return res;
 }
 
-// iSquad alterna entre 2 logins: el único (loginunico.php?area=arbitros, con csrf_token; 20-oct-2026) y el clásico
-// (loginarbitros.php; el 21-oct volvió). Se pide el único y, si redirige al clásico, se entra por ahí.
+// Login único de iSquad (loginunico.php?area=…, con csrf_token; desde el 4-nov-2026 el único que hay: loginarbitros.php,
+// login.php y loginentrenadores.php dan 404). Si la contraseña no vale, iSquad responde 200 con el aviso en la página
+// ("Email o contraseña incorrectos. Te quedan 2 intentos antes de que se bloquee la cuenta."); si vale, redirige.
 // Devuelve un rastro para diagnosticar.
-async function loginIsquad(jar: Jar, login: string, password: string): Promise<string> {
-  const form = await get(`${BASE}/loginunico.php?area=arbitros`, jar);
+async function loginUnico(jar: Jar, area: string, login: string, password: string): Promise<string> {
+  const form = await get(`${BASE}/loginunico.php?area=${area}`, jar);
   const html = await form.text();
-  if (/action="loginarbitros\.php"/.test(html)) {
-    const res = await fetch(`${BASE}/loginarbitros.php`, {
-      method: "POST", signal: T(), redirect: "manual",
-      body: new URLSearchParams({ login, password, qr_login: "0", utr: "" }),
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar),
-        Origin: BASE, Referer: `${BASE}/loginarbitros.php`,
-      },
-    });
-    keep(jar, res); await res.body?.cancel();
-    return `clásico · post ${res.status} → ${res.headers.get("location")}`;
-  }
   const csrf = html.match(/name="csrf_token"\s+value="([^"]+)"/)?.[1] ?? "";
   const res = await fetch(`${BASE}/loginunico.php`, {
     method: "POST", signal: T(), redirect: "manual",
     body: new URLSearchParams({ csrf_token: csrf, login, password, lu_disp: "{}" }),
     headers: {
       "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar),
-      Origin: BASE, Referer: `${BASE}/loginunico.php?area=arbitros`,
+      Origin: BASE, Referer: `${BASE}/loginunico.php?area=${area}`,
     },
   });
   keep(jar, res);
   let trace = `form ${form.status} csrf ${csrf ? "sí" : "no"} · post ${res.status} → ${res.headers.get("location")}`;
+  if (res.status === 200) {
+    // Sin los <script>: llevan el mismo aviso de error como plantilla ("No se ha podido cargar…").
+    const page = (await res.text()).replace(/<script[\s\S]*?<\/script>/gi, "");
+    const aviso = (page.match(/class="lu-alerta lu-alerta--error"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (/bloquead/i.test(aviso)) throw new IsquadAuthError("bloqueada", aviso);
+    if (aviso) throw new IsquadAuthError("rechazada", aviso);
+    if (/data-reto=|class="lu2-/.test(page) && !/name="password"/.test(page)) throw new IsquadAuthError("doble");
+    return trace + " · sin redirección";
+  }
   await res.body?.cancel();
-  // Tras el login, el área de árbitros (si el login lleva a la pantalla de áreas).
+  // Tras el login, el área (si el login lleva a la pantalla de áreas).
   const after = res.headers.get("location");
   if (after) {
     const r = await get(new URL(after, `${BASE}/`).toString(), jar);
@@ -88,6 +93,7 @@ async function loginIsquad(jar: Jar, login: string, password: string): Promise<s
   }
   return trace;
 }
+const loginIsquad = (jar: Jar, login: string, password: string) => loginUnico(jar, "arbitros", login, password);
 
 async function designaciones(jar: Jar, season?: string): Promise<string> {
   if (season) jar.set("TemporadaSelect", season); // la web de iSquad cambia de temporada con esta cookie
@@ -332,22 +338,15 @@ export function parseDesignaciones(html: string): ScrapedMatch[] | null {
   return out;
 }
 
-// Jugadores y entrenadores: la misma cuenta de iSquad entra en la Plataforma de Jugadores (login.php) o en la de
-// Entrenadores (loginentrenadores.php). Para quien no es árbitro solo hace falta saber quién es: nombre y foto de
+// Jugadores y entrenadores: la misma cuenta de iSquad entra en la Plataforma de Jugadores (área "deportista") o en la de
+// Entrenadores (área "entrenador"). Para quien no es árbitro solo hace falta saber quién es: nombre y foto de
 // afiliado de la cabecera (con la foto se le encuentra en las plantillas públicas). No se lee nada más.
+// Solo se llama cuando la contraseña ya ha entrado (como árbitro no se rechazó): así no gasta intentos de iSquad.
 export async function loginDeportista(login: string, password: string): Promise<{ area: "jugador" | "entrenador"; nombre: string; foto: string }> {
-  for (const [path, area] of [["login.php", "jugador"], ["loginentrenadores.php", "entrenador"]] as const) {
+  for (const [path, area] of [["deportista", "jugador"], ["entrenador", "entrenador"]] as const) {
     const jar: Jar = new Map();
-    const first = await get(`${BASE}/${path}`, jar); await first.body?.cancel();
-    const res = await fetch(`${BASE}/${path}`, {
-      method: "POST", signal: T(), redirect: "manual",
-      body: new URLSearchParams({ login, password, qr_login: "0", utr: "" }),
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar), Origin: BASE, Referer: `${BASE}/${path}` },
-    });
-    keep(jar, res);
-    const loc = res.headers.get("location"); await res.body?.cancel();
-    if (!loc || /login/i.test(loc)) continue;                                  // no entra: vuelve al login
-    const page = await get(new URL(loc, `${BASE}/`).toString(), jar);
+    await loginUnico(jar, path, login, password);       // "rechazada", "bloqueada" o "doble": se corta aquí (excepción)
+    const page = await get(`${BASE}/loginunico.php?area=${path}`, jar);
     const html = page.status === 200 ? await page.text() : (await page.body?.cancel(), "");
     if (!html || /name=["']password["']/.test(html)) continue;
     // deno-lint-ignore no-explicit-any
@@ -355,6 +354,7 @@ export async function loginDeportista(login: string, password: string): Promise<
     const nombre = (document.querySelector(".contact-container")?.textContent || "").replace(/\s+/g, " ").trim()
       .replace(/\s+(JUGADOR|JUGADORA|STAFF T[EÉ]CNICO|ENTRENADOR|ENTRENADORA|DELEGADO)$/i, "");
     const foto = (document.querySelector(".contact img")?.getAttribute("src") || "").match(/images\/afiliacion\/(.+)$/)?.[1] || "";
+    if (!nombre) continue;
     return { area, nombre, foto };
   }
   throw new IsquadAuthError("login");
