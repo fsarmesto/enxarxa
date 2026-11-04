@@ -901,7 +901,7 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   - **Reglamento añadido:** `faltaRotacion` (FIVB 7.7: punto y saque al rival), `incompleto {motivo}` (FIVB 6.4:
     incomparecencia 0-3 con 25-0, o el rival gana lo que falta), castigo entre sets o antes del partido = punto al empezar
     el set (`castigosPendientes`); cambios y tiempos por set configurables (la MLV juega con 8 cambios).
-  - **Mesa real:** doble toque en el punto ignorado (< 0,7 s, `window.ACTA_ANTIRREBOTE`), pantalla siempre encendida
+  - **Mesa real:** doble toque en el punto ignorado (< 0,25 s desde el 4-nov-2026, antes 0,7 s: no dejaba dar 2 puntos seguidos rápido; `window.ACTA_ANTIRREBOTE`); **tocar un jugador de la pista** (PC y móvil) abre el cambio con él como "Sale" (el líbero abre la hoja del líbero); en "Entra", dorsal y nombre, pantalla siempre encendida
     durante el partido (Wake Lock), importar un acta (JSON).
   - **Catalán:** `docs/acta/acta-ca.js` (exact + rules + frags, como `i18n-ca.js`; selector ES/CA en la cabecera, idioma
     `liq-lang`; también en el directo y en las confirmaciones). Al cambiar textos en acta.js o motor.js, cambiar su clave.

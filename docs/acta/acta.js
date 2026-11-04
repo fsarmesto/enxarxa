@@ -50,9 +50,9 @@ function actas() {
 function calcular() { ST = M.reproducir(A.cfg, A.datos, A.ev); return ST; }
 let ULT_PUNTO = 0;
 function hacer(ev, silencio) {
-  if (ev.t === 'punto') {   // doble toque sin querer (muy fácil en tablet): el segundo, si llega antes de 0,7 s, no cuenta
+  if (ev.t === 'punto') {   // doble toque sin querer (muy fácil en tablet): el segundo, si llega antes de 0,25 s, no cuenta (Ferran, 4-nov: con 0,7 s no se podían dar 2 puntos seguidos rápido)
     const ahora = Date.now();
-    if (ahora - ULT_PUNTO < (window.ACTA_ANTIRREBOTE ?? 700)) { toast('Doble toque: no se ha contado el segundo punto.'); return 'doble'; }
+    if (ahora - ULT_PUNTO < (window.ACTA_ANTIRREBOTE ?? 250)) { toast('Doble toque: no se ha contado el segundo punto.'); return 'doble'; }
     ULT_PUNTO = ahora;
   }
   ev = { ...ev, h: ev.h || new Date().toISOString() };
@@ -411,7 +411,7 @@ function empezarSet(conSorteo) {
 /* ---------- 4. Partido ---------- */
 function pista(s, eq) {
   const r = M.enPista(s, eq), l = s.libero[eq], saca = s.saque === eq;
-  const celda = (i) => { const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n); return `<div class="p${l && l.pos === i ? ' lib' : ''}${saca && i === 0 ? ' saca' : ''}" title="Posición ${POS[i]}">${esc(n)}${j?.cap ? '<small>C</small>' : `<small>${POS[i]}</small>`}</div>`; };
+  const celda = (i) => { const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n); return `<button type="button" class="p${l && l.pos === i ? ' lib' : ''}${saca && i === 0 ? ' saca' : ''}" data-tocar="${eq}" data-num="${esc(n)}" title="Posición ${POS[i]} · tocar para cambiarlo" aria-label="${esc(n)}, posición ${POS[i]}: cambiarlo">${esc(n)}${j?.cap ? '<small>C</small>' : `<small>${POS[i]}</small>`}</button>`; };
   return `<div class="pista" aria-label="Posiciones de ${esc(eqNombre(eq))}"><div class="red" aria-hidden="true"></div>${[3, 2, 1, 4, 5, 0].map(celda).join('')}</div>`;
 }
 // Puntos que se van gastando (tiempos y cambios).
@@ -471,7 +471,7 @@ function pistaGrande(s) {
     const r = M.enPista(s, eq), l = s.libero[eq];
     return `<div class="campo" aria-label="${esc(eqNombre(eq))}">${orden.map((i) => {
       const n = r[i], j = ST.equipos[eq].jugadores.find((x) => x.num === n), saca = s.saque === eq && i === 0;
-      return `<div class="jug${l && l.pos === i ? ' lib' : ''}${saca ? ' saca' : ''}" title="Posición ${POS[i]}${j ? ' · ' + esc(j.nombre) : ''}"><span class="n">${esc(n)}</span>${j?.cap ? '<span class="cap">C</span>' : ''}${saca ? '<span class="pelota" aria-hidden="true"></span>' : ''}<span class="nmb">${esc(corto2(j?.nombre))}</span><span class="pos">${POS[i]}</span></div>`;
+      return `<button type="button" class="jug${l && l.pos === i ? ' lib' : ''}${saca ? ' saca' : ''}" data-tocar="${eq}" data-num="${esc(n)}" title="Posición ${POS[i]}${j ? ' · ' + esc(j.nombre) : ''} · tocar para cambiarlo" aria-label="${esc(n)}${j ? ' ' + esc(j.nombre) : ''}, posición ${POS[i]}: cambiarlo"><span class="n">${esc(n)}</span>${j?.cap ? '<span class="cap">C</span>' : ''}${saca ? '<span class="pelota" aria-hidden="true"></span>' : ''}<span class="nmb">${esc(corto2(j?.nombre))}</span><span class="pos">${POS[i]}</span></button>`;
     }).join('')}</div>`;
   };
   return `<div class="cancha"><div class="c-nom"><span>${esc(eqNombre(izq))}</span><span>${esc(eqNombre(der))}</span></div>
@@ -537,6 +537,8 @@ function pJuego() {
   </div>`;
   $('app').querySelectorAll('[data-punto]').forEach((b) => (b.onclick = () => hacer({ t: 'punto', eq: b.dataset.punto })));
   $('app').querySelectorAll('[data-acc]').forEach((b) => (b.onclick = () => ({ tiempo: () => hacer({ t: 'tiempo', eq: b.dataset.eq }), sust: () => hojaSust(b.dataset.eq), libero: () => hojaLibero(b.dataset.eq), sancion: () => hojaSancion(b.dataset.eq) })[b.dataset.acc]()));
+  // Tocar a un jugador de la pista abre el cambio con él ya elegido (Ferran, 4-nov); si es el líbero, la hoja del líbero.
+  $('app').querySelectorAll('[data-tocar]').forEach((b) => (b.onclick = () => { const eq = b.dataset.tocar, l = M.setActual(ST).libero[eq]; if (l && l.num === b.dataset.num) hojaLibero(eq); else hojaSust(eq, b.dataset.num); }));
   $('deshacer2')?.addEventListener('click', deshacer);
   // Reloj del set (desde el silbato del primer saque).
   clearInterval(RELOJ);
@@ -565,17 +567,17 @@ function deshacer() {
   A.ev.splice(desde, i - desde + 1); guardar(); pintar(); publicarDirecto(); toast('Deshecho: ' + describir(ult, ST), true);
 }
 
-function hojaSust(eq) {
+function hojaSust(eq, elegido) {
   const s = M.setActual(ST), pend = s.pendienteSust[eq];
   const enPista = s.rot[eq].filter((n) => !(s.libero[eq] && s.libero[eq].por === n));
-  let sale = pend[0] || null, entra = null, exc = false;
+  let sale = (elegido != null && enPista.includes(elegido) ? elegido : null) ?? pend[0] ?? null, entra = null, exc = false;
   const dibujar = () => {
     const banco = ST.equipos[eq].jugadores.filter((j) => !j.lib && !s.rot[eq].includes(j.num));
     const motivo = (n) => (exc ? null : sale == null ? 'Elige primero quién sale.' : M.motivoSust(ST, s, eq, sale, n));
     $('hojaC').innerHTML = `<h2 id="hojaT">Cambio · ${esc(eqNombre(eq))}</h2>
       <p class="small muted">Sustituciones en este set: ${s.nSust[eq]} de ${ST.cfg.sustituciones}.</p>
       <b>Sale</b><div class="botones">${enPista.map((n) => `<button data-sale="${n}" aria-pressed="${sale === n}">${n}</button>`).join('')}</div>
-      <b>Entra</b><div class="botones">${banco.map((j) => { const m = motivo(j.num); return `<button data-entra="${j.num}" aria-pressed="${entra === j.num}"${m ? ` disabled title="${esc(m)}"` : ''}>${j.num}</button>`; }).join('') || '<span class="small muted">No hay nadie en el banquillo.</span>'}</div>
+      <b>Entra</b><div class="botones">${banco.map((j) => { const m = motivo(j.num); return `<button data-entra="${j.num}" aria-pressed="${entra === j.num}"${m ? ` disabled title="${esc(m)}"` : ''}>${j.num}${j.nombre ? `<small>${esc(corto2(j.nombre))}</small>` : ''}</button>`; }).join('') || '<span class="small muted">No hay nadie en el banquillo.</span>'}</div>
       ${sale != null && !exc && banco.every((j) => motivo(j.num)) ? `<p class="motivo">Nadie puede entrar por el ${sale} con un cambio normal.</p>` : ''}
       <label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="exc"${exc ? ' checked' : ''}> Sustitución excepcional (lesión, o expulsado sin cambio legal posible)</label>
       <div class="row"><button class="primary" id="ok"${sale == null || entra == null ? ' disabled' : ''}>Hacer el cambio</button><button class="ghost" data-cerrar>Cancelar</button></div>`;
