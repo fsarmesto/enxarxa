@@ -1144,6 +1144,14 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
     Nombres (Ferran, 4-nov): árbitros, anotador y oficiales "PRIMER APELLIDO, NOMBRE" (`cognomNom`); jugadores solo el 1er
     apellido; si 2 lo comparten, + inicial del 2º ("PINTO G."); si comparten los 2 (o no hay 2º), apellidos + inicial del
     nombre ("VIDAL MAS, A."); partículas (de, del, la…) van con el apellido (`partes`). Prueba en fcvb.mjs.
+    Cierres "-----/" (Ferran, como en su papel): raya horizontal en el primer renglón libre y diagonal desde su extremo
+    derecho hasta abajo a la izquierda (`cierre`, `cierreRenglones`): tras la última observación (o en la hoja anexa si
+    continúa allí) y en las filas libres de cada plantilla.
+    Equipo incompleto / incomparecencia (FIVB 6.4 y manual USAV "Default"/"Forfeit"; Ferran: "como se hace en teoría"):
+    puntos dados al rival en PUNTS con "/" y rodeados; marcador final del ganador en la casilla del siguiente sacador,
+    rodeado y sin "/"; los sets que no se juegan solo van al cuadro de resultados (25-0); en incomparecencia, plantilla y
+    oficiales del que no se presenta tachados con una raya. Falta de rotación: NO va a observaciones (Ferran).
+    Sustitución excepcional: no se rodea al lesionado (Ferran no lo sabe; queda en observaciones). Prueba: fcvb-incompleto.mjs.
     Sustitución deshecha (vuelve el titular): marcador de vuelta en su fila y el número del suplente rodeado (Ferran).
     "/" de los turnos de saque: trazo largo pegado al número que cruza el numerito impreso, como a mano (Ferran, 4-nov).
     Todo lo escrito "a mano" en el acta FCVB sale en MAYÚSCULAS (`txt` lo pasa a mayúsculas; Ferran, 4-nov). Plantillas por
