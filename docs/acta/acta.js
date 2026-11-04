@@ -1054,7 +1054,7 @@ function actaHtml() {
     <p style="font-size:9px">Acta electrónica de Vòlei EnXarxa (prototipo, no oficial). Generada el ${new Date().toLocaleString('es-ES')}.</p>`;
 }
 // Ver e imprimir: el acta oficial de la FCVB (por defecto) o el resumen propio de la app.
-let VER_MODO = 'resumen';   // el acta FCVB se elige con su botón hasta que esté completa (sets, sanciones, resultados)
+let VER_MODO = 'fcvb';   // el acta oficial de la FCVB; el resumen propio, con su botón
 function pVer() {
   const fcvb = VER_MODO === 'fcvb' && window.ActaFcvb;
   $('impresa').classList.toggle('fcvb', !!fcvb);
@@ -1069,11 +1069,9 @@ function pVer() {
 }
 // En pantalla, el acta FCVB se encoge para que quepa a lo ancho (al imprimir va a tamaño real).
 function escalarFcvb(real) {
-  const e = document.querySelector('.fcvb-escala'), p = e?.querySelector('.fcvb-pagina'); if (!p) return;
-  if (real) { e.style.cssText = ''; p.style.transform = ''; return; }   // para imprimir: tamaño real
-  const px = window.ActaFcvb.W * 96 / 72, k = Math.min(1, (e.parentElement.clientWidth || innerWidth) / px);
-  p.style.transform = `scale(${k})`; p.style.transformOrigin = '0 0';
-  e.style.width = `${px * k}px`; e.style.height = `${window.ActaFcvb.H * 96 / 72 * k}px`; e.style.overflow = 'hidden';
+  const e = document.querySelector('.fcvb-escala'); if (!e) return;
+  if (real) { e.style.zoom = ''; return; }   // para imprimir: tamaño real
+  e.style.zoom = String(Math.min(1, (e.parentElement.clientWidth || innerWidth) / (window.ActaFcvb.W * 96 / 72)));   // en pantalla, que quepa (acta y hoja anexa)
 }
 addEventListener('resize', () => { if (VER) escalarFcvb(); });
 addEventListener('beforeprint', () => escalarFcvb(true));
