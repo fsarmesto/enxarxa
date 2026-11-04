@@ -21,7 +21,7 @@ function enLineas(texto, w, fs) {
 // Texto dentro de una caja (x, y = arriba-izquierda; w, h en pt). Se encoge si no cabe.
 function txt(x, y, w, h, t, o = {}) {
   if (t == null || t === '') return '';
-  const s = String(t), fs = o.fs || Math.max(6.5, Math.min(h * 0.72, 9.5));
+  const s = String(t).toUpperCase(), fs = o.fs || Math.max(6.5, Math.min(h * 0.72, 9.5));   // a mano, todo en mayúsculas (Ferran)
   const ancho = anchoTexto(s, fs);
   const k = ancho > w ? Math.max(0.55, w / ancho) : 1;      // estrecha el texto si es largo
   const al = o.al || 'left';
@@ -270,7 +270,8 @@ function abajo(A, st, M, eqA, out) {
     out.push(linea(b - 24, 584.8, 21, s.puntos.L, { al: 'right', fs: 9 }), linea(b + 4, 584.8, 21, s.puntos.V, { fs: 9 })); });
   // Observaciones: 4 líneas; lo que no cabe, a la hoja anexa (Format 5)
   const FS = 7.2, lineas = [[80, 453.3, 382], [11, 465.6, 451], [11, 478.6, 451], [11, 491.6, 451]];   // [x, línea base, ancho]
-  const todas = observaciones(A, st).join(' · ');
+  // Cada observación se cierra con ".\\" (punto y doble barra invertida), como en papel (Ferran); todo en mayúsculas
+  const todas = observaciones(A, st).map((t) => String(t).trim()).filter(Boolean).map((t) => `${t}${/[.!?]$/.test(t) ? '' : '.'}\\\\`).join(' ').toUpperCase();
   const partes = []; let resto = todas;
   for (let i = 0; i < lineas.length && resto; i++) {
     const ult = i === lineas.length - 1, w = lineas[i][2] - (ult ? 80 : 0);
