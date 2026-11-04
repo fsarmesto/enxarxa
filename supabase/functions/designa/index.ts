@@ -87,7 +87,8 @@ function validar(b: DispIn): { ok: true; v: Record<string, unknown> } | { ok: fa
 const publica = (d: Record<string, unknown> | null) => d && ({ nombre: d.nombre, poblacion: d.poblacion, coche: d.coche, sab: d.sab, sab_obs: d.sab_obs, dom: d.dom, dom_obs: d.dom_obs, updated_at: d.updated_at });
 
 // Las respuestas de fines de semana pasados se borran a las 4 semanas (y con ellas, el plan).
-const limpiar = (db: Db) => db.from("designa_disp").delete().lt("finde", masDias(hoyMadrid(), -28));
+const limpiar = (db: Db) => Promise.all([db.from("designa_disp").delete().lt("finde", masDias(hoyMadrid(), -28)),
+  db.from("designa_hecho").delete().lt("finde", masDias(hoyMadrid(), -28))]);
 
 async function perfil(db: Db, req: Request) {
   const user = await userFromRequest(db, req);
@@ -210,6 +211,7 @@ async function panel(db: Db, b: { finde?: string }, t0: number) {
   const { data: disp } = await db.from("designa_disp").select("*").eq("finde", finde).order("nombre");
   const isq = await designacionesIsquad(db, finde, (disp || []).map((d: { user_id: string | null }) => d.user_id).filter(Boolean));
   const { data: asig } = await db.from("designa_asig").select("match_key, rol, disp_id").eq("finde", finde);
+  const { data: hecho } = await db.from("designa_hecho").select("match_key").eq("finde", finde);
   return {
     ok: true, finde, findes: findes(), falta, estadoIsquad: cubre,
     partidos: ps.map((p) => {
@@ -222,6 +224,7 @@ async function panel(db: Db, b: { finde?: string }, t0: number) {
       // Lo que ya tiene designado en iSquad ese fin de semana (hora y pabellón; solo árbitros con cuenta): para los choques.
       isq: d.user_id ? (isq.get(d.user_id as string) || []).map((o) => ({ d: o.d, pab: o.pab })) : [] })),
     asig: asig || [],
+    hecho: (hecho || []).map((h: { match_key: string }) => h.match_key),
   };
 }
 
@@ -245,6 +248,12 @@ async function designacionesIsquad(db: Db, finde: string, users: string[]): Prom
 }
 const horaPab = (o: Ocupa) => { const p = o.pab.replace(/\s*-\s*(PISTA|TERCIO|TERC|CAMP|SALA|ANNEX).*$/i, "").trim(); return `${o.d.slice(11, 16)}${p ? " (" + titulo(p) + ")" : ""}`; };
 
+// El listado de partidos, guardado 1 minuto en memoria: un lote de 100 asignaciones no lo vuelve a leer 100 veces.
+let feedMem: { t: number; ps: Partido[] } | null = null;
+async function feedReciente(db: Db) {
+  if (!feedMem || Date.now() - feedMem.t > 60_000) feedMem = { t: Date.now(), ps: await feed(db) };
+  return feedMem.ps;
+}
 // Texto del choque (o null): el mismo árbitro en otro puesto de este partido, u otro partido que se pisa con este.
 // deno-lint-ignore no-explicit-any
 async function choqueDe(db: Db, finde: string, d: any, key: string, rol: string, forzar = false): Promise<string | null> {
@@ -255,7 +264,7 @@ async function choqueDe(db: Db, finde: string, d: any, key: string, rol: string,
   if (aqui) return `${nombre} ya está en este partido como ${aqui.rol === "an" ? "anotador" : aqui.rol.toUpperCase()}.`;
   if (forzar) return null;
   const dia = key.slice(0, 10), t = minDe(key);
-  const ps = await feed(db), porKey = new Map(ps.map((p) => [matchKey(p), p]));
+  const ps = await feedReciente(db), porKey = new Map(ps.map((p) => [matchKey(p), p]));
   const este = porKey.get(key);
   const ocupa: Ocupa[] = otras.map((x: { match_key: string }) => ({ d: x.match_key.slice(0, 16), pab: porKey.get(x.match_key)?.pab || "" }));
   if (d.user_id) for (const o of (await designacionesIsquad(db, finde, [d.user_id])).get(d.user_id) || []) {
@@ -277,6 +286,27 @@ async function asignar(db: Db, b: { finde?: string; key?: string; rol?: string; 
   const choque = await choqueDe(db, finde, d, key, rol, b.forzar === true);
   if (choque) return json({ error: choque }, 409);
   const { error } = await db.from("designa_asig").upsert({ finde, match_key: key, rol, disp_id: d.id });
+  return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true });
+}
+
+// Varias asignaciones de una vez (propuesta automática, "toda la franja a…"): una a una, con las mismas comprobaciones
+// que asignar; forzar = el designador ya ha confirmado los avisos de choque. Devuelve las que no se han podido guardar.
+async function lote(db: Db, b: { finde?: string; items?: unknown; forzar?: boolean }) {
+  const items = Array.isArray(b.items) ? b.items.slice(0, 300) : [];
+  if (!items.length) return json({ error: "Petición no válida" }, 400);
+  let hechos = 0; const fallos: { key: string; rol: string; error: string }[] = [];
+  for (const it of items as { key?: string; rol?: string; disp_id?: string }[]) {
+    const r = await asignar(db, { finde: b.finde, key: it.key, rol: it.rol, disp_id: it.disp_id, forzar: b.forzar === true });
+    if (r.ok) hechos++; else fallos.push({ key: String(it.key || ""), rol: String(it.rol || ""), error: (await r.json()).error || "Error" });
+  }
+  return json({ ok: true, hechos, fallos });
+}
+
+// Casilla "Pasado a iSquad" de un partido del fin de semana.
+async function marcarHecho(db: Db, b: { finde?: string; key?: string; si?: boolean }) {
+  const finde = validFinde(b.finde), key = String(b.key || "");
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}\|/.test(key) || (key.slice(0, 10) !== finde && key.slice(0, 10) !== masDias(finde, 1))) return json({ error: "Petición no válida" }, 400);
+  const { error } = b.si ? await db.from("designa_hecho").upsert({ finde, match_key: key }) : await db.from("designa_hecho").delete().eq("match_key", key);
   return error ? json({ error: "No se ha podido guardar" }, 500) : json({ ok: true });
 }
 
@@ -319,6 +349,8 @@ Deno.serve(async (req) => {
     if (!u) return json({ error: "Sesión caducada. Vuelve a entrar." }, 401);
     if (a === "panel") return json(await panel(db, b, t0));
     if (a === "asignar") return await asignar(db, b);
+    if (a === "lote") return await lote(db, b);
+    if (a === "hecho") return await marcarHecho(db, b);
     if (a === "alta") return await altaManual(db, b as DispIn);
     if (a === "quitar") { await db.from("designa_disp").delete().eq("id", String(b.id || "")).eq("finde", validFinde(b.finde)); return json({ ok: true }); }
     return json({ error: "Acción desconocida" }, 400);
