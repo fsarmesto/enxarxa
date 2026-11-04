@@ -12,7 +12,7 @@
   const CONFIG = { mejorDe: 5, puntosSet: 25, puntosDecisivo: 15, tiempos: 2, sustituciones: 6, cambioDecisivo: 8, liberos: true, setObligatorio: false };
   // FIVB 4.1.1 (entrenador, 2 ayudantes, fisio, médico) + FCVB Circular 004 (psicólogo, preparador físico, masajista).
   const CATEGORIAS = { Y: 'Júnior', J: 'Juvenil', C: 'Cadete', I: 'Infantil', A: 'Alevín' };
-  const ROLES_OFICIALES = { E: 'Entrenador', E2: 'Segundo entrenador', E3: 'Entrenador ayudante', F: 'Fisioterapeuta', M: 'Médico', PS: 'Psicólogo', PF: 'Preparador físico', MS: 'Masajista' };
+  const ROLES_OFICIALES = { E: 'Entrenador', E2: 'Entrenador asistente', E3: '2º entrenador asistente', F: 'Fisioterapeuta', M: 'Médico', PS: 'Psicólogo', PF: 'Preparador físico', MS: 'Masajista' };
 
   // Dorsales: de 0 a 99 y además el 00 (distinto del 0). Se guardan como texto: "7", "0", "00" ("07" pasa a "7").
   const DORSAL = /^\d{1,2}$/;
@@ -139,7 +139,7 @@
   function motivoSust(st, s, eq, sale, entra) {
     const pista = s.rot[eq];
     if (!jugador(st, eq, entra)) return `El ${entra} no está en el acta.`;
-    if (esLibero(st, eq, entra)) return 'Un líbero no puede entrar por sustitución: usa el cambio de líbero.';
+    if (esLibero(st, eq, entra)) return 'Un líbero no puede entrar por sustitución: usa el reemplazo del líbero.';
     if (s.libero[eq] && s.libero[eq].por === sale && !s.pendienteSust[eq].includes(sale)) return `El ${sale} está fuera por el líbero: primero tiene que salir el líbero.`;
     if (!pista.includes(sale)) return `El ${sale} no está en pista.`;
     if (pista.includes(entra) || s.libero[eq]?.num === entra) return `El ${entra} ya está en pista.`;
@@ -195,7 +195,7 @@
       // Cambio de un líbero por el otro: ocupa el mismo sitio.
       if (sale !== s.libero[eq].num) no('Ya hay un líbero en pista: primero tiene que salir, o cámbialo por el otro líbero.');
       if (libero === sale) no('Ese líbero ya está en pista.');
-      if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos cambios de líbero tiene que haber un rally completo.');
+      if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos reemplazos del líbero tiene que haber una jugada completada.');
       s.liberos[eq].push({ entra: libero, sale, ...marcador(s, eq), h });
       s.libero[eq] = { ...s.libero[eq], num: libero }; s.ultLibero[eq] = s.rallies;
       return;
@@ -204,7 +204,7 @@
     if (pos < 0) no(`El ${sale} no está en pista.`);
     if (![0, 4, 5].includes(pos)) no('El líbero solo puede sustituir a un zaguero (posiciones I, V y VI).');
     if (pos === 0 && s.saque === eq && st.fase === 'juego') no('El líbero no puede sacar: no puede entrar por el jugador que va a sacar.');
-    if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos cambios de líbero tiene que haber un rally completo.');
+    if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos reemplazos del líbero tiene que haber una jugada completada.');
     s.libero[eq] = { num: libero, por: sale, pos };
     s.liberos[eq].push({ entra: libero, sale, ...marcador(s, eq), h });
     s.ultLibero[eq] = s.rallies;
@@ -212,7 +212,7 @@
   function liberoSale(st, eq, h) {
     const s = setActual(st), l = s.libero[eq];
     if (!l) no('No hay ningún líbero en pista.');
-    if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos cambios de líbero tiene que haber un rally completo.');
+    if (s.rallies === s.ultLibero[eq] && st.fase === 'juego') no('Entre dos reemplazos del líbero tiene que haber una jugada completada.');
     s.liberos[eq].push({ entra: l.por, sale: l.num, ...marcador(s, eq), h });
     s.libero[eq] = null; s.ultLibero[eq] = s.rallies;
   }
@@ -227,8 +227,8 @@
     if (esJug && !jugador(st, eq, quien)) no(`El ${quien} no está en el acta.`);
     if (!esJug && quien !== 'equipo' && !ROLES_OFICIALES[quien]) no('¿A quién es la sanción?');
     if (tipo === 'amonestacion' && st.avisoConducta[eq]) no('Este equipo ya ha tenido su amonestación: la siguiente conducta incorrecta es castigo.');
-    if (tipo === 'avisoRetraso' && st.avisoRetraso[eq]) no('Este equipo ya tiene el aviso por retraso: el siguiente retraso es castigo por retraso.');
-    if (tipo === 'castigoRetraso' && !st.avisoRetraso[eq]) no('El primer retraso es un aviso por retraso.');
+    if (tipo === 'avisoRetraso' && st.avisoRetraso[eq]) no('Este equipo ya tiene la amonestación por demora: la siguiente demora es castigo por demora.');
+    if (tipo === 'castigoRetraso' && !st.avisoRetraso[eq]) no('La primera demora es una amonestación por demora.');
     st.sanciones.push({ eq, quien, tipo, set: s.n, ...marcador(s, eq), h });
     // La amonestación (tarjeta amarilla) se enseña una sola vez por equipo y partido, y solo la gasta otra amarilla.
     // Tras una expulsión se puede amonestar a otro miembro del equipo: Casebook FIVB, caso 6.07 (regla 21). Tras un
@@ -316,11 +316,11 @@
         if (s.inicio) no('El set ya ha empezado.');
         if (st.fase === 'preparacion') { for (const e of ['L', 'V']) { const j = st.equipos[e].jugadores; if (j.filter((x) => !x.lib).length < 6) no('Cada equipo necesita al menos 6 jugadores que no sean líberos.'); } }
         const a = ev.jugadores;
-        if (!Array.isArray(a) || a.length !== 6) no('La alineación tiene 6 jugadores.');
-        if (new Set(a).size !== 6) no('Hay dorsales repetidos en la alineación.');
+        if (!Array.isArray(a) || a.length !== 6) no('La formación inicial tiene 6 jugadores.');
+        if (new Set(a).size !== 6) no('Hay dorsales repetidos en la formación inicial.');
         for (const n of a) {
           if (!jugador(st, ev.eq, n)) no(`El ${n} no está en el acta.`);
-          if (esLibero(st, ev.eq, n)) no(`El ${n} es líbero: no puede estar en la alineación inicial.`);
+          if (esLibero(st, ev.eq, n)) no(`El ${n} es líbero: no puede estar en la formación inicial.`);
           if (st.descalificados[ev.eq].has(n) || st.fueraPartido[ev.eq].has(n)) no(`El ${n} no puede jugar.`);
         }
         s.alineacion[ev.eq] = [...a]; s.rot[ev.eq] = [...a];
@@ -339,8 +339,8 @@
       }
       case 'punto': if (!['L', 'V'].includes(ev.eq)) no('¿Para qué equipo?'); return punto(st, ev.eq, ev.motivo || 'rally', h);
       case 'tiempo': {
-        if (st.fase !== 'juego') no('Los tiempos se piden con el set en marcha.');
-        if (s.tiempos[ev.eq].length >= st.cfg.tiempos) no(`Ya ha pedido los ${st.cfg.tiempos} tiempos de este set.`);
+        if (st.fase !== 'juego') no('Los tiempos de descanso se piden con el set en marcha.');
+        if (s.tiempos[ev.eq].length >= st.cfg.tiempos) no(`Ya ha pedido los ${st.cfg.tiempos} tiempos de descanso de este set.`);
         s.tiempos[ev.eq].push({ ...marcador(s, ev.eq), h });
         return;
       }
@@ -401,12 +401,12 @@
           // Redesignación: un jugador que no esté en pista pasa a ser líbero el resto del partido.
           const j = jugador(st, ev.eq, ev.nuevo);
           if (!j) no(`El ${ev.nuevo} no está en el acta.`);
-          if (j.lib) no(`El ${ev.nuevo} ya es líbero: no hace falta redesignarlo.`);
+          if (j.lib) no(`El ${ev.nuevo} ya es líbero: no hace falta re-designarlo.`);
           // Con 2 líberos: si el otro puede jugar, se sigue con uno y no se redesigna (FIVB 19.4.3.1). Uno expulsado este
           // set no cuenta como disponible (FCVB, Circular 009, tabla de casos).
           const otro = st.equipos[ev.eq].jugadores.find((x) => x.lib && x.num !== ev.libero && !st.fueraPartido[ev.eq].has(x.num) && !st.descalificados[ev.eq].has(x.num) && !s.expulsados[ev.eq].has(x.num));
-          if (otro) no(`Queda el otro líbero, el ${otro.num}: solo se puede redesignar si tampoco puede jugar (FIVB 19.4.3.1).`);
-          if ((s.rot[ev.eq] || []).includes(ev.nuevo)) no(`El ${ev.nuevo} está en pista: solo se puede redesignar a quien no esté en pista.`);
+          if (otro) no(`Queda el otro líbero, el ${otro.num}: solo se puede re-designar si también queda impedido de jugar (FIVB 19.4.3.1).`);
+          if ((s.rot[ev.eq] || []).includes(ev.nuevo)) no(`El ${ev.nuevo} está en pista: solo se puede re-designar a quien no esté en pista.`);
           if (st.descalificados[ev.eq].has(ev.nuevo) || st.fueraPartido[ev.eq].has(ev.nuevo)) no(`El ${ev.nuevo} no puede jugar.`);
           j.lib = true; j.redesignado = true; nuevo = j.num;
         }
