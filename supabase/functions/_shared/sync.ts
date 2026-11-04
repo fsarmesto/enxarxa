@@ -542,7 +542,7 @@ export async function syncUser(db: SupabaseClient, userId: string, opts: { km?: 
     if (code === "credenciales") await db.from("isquad_credentials").update({ session: null, session_at: null }).eq("user_id", userId);
     await db.from("profiles").update({ last_error: code }).eq("user_id", userId);
     // El área privada no responde (403 desde el 4-nov-2026, caída, cambio de diseño): las próximas, de la ficha pública.
-    if (code === "conexion") { const r = await syncPublico(db, userId, opts); if (r.ok) return r; }
+    if (code === "conexion") { const r = await syncPublico(db, userId, opts); if (r.ok) return r; return { ok: false, error: code, publico: r.error }; }
     return { ok: false, error: code };
   }
 }
