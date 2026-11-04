@@ -221,6 +221,7 @@ button.p:hover,button.jug:focus-visible{border-color:var(--yellow)}
 .motivo{font-size:12.5px;color:var(--ink-3);margin:-6px 0 10px}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 14px;border-radius:8px;font-weight:600;max-width:92vw;z-index:30;display:none;border-left:5px solid var(--red)}
 #toast.ok{border-left-color:var(--yellow)}
+#toast{pointer-events:none}   /* el aviso nunca se come un toque al botón que tiene debajo */
 /* Alineación */
 .alinea{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:330px}
 .alinea label{font-size:12px;font-weight:700;color:var(--ink-2)}

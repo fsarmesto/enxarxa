@@ -10,7 +10,8 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const POS = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 const SANC = { amonestacion: 'Amonestación', castigo: 'Castigo', expulsion: 'Expulsión', descalificacion: 'Descalificación', avisoRetraso: 'Aviso por retraso', castigoRetraso: 'Castigo por retraso', impropia: 'Petición improcedente' };
-const FIRMAS = [['capL', 'Capitán local'], ['capV', 'Capitán visitante'], ['aa', 'Anotador ayudante'], ['an', 'Anotador'], ['r2', '2º árbitro'], ['r1', '1er árbitro']];
+// Al final firma primero el anotador (y el ayudante), después los capitanes y por último los árbitros (FIVB 27.2.3.3).
+const FIRMAS = [['an', 'Anotador'], ['aa', 'Anotador ayudante'], ['capL', 'Capitán local'], ['capV', 'Capitán visitante'], ['r2', '2º árbitro'], ['r1', '1er árbitro']];
 const FIRMAS_PRE = [['preCapL', 'Capitán local'], ['preEL', 'Entrenador local'], ['preCapV', 'Capitán visitante'], ['preEV', 'Entrenador visitante']];
 // Confirmación nativa, traducida si el acta está en catalán (acta-ca.js).
 // Aprobar y cerrar el acta (como el e-Scoresheet): anotador, capitanes y 1er árbitro con su contraseña. De momento, la
@@ -72,16 +73,24 @@ function hacer(ev, silencio) {
   if (m) { if (!silencio) toast(m); return m; }
   const autoAntes = ST?.auto.length ?? 0, capAntes = ST && ST.fase === 'juego' ? ['L', 'V'].map((e) => M.necesitaCapitanJuego(ST, e)) : [false, false];
   A.ev.push(ev); guardar(); pintar(); publicarDirecto();
-  avisosTrasSuceso(autoAntes, capAntes);
+  avisosTrasSuceso(autoAntes, capAntes, ev);
   return null;
 }
 // Tras cada suceso: si el líbero ha pasado delante (sale solo), se avisa con una hoja; si el capitán acaba de salir de
 // pista (y no es líbero), un aviso para que los árbitros pregunten quién es el capitán en juego.
-function avisosTrasSuceso(autoAntes, capAntes) {
+function avisosTrasSuceso(autoAntes, capAntes, ev) {
   if (!ST) return;
+  // El 2º árbitro avisa al 1º y al entrenador del último tiempo y del 5º y 6º cambio (FIVB 24.2.7).
+  const avisos = [];   // si hay varios a la vez, salen juntos (uno no tapa al otro)
+  if (ev && ST.fase === 'juego' && ['tiempo', 'sust'].includes(ev.t)) {
+    const s = M.setActual(ST), n = ev.t === 'tiempo' ? s.tiempos[ev.eq].length : s.nSust[ev.eq], max = ev.t === 'tiempo' ? ST.cfg.tiempos : ST.cfg.sustituciones;
+    if (ev.t === 'tiempo' && n === max) avisos.push(`${eqNombre(ev.eq)}: ${n}º tiempo, el último del set.`);
+    if (ev.t === 'sust' && ev.tipo !== 'excepcional' && n >= max - 1) avisos.push(`${eqNombre(ev.eq)}: ${n}º cambio${n === max ? ', el último del set' : ''}.`);
+  }
   const sale = ST.auto.slice(autoAntes).filter((x) => x.t === 'liberoSaleAuto');
   const capFuera = ['L', 'V'].filter((e, i) => !capAntes[i] && M.necesitaCapitanJuego(ST, e));
-  if (capFuera.length) { const c = ST.equipos[capFuera[0]].jugadores.find((j) => j.cap); toast(`El capitán de ${eqNombre(capFuera[0])} (${c.num}) ha salido de pista: hay que saber quién es el capitán en juego.`); }
+  for (const e of capFuera) { const c = ST.equipos[e].jugadores.find((j) => j.cap); avisos.push(`El capitán de ${eqNombre(e)} (${c.num}) ha salido de pista: hay que saber quién es el capitán en juego.`); }
+  if (avisos.length) toastVarios(avisos);
   if (sale.length && A.cfg.avisoLibero !== false) hojaLiberoSale(sale);
 }
 function hojaLiberoSale(sale) {
@@ -93,6 +102,8 @@ function hojaLiberoSale(sale) {
     <div class="row"><button class="primary" id="okLibSale">Entendido</button></div>`, () => $('okLibSale').focus());
   $('okLibSale').onclick = cerrarHoja;
 }
+// Varios avisos a la vez: uno por línea, traducido cada uno, y más rato en pantalla.
+function toastVarios(lista) { const tr = window.trActa || ((x) => x); toast(lista.map(tr).join('\n')); const t = $('toast'); t.style.whiteSpace = 'pre-line'; clearTimeout(t._h); t._h = setTimeout(() => { t.style.display = 'none'; t.style.whiteSpace = ''; }, 3200 + 1800 * (lista.length - 1)); }
 function toast(msg, ok) { const t = $('toast'); t.textContent = msg; t.className = ok ? 'ok' : ''; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), 3200); }
 
 /* ---------- Hoja (diálogo) ---------- */
@@ -251,7 +262,7 @@ function pDatos() {
       <label class="f"><span>Cambios por set</span><input type="number" id="sustituciones" min="1" max="20" value="${c.sustituciones}"></label>
       <label class="f"><span>Tiempos por set</span><input type="number" id="tiempos" min="0" max="5" value="${c.tiempos}"></label>
       <label class="f"><span>Descanso entre sets (min)</span><input type="number" id="descanso" min="0" max="30" value="${c.descanso ?? 3}"></label>
-      <label class="f"><span>Descanso entre el 2º y el 3º (min)</span><input type="number" id="descanso23" min="0" max="30" value="${c.descanso23 ?? c.descanso ?? 3}"><span class="small muted">15 si el local pide el intermedio promocional.</span></label></div>
+      <label class="f"><span>Descanso entre el 2º y el 3º (min)</span><input type="number" id="descanso23" min="0" max="10" value="${c.descanso23 ?? c.descanso ?? 3}"><span class="small muted">Se puede alargar hasta 10 si lo pide el organizador (FIVB 18.1).</span></label></div>
     <label class="chk opcion"><input type="checkbox" id="cfgAvisoLib"${c.avisoLibero !== false ? ' checked' : ''}> <span><b>Avisos del líbero</b><br><span class="small muted">Cuando el equipo pasa a recibir, propone por quién entra; cuando pasa delante, avisa de que sale y quién vuelve.</span></span></label>
     <label class="chk opcion"><input type="checkbox" id="cfgLib"${c.liberos ? ' checked' : ''}> <span><b>Hay líbero</b><br><span class="small muted">Desactívalo en las categorías que juegan sin líbero.</span></span></label>
     <label class="chk opcion"><input type="checkbox" id="cfgSet"${c.setObligatorio ? ' checked' : ''}> <span><b>Set obligatorio por jugador</b><br><span class="small muted">Infantil (FCVB, Circular 011): cada jugador del acta tiene que jugar al menos un set completo. Al final se revisa y se puede corregir a mano.</span></span></label>
@@ -261,7 +272,7 @@ function pDatos() {
     e.preventDefault();
     $('f').querySelectorAll('[data-d]').forEach((i) => (A.datos[i.dataset.d] = i.value.trim()));
     if (!A.datos.local || !A.datos.visitante) { toast('Escribe el nombre de los 2 equipos.'); return; }
-    A.cfg = { ...A.cfg, mejorDe: +$('mejorDe').value, puntosSet: +$('puntosSet').value || 25, puntosDecisivo: +$('puntosDecisivo').value || 15, sustituciones: Math.min(20, Math.max(1, +$('sustituciones').value || 6)), tiempos: Math.min(5, Math.max(0, +$('tiempos').value || 0)), liberos: $('cfgLib').checked, avisoLibero: $('cfgAvisoLib').checked, descanso: Math.min(30, Math.max(0, +$('descanso').value || 0)), descanso23: Math.min(30, Math.max(0, +$('descanso23').value || 0)), setObligatorio: $('cfgSet').checked };
+    A.cfg = { ...A.cfg, mejorDe: +$('mejorDe').value, puntosSet: +$('puntosSet').value || 25, puntosDecisivo: +$('puntosDecisivo').value || 15, sustituciones: Math.min(20, Math.max(1, +$('sustituciones').value || 6)), tiempos: Math.min(5, Math.max(0, +$('tiempos').value || 0)), liberos: $('cfgLib').checked, avisoLibero: $('cfgAvisoLib').checked, descanso: Math.min(30, Math.max(0, +$('descanso').value || 0)), descanso23: Math.min(10, Math.max(0, +$('descanso23').value || 0)), setObligatorio: $('cfgSet').checked };
     // Sin líbero: se quita la marca de líbero de las plantillas ya guardadas y de las que se están escribiendo.
     if (!A.cfg.liberos) {
       A.ev = A.ev.map((e) => (e.t === 'equipo' ? { ...e, jugadores: e.jugadores.map(({ lib, ...j }) => j) } : e));
@@ -302,23 +313,25 @@ async function cargarIsquad(forzar) {
     const segundo = (x) => /2|SEGON|SEGUN|AYUD|AJUD|AUX/i.test(x.cargo);
     const E = ent.find((x) => !segundo(x)), E2 = ent.find((x) => segundo(x)) || ent.filter((x) => x !== E)[0];
     BORR[eq] = { jugadores: jug.length ? jug : [{ num: '', nombre: '' }], isq: jug.length,
-      oficiales: ['E', 'E2', 'F', 'M'].map((rol) => ({ rol, nombre: rol === 'E' && E ? titulo(E.nombre) : rol === 'E2' && E2 ? titulo(E2.nombre) : (prev?.oficiales || []).find((o) => o.rol === rol)?.nombre || '' })) };
+      oficiales: Object.keys(M.ROLES_OFICIALES).map((rol) => ({ rol, nombre: rol === 'E' && E ? titulo(E.nombre) : rol === 'E2' && E2 ? titulo(E2.nombre) : (prev?.oficiales || []).find((o) => o.rol === rol)?.nombre || '' })) };
   }
   ISQ = { estado: 'ok', msg: [r.L ? '' : eqNombre('L'), r.V ? '' : eqNombre('V')].filter(Boolean).join(' y ') };
   A.isqCargada = true; guardar();
   if (A && vista() === 'equipos') pEquipos();
 }
+// Todos los cargos del cuerpo técnico (FIVB 4.1.1 y FCVB Circular 004), con lo que ya hubiera puesto.
+const todosOficiales = (lista) => Object.keys(M.ROLES_OFICIALES).map((rol) => ({ rol, nombre: (lista || []).find((o) => o.rol === rol)?.nombre || '' }));
 function borrador(eq) {
   if (!BORR[eq] && A.quitados?.[eq]?.length) {
     const e = ST.equipos[eq];
     BORR[eq] = { jugadores: [...e.jugadores.map((j) => ({ ...j })), ...A.quitados[eq].map((j) => ({ ...j }))],
-      oficiales: ['E', 'E2', 'F', 'M'].map((rol) => ({ rol, nombre: e.oficiales.find((o) => o.rol === rol)?.nombre || '' })) };
+      oficiales: todosOficiales(e.oficiales) };
   }
   if (!BORR[eq]) {
     const e = ST.equipos[eq];
     BORR[eq] = { jugadores: e.jugadores.length ? e.jugadores.map((j) => ({ ...j })) : Array.from({ length: 12 }, () => ({ num: '', nombre: '' })),
-      oficiales: ['E', 'E2', 'F', 'M'].map((rol) => ({ rol, nombre: e.oficiales.find((o) => o.rol === rol)?.nombre || '' })) };
-    try { const prev = JSON.parse(localStorage.getItem(clavePlantilla(eq === 'L' ? A.datos.local : A.datos.visitante)) || 'null'); if (prev && !e.jugadores.length) Object.assign(BORR[eq], { ...prev, jugadores: prev.jugadores.filter((j) => j.nombre || j.num) }); } catch (x) {}
+      oficiales: todosOficiales(e.oficiales) };
+    try { const prev = JSON.parse(localStorage.getItem(clavePlantilla(eq === 'L' ? A.datos.local : A.datos.visitante)) || 'null'); if (prev && !e.jugadores.length) Object.assign(BORR[eq], { ...prev, oficiales: todosOficiales(prev.oficiales), jugadores: prev.jugadores.filter((j) => j.nombre || j.num) }); } catch (x) {}
   }
   return BORR[eq];
 }
@@ -335,12 +348,15 @@ function tablaEquipo(eq) {
       ${A.cfg.liberos ? `<td><label class="chk"><input type="checkbox" data-i="${i}" data-k="lib"${j.lib ? ' checked' : ''} aria-label="Líbero"></label></td>` : ''}
       <td><button type="button" class="x ghost" data-quitar="${i}" aria-label="Quitar">✕</button></td></tr>`).join('')}
     </tbody></table><div class="row" style="margin:8px 0 12px"><button type="button" data-mas>+ Jugador</button></div>
-    <div class="grid2">${b.oficiales.map((o, i) => `<label class="f"><span>${esc(M.ROLES_OFICIALES[o.rol])}</span><input type="text" data-o="${i}" value="${esc(o.nombre)}"></label>`).join('')}</div></section>`;
+    <p class="small muted" style="margin:0 0 6px">Cuerpo técnico: primer entrenador y, como mucho, 3 más.</p>
+    <div class="grid2">${b.oficiales.map((o, i) => `<label class="f"><span>${esc(M.ROLES_OFICIALES[o.rol])}</span><input type="text" data-o="${i}" value="${esc(o.nombre)}"></label>`).join('')}
+      <label class="f"><span>Delegado de equipo</span><input type="text" data-del="${eq}" value="${esc(A.datos['delegado' + eq] || '')}"><span class="small muted">Va a observaciones, sin DNI (FCVB, Circular 003).</span></label></div></section>`;
 }
 function leerEquipo(eq) {
   const sec = $('app').querySelector(`[data-eq="${eq}"]`), b = borrador(eq);
   sec.querySelectorAll('[data-k]').forEach((i) => { const j = b.jugadores[+i.dataset.i]; if (i.dataset.k === 'num') j.num = i.value; else if (i.dataset.k === 'nombre') j.nombre = i.value; else j[i.dataset.k] = i.checked; });
   sec.querySelectorAll('[data-o]').forEach((i) => (b.oficiales[+i.dataset.o].nombre = i.value.trim()));
+  sec.querySelectorAll('[data-del]').forEach((i) => (A.datos['delegado' + eq] = i.value.trim()));
 }
 function pEquipos() {
   if (A.origen && !A.isqCargada && !ST.equipos.L.jugadores.length && ISQ.estado === null) { cargarIsquad(); return; }
@@ -581,7 +597,7 @@ function describir(ev, st) {
     case 'goldenSet': return 'Golden set';
     case 'capitanJuego': return `Capitán en juego ${n(ev.eq)}: el ${ev.num}`;
     case 'repeticion': return 'Repetición de la jugada';
-    case 'faltaRotacion': return `Falta de rotación de ${n(ev.eq)}: punto para ${n(M.OTRO(ev.eq))}`;
+    case 'faltaRotacion': return `Falta de rotación de ${n(ev.eq)}: punto para ${n(M.OTRO(ev.eq))}${ev.desde != null ? ` (anulados sus puntos desde el ${ev.desde})` : ''}`;
     case 'incompleto': return ev.motivo === 'incomparecencia' ? `Incomparecencia de ${n(ev.eq)}` : `${n(ev.eq)}: equipo incompleto`;
     case 'liberoNoPuede': return `Líbero ${ev.libero} de ${n(ev.eq)} no puede seguir${ev.nuevo ? ` · nuevo líbero: ${ev.nuevo}` : ''}`;
     case 'setCompleto': return `Set ${ev.set} del ${ev.num} (${n(ev.eq)}) ${ev.si ? 'marcado' : 'desmarcado'} como completo`;
@@ -728,12 +744,16 @@ function hojaIncidencias() {
   hoja(`<h2 id="hojaT">Incidencias</h2>
     <h3 style="font-size:16px;margin:4px 0">Falta de rotación o sacador incorrecto</h3>
     <p class="small muted">Punto y saque para el rival. El acta sigue con la rotación correcta.</p>
+    <label class="f" style="max-width:340px"><span>Puntos del infractor cuando la cometió (si se sabe)</span><input type="number" id="rotDesde" min="0" inputmode="numeric"><span class="small muted">Se anulan los puntos que ha ganado desde entonces (FIVB 7.7.2). Vacío: solo punto y saque.</span></label>
     <div class="row" style="margin-bottom:14px">${['L', 'V'].map((eq) => `<button data-rot="${eq}">La comete ${esc(eqNombre(eq))}</button>`).join('')}</div>
     <h3 style="font-size:16px;margin:4px 0">Equipo incompleto o que se retira</h3>
     <p class="small muted">El rival gana los puntos y sets que le faltan; cada equipo conserva lo que ya había ganado. No se puede deshacer de otra forma que con Deshacer.</p>
     <div class="row">${['L', 'V'].map((eq) => `<button class="ghost" data-inc="${eq}" style="color:var(--warn)">${esc(eqNombre(eq))} incompleto</button>`).join('')}</div>
     <div class="row" style="margin-top:14px"><button class="ghost" data-cerrar>Cerrar</button></div>`);
-  $('hojaC').querySelectorAll('[data-rot]').forEach((b) => (b.onclick = () => { if (!hacer({ t: 'faltaRotacion', eq: b.dataset.rot })) { cerrarHoja(); toast('Falta de rotación anotada: punto para el rival.', true); } }));
+  $('hojaC').querySelectorAll('[data-rot]').forEach((b) => (b.onclick = () => {
+    const d = $('rotDesde').value.trim(), ev = { t: 'faltaRotacion', eq: b.dataset.rot, ...(d !== '' ? { desde: +d } : {}) };
+    if (!hacer(ev)) { cerrarHoja(); const f = ST.faltasRotacion.at(-1); toast(`Falta de rotación anotada: punto para el rival${f.anulados ? ` y ${f.anulados} punto${f.anulados > 1 ? 's' : ''} anulado${f.anulados > 1 ? 's' : ''}` : ''}.`, true); }
+  }));
   $('hojaC').querySelectorAll('[data-inc]').forEach((b) => (b.onclick = () => { if (confirmar(`¿${eqNombre(b.dataset.inc)} no puede seguir (equipo incompleto o se retira)? El partido acaba aquí.`)) { if (!hacer({ t: 'incompleto', eq: b.dataset.inc, motivo: 'incompleto' })) cerrarHoja(); } }));
 }
 
@@ -843,7 +863,7 @@ function pFinal() {
     <section class="card"><h2>Espectadores</h2><label class="f" style="max-width:220px"><span>Número de espectadores</span><input type="number" id="espect" min="0" max="100000" inputmode="numeric" value="${esc(A.datos.espectadores ?? '')}"${A.aprobada ? ' disabled' : ''}></label></section>
     <section class="card"><h2>Observaciones</h2>${ST.observaciones.length ? ST.observaciones.map((o) => `<p class="small">Set ${o.set} · ${hora(o.h)}: ${esc(o.texto)}</p>`).join('') : '<p class="small muted">Ninguna.</p>'}${A.aprobada ? '' : '<button id="obs">Añadir observación</button>'}</section>
     ${correccionesHtml()}
-    <section class="card"><h2>Firmas</h2><p class="small muted">Por este orden: capitanes, anotador ayudante, anotador, 2º árbitro y 1er árbitro.</p>${firmasHtml(FIRMAS)}</section>
+    <section class="card"><h2>Firmas</h2><p class="small muted">Por este orden: anotador (y ayudante), capitanes, 2º árbitro y 1er árbitro (FIVB 27.2.3.3).</p>${firmasHtml(FIRMAS)}</section>
     ${aprobarHtml()}
     <div class="barra"><button class="primary" id="ver">Ver e imprimir el acta</button><button id="json">Descargar los datos (JSON)</button>${A.aprobada ? '' : '<button id="deshacer">Deshacer el último punto</button>'}<button class="ghost" id="mis">Mis actas</button></div>`;
   enlazarFirmas(); barraComun(); enlazarAprobar();
@@ -906,7 +926,7 @@ function actaHtml() {
     const e = st.equipos[eq];
     return `<table><tr><th colspan="3">${ab(eq)} · ${esc(eqNombre(eq))}</th></tr><tr><th>Nº</th><th>Jugador</th><th></th></tr>
       ${e.jugadores.map((j) => `<tr><td>${j.num}</td><td class="izq">${esc(j.nombre)}</td><td>${j.cap ? 'C' : ''}${j.lib ? 'L' : ''}</td></tr>`).join('')}
-      ${e.oficiales.map((o) => `<tr><td>${o.rol}</td><td class="izq" colspan="2">${esc(o.nombre)}</td></tr>`).join('')}</table>`;
+      ${e.oficiales.filter((o) => o.nombre).map((o) => `<tr><td>${esc(o.rol)}</td><td class="izq" colspan="2">${esc(o.nombre)} <span style="color:#666">· ${esc(M.ROLES_OFICIALES[o.rol] || o.rol)}</span></td></tr>`).join('')}</table>`;
   };
   const setBloque = (s) => {
     if (!s.inicio) return '';
@@ -915,7 +935,7 @@ function actaHtml() {
       const turnos = POS.map((_, c) => s.turnos[eq].filter((t) => t.col === c).map((t) => t.hasta ?? '·').join(' '));
       const subs = POS.map((_, c) => s.sust[eq].filter((x) => { const t = al[c]; return x.sale === t || x.entra === t || s.parejas[eq][t] === x.sale || s.parejas[eq][t] === x.entra; }).map((x) => `${x.entra}<br>${marc(x)}`).join('<br>'));
       const max = Math.max(s.puntos[eq], objetivo(s));
-      const pts = Array.from({ length: max }, (_, i) => { const n = i + 1, p = s.progreso.filter((x) => x.eq === eq)[i]; return `<span class="pt${p ? ' s' : ''}${p && p.motivo !== 'rally' ? ' c' : ''}">${n}</span>`; }).join(' ');
+      const pts = Array.from({ length: max }, (_, i) => { const n = i + 1, p = s.progreso.filter((x) => x.eq === eq && !x.anulado)[i]; return `<span class="pt${p ? ' s' : ''}${p && p.motivo !== 'rally' ? ' c' : ''}">${n}</span>`; }).join(' ');
       return `<table><tr><th colspan="7">${ab(eq)} · ${esc(eqNombre(eq))} ${s.saqueInicial === eq ? '(saca)' : '(recibe)'}</th></tr>
         <tr><th></th>${POS.map((p) => `<th>${p}</th>`).join('')}</tr>
         <tr><th>Titular</th>${al.map((n) => `<td><b>${n}</b></td>`).join('')}</tr>
@@ -949,7 +969,8 @@ function actaHtml() {
     ${st.cfg.setObligatorio ? (() => { const sc = M.setsCompletos(st), js = st.sets.filter((x) => x.inicio); const t = (eq) => `<table><tr><th colspan="${js.length + 3}">Set obligatorio · ${ab(eq)} · ${esc(eqNombre(eq))}</th></tr><tr><th>Nº</th><th>Jugador</th>${js.map((x) => `<th>S${x.n}</th>`).join('')}<th>Cumple</th></tr>${Object.values(sc[eq]).map((j) => `<tr><td>${esc(j.num)}</td><td class="izq">${esc(j.nombre)}</td>${j.sets.map((x) => `<td>${x.completo ? 'X' : ''}${x.mano !== null ? '*' : ''}</td>`).join('')}<td>${j.cumple ? 'Sí' : '<b>NO</b>'}</td></tr>`).join('')}</table>`; return `<div class="bloque cols"><div>${t(eqA)}</div><div>${t(eqB)}</div></div><p style="font-size:9px;margin:-4px 0 6px">X = set completo (titular sin cambio) · * = corregido a mano por el anotador.</p>`; })() : ''}
     <div class="bloque"><table><tr><th class="izq">Observaciones</th></tr><tr><td class="izq">${[
       ...st.sets.flatMap((x) => x.repeticiones.map((r) => `Set ${x.n} ${hora(r.h)}: repetición de la jugada (${r.a}:${r.b}).`)),
-      ...st.faltasRotacion.map((x) => `Set ${x.set} ${hora(x.h)}: falta de rotación de ${esc(st.equipos[x.eq].nombre || eqNombre(x.eq))} (${x.a}:${x.b}); punto para el rival.`),
+      ...['L', 'V'].filter((eq) => d['delegado' + eq]).map((eq) => `${esc(eqNombre(eq))} presenta delegado/a: ${esc(d['delegado' + eq])}.`),
+      ...st.faltasRotacion.map((x) => `Set ${x.set} ${hora(x.h)}: falta de rotación de ${esc(st.equipos[x.eq].nombre || eqNombre(x.eq))} (${x.a}:${x.b}); punto para el rival${x.anulados ? `; anulados ${x.anulados} puntos suyos desde el momento de la falta` : ''}.`),
       ...(st.incompleto ? [st.incompleto.motivo === 'incomparecencia' ? `Incomparecencia de ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))}: 0-3 (25-0).` : `Set ${st.incompleto.set} ${hora(st.incompleto.h)}: ${esc(st.equipos[st.incompleto.eq].nombre || eqNombre(st.incompleto.eq))} se queda con el equipo incompleto (${st.incompleto.a}:${st.incompleto.b}); el rival gana los puntos y sets que faltan.`] : []),
       ...['L', 'V'].flatMap((eq) => st.liberosFuera[eq].map((x) => `Set ${x.set} ${hora(x.h)}: el líbero ${esc(x.libero)} de ${esc(eqNombre(eq))} no puede seguir${x.nuevo ? `; nuevo líbero, el ${esc(x.nuevo)}` : ''} (${x.a}:${x.b}).`)),
       ...st.capitanesJuego.map((x) => `Set ${x.set} ${hora(x.h)}: capitán en juego de ${esc(eqNombre(x.eq))}, el ${esc(x.num)} (${x.a}:${x.b}).`),

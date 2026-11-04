@@ -10,7 +10,8 @@
   // liberos: si la categoría juega con líbero (en infantil se puede quitar). setObligatorio: cada jugador del acta tiene que
   // jugar al menos un set completo (FCVB, Circular 011: infantil y, a veces, alevín).
   const CONFIG = { mejorDe: 5, puntosSet: 25, puntosDecisivo: 15, tiempos: 2, sustituciones: 6, cambioDecisivo: 8, liberos: true, setObligatorio: false };
-  const ROLES_OFICIALES = { E: 'Entrenador', E2: 'Segundo entrenador', F: 'Fisioterapeuta', M: 'Médico' };
+  // FIVB 4.1.1 (entrenador, 2 ayudantes, fisio, médico) + FCVB Circular 004 (psicólogo, preparador físico, masajista).
+  const ROLES_OFICIALES = { E: 'Entrenador', E2: 'Segundo entrenador', E3: 'Entrenador ayudante', F: 'Fisioterapeuta', M: 'Médico', PS: 'Psicólogo', PF: 'Preparador físico', MS: 'Masajista' };
 
   // Dorsales: de 0 a 99 y además el 00 (distinto del 0). Se guardan como texto: "7", "0", "00" ("07" pasa a "7").
   const DORSAL = /^\d{1,2}$/;
@@ -105,7 +106,7 @@
     if (st.fase !== 'juego') no('El set no está en juego.');
     if (s.pendienteSust.L.length || s.pendienteSust.V.length) no('Antes hay que sustituir al jugador expulsado o descalificado.');
     s.puntos[eq]++;
-    if (motivo === 'rally') s.rallies++;
+    s.rallies++;   // rally completo = todo lo que da un punto, también un castigo o una falta de rotación (FIVB 6.1.3)
     s.progreso.push({ eq, a: s.puntos.L, b: s.puntos.V, motivo, h });
     if (s.saque !== eq) {           // gana el saque el equipo que recibía: rota y saca su jugador de la posición I
       cerrarTurno(s, s.saque);
@@ -275,6 +276,12 @@
         if (ev.jugadores.filter((j) => j.cap).length > 1) no('Solo puede haber un capitán.');
         // El líbero puede ser capitán (del equipo y en juego): FIVB, regla 5, desde el 1-1-2022 (Congreso de feb. 2021).
         if (ev.jugadores.filter((j) => j.lib).length > 2) no('Como mucho 2 líberos.');
+        // Máximo en el acta (FCVB, circulares 004 y 009 de 2026-27): 14 jugadores con 0, 1 o 2 líberos; 12 si la
+        // competición no tiene líbero (infantil). `cfg.maxJugadores` lo cambia si una normativa específica dice otra cosa.
+        const maxJ = st.cfg.maxJugadores || (st.cfg.liberos ? 14 : 12);
+        if (ev.jugadores.length > maxJ) no(`Como mucho ${maxJ} jugadores en el acta${st.cfg.liberos ? ' (líberos incluidos)' : ''}.`);
+        // Oficiales: primer entrenador y, como mucho, 3 más (FCVB, normes 8.7.7; FIVB 4.1.1: 2 ayudantes, fisio y médico).
+        if ((ev.oficiales || []).filter((o) => o.rol !== 'E' && o.nombre).length > 3) no('Como mucho 3 oficiales además del primer entrenador.');
         if (!st.cfg.liberos && ev.jugadores.some((j) => j.lib)) no('En este partido no hay líbero (está desactivado en el formato).');
         st.equipos[ev.eq] = { nombre: ev.nombre || st.equipos[ev.eq].nombre, jugadores: ev.jugadores.map((j) => ({ ...j, num: D(j.num) })), oficiales: (ev.oficiales || []).map((o) => ({ ...o })) };
         return;
@@ -343,7 +350,16 @@
       case 'faltaRotacion': {   // FIVB 7.7: falta de rotación o sacador incorrecto: punto y saque al rival
         if (st.fase !== 'juego') no('Se anota con el set en marcha.');
         if (!['L', 'V'].includes(ev.eq)) no('¿Qué equipo ha cometido la falta?');
-        st.faltasRotacion.push({ eq: ev.eq, set: s.n, a: s.puntos[ev.eq], b: s.puntos[OTRO(ev.eq)], h });
+        // FIVB 7.7.2: si se sabe el momento exacto de la falta (`desde` = puntos que tenía entonces el equipo infractor), se
+        // anulan los puntos que ha ganado después; los del rival se mantienen. Si no se sabe, solo punto y saque al rival.
+        let anulados = 0;
+        if (ev.desde != null && ev.desde !== '') {
+          const d = +ev.desde;
+          if (!Number.isInteger(d) || d < 0 || d > s.puntos[ev.eq]) no(`El marcador del infractor en el momento de la falta tiene que ser de 0 a ${s.puntos[ev.eq]}.`);
+          let k = 0; for (const p of s.progreso) if (p.eq === ev.eq && ++k > d) p.anulado = true;
+          anulados = s.puntos[ev.eq] - d; s.puntos[ev.eq] = d;
+        }
+        st.faltasRotacion.push({ eq: ev.eq, set: s.n, a: s.puntos[ev.eq], b: s.puntos[OTRO(ev.eq)], anulados, h });
         punto(st, OTRO(ev.eq), 'rotacion', h);
         return;
       }
@@ -382,6 +398,10 @@
           const j = jugador(st, ev.eq, ev.nuevo);
           if (!j) no(`El ${ev.nuevo} no está en el acta.`);
           if (j.lib) no(`El ${ev.nuevo} ya es líbero: no hace falta redesignarlo.`);
+          // Con 2 líberos: si el otro puede jugar, se sigue con uno y no se redesigna (FIVB 19.4.3.1). Uno expulsado este
+          // set no cuenta como disponible (FCVB, Circular 009, tabla de casos).
+          const otro = st.equipos[ev.eq].jugadores.find((x) => x.lib && x.num !== ev.libero && !st.fueraPartido[ev.eq].has(x.num) && !st.descalificados[ev.eq].has(x.num) && !s.expulsados[ev.eq].has(x.num));
+          if (otro) no(`Queda el otro líbero, el ${otro.num}: solo se puede redesignar si tampoco puede jugar (FIVB 19.4.3.1).`);
           if ((s.rot[ev.eq] || []).includes(ev.nuevo)) no(`El ${ev.nuevo} está en pista: solo se puede redesignar a quien no esté en pista.`);
           if (st.descalificados[ev.eq].has(ev.nuevo) || st.fueraPartido[ev.eq].has(ev.nuevo)) no(`El ${ev.nuevo} no puede jugar.`);
           j.lib = true; j.redesignado = true; nuevo = j.num;
@@ -444,8 +464,9 @@
     const golden = g ? { set: g.n, duracion: minutos(g.inicio, g.fin), ganador: g.ganador, puntos: { ...g.puntos } } : null;
     const filas = st.sets.filter((s) => s.inicio && !s.golden).map((s) => ({
       set: s.n, duracion: minutos(s.inicio, s.fin),
-      L: { tiempos: s.tiempos.L.length, sust: s.sust.L.filter((x) => x.tipo !== 'excepcional').length, gana: s.ganador === 'L' ? 1 : 0, puntos: s.puntos.L },
-      V: { tiempos: s.tiempos.V.length, sust: s.sust.V.filter((x) => x.tipo !== 'excepcional').length, gana: s.ganador === 'V' ? 1 : 0, puntos: s.puntos.V },
+      // Las excepcionales no cuentan para el límite de 6, pero sí en el total de sustituciones del acta (FIVB 15.7).
+      L: { tiempos: s.tiempos.L.length, sust: s.sust.L.length, gana: s.ganador === 'L' ? 1 : 0, puntos: s.puntos.L },
+      V: { tiempos: s.tiempos.V.length, sust: s.sust.V.length, gana: s.ganador === 'V' ? 1 : 0, puntos: s.puntos.V },
     }));
     const suma = (eq, k) => filas.reduce((t, f) => t + f[eq][k], 0);
     return {
