@@ -474,4 +474,7 @@ EXACT = {
 "iSquad no deja conectar a EnXarxa ahora mismo. Sin guardar no se puede entrar.": "iSquad no deixa connectar EnXarxa ara mateix. Sense desar no es pot entrar.",
 "iSquad no deja conectar a EnXarxa ahora mismo. Solo pueden entrar los árbitros que ya tenían cuenta con la contraseña guardada.": "iSquad no deixa connectar EnXarxa ara mateix. Només poden entrar els àrbitres que ja tenien compte amb la contrasenya desada.",
 "Esa contraseña no coincide con la que tenías guardada en EnXarxa.": "Aquesta contrasenya no coincideix amb la que tenies desada a EnXarxa.",
+"El acceso con iSquad está cerrado.": "L'accés amb iSquad està tancat.",
+"No se puede entrar ni crear cuentas con la contraseña de iSquad. Si ya tenías la sesión abierta, sigue funcionando.": "No es pot entrar ni crear comptes amb la contrasenya d'iSquad. Si ja tenies la sessió oberta, continua funcionant.",
+"El acceso con la contraseña de iSquad está cerrado. Las sesiones ya abiertas siguen funcionando.": "L'accés amb la contrasenya d'iSquad està tancat. Les sessions ja obertes continuen funcionant.",
 }

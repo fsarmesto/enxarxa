@@ -91,24 +91,12 @@ Deno.serve(async (req) => {
   const allow = (Deno.env.get("ALLOWED_LOGINS") || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   if (allow.length && !allow.includes(key)) return json({ error: "Esta cuenta no tiene acceso. Pide a quien gestiona la app que te añada." }, 403);
 
-  // Pausa de iSquad (4-nov-2026, ver _shared/pausa.ts): no se le pregunta. Solo entran las cuentas de árbitro que ya
-  // tienen la contraseña guardada, comparándola con esa copia cifrada; sin cuentas nuevas ni "sin guardar". Un fallo
-  // cuenta para el tope igual que siempre (aquí no hay riesgo de que iSquad bloquee la cuenta).
+  // Cierre (4-nov-2026, requerimiento de Toools): con la pausa nadie entra con la contraseña de iSquad, ni se lee ni se
+  // descifra la copia guardada (se conserva sin tocar). Siguen las altas con enlace del administrador.
   if (ISQUAD_PAUSA) {
-    const pausa = "iSquad no deja conectar a EnXarxa ahora mismo.";
-    if (body.save === false) return await noCuenta(json({ error: `${pausa} Sin guardar no se puede entrar.` }, 503));
-    const { data: prof } = await db0.from("profiles").select("user_id").eq("login_key", key).maybeSingle();
-    const { data: cred } = prof ? await db0.from("isquad_credentials").select("secret").eq("user_id", prof.user_id).maybeSingle() : { data: null };
-    if (!cred?.secret) return await noCuenta(json({ error: `${pausa} Solo pueden entrar los árbitros que ya tenían cuenta con la contraseña guardada.` }, 503));
-    let ok = false;
-    try { ok = await igual(await decrypt(cred.secret), password); } catch { ok = false; }
-    if (!ok) return json({ error: "Esa contraseña no coincide con la que tenías guardada en EnXarxa." }, 401);
-    await devolver();
-    const email = key.includes("@") ? key : `${key.replace(/[^a-z0-9._-]/g, "")}@isquad-user.example.com`;
-    const { data: link, error: le } = await db0.auth.admin.generateLink({ type: "magiclink", email });
-    if (le || !link?.user || link.user.id !== prof!.user_id) return json({ error: "No se ha podido iniciar sesión" }, 500);
-    return json({ token_hash: link.properties.hashed_token, pausa: true });
+    return json({ error: "El acceso con la contraseña de iSquad está cerrado. Las sesiones ya abiertas siguen funcionando." }, 503);
   }
+
 
   // Sin guardar: se lee iSquad (partidos, recibos y equipo arbitral) y se devuelve todo al navegador. No se crea
   // cuenta ni se guarda nada (ni usuario, ni contraseña, ni partidos); al cerrar la pestaña desaparece.

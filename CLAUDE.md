@@ -132,6 +132,11 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Crons desactivados (`cron.alter_job(jobid, active := false)`, no borrados): vigilar, vigilar-miercoles,
   indexar-plantillas, designadas, sync-isquad, designa-pabellones, aviso-resultados y recordatorio-domingo (estos 2
   avisarían con datos viejos). Siguen aviso-salida (solo base de datos) e inactivas.
+- **Cierre total (4-nov-2026, noche, tras el requerimiento formal de Toools S.L.)**: `auth-isquad` con la pausa responde
+  503 a cualquier login con contraseña de iSquad, sin leer ni descifrar `isquad_credentials` (se conservan intactas: la
+  carta exige no destruir ni alterar registros, código ni datos). También desactivados `inactivas` (borraría cuentas) y
+  `aviso-salida`: los 10 crons quedan parados. Siguen las sesiones abiertas y las altas con enlace del administrador.
+  No reactivar nada de iSquad sin el visto bueno del abogado de Ferran.
 - Volver: `supabase secrets unset ISQUAD_PAUSA --project-ref vevsurxxvjivjizuuqad`, `ISQUAD_PAUSA: false` en config.js
   (push a main) y `select cron.alter_job(jobid, active := true) from cron.job where not active;`.
 
