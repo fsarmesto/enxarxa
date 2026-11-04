@@ -386,6 +386,8 @@ body:not([data-vista="agenda"]) #dispCard{display:none}
 @media (max-width:720px){ .newver{bottom:calc(76px + env(safe-area-inset-bottom,0px))} }
 .offbar{display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 12px;background:var(--black);color:#fff;border-bottom:1px solid var(--yellow);font-size:13px;font-weight:600;text-align:center}
 .offbar.hidden{display:none}
+.pausabar{padding:8px 16px;background:var(--yellow);color:#111;border-bottom:1px solid #111;font-size:13px;line-height:1.35;text-align:center}
+.pausabar.hidden{display:none}
 .offbar::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:var(--yellow)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--yellow);color:var(--black);font-weight:600;padding:10px 18px;border-radius:3px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
@@ -869,6 +871,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
 </head>
 <body>
 <div class="offbar hidden" id="offBar" role="status"></div>
+<div class="pausabar hidden" id="pausaBar" role="status"><span><strong>Sin sincronizar con la FCVB.</strong> iSquad no deja conectar a EnXarxa: ves lo último guardado. Solo se actualizan las competiciones de la RFEVB.</span></div>
 <div id="pepper-loader" role="status" aria-live="polite">
   <svg viewBox="40 -14 340 204" aria-hidden="true">  <!-- la colocación sube la pelota hasta y≈-9 -->
     <line x1="40" y1="182" x2="380" y2="182" stroke="currentColor" stroke-opacity=".25" stroke-width="1"/>
@@ -975,6 +978,7 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
   </div>
   <section>
     <div class="seg" data-noi18n style="justify-content:flex-end;width:100%;margin-bottom:12px"><span class="segb lang-seg" role="group"><button type="button" data-lang="es">ES</button><button type="button" data-lang="ca">CA</button></span></div>
+    <div class="notice hidden" id="pausaLogin"><strong>Ahora mismo no se pueden crear cuentas.</strong> iSquad no deja conectar a EnXarxa. Si ya tenías cuenta de árbitro con la contraseña guardada, entra con la misma contraseña de siempre.</div>
     <form id="authForm" autocomplete="on">
       <label class="f">Usuario de iSquad<input type="text" id="aLogin" name="username" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="El email con el que entras en iSquad" required><span class="hint">Es tu email, no tu nombre ni tu DNI.</span></label>
       <label class="f">Contraseña de iSquad<input type="password" id="aPass" name="password" autocomplete="current-password" required></label>
@@ -1401,6 +1405,9 @@ function renderOffline(){
   document.body.classList.toggle('offline', on);
   if(USER) renderPush();
 }
+// Pausa de iSquad (4-nov-2026, APP_CONFIG.ISQUAD_PAUSA): aviso fijo arriba y nota en la pantalla de entrar.
+const ISQUAD_PAUSA = !!(window.APP_CONFIG && window.APP_CONFIG.ISQUAD_PAUSA);
+if(ISQUAD_PAUSA){ $('pausaBar').classList.remove('hidden'); $('pausaLogin').classList.remove('hidden'); const g=$('aGuest').closest('label'); if(g) g.classList.add('hidden'); }
 // Las acciones que escriben en el servidor no valen sin red: se avisa en vez de fallar en silencio.
 function blockOffline(){
   if(!isOffline()) return false;
@@ -2484,6 +2491,7 @@ $('btnSync').addEventListener('click', async ()=>{
   for(const b of bs){ b.disabled=false; b.classList.remove('spin'); b.removeAttribute('aria-busy'); }
   if(r.ok && r.skipped) toast('Ya estaba al día');
   else if(r.ok) toast(`${r.count} partidos leídos de iSquad`);
+  else if(r.error) toast(r.error);
   await loadAll(); render();
 });
 $('btnDelete').addEventListener('click', async ()=>{

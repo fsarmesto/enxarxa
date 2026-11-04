@@ -122,10 +122,12 @@ select cron.schedule(
 );
 
 -- Designaciones publicadas y salud de la app (función designadas, avisos a los admins y "Han empezado a designar"):
--- cada hora a y 5; la función solo trabaja de 8 a 22 h de Madrid.
+-- 2 veces al día (4-nov-2026, para cargar menos iSquad: cada pasada lee ~454 fichas públicas de árbitro), a las 9:05 y
+-- 18:05 de Madrid en horario de INVIERNO (8 y 17 UTC; en verano poner 7,16). Hasta el 4-nov era 'designadas-hora' cada hora:
+-- en un proyecto que aún lo tenga, antes: select cron.unschedule('designadas-hora');
 select cron.schedule(
-  'designadas-hora',
-  '5 * * * *',
+  'designadas',
+  '5 8,17 * * *',
   $$
   select net.http_post(
     url     := 'https://TU_PROYECTO.supabase.co/functions/v1/designadas',

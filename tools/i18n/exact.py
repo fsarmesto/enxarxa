@@ -465,4 +465,13 @@ EXACT = {
 "Primera Nacional": "Primera Nacional", "Nacional": "Nacional",
 # Rol al seguir un equipo (2-nov-2026)
 "¿Qué eres en este equipo?": "Què ets en aquest equip?", "Espectador": "Espectador", "Cambiar rol": "Canvia el rol", "Cancelar": "Cancel·la",
+# Pausa de iSquad (4-nov-2026)
+"Sin sincronizar con la FCVB.": "Sense sincronitzar amb la FCVB.",
+"iSquad no deja conectar a EnXarxa: ves lo último guardado. Solo se actualizan las competiciones de la RFEVB.": "iSquad no deixa connectar EnXarxa: veus l'últim que s'havia desat. Només s'actualitzen les competicions de la RFEVB.",
+"Ahora mismo no se pueden crear cuentas.": "Ara mateix no es poden crear comptes.",
+"iSquad no deja conectar a EnXarxa. Si ya tenías cuenta de árbitro con la contraseña guardada, entra con la misma contraseña de siempre.": "iSquad no deixa connectar EnXarxa. Si ja tenies compte d'àrbitre amb la contrasenya desada, entra amb la mateixa contrasenya de sempre.",
+"iSquad no deja conectar a EnXarxa ahora mismo: no se puede actualizar. Ves lo último guardado.": "iSquad no deixa connectar EnXarxa ara mateix: no es pot actualitzar. Veus l'últim que s'havia desat.",
+"iSquad no deja conectar a EnXarxa ahora mismo. Sin guardar no se puede entrar.": "iSquad no deixa connectar EnXarxa ara mateix. Sense desar no es pot entrar.",
+"iSquad no deja conectar a EnXarxa ahora mismo. Solo pueden entrar los árbitros que ya tenían cuenta con la contraseña guardada.": "iSquad no deixa connectar EnXarxa ara mateix. Només poden entrar els àrbitres que ja tenien compte amb la contrasenya desada.",
+"Esa contraseña no coincide con la que tenías guardada en EnXarxa.": "Aquesta contrasenya no coincideix amb la que tenies desada a EnXarxa.",
 }

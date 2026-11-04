@@ -46,7 +46,7 @@ const nombreCat = (cat: string) => { const c = norm(cat), d = c.match(/^(PRIMERA
   const gen = /FEMENINO/.test(c) ? "Femenino" : /MASCULINO/.test(c) ? "Masculino" : /MIXTO/.test(c) ? "Mixto" : "";
   return [div, age, gen].filter(Boolean).join(" ") || cat; };
 
-// Cron (cada hora de 8 a 22): recalcula y avisa a los admins de las categorías que han empezado a tener designaciones
+// Cron (9:05 y 18:05 de Madrid; no trabaja fuera de 8 a 22): recalcula y avisa a los admins de las categorías que han empezado a tener designaciones
 // esta semana, y de si la app tiene problemas (salud).
 async function cron(db: Db) {
   const now = madridNow();
@@ -158,7 +158,9 @@ Deno.serve(async (req) => {
 
 function calcular(db: Db, force = false): Promise<Resultado> {
   const started = Date.now();
-  return cached(db, "desig-global", force ? 0 : 3600_000, async () => {
+  // 16 h: lo renueva el cron 2 veces al día (9:05 y 18:05; de 18:05 a 9:05 hay 15 h). Abrir el panel no vuelve a leer iSquad;
+  // "Actualizar" ({refresh:true}) sí.
+  return cached(db, "desig-global", force ? 0 : 16 * 3600_000, async () => {
     // Árbitros de la FCVB (ids de la lista pública), 7 días.
     const ids = [...new Set((await arbitrosPublicos(db)).map((a) => a.id))];
     // Designaciones de cada árbitro, de 10 en 10.
@@ -243,9 +245,9 @@ async function sinArbitro(db: Db, refresh: boolean, t0: number) {
   const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
   const { data: g } = await db.from("pub_cache").select("data, fetched_at").eq("key", "desig-global").maybeSingle();
   const r = g?.data as Resultado | undefined;
-  // Sin cálculo, de antes de existir "pendientes", de hace más de 2 h (de noche no hay cron) o de otra semana: se rehace en
-  // segundo plano (~1 min, unas 454 fichas) y la web vuelve a preguntar. Uno a la vez: candado desig-calc de 3 min.
-  if (!r?.pendientes || !r.hasta || r.hasta < hoy || Date.now() - Date.parse(g.fetched_at) > 2 * 3600_000) {
+  // Sin cálculo, de antes de existir "pendientes", de hace más de 16 h (el cron va 2 veces al día) o de otra semana: se rehace
+  // en segundo plano (~1 min, unas 454 fichas) y la web vuelve a preguntar. Uno a la vez: candado desig-calc de 3 min.
+  if (!r?.pendientes || !r.hasta || r.hasta < hoy || Date.now() - Date.parse(g.fetched_at) > 16 * 3600_000) {
     const { data: lock } = await db.from("pub_cache").select("fetched_at").eq("key", "desig-calc").maybeSingle();
     if (!lock || Date.now() - Date.parse(lock.fetched_at) > 3 * 60_000) {
       await db.from("pub_cache").upsert({ key: "desig-calc", data: {}, fetched_at: new Date().toISOString() });

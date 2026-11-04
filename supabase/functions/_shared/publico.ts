@@ -1,6 +1,7 @@
 // Web pública de resultados de iSquad (resultadosvoleibol.isquad.es): lectura y caché compartida.
 // Los equipos, grupos y partidos de la RFEVB (ids "rfevb:…") van a rfevb.ts desde teamMatches, standings y matchOfficials.
 import * as rfevb from "./rfevb.ts";
+import { sinIsquad } from "./pausa.ts";
 
 export const PUB = "https://resultadosvoleibol.isquad.es";
 export const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
@@ -30,6 +31,7 @@ export const madridDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Eu
 
 // valeCon: iSquad responde algunas páginas con error 500 pero enteras; valen si traen ese texto.
 export async function getText(url: string, init: RequestInit = {}, valeCon?: RegExp) {
+  sinIsquad(url);
   const r = await fetch(url, { ...init, headers: { "User-Agent": UA, ...(init.headers || {}) }, signal: AbortSignal.timeout(25_000) });
   if (!r.ok && !valeCon) { await r.body?.cancel(); throw new Error(`iSquad ${r.status}`); }
   const s = await r.text();
@@ -202,6 +204,7 @@ export const sameCat = (fav: string, full: string) => norm(full) === norm(fav) |
 // Hasta el 28/29-oct-2026 era voleibol.isquad.es/json/api/call.php/resultados/busquedaGlobal con el token de la página
 // ("let token = ..."); iSquad quitó el token de las páginas y la API vieja da 500. La respuesta es la misma.
 async function apiSearch(_db: Db, params: Record<string, string>) {
+  sinIsquad(PUB);
   const r = await fetch(`${PUB}/json/isquad_proxy.php`, {
     method: "POST", body: new URLSearchParams({ ...params, recurso: "busqueda" }), signal: AbortSignal.timeout(20_000),
     headers: { "User-Agent": UA, Origin: PUB, Referer: `${PUB}/competicion.php` },
@@ -315,6 +318,7 @@ export function matchOfficials(db: Db, idPartido: string, jugado: boolean, force
 // Páginas de árbitros de la web pública: llegan en windows-1252 y solo responden bien como petición AJAX.
 // valeCon: una respuesta con error que se acepta igual si su texto lo cumple (iSquad da 500 con páginas válidas).
 export async function getLatin(url: string, valeCon?: RegExp) {
+  sinIsquad(url);
   const r = await fetch(url, { headers: { "User-Agent": UA, "X-Requested-With": "XMLHttpRequest" }, signal: AbortSignal.timeout(15_000) });
   if (!r.ok && !valeCon) { await r.body?.cancel(); throw new Error(`iSquad ${r.status}`); }
   const s = new TextDecoder("windows-1252").decode(await r.arrayBuffer());

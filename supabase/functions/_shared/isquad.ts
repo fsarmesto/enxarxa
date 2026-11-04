@@ -1,5 +1,6 @@
 // Lectura de designaciones de iSquad (voleibol.isquad.es; hasta el 4-nov-2026, voleibol.misquad.es) con las credenciales del árbitro.
 import { parseHTML } from "npm:linkedom@0.18.5";
+import { sinIsquad } from "./pausa.ts";
 
 // El 4-nov-2026 iSquad pasó de voleibol.misquad.es a voleibol.isquad.es: el viejo redirige (303) y el POST del login se
 // perdía por el camino (se convierte en GET), así que nadie podía entrar aunque la contraseña fuera buena.
@@ -66,6 +67,7 @@ const segundoPaso = (html: string) => { const h = sinCodigo(html); return /class
 const enlaces = (html: string) => [...new Set([...sinCodigo(html).matchAll(/href="([^"#][^"]*)"/g)].map((m) => ruta(m[1].replace(/&amp;/g, "&"))).filter((h) => /\.php/.test(h) && !/manifest|\.css/.test(h)))].slice(0, 30).join(" ");
 
 async function get(url: string, jar: Jar): Promise<Response> {
+  sinIsquad(url);
   let res = await fetch(url, { headers: { "User-Agent": UA, Cookie: cookie(jar) }, redirect: "manual", signal: T() });
   for (let n = 0; n < 5 && res.status >= 300 && res.status < 400; n++) {
     keep(jar, res); await res.body?.cancel();
@@ -92,6 +94,7 @@ async function loginUnico(jar: Jar, area: string, login: string, password: strin
   if (form.status >= 400) { await form.body?.cancel(); rastro.push(`  form ${form.status}: sin formulario, no se envía nada`); throw new Error(`iSquad ${form.status}`); }
   const html = await form.text();
   const csrf = html.match(/name="csrf_token"\s+value="([^"]+)"/)?.[1] ?? "";
+  sinIsquad(BASE);
   const res = await fetch(`${BASE}/loginunico.php`, {
     method: "POST", signal: T(), redirect: "manual",
     body: new URLSearchParams({ csrf_token: csrf, login, password, lu_disp: "{}" }),
@@ -189,6 +192,7 @@ export function parseStaff(html: string, me: string[]): Staff | null {
 
 async function fetchStaff(jar: Jar, desigId: string, me: string[]): Promise<Staff | null> {
   try {
+    sinIsquad(BASE);
     const r = await fetch(`${BASE}/json/arbitros_ver_datos_designacion.php`, {
       method: "POST", body: new URLSearchParams({ id_designacion: desigId }), signal: AbortSignal.timeout(10_000),
       headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA, Cookie: cookie(jar), "X-Requested-With": "XMLHttpRequest" },

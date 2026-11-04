@@ -67,7 +67,8 @@ rama `claude/...` con PR. Reglas para esos trabajos:
     `indexar-plantillas` `*/15 * * * *` (solo trabaja con lo caducado: 14 días) y `vigilar` `*/10 * * * *`.
     `aviso-resultados` `0 19,20 * * 0` UTC (notify con `{"tipo":"resultados"}`; solo envía si en Madrid son las 21).
     `aviso-salida` `*/5 * * * *` (función `salida`; no hace nada antes de las 5:00 de Madrid). `inactivas` `0 10 * * *` y
-    `designadas-hora` `5 * * * *`. Todas en `cron.sql` (vigilar, indexar-plantillas y designadas-hora faltaban hasta el 2-nov-2026).
+    `designadas` `5 8,17 * * *` UTC en invierno (9:05 y 18:05 de Madrid; en verano `7,16`; hasta el 4-nov-2026 era
+    `designadas-hora` cada hora). Todas en `cron.sql` (vigilar, indexar-plantillas y designadas faltaban hasta el 2-nov-2026).
 
 ## Secretos (nombres; los valores están en el gestor de contraseñas)
 
@@ -116,6 +117,23 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Selecciones territoriales (competición con "SELECCION"): tarifa 0; solo cuentan sus gastos pagados.
 - Algunas direcciones son un código de Google Maps sin calle ni CP ("VM47+RH SANTA COLOMA DE FARNERS"): se busca el pabellón
   por su nombre (ver Km por carretera) y, si no, el centro de la población.
+
+## Pausa de iSquad (4-nov-2026, decidido por Ferran)
+
+- La tarde del 4-nov la web pública (`resultadosvoleibol.isquad.es`) también empezó a dar **403** a cualquier programa, desde
+  Supabase y desde casa (curl: portada, listado de árbitros y fichas). No se salta (ni otra IP, ni cabecera de navegador, ni
+  manejar un Chrome de verdad): se pide permiso a Toools y la FCVB (tarea 9).
+- Interruptor: secret `ISQUAD_PAUSA=1` (`_shared/pausa.ts`: `sinIsquad(url)` antes de cada fetch a `*.isquad.es` /
+  `*.misquad.es` en isquad.ts, publico.ts y resultados.ts; falla al momento y `cached()` devuelve lo guardado) + `ISQUAD_PAUSA:
+  true` en `docs/config.js` (aviso amarillo `#pausaBar` arriba, nota `#pausaLogin` al entrar y sin "Entrar sin guardar").
+  La RFEVB sigue igual. `sync` con sesión responde 503 con el motivo. `auth-isquad`: solo entran las cuentas de árbitro con
+  contraseña guardada, comparada con la copia cifrada (`igual`, huellas SHA-256); sin cuentas nuevas ni "sin guardar"; las
+  altas con enlace del administrador siguen funcionando.
+- Crons desactivados (`cron.alter_job(jobid, active := false)`, no borrados): vigilar, vigilar-miercoles,
+  indexar-plantillas, designadas, sync-isquad, designa-pabellones, aviso-resultados y recordatorio-domingo (estos 2
+  avisarían con datos viejos). Siguen aviso-salida (solo base de datos) e inactivas.
+- Volver: `supabase secrets unset ISQUAD_PAUSA --project-ref vevsurxxvjivjizuuqad`, `ISQUAD_PAUSA: false` en config.js
+  (push a main) y `select cron.alter_job(jobid, active := true) from cron.job where not active;`.
 
 ## iSquad bloquea al servidor (desde el 4-nov-2026): ficha pública y altas a mano
 
@@ -409,7 +427,7 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   admite null). Probado el 29-oct: 32 de 32 partidos del viernes con id. Como mucho los 60 más cercanos (`MAX_REVISAR`) y sin
   empezar ninguno pasados 70 s de la petición; los que no se han podido mirar salen "Sin comprobar" (y la caché dura 5 min en vez
   de 30). "Actualizar" (`refresh`) vuelve a buscar los ids y a leer los Previos (`force` de `idPartido` y `matchOfficials`: si iSquad falla, se queda lo de antes). Si el cálculo de la semana falta, es de
-  antes de existir `pendientes`, tiene más de 2 h (de noche no hay cron) o es de otra semana, lo rehace en segundo plano
+  antes de existir `pendientes`, tiene más de 16 h (el cron va 2 veces al día) o es de otra semana, lo rehace en segundo plano
   (`calcular(db, true)`, uno a la vez con el candado `pub_cache desig-calc` de 3 min) y responde `{calculando:true}`: la web
   vuelve a preguntar cada 40 s, 5 veces, y luego ofrece Actualizar. El cruce designación ↔ partido de `calcular` va en dos
   pasadas (primero local y visitante exactos, luego local o visitante), para no dar a un equipo la designación del otro equipo
@@ -422,9 +440,12 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
   la FCVB. Fuente pública: `partidos_arbitro.php?id_arbitro=` (~0,5 KB, windows-1252) de cada árbitro de
   `listado_arbitros.php` (~454; `partidos_arbitro_territorial.php` da 500), de 10 en 10 (~8 s). Cada designación
   ("LOCAL - VISITANTE", fecha en texto) se cruza con el listado de partidos por fecha y local o visitante; si no,
-  por la competición (`compToCat`: "1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO). Caché `desig-global` 1 h.
+  por la competición (`compToCat`: "1a DIV. SEN MASC" → PRIMERA DIVISION SENIOR MASCULINO). Caché `desig-global` 16 h
+  (la renueva el cron; abrir el panel no lee iSquad, "Actualizar" sí).
 - En la web, tarjeta "Designaciones publicadas" de Administración (antes, panel dentro de Ajustes). Filtro por categoría, género y estado (con alguna designada / sin ninguna), recordado en `liq-dg-filt`.
-- Cron `designadas-hora` (`5 * * * *`, la función solo trabaja de 8 a 22 h de Madrid): recalcula, compara con la foto
+- Cron `designadas` (4-nov-2026, Ferran: 2 consultas al día para cargar menos iSquad; antes `designadas-hora`, cada hora =
+  ~6.800 fichas al día, ahora ~900): `5 8,17 * * *` UTC = 9:05 y 18:05 de Madrid en invierno (en verano `7,16`: cambiarlo a
+  mano). Los avisos "Han empezado a designar" y de categorías nuevas salen como mucho con ese retraso. Recalcula, compara con la foto
   `desig-snap:<domingo>` y avisa a los admins de las categorías que pasan de 0 a tener designaciones (sin Alevín ni
   Amateur/Máster). Además `revisarSalud`: si la mitad o más de los árbitros tiene `last_error` o el último sync tiene
   más de 18 h (el sync va a las 7 y 15 UTC: de noche hay 16 h sin él), aviso a los admins (como mucho uno cada 6 h por motivo, `pub_cache salud-aviso:`).

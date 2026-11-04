@@ -208,8 +208,6 @@ I.exact = {
 "Se aplica sobre la tarifa de cada partido; dietas, desplazamiento y peajes van exentos.": "S'aplica sobre la tarifa de cada partit; dietes, desplaçament i peatges estan exempts.",
 "Se paga una ida y vuelta por pabellón y franja: mañana (hasta las 14:59) y tarde (desde las 15:00) cuentan aparte, así que mañana y tarde en el mismo pabellón son dos idas y vueltas; dos pabellones en la misma franja, también dos.": "Es paga una anada i tornada per pavelló i franja: matí (fins a les 14:59) i tarda (des de les 15:00) compten a part, així que matí i tarda al mateix pavelló són dues anades i tornades; dos pavellons a la mateixa franja, també dues.",
 "Km por pabellón (solo ida)": "Km per pavelló (només anada)",
-"pabellón": "pavelló",
-"pabellones": "pavellons",
 "Se calculan por carretera al aparecer un pabellón nuevo (direcciones con OpenStreetMap, rutas con OpenRouteService), con la ruta más corta de las razonables, que es la que paga la FCVB. Si no se encuentra la calle, se toma el centro de la población y se marcan como aproximados; si tampoco, se reintenta a la semana o los pones tú. Corrige los que no cuadren con lo que te paga la federación.": "Es calculen per carretera quan apareix un pavelló nou (adreces amb OpenStreetMap, rutes amb OpenRouteService), amb la ruta més curta de les raonables, que és la que paga la FCVB. Si no es troba el carrer, es pren el centre de la població i es marquen com a aproximats; si tampoc, es torna a provar al cap d'una setmana o els poses tu. Corregeix els que no quadrin amb el que et paga la federació.",
 "Reglas que aplica": "Regles que aplica",
 "Dietas por día y hora de inicio: lunes a jueves 10 € (9:00–13:00 y 16:00–20:29) o 13,50 € el resto; viernes 13,50 € (0:00–15:59 y 21:01–23:59); sábado 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); domingo y festivos 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59); un festivo entre semana fuera de esas franjas cobra la dieta normal de ese día. Una dieta por jornada; mañana (hasta las 14:59) y tarde (desde las 15:00) cuentan aparte. Sin dieta en Alevín, Máster/Veteranos, fases finales y concentraciones. Los festivos de Catalunya se detectan solos; los locales de cada municipio, no: en esos casos, y siempre que no cuadre, cambia la dieta a mano en el partido.": "Dietes per dia i hora d'inici: dilluns a dijous 10 € (9:00–13:00 i 16:00–20:29) o 13,50 € la resta; divendres 13,50 € (0:00–15:59 i 21:01–23:59); dissabte 13,50 € (0:00–8:59, 14:01–15:59, 21:01–23:59); diumenge i festius 18 € (0:00–8:59, 14:01–15:59, 18:31–23:59); un festiu entre setmana fora d'aquestes franges cobra la dieta normal d'aquell dia. Una dieta per jornada; matí (fins a les 14:59) i tarda (des de les 15:00) compten a part. Sense dieta en Aleví, Màster/Veterans, fases finals i concentracions. Els festius de Catalunya es detecten automàticament; els locals de cada municipi, no: en aquests casos, i sempre que no quadri, canvia la dieta a mà al partit.",
@@ -332,7 +330,6 @@ I.exact = {
 "Vuelve a entrar": "Torna a entrar",
 "con la nueva y se actualizará.": "amb la nova i s'actualitzarà.",
 "La última actualización no pudo conectar con iSquad. Se reintentará sola.": "L'última actualització no va poder connectar amb iSquad. Es tornarà a provar automàticament.",
-"Ahora mismo iSquad no deja entrar a EnXarxa: tus próximas designaciones salen de la web pública de la FCVB. Cobros (recibos y partidos ya arbitrados) no se actualiza hasta que vuelva.": "Ara mateix iSquad no deixa entrar EnXarxa: les teves properes designacions surten de la web pública de la FCVB. Cobraments (rebuts i partits ja arbitrats) no s'actualitza fins que torni.",
 "Ya estaba al día": "Ja estava al dia",
 "No se ha guardado el cambio. Revisa la conexión.": "No s'ha desat el canvi. Revisa la connexió.",
 "El IRPF tiene que estar entre 0 y 50 %": "L'IRPF ha de ser entre 0 i 50 %",
@@ -424,10 +421,6 @@ I.exact = {
 "· Cobrado": "· Cobrat",
 "Tus equipos: horarios, árbitros y resultados": "Els teus equips: horaris, àrbitres i resultats",
 "Tengo 14 años o más": "Tinc 14 anys o més",
-"Te han dado de alta en EnXarxa.": "T'han donat d'alta a EnXarxa.",
-"No hace falta tu contraseña de iSquad y no se guarda ninguna: tus próximas designaciones se leen de tu ficha pública de árbitro en la web de la FCVB. Lo que no está en esa web (recibos y partidos ya arbitrados) no se rellena solo.": "No cal la teva contrasenya d'iSquad i no se'n guarda cap: les teves properes designacions es llegeixen de la teva fitxa pública d'àrbitre a la web de la FCVB. El que no hi ha en aquesta web (rebuts i partits ja arbitrats) no s'omple sol.",
-"Marca la casilla para continuar.": "Marca la casella per continuar.",
-"El enlace ha caducado o ya se ha usado. Pide otro a quien te dio de alta.": "L'enllaç ha caducat o ja s'ha fet servir. Demana'n un altre a qui et va donar d'alta.",
 "Esta app es para mayores de 14 años. Si tienes menos, pide a tu madre, padre o tutor que la use por ti.": "Aquesta app és per a majors de 14 anys. Si en tens menys, demana a la teva mare, pare o tutor que la faci servir per tu.",
 "Antes de seguir": "Abans de continuar",
 "La app es solo para mayores de 14 años. Confírmalo para seguir usándola.": "L'app és només per a majors de 14 anys. Confirma-ho per continuar fent-la servir.",
@@ -657,7 +650,15 @@ I.exact = {
 "¿Qué eres en este equipo?": "Què ets en aquest equip?",
 "Espectador": "Espectador",
 "Cambiar rol": "Canvia el rol",
-"Cancelar": "Cancel·la"
+"Cancelar": "Cancel·la",
+"Sin sincronizar con la FCVB.": "Sense sincronitzar amb la FCVB.",
+"iSquad no deja conectar a EnXarxa: ves lo último guardado. Solo se actualizan las competiciones de la RFEVB.": "iSquad no deixa connectar EnXarxa: veus l'últim que s'havia desat. Només s'actualitzen les competicions de la RFEVB.",
+"Ahora mismo no se pueden crear cuentas.": "Ara mateix no es poden crear comptes.",
+"iSquad no deja conectar a EnXarxa. Si ya tenías cuenta de árbitro con la contraseña guardada, entra con la misma contraseña de siempre.": "iSquad no deixa connectar EnXarxa. Si ja tenies compte d'àrbitre amb la contrasenya desada, entra amb la mateixa contrasenya de sempre.",
+"iSquad no deja conectar a EnXarxa ahora mismo: no se puede actualizar. Ves lo último guardado.": "iSquad no deixa connectar EnXarxa ara mateix: no es pot actualitzar. Veus l'últim que s'havia desat.",
+"iSquad no deja conectar a EnXarxa ahora mismo. Sin guardar no se puede entrar.": "iSquad no deixa connectar EnXarxa ara mateix. Sense desar no es pot entrar.",
+"iSquad no deja conectar a EnXarxa ahora mismo. Solo pueden entrar los árbitros que ya tenían cuenta con la contraseña guardada.": "iSquad no deixa connectar EnXarxa ara mateix. Només poden entrar els àrbitres que ja tenien compte amb la contrasenya desada.",
+"Esa contraseña no coincide con la que tenías guardada en EnXarxa.": "Aquesta contrasenya no coincideix amb la que tenies desada a EnXarxa."
 };
 I.rules = [
   // "Etiqueta (12)": desplegables, Próximos, Jugados, Calendario...

@@ -15,6 +15,7 @@ import { actaDeBotones, PUB, seasonCode, teamMatches, UA, type Db } from "./publ
 import { sendToUser } from "./push.ts";
 import { buscarDesignacion } from "./rfevb.ts";
 import { todas } from "./db.ts";
+import { sinIsquad } from "./pausa.ts";
 
 // Todos los partidos arbitrados tienen que acabar con los 2 estados: se miran los empezados hace más de 1 h, los de los
 // últimos DAYS días en cada pasada y los anteriores de esta temporada que aún falten, como mucho una vez cada OLD_EVERY
@@ -29,6 +30,7 @@ const madridNow = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Mad
 const plusMin = (d: string, t: string, min: number) => new Date(Date.parse(`${d}T${t}:00Z`) + min * 6e4).toISOString().slice(0, 16).replace("T", " ");
 
 export async function actaEscaneada(idPartido: string): Promise<string | null> {
+  sinIsquad(PUB);
   const r = await fetch(`${PUB}/json/competicion/buscador_partidos.php`, {
     method: "POST", body: new URLSearchParams({ id_partidos: idPartido }),
     headers: { "User-Agent": UA, "X-Requested-With": "XMLHttpRequest" }, signal: AbortSignal.timeout(10_000) });
@@ -55,6 +57,7 @@ export function setsDe(text: string): [number, number] | null {
   return l + v ? [l, v] : null;
 }
 export async function actaCompleta(idPartido: string): Promise<[number, number] | null> {
+  sinIsquad("https://voleibol.isquad.es");
   const r = await fetch(`https://voleibol.isquad.es/voleibol_acta_completa.php?id_partido=${encodeURIComponent(idPartido)}`,
     { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20_000) });
   if (!r.ok) { await r.body?.cancel(); throw new Error(`acta completa ${r.status}`); }

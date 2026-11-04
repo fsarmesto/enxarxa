@@ -6,6 +6,7 @@
 // - Con la sesión de un usuario: solo ese usuario (botón "Actualizar ahora").
 import { admin, cors, fillKm, json, syncUser, userFromRequest } from "../_shared/sync.ts";
 import { aTurnos, todas } from "../_shared/db.ts";
+import { ISQUAD_PAUSA } from "../_shared/pausa.ts";
 
 Deno.serve(async (req) => {
   // Hora límite contada desde que llega la petición: las funciones tienen ~150 s y pg_net corta a los 120 s.
@@ -56,6 +57,8 @@ Deno.serve(async (req) => {
   }
   const user = await userFromRequest(db, req);
   if (!user) return json({ error: "Inicia sesión de nuevo" }, 401);
+  // Pausa de iSquad (_shared/pausa.ts): "Actualizar ahora" no puede leer nada; se dice en vez de dejar un error en el perfil.
+  if (ISQUAD_PAUSA) return json({ error: "iSquad no deja conectar a EnXarxa ahora mismo: no se puede actualizar. Ves lo último guardado." }, 503);
   const { data: prof } = await db.from("profiles").select("last_sync").eq("user_id", user.id).maybeSingle();
   if (prof?.last_sync && Date.now() - new Date(prof.last_sync).getTime() < 60_000) return json({ ok: true, skipped: true });
   return json(await syncUser(db, user.id, { km: "background", deadline: deadline + 30_000 }));
