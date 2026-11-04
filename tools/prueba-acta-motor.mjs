@@ -177,7 +177,7 @@ test('plantillas y alineaciones: validaciones', () => {
   const ev = [];
   const mal = (e) => M.validar({}, {}, ev, e);
   assert.match(mal({ t: 'equipo', eq: 'L', jugadores: [{ num: 1 }, { num: 1 }] }), /repetidos/);
-  assert.match(mal({ t: 'equipo', eq: 'L', jugadores: [{ num: 1, cap: true, lib: true }] }), /capitán/);
+  assert.equal(M.validar({}, {}, [], { t: 'equipo', eq: 'L', jugadores: [{ num: 1, cap: true, lib: true }, ...[2, 3, 4, 5, 6, 7].map((num) => ({ num }))] }), null, 'el líbero puede ser capitán (FIVB regla 5, desde 2022)');
   assert.match(mal({ t: 'equipo', eq: 'L', jugadores: [{ num: 1, lib: true }, { num: 2, lib: true }, { num: 3, lib: true }] }), /2 líberos/);
   const p = preparado();
   const st = M.reproducir({}, {}, p.ev.slice(0, 2));

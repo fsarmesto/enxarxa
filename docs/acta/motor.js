@@ -254,7 +254,7 @@
         const nums = ev.jugadores.map((j) => D(j.num));
         if (new Set(nums).size !== nums.length) no('Hay dorsales repetidos.');
         if (ev.jugadores.filter((j) => j.cap).length > 1) no('Solo puede haber un capitán.');
-        if (ev.jugadores.some((j) => j.cap && j.lib)) no('El líbero no puede ser el capitán.');
+        // El líbero puede ser capitán (del equipo y en juego): FIVB, regla 5, desde el 1-1-2022 (Congreso de feb. 2021).
         if (ev.jugadores.filter((j) => j.lib).length > 2) no('Como mucho 2 líberos.');
         if (!st.cfg.liberos && ev.jugadores.some((j) => j.lib)) no('En este partido no hay líbero (está desactivado en el formato).');
         st.equipos[ev.eq] = { nombre: ev.nombre || st.equipos[ev.eq].nombre, jugadores: ev.jugadores.map((j) => ({ ...j, num: D(j.num) })), oficiales: (ev.oficiales || []).map((o) => ({ ...o })) };
@@ -356,7 +356,6 @@
           if (j.lib) no(`El ${ev.nuevo} ya es líbero: no hace falta redesignarlo.`);
           if ((s.rot[ev.eq] || []).includes(ev.nuevo)) no(`El ${ev.nuevo} está en pista: solo se puede redesignar a quien no esté en pista.`);
           if (st.descalificados[ev.eq].has(ev.nuevo) || st.fueraPartido[ev.eq].has(ev.nuevo)) no(`El ${ev.nuevo} no puede jugar.`);
-          if (st.equipos[ev.eq].jugadores.some((x) => x.cap && x.num === ev.nuevo)) no('El capitán no puede ser líbero.');
           j.lib = true; j.redesignado = true; nuevo = j.num;
         }
         st.fueraPartido[ev.eq].add(ev.libero);
