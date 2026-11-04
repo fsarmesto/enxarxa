@@ -5,7 +5,7 @@
 // y, si el cambio es visible para Albert, subir TOUR_VERSION (le vuelve a salir con lo nuevo). La prueba visual.mjs
 // recorre todos los pasos y falla si alguno apunta a algo que ya no existe.
 
-const TOUR_VERSION = 1;
+const TOUR_VERSION = 2;   // 2 (4-nov-2026): sin el paso de WhatsApp; la disponibilidad, por formulario o correo
 // sel: lo que se señala (sin sel = ventana centrada). tab/vista: dónde tiene que estar la página para verlo.
 const PASOS = [
   { id: 'hola' },
@@ -20,7 +20,6 @@ const PASOS = [
   { id: 'franja', sel: '[data-franja]', tab: 'part', vista: 'rejilla' },
   { id: 'proponer', sel: '#proponer', tab: 'part' },
   { id: 'mapa', sel: '#vistas label:nth-child(3)', tab: 'part' },
-  { id: 'wa', sel: '#arbs [data-wa]', tab: 'arb' },
   { id: 'excel', sel: '#exportar', tab: 'part' },
   { id: 'fin', sel: '#ayuda' },
 ];
@@ -28,7 +27,7 @@ const TOUR_TXT = {
   es: {
     hola: ['Cómo funciona', 'Este panel te ayuda a repartir los partidos del fin de semana. Es solo tu plan: no cambia nada en iSquad ni avisa a nadie. En 1 minuto te enseño cada parte.'],
     finde: ['Fin de semana', 'Elige si preparas este fin de semana o el siguiente.'],
-    disp: ['Primero, quién puede', 'La disponibilidad de los árbitros puede llegar de 3 maneras: con el enlace del formulario, importando tu propio Excel (descarga la plantilla para ver las columnas) o añadiéndola a mano. También la puedes exportar.'],
+    disp: ['Primero, quién puede', 'La disponibilidad entra de 3 maneras: los árbitros la dan con el enlace del formulario, la importas de tu propio Excel (descarga la plantilla para ver las columnas) o la añades a mano si te la mandan por correo. También la puedes exportar.'],
     progreso: ['Cómo vas', 'Cuántos partidos tienen ya R1 el sábado y el domingo, y cuántos has pasado ya a iSquad.'],
     vistas: ['3 maneras de verlo', 'Cuadrícula: pabellones y horas de un vistazo. Lista: partido a partido. Mapa: dónde está cada pabellón y cada árbitro.'],
     colores: ['Los colores', 'Verde: tiene R1. Amarillo: le falta. Rojo: alguien está en 2 partidos a la vez. Gris: iSquad ya tiene árbitro. Discontinuo: propuesta sin guardar. ✓: ya pasado a iSquad.'],
@@ -38,7 +37,6 @@ const TOUR_TXT = {
     franja: ['Toda una franja de golpe', 'Pon a un árbitro de R1 en todos los partidos sin R1 de la mañana o la tarde de un pabellón. Así hace un solo viaje.'],
     proponer: ['Que te lo proponga', 'Rellena los R1 que faltan con quien está disponible, más cerca y sin choques, intentando que cada uno haga la franja entera en el mismo pabellón. Lo revisas y lo guardas o lo descartas.'],
     mapa: ['El mapa', 'Círculos: pabellones (el color dice cómo están). Cuadrados: árbitros. Las líneas unen a cada árbitro con sus partidos.'],
-    wa: ['Avisar a cada árbitro', 'En la pestaña Árbitros, "Mensaje" prepara un WhatsApp con sus partidos y cómo llegar. Lo abres y eliges el chat.'],
     excel: ['Excel', 'Descarga el plan (y la disponibilidad, en otra hoja). Cuando lo pases a iSquad, marca la casilla de cada partido para no perderte.'],
     fin: ['Ya está', 'Puedes volver a ver este tutorial cuando quieras desde aquí.'],
     sig: 'Siguiente', ant: 'Anterior', salir: 'Salir', fin2: 'Empezar', paso: (a, b) => `Paso ${a} de ${b}`,
@@ -46,7 +44,7 @@ const TOUR_TXT = {
   ca: {
     hola: ['Com funciona', 'Aquest panell t\'ajuda a repartir els partits del cap de setmana. És només el teu pla: no canvia res a iSquad ni avisa ningú. En 1 minut t\'ensenyo cada part.'],
     finde: ['Cap de setmana', 'Tria si prepares aquest cap de setmana o el següent.'],
-    disp: ['Primer, qui pot', 'La disponibilitat dels àrbitres pot arribar de 3 maneres: amb l\'enllaç del formulari, important el teu propi Excel (descarrega la plantilla per veure les columnes) o afegint-la a mà. També la pots exportar.'],
+    disp: ['Primer, qui pot', 'La disponibilitat entra de 3 maneres: els àrbitres la donen amb l\'enllaç del formulari, la importes del teu propi Excel (descarrega la plantilla per veure les columnes) o l\'afegeixes a mà si te l\'envien per correu. També la pots exportar.'],
     progreso: ['Com vas', 'Quants partits ja tenen R1 dissabte i diumenge, i quants n\'has passat ja a iSquad.'],
     vistas: ['3 maneres de veure-ho', 'Graella: pavellons i hores d\'un cop d\'ull. Llista: partit a partit. Mapa: on és cada pavelló i cada àrbitre.'],
     colores: ['Els colors', 'Verd: té R1. Groc: li falta. Vermell: algú és a 2 partits alhora. Gris: iSquad ja té àrbitre. Discontinu: proposta sense desar. ✓: ja passat a iSquad.'],
@@ -56,7 +54,6 @@ const TOUR_TXT = {
     franja: ['Tota una franja de cop', 'Posa un àrbitre de R1 a tots els partits sense R1 del matí o de la tarda d\'un pavelló. Així fa un sol viatge.'],
     proponer: ['Que t\'ho proposi', 'Omple els R1 que falten amb qui està disponible, més a prop i sense xocs, intentant que cadascú faci la franja sencera al mateix pavelló. La revises i la deses o la descartes.'],
     mapa: ['El mapa', 'Cercles: pavellons (el color diu com estan). Quadrats: àrbitres. Les línies uneixen cada àrbitre amb els seus partits.'],
-    wa: ['Avisar cada àrbitre', 'A la pestanya Àrbitres, "Missatge" prepara un WhatsApp amb els seus partits i com arribar-hi. L\'obres i tries el xat.'],
     excel: ['Excel', 'Descarrega el pla (i la disponibilitat, en un altre full). Quan el passis a iSquad, marca la casella de cada partit per no perdre\'t.'],
     fin: ['Ja està', 'Pots tornar a veure aquest tutorial quan vulguis des d\'aquí.'],
     sig: 'Següent', ant: 'Anterior', salir: 'Surt', fin2: 'Comença', paso: (a, b) => `Pas ${a} de ${b}`,
