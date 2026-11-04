@@ -41,6 +41,11 @@ rama `claude/...` con PR. Reglas para esos trabajos:
 
 ## Reglas de interfaz
 
+- **Tutorial del panel del designador** (Ferran, 4-nov-2026): cada vez que se cambie `docs/designa-admin/` hay que repasar
+  los pasos de `docs/designa-admin/tutorial.js` (textos es/ca y a qué señalan) para que sigan teniendo sentido, y si el
+  cambio se ve, subir `TOUR_VERSION` (a Albert le vuelve a salir). `imptour.mjs` del banco recorre todos los pasos y falla
+  si alguno apunta a algo que ya no existe o no se ve.
+
 - Toda lista con varios partidos se agrupa por semanas con el componente común (semana actual destacada, secciones de
   próximas y anteriores, título fijo al hacer scroll). No crear listas de partidos sin agrupar. (Issue #27.)
   - `weeksHtml(items, dateOf, {scope, head, body, openPrev, cls})` para listas grandes (Cobros, Mis partidos): anteriores
@@ -819,6 +824,17 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   coste = km + 30 si va justo + 8 por partido ya asignado), si no, partido a partido; solo R1; no se guarda hasta "Guardar
   la propuesta". Guardar varios = acción `lote` (hasta 300, con las comprobaciones de `asignar`). Mensaje de WhatsApp por
   árbitro (wa.me sin número, con "Cómo llegar" de Google Maps). Excel con la columna "Pasado a iSquad".
+- **Excel de disponibilidad** (4-nov-2026, `docs/designa-admin/importar.js`): Albert puede seguir con su propio Excel.
+  Importar (xlsx/xls/ods/csv) lee el fichero en el navegador, busca la fila de títulos (en las 10 primeras, en cualquier
+  hoja) por palabras clave es/ca en cualquier orden (nombre, población/municipio, coche/cotxe, sábado/dissabte,
+  domingo/diumenge, observaciones por día o generales) y acepta muchas formas de la franja (Matí, M, T, M y T, Tot el
+  dia, Sí/x = todo el día; vacío/No = no). Vista previa: nueva / se actualiza (mismo nombre sin acentos) / error (con el
+  motivo); la que dio el árbitro con la app no se toca. Acción `importar` (tandas de 15, 40 s, `origen: designador`).
+  "Descargar plantilla" (con hoja de instrucciones) y "Exportar disponibilidad" con las mismas columnas: se reimporta
+  tal cual. El Excel del plan lleva una 2ª hoja con la disponibilidad.
+- **Tutorial** (`docs/designa-admin/tutorial.js`): 15 pasos que señalan cada parte (hueco fijo `#tourHueco` encima, la
+  sombra en el propio elemento queda recortada dentro de la cuadrícula). Se abre solo si `localStorage designa-tour` <
+  `TOUR_VERSION`; botón "Cómo funciona". Ver la regla en "Reglas de interfaz".
 - **Recomendación** (en la web): disponible en esa franja; sin choque ni "poco margen"; sin coche y a más de 12 km = no
   recomendado. Orden: km + 5 por partido ya asignado.
   Km = línea recta × 1,25 entre la población del árbitro y el pabellón (Photon vía `geocode`/`locate`, sin gastar rutas
@@ -828,7 +844,8 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
 - Datos: `designa_disp`, `designa_asig` (migración 035) y `designa_hecho` (037, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
 - Pruebas: banco con supabase y `designa` simulados en `~/work/enxarxa-pruebas` (en la máquina del trabajo): `panel.mjs`,
-  `choques.mjs` y `visual.mjs` (con `localStorage designa-vista`; el simulador lleva `hecho` y `lote`).
+  `choques.mjs`, `visual.mjs` e `imptour.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
+  `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote e importar).
 
 ## Acta electrónica (prototipo para la FCVB, 3-nov-2026)
 

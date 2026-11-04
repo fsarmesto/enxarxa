@@ -302,6 +302,37 @@ async function lote(db: Db, b: { finde?: string; items?: unknown; forzar?: boole
   return json({ ok: true, hechos, fallos });
 }
 
+// Importar la disponibilidad desde un Excel del designador (4-nov-2026): la web lee el fichero, enseña la vista previa y
+// manda las filas por tandas (hasta 25; Photon va a 1 consulta por segundo y cada tanda tiene 40 s). Mismo nombre que una
+// ya dada ese fin de semana = se actualiza; si esa la dio el árbitro desde la app, no se toca (manda lo suyo).
+async function importar(db: Db, b: { finde?: string; filas?: unknown }) {
+  const finde = validFinde(b.finde), t0 = Date.now();
+  const filas = (Array.isArray(b.filas) ? b.filas.slice(0, 25) : []) as (DispIn & { fila?: number })[];
+  if (!filas.length) return json({ error: "Petición no válida" }, 400);
+  const { data: ya } = await db.from("designa_disp").select("id, nombre, user_id").eq("finde", finde);
+  const porNombre = new Map<string, { id: string; user_id: string | null }>((ya || []).map((d: { id: string; nombre: string; user_id: string | null }) => [norm(d.nombre), d]));
+  let nuevos = 0, actualizados = 0; const errores: { fila: number; error: string }[] = [];
+  for (const f of filas) {
+    const fila = Number(f.fila) || 0;
+    if (Date.now() - t0 > 40_000) { errores.push({ fila, error: "No ha dado tiempo: vuelve a importar el fichero (lo ya importado no se duplica)." }); continue; }
+    const val = validar(f); if (!val.ok) { errores.push({ fila, error: val.error }); continue; }
+    const prev = porNombre.get(norm(val.v.nombre as string));
+    if (prev?.user_id) { errores.push({ fila, error: "Ya la ha dado él mismo desde la app: se deja la suya." }); continue; }
+    const at = await ubicarPoblacion(db, val.v.poblacion as string);
+    if (at === "error") { errores.push({ fila, error: "No se ha podido comprobar la población. Vuelve a importar en un momento." }); continue; }
+    if (!at) { errores.push({ fila, error: `No encuentro la población "${val.v.poblacion}" en Catalunya.` }); continue; }
+    const row = { ...val.v, finde, lon: at[0], lat: at[1], updated_at: new Date().toISOString() };
+    if (prev) {
+      const { error } = await db.from("designa_disp").update(row).eq("id", prev.id);
+      if (error) errores.push({ fila, error: "No se ha podido guardar." }); else actualizados++;
+    } else {
+      const { data, error } = await db.from("designa_disp").insert({ ...row, origen: "designador" }).select("id").single();
+      if (error) errores.push({ fila, error: "No se ha podido guardar." }); else { nuevos++; porNombre.set(norm(val.v.nombre as string), { id: data.id, user_id: null }); }
+    }
+  }
+  return json({ ok: true, nuevos, actualizados, errores });
+}
+
 // Casilla "Pasado a iSquad" de un partido del fin de semana.
 async function marcarHecho(db: Db, b: { finde?: string; key?: string; si?: boolean }) {
   const finde = validFinde(b.finde), key = String(b.key || "");
@@ -351,6 +382,7 @@ Deno.serve(async (req) => {
     if (a === "asignar") return await asignar(db, b);
     if (a === "lote") return await lote(db, b);
     if (a === "hecho") return await marcarHecho(db, b);
+    if (a === "importar") return await importar(db, b);
     if (a === "alta") return await altaManual(db, b as DispIn);
     if (a === "quitar") { await db.from("designa_disp").delete().eq("id", String(b.id || "")).eq("finde", validFinde(b.finde)); return json({ ok: true }); }
     return json({ error: "Acción desconocida" }, 400);

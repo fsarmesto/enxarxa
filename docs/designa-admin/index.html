@@ -116,6 +116,20 @@
 #frLista{margin:0 0 14px;padding-left:20px}
 #waTxt{font-size:14px;margin-bottom:12px}
 .chk.hecho{margin-top:6px;font-size:13.5px;min-height:32px}
+/* Importar (importar.js) y tutorial (tutorial.js) */
+.capa .card.ancha{max-width:920px}
+.imp-scroll{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:6px;margin:0 0 12px}
+.imp-t{border-collapse:collapse;width:100%;font-size:13.5px}
+.imp-t th,.imp-t td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.imp-t th{position:sticky;top:0;background:var(--surface-2);font-weight:700}
+.imp-t tr.error td{background:var(--warn-bg)} .imp-t .tag{white-space:normal}
+#ayuda{text-decoration:none}
+#ayuda span[aria-hidden]{display:inline-flex;width:22px;height:22px;border-radius:11px;background:var(--yellow);color:#000;align-items:center;justify-content:center;font-weight:800}
+#tour{position:fixed;z-index:20;width:min(380px,calc(100vw - 16px));background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#tour.centro{top:50%!important;left:50%!important;transform:translate(-50%,-50%)}
+#tour h2{font:700 22px/1.1 var(--display);margin:0 0 6px} #tour p{margin:0 0 10px} #tour #tourN{margin:0 0 2px}
+#tour button{min-height:38px}
+#tourHueco{position:fixed;z-index:19;pointer-events:none;border:4px solid var(--yellow);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
 @media (max-width:900px){
   .lay{display:block} #lado{position:static;max-height:none;margin:0 0 12px}
   #lado ul{display:flex;overflow-x:auto;gap:6px;padding-bottom:4px} #lado li{flex:none;width:190px}
@@ -154,6 +168,7 @@
     <button type="button" id="actualizar" data-t="actualizar">Actualizar</button>
     <button type="button" id="exportar" data-t="exportar">Exportar a Excel</button>
     <button type="button" id="copiar" data-t="copiarEnlace">Copiar enlace del formulario</button>
+    <button type="button" class="ghost" id="ayuda"><span aria-hidden="true">?</span> <span data-t="ayuda">Cómo funciona</span></button>
   </div>
   <div class="kpis" id="kpis"></div>
   <div class="tabs" role="tablist"><button type="button" role="tab" id="tPart" aria-selected="true" data-t="partidos">Partidos</button><button type="button" role="tab" id="tArb" aria-selected="false">Árbitros</button></div>
@@ -174,7 +189,14 @@
     <div class="lay"><aside id="lado" aria-labelledby="ladoT"></aside><div id="lista"></div></div>
   </section>
   <section id="vArb" class="hidden">
-    <div class="bar"><button type="button" class="primary" id="nuevo" data-t="nuevo">Añadir árbitro</button><span class="small muted" data-t="nuevoH">Para quien te ha dado la disponibilidad por teléfono o WhatsApp.</span></div>
+    <div class="bar" id="impBar">
+      <button type="button" class="primary" id="nuevo" data-t="nuevo">Añadir árbitro</button>
+      <button type="button" id="bImp" data-t="iBoton">Importar Excel</button>
+      <button type="button" class="ghost" id="bPlantilla" data-t="iPlantilla">Descargar plantilla</button>
+      <button type="button" class="ghost" id="bExpDisp" data-t="iExportar">Exportar disponibilidad</button>
+      <input type="file" id="impFile" class="hidden" accept=".xlsx,.xls,.ods,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
+      <span class="small muted" data-t="nuevoH">Para quien te ha dado la disponibilidad por teléfono o WhatsApp.</span>
+    </div>
     <div id="arbs"></div>
   </section>
 </main>
@@ -213,6 +235,21 @@
     <div class="row"><a class="btn primary" id="waAbrir" target="_blank" rel="noopener" data-t="waAbrir">Abrir WhatsApp</a><button type="button" id="waCopiar" data-t="waCopiar">Copiar</button><button type="button" id="waNo" data-t="cerrar">Cerrar</button></div>
   </div>
 </div>
+<div id="imp" class="capa hidden" role="dialog" aria-modal="true" aria-labelledby="impT">
+  <div class="card ancha">
+    <h2 id="impT"></h2>
+    <div id="impRes" role="status" aria-live="polite"></div>
+    <div class="imp-scroll"><table class="imp-t"><thead><tr><th data-t="iFila">Fila</th><th data-t="nombre">Nombre y apellidos</th><th data-t="poblacion">Población</th><th data-t="iCoche">Coche</th><th data-t="sabado">Sábado</th><th data-t="domingo">Domingo</th><th></th></tr></thead><tbody id="impLista"></tbody></table></div>
+    <div class="row"><button type="button" class="primary" id="impSi"></button><button type="button" id="impNo" data-t="cancelar">Cancelar</button></div>
+  </div>
+</div>
+<div id="tourHueco" class="hidden" aria-hidden="true"></div>
+<div id="tour" class="hidden" role="dialog" aria-modal="false" aria-labelledby="tourT" aria-describedby="tourX">
+  <p class="small muted" id="tourN"></p>
+  <h2 id="tourT"></h2>
+  <p id="tourX"></p>
+  <div class="row"><button type="button" class="primary" id="tourSig"></button><button type="button" id="tourAnt"></button><button type="button" class="ghost" id="tourSalir"></button></div>
+</div>
 <div id="aviso" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="avTit" aria-describedby="avTxt">
   <div class="card">
     <h2 id="avTit" data-t="avTit">Ya tiene un partido a esa hora</h2>
@@ -238,7 +275,16 @@ const T = {
     yaAqui:n=>`${n} ya está en este partido.`,
     vRejilla:'Cuadrícula', vLista:'Lista', vMapa:'Mapa', vistaL:'Vista', hecho:'Pasado a iSquad', propuesto:'Propuesta',
     progR1:(a,b)=>`${a} de ${b} con R1`, progHecho:(a,b)=>`${a} de ${b} pasados a iSquad`, progDisp:n=>n===1?'1 árbitro disponible':`${n} árbitros disponibles`, progSinIsq:n=>`${n} sin árbitro en iSquad`,
-    enIsqB:'en iSquad', leyenda:'Leyenda:', lOk:'con R1', lFalta:'sin R1', lMal:'choque', lIsq:'ya con árbitro en iSquad', lProp:'propuesta', lHecho:'pasado a iSquad',
+    enIsqB:'en iSquad', leyenda:'Leyenda:', ayuda:'Cómo funciona',
+    iBoton:'Importar Excel', iPlantilla:'Descargar plantilla', iExportar:'Exportar disponibilidad', iFila:'Fila', iCoche:'Coche', xlsDisp:'Disponibilidad',
+    iTit:n=>`Importar disponibilidad · ${n}`, iRes:(a,b,c)=>`${a} nuevas, ${b} se actualizan${c?`, ${c} con errores (no se importan)`:''}. Revisa la lista y pulsa Importar.`,
+    iNueva:'nueva', iActualiza:'se actualiza', iImportar:n=>n===1?'Importar 1':`Importar ${n}`, iImportando:(a,b)=>`Importando… ${a} de ${b}`,
+    iHecho:(n,a,e)=>`Hecho: ${n} nuevas y ${a} actualizadas.${e?` ${e} no se han podido importar (en rojo).`:''}`,
+    iSinCols:'No encuentro las columnas: el fichero tiene que tener al menos "Nombre" y "Población" en la fila de títulos. Descarga la plantilla para verlo.', iNoLeo:'No he podido leer el fichero. Prueba a guardarlo como .xlsx.',
+    iErrNombre:'Falta el nombre.', iErrPob:'Falta la población.', iErrSinCoche:'Falta la columna "Coche".', iErrCoche:v=>`Coche: no entiendo "${v}" (Sí o No).`,
+    iErrSinDia:d=>`Falta la columna "${d}".`, iErrDia:(d,v)=>`${d}: no entiendo "${v}" (Mañana, Tarde, Mañana y tarde o No).`, iErrRepe:'Repetido en el fichero.', iErrApp:'Ya la ha dado él mismo desde la app: se deja la suya.',
+    iEj1n:'Nombre Inventado Uno', iEj1o:'Hasta las 19:00', iEj2n:'Nombre Inventado Dos', iEj2o:'Desde las 17:00', iInstrH:'Cómo rellenarla', iPlantillaF:'plantilla-disponibilidad.xlsx', iDispF:'disponibilidad',
+    iInstr:['Una fila por árbitro. Borra los 2 ejemplos.', 'Nombre y apellidos y Población: obligatorios (la población, para calcular las distancias).', 'Coche: Sí o No.', 'Sábado y Domingo: Mañana, Tarde, Mañana y tarde, o No (también vale M, T, Matí, Tarda, Tot el dia…).', 'Mañana = hasta las 14:59; tarde = desde las 15:00.', 'Observaciones: opcionales (horarios, preferencias…).', 'Si un nombre ya está ese fin de semana, se actualiza en vez de duplicarse.', 'Las columnas pueden ir en cualquier orden y con los títulos en castellano o catalán.'], lOk:'con R1', lFalta:'sin R1', lMal:'choque', lIsq:'ya con árbitro en iSquad', lProp:'propuesta', lHecho:'pasado a iSquad',
     franjaB:'Franja', franjaT:p=>`Toda una franja en ${p}`, franjaAplicar:n=>n===1?'Poner de R1 en 1 partido':`Poner de R1 en ${n} partidos`, franjaNada:'No hay partidos sin R1 en esta franja.',
     franjaArb:'Árbitro', franjaQue:'Partidos sin R1 que se le ponen:', franjaChoque:n=>`Hay choques con otros partidos suyos:\n${n}`,
     proponer:'Proponer reparto', propT:(n,f)=>`Propuesta: ${n===1?'1 partido':n+' partidos'} con R1${f?` · ${f} sin nadie que pueda ir`:''}. Revísala y cámbiala si quieres antes de guardarla.`,
@@ -269,7 +315,16 @@ const T = {
     yaAqui:n=>`${n} ja és en aquest partit.`,
     vRejilla:'Graella', vLista:'Llista', vMapa:'Mapa', vistaL:'Vista', hecho:'Passat a iSquad', propuesto:'Proposta',
     progR1:(a,b)=>`${a} de ${b} amb R1`, progHecho:(a,b)=>`${a} de ${b} passats a iSquad`, progDisp:n=>n===1?'1 àrbitre disponible':`${n} àrbitres disponibles`, progSinIsq:n=>`${n} sense àrbitre a iSquad`,
-    enIsqB:'a iSquad', leyenda:'Llegenda:', lOk:'amb R1', lFalta:'sense R1', lMal:'xoc', lIsq:'ja amb àrbitre a iSquad', lProp:'proposta', lHecho:'passat a iSquad',
+    enIsqB:'a iSquad', leyenda:'Llegenda:', ayuda:'Com funciona',
+    iBoton:'Importa Excel', iPlantilla:'Descarrega la plantilla', iExportar:'Exporta la disponibilitat', iFila:'Fila', iCoche:'Cotxe', xlsDisp:'Disponibilitat',
+    iTit:n=>`Importa disponibilitat · ${n}`, iRes:(a,b,c)=>`${a} noves, ${b} s'actualitzen${c?`, ${c} amb errors (no s'importen)`:''}. Revisa la llista i prem Importa.`,
+    iNueva:'nova', iActualiza:'s\'actualitza', iImportar:n=>n===1?'Importa 1':`Importa ${n}`, iImportando:(a,b)=>`Important… ${a} de ${b}`,
+    iHecho:(n,a,e)=>`Fet: ${n} noves i ${a} actualitzades.${e?` ${e} no s'han pogut importar (en vermell).`:''}`,
+    iSinCols:'No trobo les columnes: el fitxer ha de tenir com a mínim "Nom" i "Població" a la fila de títols. Descarrega la plantilla per veure-ho.', iNoLeo:'No he pogut llegir el fitxer. Prova de desar-lo com a .xlsx.',
+    iErrNombre:'Falta el nom.', iErrPob:'Falta la població.', iErrSinCoche:'Falta la columna "Cotxe".', iErrCoche:v=>`Cotxe: no entenc "${v}" (Sí o No).`,
+    iErrSinDia:d=>`Falta la columna "${d}".`, iErrDia:(d,v)=>`${d}: no entenc "${v}" (Matí, Tarda, Matí i tarda o No).`, iErrRepe:'Repetit al fitxer.', iErrApp:'Ja l\'ha donada ell mateix des de l\'app: es deixa la seva.',
+    iEj1n:'Nom Inventat U', iEj1o:'Fins a les 19:00', iEj2n:'Nom Inventat Dos', iEj2o:'Des de les 17:00', iInstrH:'Com omplir-la', iPlantillaF:'plantilla-disponibilitat.xlsx', iDispF:'disponibilitat',
+    iInstr:['Una fila per àrbitre. Esborra els 2 exemples.', 'Nom i cognoms i Població: obligatoris (la població, per calcular les distàncies).', 'Cotxe: Sí o No.', 'Dissabte i Diumenge: Matí, Tarda, Matí i tarda, o No (també val M, T, Mañana, Tarde, Tot el dia…).', 'Matí = fins a les 14:59; tarda = des de les 15:00.', 'Observacions: opcionals (horaris, preferències…).', 'Si un nom ja hi és aquell cap de setmana, s\'actualitza en lloc de duplicar-se.', 'Les columnes poden anar en qualsevol ordre i amb els títols en català o castellà.'], lOk:'amb R1', lFalta:'sense R1', lMal:'xoc', lIsq:'ja amb àrbitre a iSquad', lProp:'proposta', lHecho:'passat a iSquad',
     franjaB:'Franja', franjaT:p=>`Tota una franja a ${p}`, franjaAplicar:n=>n===1?'Posa\'l de R1 en 1 partit':`Posa\'l de R1 en ${n} partits`, franjaNada:'No hi ha partits sense R1 en aquesta franja.',
     franjaArb:'Àrbitre', franjaQue:'Partits sense R1 que se li posen:', franjaChoque:n=>`Hi ha xocs amb altres partits seus:\n${n}`,
     proponer:'Proposa un repartiment', propT:(n,f)=>`Proposta: ${n===1?'1 partit':n+' partits'} amb R1${f?` · ${f} sense ningú que hi pugui anar`:''}. Revisa-la i canvia-la si vols abans de desar-la.`,
@@ -339,6 +394,7 @@ async function cargar(f){
   if(!r.ok){ if(TOKEN) msg(r.error||t('red'),'err'); return; }
   D=r; FINDE=r.finde; msg('');
   pintar();
+  if(window.tourAuto) tourAuto();
   // Pabellones sin ubicar todavía: el servidor sigue por tandas.
   if(r.falta>0) setTimeout(()=>cargar(), 1500);
 }
@@ -571,12 +627,15 @@ $('exportar').addEventListener('click', async ()=>{
   const rows = filtrados(plan).map(m=>{ const p=plan[m.key]||{}; return { Fecha:m.d.slice(0,10), Hora:m.d.slice(11,16), Categoría:cat(m.cat), Local:corto(m.l), Visitante:corto(m.v),
     Pabellón:corto(m.pab), Dirección:m.pista, R1:n(p.r1), R2:n(p.r2), Anotador:n(p.an), 'Km R1 (aprox.)': p.r1&&arb[p.r1] ? km(arb[p.r1], m) ?? '' : '', [t('hecho')]: HECHO().has(m.key) ? '✓' : '' }; });
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), t('xlsHoja'));
+  XLSX.utils.book_append_sheet(wb, hojaDisp(filasDisp()), t('xlsDisp'));   // la disponibilidad, como la plantilla de importar
   XLSX.writeFile(wb, `designaciones-${FINDE}.xlsx`);
 });
 
 </script>
 <script src="catalunya.js"></script>
 <script src="vistas.js"></script>
+<script src="importar.js"></script>
+<script src="tutorial.js"></script>
 <script>
 applyLang();
 if(TOKEN) entrarApp();
