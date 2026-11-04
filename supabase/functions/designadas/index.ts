@@ -7,6 +7,7 @@ import { arbitrosPublicos, cached, feed, FICHA_VALE, fixMojibake, getLatin, idPa
 import { adminIds, adminLogins, esAdmin } from "../_shared/admin.ts";
 import { madridNow, sendToUser } from "../_shared/push.ts";
 import { todas } from "../_shared/db.ts";
+import { altaArbitro, arbitrosParaAlta } from "../_shared/alta.ts";
 
 const MESES: Record<string, string> = { enero: "01", febrero: "02", marzo: "03", abril: "04", mayo: "05", junio: "06", julio: "07", agosto: "08", septiembre: "09", setiembre: "09", octubre: "10", noviembre: "11", diciembre: "12" };
 const txt = (s: string) => fixMojibake(s.replace(/<br\s*\/?>/gi, " · ").replace(/<[^>]+>/g, " ")).replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
@@ -142,10 +143,13 @@ Deno.serve(async (req) => {
   const user = await userFromRequest(db, req);
   if (!user) return json({ error: "Inicia sesión de nuevo" }, 401);
   if (!(await esAdmin(db, user.id))) return json({ error: "No disponible" }, 403);
-  let body: { refresh?: boolean; action?: string } = {};
+  let body: { refresh?: boolean; action?: string; id_arbitro?: string; email?: string; origin?: string } = {};
   try { body = await req.json(); } catch { /* sin cuerpo */ }
   if (body.action === "admin") return json({ ok: true });   // la web solo pregunta si enseña los paneles
   if (body.action === "salud") return json({ ok: true, ...(await salud(db)) });
+  // Altas hechas por un administrador (cuando iSquad no deja entrar a nuestro servidor): ver _shared/alta.ts.
+  if (body.action === "arbitros-alta") return json({ ok: true, arbitros: await arbitrosParaAlta(db) });
+  if (body.action === "alta-arbitro") return json(await altaArbitro(db, body));
   if (body.action === "sin-arbitro") return json({ ok: true, ...(await sinArbitro(db, !!body.refresh, t0)) });
   if (body.refresh) await db.from("pub_cache").delete().eq("key", "desig-global");
 

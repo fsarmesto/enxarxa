@@ -117,6 +117,22 @@ La respuesta incluye un resumen de km por árbitro (`km: [...]`); los registros 
 - Algunas direcciones son un código de Google Maps sin calle ni CP ("VM47+RH SANTA COLOMA DE FARNERS"): se busca el pabellón
   por su nombre (ver Km por carretera) y, si no, el centro de la población.
 
+## iSquad bloquea al servidor (desde el 4-nov-2026): ficha pública y altas a mano
+
+- Ese día `voleibol.isquad.es` (área privada) empezó a dar **403** a Supabase (la web pública `resultadosvoleibol` no). No
+  saltárselo (ni otra IP ni disfrazarse de navegador): si iSquad no quiere programas en el área privada, se habla con ellos.
+- **Respaldo**: si el área privada falla ("conexion") o la cuenta no tiene contraseña, `syncPublico` (`_shared/sync.ts`)
+  lee la ficha pública del árbitro (`partidos_arbitro.php`, parser en `_shared/fichapub.ts`): solo lo próximo. Lo ya
+  guardado se reconoce por `id_partido` (buscador público) o fecha+hora+pabellón y solo se le cambia fecha, hora y
+  pabellón; lo nuevo entra como `PUB-<id_partido>`; solo las `PUB-` se quitan si dejan de salir. Rol y equipo arbitral,
+  del Previo público. `profiles.last_error = "publico"` (aviso en la app). Cuando el área privada vuelve,
+  `fundirPublicos` borra las `PUB-` y pasa lo puesto a mano (pagado, km…) a la designación de verdad.
+- **Altas por un administrador** (`_shared/alta.ts`, Administración → "Dar de alta a un árbitro"): árbitro de la lista
+  pública de la FCVB + su email de iSquad (el mismo login caerá en la misma cuenta si iSquad vuelve a dejar entrar) +
+  población. Cuenta sin contraseña; enlace `?acceso=<token>` de un solo uso (1 h, `mailer_otp_exp`); al abrirlo acepta
+  las condiciones (`auth-isquad` action "aceptar"). Si ya tiene cuenta, da otro enlace.
+- Pruebas: `tools/prueba-ficha-publica.ts` (26), `tools/prueba-login-unico.ts` (7) y `alta.mjs` del arnés (20).
+
 ## Reglas de pago (en `docs/index.html`)
 
 - Tarifas: objeto `CATS` (anexo 2026/27) y `CATS_2526` (temporada 25/26, sacada de los recibos el 29-oct-2026: 2026/27 sin el

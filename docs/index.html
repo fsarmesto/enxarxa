@@ -992,8 +992,16 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <button class="primary" type="submit" id="aBtn">Entrar</button>
       <div class="err" id="aErr" role="alert"></div>
     </form>
+    <!-- Enlace de acceso de una cuenta dada de alta por un administrador (?acceso=…; supabase/functions/_shared/alta.ts). -->
+    <form id="accesoForm" class="hidden">
+      <div class="notice"><strong>Te han dado de alta en EnXarxa.</strong> No hace falta tu contraseña de iSquad y no se guarda ninguna: tus próximas designaciones se leen de tu ficha pública de árbitro en la web de la FCVB. Lo que no está en esa web (recibos y partidos ya arbitrados) no se rellena solo.</div>
+      <label class="chk small" style="display:flex;margin-bottom:8px;white-space:normal"><input type="checkbox" id="xAge"> Tengo 14 años o más</label>
+      <label class="chk small" style="display:flex;margin-bottom:14px;white-space:normal"><input type="checkbox" id="xConsent"> <span>Lo entiendo y acepto las <a href="condiciones.html" target="_blank" rel="noopener">condiciones de uso</a> y la <a href="privacidad.html" target="_blank" rel="noopener">política de privacidad</a></span></label>
+      <button class="primary" type="submit" id="xBtn">Entrar</button>
+      <div class="err" id="xErr" role="alert"></div>
+    </form>
   </section>
-  <p class="muted small">Entras con los mismos datos que en iSquad. La primera vez tarda unos segundos porque trae tus partidos.</p>
+  <p class="muted small" id="authNote">Entras con los mismos datos que en iSquad. La primera vez tarda unos segundos porque trae tus partidos.</p>
   <p class="small hidden" id="apkLogin"><a href="app/enxarxa.apk" download style="color:inherit;font-weight:700">Descarga la app para Android</a> · gratis, con recordatorio del domingo.</p>
   <p class="small muted legal-links"><a href="condiciones.html" target="_blank" rel="noopener">Condiciones de uso</a> · <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a> · <a href="aviso-legal.html" target="_blank" rel="noopener">Aviso legal</a></p>
 </main>
@@ -1181,6 +1189,19 @@ table.clas tr.hist td{padding:4px 0 10px;text-align:left;background:transparent;
       <h3 id="h-adm-desig">Designaciones publicadas</h3>
       <p class="small muted">Qué categorías tienen ya partidos designados esta semana (de lunes a domingo), en toda la federación, según las fichas públicas de los árbitros en iSquad.</p>
       <div id="desigBody"></div>
+    </section>
+    <section class="aj-card" id="adm-alta" aria-labelledby="h-adm-alta">
+      <h3 id="h-adm-alta">Dar de alta a un árbitro</h3>
+      <p class="small muted">Para cuando iSquad no deja entrar a EnXarxa. Solo árbitros que salen en la lista pública de la FCVB. La cuenta no lleva contraseña de iSquad: sus próximas designaciones salen de su ficha pública. Te da un enlace de acceso (vale 1 hora y un solo uso) para que se lo pases. Si ya tiene cuenta, da un enlace nuevo.</p>
+      <form id="altaForm" autocomplete="off">
+        <label class="f">Árbitro<input type="text" id="alNom" list="alLista" placeholder="Escribe su nombre" required></label>
+        <datalist id="alLista"></datalist>
+        <label class="f">Email con el que entra en iSquad<input type="text" id="alEmail" inputmode="email" autocapitalize="off" spellcheck="false" required></label>
+        <label class="f">Población desde la que sale a arbitrar<input type="text" id="alPob" placeholder="Capellades"></label>
+        <button class="primary" type="submit" id="alBtn">Dar de alta</button>
+        <div class="err" id="alErr" role="alert"></div>
+      </form>
+      <div id="alRes" class="hidden" aria-live="polite"></div>
     </section>
     <section class="aj-card" id="adm-salud" aria-labelledby="h-adm-salud">
       <h3 id="h-adm-salud">Salud de la app</h3>
@@ -2033,6 +2054,8 @@ function render(){
   if(GUEST){ b.innerHTML='<strong>Modo sin guardar.</strong> No se ha guardado nada: al cerrar o recargar esta pestaña desaparece todo. Los cambios que hagas tampoco se guardan.'; b.classList.remove('hidden'); }
   else if(P.last_error==='credenciales'){ b.innerHTML='iSquad ya no acepta tu contraseña guardada. <button class="ghost" id="btnRelogin">Vuelve a entrar</button> con la nueva y se actualizará.'; b.classList.remove('hidden'); $('btnRelogin').onclick=logout; }
   else if(P.last_error==='conexion'){ b.textContent='La última actualización no pudo conectar con iSquad. Se reintentará sola.'; b.classList.remove('hidden'); }
+  // Desde el 4-nov-2026: si el área privada de iSquad no deja entrar, las próximas designaciones salen de la ficha pública.
+  else if(P.last_error==='publico'){ b.textContent='Ahora mismo iSquad no deja entrar a EnXarxa: tus próximas designaciones salen de la web pública de la FCVB. Cobros (recibos y partidos ya arbitrados) no se actualiza hasta que vuelva.'; b.classList.remove('hidden'); }
   else b.classList.add('hidden');
 
   const led = $('ledger');
@@ -2519,6 +2542,20 @@ $('authForm').addEventListener('submit', async e=>{
   if(error){ $('aErr').textContent='No se ha podido abrir la sesión. Prueba de nuevo.'; return; }
   $('aPass').value='';
   await start();
+});
+
+$('accesoForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  if(!$('xAge').checked){ $('xErr').textContent=tr(UNDER14); return; }
+  if(!$('xConsent').checked){ $('xErr').textContent='Marca la casilla para continuar.'; return; }
+  $('xErr').textContent=''; $('xBtn').disabled=true;
+  const {error} = await sb.auth.verifyOtp({token_hash:ACCESO, type:'magiclink'});
+  if(error){ $('xBtn').disabled=false; $('xErr').textContent='El enlace ha caducado o ya se ha usado. Pide otro a quien te dio de alta.'; return; }
+  const r = await callFn('auth-isquad',{action:'aceptar', consent:true, age14:true});
+  $('xBtn').disabled=false;
+  if(!r.ok){ $('xErr').textContent=r.error||'No se ha podido entrar. Prueba de nuevo.'; return; }
+  history.replaceState(null,'',location.pathname);   // el enlace ya no sirve: fuera de la barra de direcciones
+  location.reload();
 });
 
 /* ---------- App instalable y recordatorio del domingo (Web Push) ---------- */
@@ -3399,8 +3436,30 @@ document.querySelector('.aj-nav').addEventListener('click', e=>{
 function renderAdmin(){
   if(ADMIN===null){ $('admKpis').innerHTML='<p class="small muted">Cargando…</p>'; return; }
   if(ADM_LOADED) return; ADM_LOADED=true;
-  SIN_TRY=0; loadSalud(); loadSin(false); loadDesig(false);
+  SIN_TRY=0; loadSalud(); loadSin(false); loadDesig(false); loadAlta();
 }
+
+/* ---------- Alta de árbitros por un administrador (supabase/functions/_shared/alta.ts) ---------- */
+let ALTA_ARB=[];
+async function loadAlta(){
+  const r = await admFn({action:'arbitros-alta'});
+  ALTA_ARB = r.ok && Array.isArray(r.arbitros) ? r.arbitros : [];
+  $('alLista').innerHTML = ALTA_ARB.map(a=>`<option value="${esc(a.nombre)}">${a.cuenta?'ya tiene cuenta':''}</option>`).join('');
+}
+$('altaForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const nom=$('alNom').value.trim().toLowerCase(), a=ALTA_ARB.find(x=>x.nombre.toLowerCase()===nom);
+  if(!a){ $('alErr').textContent='Elige al árbitro de la lista (tal como sale).'; return; }
+  $('alErr').textContent=''; $('alBtn').disabled=true; $('alRes').classList.add('hidden');
+  const r = await admFn({action:'alta-arbitro', id_arbitro:a.id, email:$('alEmail').value, origin:$('alPob').value});
+  $('alBtn').disabled=false;
+  if(!r.ok){ $('alErr').textContent=r.error||'No se ha podido dar de alta.'; return; }
+  $('alRes').innerHTML=`<p class="small"><strong>${esc(r.nombre)}</strong>: ${r.nuevo?'cuenta creada.':'ya tenía cuenta: enlace nuevo.'} Pásale este enlace (vale 1 hora y un solo uso):</p>
+    <p><input type="text" readonly id="alLink" value="${esc(r.enlace)}" style="width:100%"></p><button type="button" class="ghost" id="alCopy">Copiar enlace</button>`;
+  $('alRes').classList.remove('hidden');
+  $('alCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(r.enlace); $('alCopy').textContent='Copiado'; }catch(e){ $('alLink').select(); } };
+  if(r.nuevo){ a.cuenta=true; }
+});
 
 /* ---------- Partidos sin árbitro de aquí al domingo (solo admins) ---------- */
 let SIN_T=null, SIN_TRY=0;
@@ -3482,7 +3541,7 @@ async function loadSalud(){
   $('saludBody').innerHTML='<p class="small muted">Cargando…</p>';
   const r=await admFn({action:'salud'});
   if(!r.ok){ $('saludBody').innerHTML=`<p class="small muted">${esc(r.error||'No se ha podido cargar')}</p>`; $('admKpis').innerHTML=''; return; }
-  const arb=r.usuarios.filter(u=>u.tipo!=='deportista'), dep=r.usuarios.length-arb.length, err=arb.filter(u=>u.last_error);
+  const arb=r.usuarios.filter(u=>u.tipo!=='deportista'), dep=r.usuarios.length-arb.length, err=arb.filter(u=>u.last_error && u.last_error!=='publico');
   // Cifras de arriba: uso de la app y lo que hay que mirar (en rojo si hay árbitros con error).
   const hoy=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Madrid'}), lg=r.logins||[];
   const kpi=(v,l,s,bad)=>`<div class="kpi${bad?' bad':''}"><div class="v">${v}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
@@ -3496,8 +3555,8 @@ async function loadSalud(){
   const c=r.cache||{}, h=k=>c[k]?ago(c[k]):'—';
   let html=`<div class="dg-head"><span>${r.usuarios.length} usuarios (${arb.length} ${arb.length===1?'árbitro':'árbitros'}${dep?`, ${dep} ${dep===1?'jugador o entrenador':'jugadores o entrenadores'}`:''}) · ${err.length?`<b style="color:var(--pend)">${err.length} con error</b>`:'ninguno con error'} · ${r.dispositivos} dispositivos con avisos</span><button class="ghost" id="hlRefresh">Actualizar</button></div>
     <p class="small muted">Índice de plantillas: ${r.indice.revisados} de ${r.indice.equipos} equipos · partidos de la federación leídos ${h('feed')} · designaciones ${h('desig-global')} · vigilancia de equipos ${r.vigilancia?ago(r.vigilancia):'—'}</p>`;
-  html+=r.usuarios.map(u=>`<div class="hl-row${u.last_error?' bad':''}"><span data-noi18n>#${esc(u.id)}</span><span class="small muted">${u.tipo==='deportista'?'jugador/entrenador':'árbitro'}${u.avisos?` · 🔔 ${u.avisos}`:''}</span>
-    <span class="s">${u.tipo==='deportista' ? `alta ${esc(ago(u.alta))}` : u.last_error ? `Error: ${esc(u.last_error)} · última actualización ${esc(ago(u.last_sync))}` : `Actualizado ${esc(ago(u.last_sync))}`}</span></div>`).join('');
+  html+=r.usuarios.map(u=>`<div class="hl-row${u.last_error && u.last_error!=='publico'?' bad':''}"><span data-noi18n>#${esc(u.id)}</span><span class="small muted">${u.tipo==='deportista'?'jugador/entrenador':'árbitro'}${u.avisos?` · 🔔 ${u.avisos}`:''}</span>
+    <span class="s">${u.tipo==='deportista' ? `alta ${esc(ago(u.alta))}` : u.last_error==='publico' ? `De la ficha pública (iSquad no deja entrar) · última actualización completa ${esc(ago(u.last_sync))}` : u.last_error ? `Error: ${esc(u.last_error)} · última actualización ${esc(ago(u.last_sync))}` : `Actualizado ${esc(ago(u.last_sync))}`}</span></div>`).join('');
   $('saludBody').innerHTML=html; $('hlRefresh').onclick=loadSalud;
 }
 
@@ -3532,7 +3591,10 @@ function show(v){
 async function start(){
   try{ await start0(); } finally{ pepperLoader.done(); }   // app o login, también si algo falla
 }
+// ?acceso=…: enlace de acceso de un solo uso (1 hora) de una cuenta dada de alta por un administrador.
+const ACCESO = new URLSearchParams(location.search).get('acceso');
 async function start0(){
+  if(ACCESO){ $('authForm').classList.add('hidden'); $('authNote').classList.add('hidden'); $('accesoForm').classList.remove('hidden'); show('auth'); return; }
   let session=null, aerr=null; try{ ({data:{session}, error:aerr} = await sb.auth.getSession()); }catch(e){ aerr=e; }
   // Token caducado y sin poder renovarlo por la red (cobertura débil con el móvil "en línea"): la copia local, no la
   // pantalla de entrar; se reintenta cada 30 s y, cuando hay sesión, se recarga.
