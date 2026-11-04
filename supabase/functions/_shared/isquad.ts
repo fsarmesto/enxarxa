@@ -87,6 +87,9 @@ async function loginUnico(jar: Jar, area: string, login: string, password: strin
   rastro.length = 0;
   rastro.push(`GET loginunico?area=${area}`);
   const form = await get(`${BASE}/loginunico.php?area=${area}`, jar);
+  // Sin formulario (403 desde el 4-nov-2026: iSquad no deja pasar a nuestro servidor): no se envía la contraseña. Es un
+  // fallo de conexión, no de contraseña (no cuenta como intento y la sincronización tira de la ficha pública).
+  if (form.status >= 400) { await form.body?.cancel(); rastro.push(`  form ${form.status}: sin formulario, no se envía nada`); throw new Error(`iSquad ${form.status}`); }
   const html = await form.text();
   const csrf = html.match(/name="csrf_token"\s+value="([^"]+)"/)?.[1] ?? "";
   const res = await fetch(`${BASE}/loginunico.php`, {

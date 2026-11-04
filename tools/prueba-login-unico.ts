@@ -50,4 +50,10 @@ escenario = "nada"; posts = 0;
 const e = await fetchDesignaciones("x@y.es", "p").then(() => null, (e) => e);
 const d = await loginDeportista(e.sesion).then(() => null, (e) => e);
 check(d instanceof IsquadAuthError && posts === 1, "ni árbitro ni jugador ni entrenador: error y 1 solo envío");
+// iSquad no deja pasar (403 en el formulario): no se envía la contraseña y es un fallo de conexión, no de contraseña.
+escenario = "403"; posts = 0;
+const orig = globalThis.fetch;
+globalThis.fetch = ((i: string | URL | Request, o?: RequestInit) => new URL(String(i)).pathname === "/loginunico.php" && o?.method !== "POST" ? Promise.resolve(new Response("", { status: 403 })) : orig(i, o)) as typeof fetch;
+const e403 = await fetchDesignaciones("x@y.es", "p").then(() => null, (e) => e);
+check(!(e403 instanceof IsquadAuthError) && /403/.test(String(e403?.message)) && posts === 0, `403: error de conexión y 0 envíos de la contraseña · ${e403?.message}`);
 console.log(`${ok} OK, ${mal} MAL`); Deno.exit(mal ? 1 : 0);
