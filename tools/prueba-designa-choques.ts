@@ -5,10 +5,10 @@
 // Copia la función sin Deno.serve junto a index.ts (para que resuelvan los imports de _shared) y la borra al acabar.
 const DIR = new URL("../supabase/functions/designa/", import.meta.url);
 const MOD = new URL("_prueba_mod.ts", DIR);
-await Deno.writeTextFile(MOD, (await Deno.readTextFile(new URL("index.ts", DIR))).split("Deno.serve(")[0] + "\nexport { choqueDe, lote, importar, porNombre, ubicar, equiposDe };\n");
+await Deno.writeTextFile(MOD, (await Deno.readTextFile(new URL("index.ts", DIR))).split("Deno.serve(")[0] + "\nexport { choqueDe, lote, importar, porNombre, ubicar, equiposDe, ubicarPendientes };\n");
 // deno-lint-ignore no-explicit-any
-let choqueDe: any, lote: any, importar: any, porNombre: any, ubicar: any, equiposDe: any;
-try { ({ choqueDe, lote, importar, porNombre, ubicar, equiposDe } = await import(MOD.href)); } finally { await Deno.remove(MOD); }
+let choqueDe: any, lote: any, importar: any, porNombre: any, ubicar: any, equiposDe: any, ubicarPendientes: any;
+try { ({ choqueDe, lote, importar, porNombre, ubicar, equiposDe, ubicarPendientes } = await import(MOD.href)); } finally { await Deno.remove(MOD); }
 const SAB = "2026-11-07", DOM = "2026-11-08";
 const P = (h: string, l: string, v: string, pab: string, d = SAB) => ({ d: `${d} ${h}`, c: true, l, v, cl: "", cv: "", comp: "", cat: "SENIOR", pab, pista: "" });
 const feedRows = [P("08:00", "CV MANRESA", "CV A", "PAVELLÓ CONGOST - PISTA 1"), P("08:00", "CV SANT QUIRZE", "CV B", "PAVELLÓ SANT QUIRZE"),
@@ -24,17 +24,18 @@ const geo = (query: string) => sinCache ? null : /VILLARRIBA/.test(query) ? { fo
 let dispYa: { id: string; nombre: string; user_id: string | null }[] = [];
 const insertadas: Record<string, unknown>[] = [], actualizadas: Record<string, unknown>[] = [];
 let filtro = "";
-const db = { from(t: string) { const q: any = { select: () => q, eq: (_k: string, v: string) => { filtro = String(v); return q; }, in: () => q, is: () => q, order: () => q, single: async () => ({ data: { id: "nuevo" }, error: null }),
+const db = { from(t: string) { const q: any = { select: () => q, not: () => q, eq: (_k: string, v: string) => { filtro = String(v); return q; }, in: () => q, is: () => q, order: () => q, single: async () => ({ data: { id: "nuevo" }, error: null }),
   insert: (row: Record<string, unknown>) => { insertadas.push(row); return q; }, update: (row: Record<string, unknown>) => { actualizadas.push(row); return { eq: async () => ({ error: null }) }; },
   upsert: async (row: { match_key: string; rol: string }) => { if (t === "designa_asig") { guardadas.push(row); asig.push({ match_key: row.match_key, rol: row.rol }); } return { error: null }; },
   maybeSingle: async () => ({ data: t === "pub_cache" ? { data: feedRows, fetched_at: new Date().toISOString() } : t === "designa_disp" ? d : t === "geo_cache" ? geo(filtro) : null }),
   // deno-lint-ignore no-explicit-any
-  delete: () => { borrados.push(t); return q; },
+  delete: () => { borrados.push(t); return q; }, range: async () => ({ data: t === "designa_pab" ? tablaPab : [], error: null }),
   then: (ok: any) => ok({ data: t === "designa_asig" ? asig : t === "matches" ? matches : t === "designa_disp" ? dispYa : t === "fav_teams" ? favs : [], error: null }) };
   if (t === "designa_pab" || t === "geo_cache") q.upsert = async (row: Record<string, unknown>) => { if (t === "designa_pab") pabs.push(row); return { error: null }; };
   return q; } };
 const borrados: string[] = [], pabs: Record<string, unknown>[] = [];
 let favs: Record<string, unknown>[] = [];
+let tablaPab: Record<string, unknown>[] = [];
 const d = { id: "x", nombre: "FERRAN SANCHIS", user_id: "u1" };
 let fallos = 0; const check = (c: boolean, t: string) => { console.log((c ? "OK   " : "FALLA") + " " + t); if (!c) fallos++; };
 const [M8, SQ8, M10, V930, I16, M830, M9] = feedRows.map(key);
@@ -97,6 +98,21 @@ res = await (await ubicar(db, { pab: "PAVELLÓ MUNICIPAL CABRILS", quitar: true 
 check(res.ok && borrados.includes("designa_pab"), "ubicar: quitar la ubicación a mano");
 res = await (await ubicar(db, { pab: "", texto: "Cabrils" })).json();
 check(!!res.error, "ubicar sin pabellón: petición no válida");
+// ---------- Pabellones de antemano (precargar): solo se buscan los que faltan ----------
+const viejo = new Date(Date.now() - 40 * 864e5).toISOString(), hoy = new Date().toISOString();
+tablaPab = [{ pab_key: "PAVELLO A", origen: "manual", lon: 1, lat: 41, buscado_at: viejo },   // a mano: no se toca
+  { pab_key: "PAVELLO B", origen: "auto", lon: null, lat: null, buscado_at: viejo },        // no encontrado hace 40 días: se reintenta
+  { pab_key: "PAVELLO C", origen: "auto", lon: null, lat: null, buscado_at: hoy },          // no encontrado hoy: se deja
+  { pab_key: "PAVELLO D", origen: "auto", lon: 2, lat: 41.5, buscado_at: viejo }];          // ya ubicado: se deja
+pabs.length = 0;
+const pp = ["PAVELLÓ A - PISTA 1", "PAVELLÓ B", "PAVELLÓ C", "PAVELLÓ D", "PAVELLÓ E", "", "PAVELLÓ E - PISTA 2"].map((x) => Pt(x, "CV PROVA"));
+const up = await ubicarPendientes(db, pp, Date.now() + 30_000);
+check(up.hechos === 2 && up.falta === 0 && pabs.map((x) => x.pab_key).sort().join(",") === "PAVELLO B,PAVELLO E", "precargar: solo el nuevo (E, una vez aunque tenga 2 pistas) y el no encontrado hace 30+ días (B) · " + pabs.map((x) => x.pab_key).join(","));
+check(pabs.every((x) => x.origen === "auto" && x.lat != null), "precargar: guardados como automáticos, con coordenadas");
+check(up.tabla.get("PAVELLO A").origen === "manual" && up.tabla.size === 5, "precargar: el puesto a mano sigue mandando; el partido sin pabellón no cuenta");
+const lim = await ubicarPendientes(db, [Pt("PAVELLÓ F", "X"), Pt("PAVELLÓ G", "X")], Date.now() - 1);
+check(lim.hechos === 0 && lim.falta === 2, "precargar: respeta la hora límite (lo que falta, la próxima pasada)");
+
 // ---------- Equipos de cada árbitro ----------
 favs = [{ user_id: "u1", club_id: "77", club: "CE SABADELL", team: "CE SABADELL", cat: "PRIMERA DIVISION JUVENIL", rol: "entrenador" }];
 const ps = [{ d: `${SAB} 12:00`, c: true, l: "CV MANRESA", v: "CE SABADELL", cl: "12", cv: "77", comp: "", cat: "PRIMERA DIVISION JUVENIL FEMENINO", pab: "PAVELLO CONGOST", pista: "" },

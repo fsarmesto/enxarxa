@@ -1,11 +1,17 @@
--- Panel del designador (4-nov-2026): ubicación de un pabellón puesta a mano por el designador (botón "Ubicar"). Manda
--- sobre la automática y no caduca: vale para todos los fines de semana. La clave es el nombre sin "- PISTA n" (sinPista).
+-- Pabellones del panel del designador (4-nov-2026): ubicados de antemano para toda la temporada (Ferran: "tendrían que
+-- ir pre-cargados; solo que se unan los partidos a los pabellones"). La clave es el nombre sin "- PISTA n" (sinPista).
+-- origen 'auto': lo ubica la función designa (acción precargar, cron de cada noche, o al momento si sale uno nuevo);
+--   lon/lat null = no encontrado (se vuelve a buscar a los 30 días).
+-- origen 'manual': lo ha ubicado el designador ("Ubicar"); manda y no se vuelve a buscar.
 create table public.designa_pab (
   pab_key     text primary key,
   nombre      text not null,
-  texto       text not null,              -- lo que escribió (dirección o población)
-  lon         double precision not null,
-  lat         double precision not null,
+  origen      text not null default 'auto' check (origen in ('auto','manual')),
+  fuente      text,                        -- auto: isquad (dirección de una designación), cp, nombre; manual: null
+  texto       text,                        -- manual: lo que escribió el designador
+  lon         double precision,
+  lat         double precision,
+  buscado_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
 alter table public.designa_pab enable row level security;

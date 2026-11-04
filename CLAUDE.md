@@ -855,15 +855,19 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   `avisoJuega()` en la web: "entrena/juega en este partido" > "juega a las 17:00 (pabellón)" (si no llegaría, misma regla
   que los choques) > "es de su club (X)". Se marca con ⚠ en desplegables, recomendados, botones de franja, tarjeta y
   pestaña Árbitros; NO se quita de las recomendaciones (va detrás en franja y propuesta: +40). En la privacidad (4-nov).
-- **Ubicar pabellones** (4-nov-2026): el listado público solo trae el nombre del pabellón (ni dirección ni población; la
-  ficha del club tampoco). Automático (`pabellones`, caché `designa-geo3:<sábado>`): dirección de las designaciones de
-  iSquad (`matches.addr`) → código postal → `porNombre`: Photon por el nombre, aceptado solo si es un lugar
-  (leisure/building/amenity) y una palabra propia de su población sale en el nombre de algún equipo local de ese pabellón
-  o del propio pabellón (probado con 15 reales: aciertos aceptados, el Perelló/Amposta rechazados). A mano: botón
-  "Ubicar"/"Cambiar ubicación" (cuadrícula, Por pabellón, lista de sin ubicar bajo el mapa) → acción `ubicar` (dirección
-  con `locate`, si no población, si no lugar) → tabla `designa_pab` (migración 038, clave = nombre sin pista, para
-  siempre; manda sobre la automática; "Quitar la ubicación puesta a mano"). Los partidos sin nombre de pabellón (425 en
-  la temporada) se agrupan por equipo local ("Sin pabellón (CV Granollers)", `pabK`/`pabNom`) y no se pueden ubicar.
+- **Pabellones de antemano** (4-nov-2026, Ferran: "tendrían que ir pre-cargados; solo que se unan los partidos a los
+  pabellones"): tabla `designa_pab` (migración 038) con TODOS los pabellones de la temporada, clave = nombre sin pista.
+  `origen 'auto'`: los ubica `ubicarPendientes` (acción `precargar`, cron `designa-pabellones` de 1 a 6 UTC cada hora,
+  ~50 s por pasada; y el panel, al momento, si sale uno nuevo); `lon/lat` null = no encontrado, se reintenta a los 30
+  días. `origen 'manual'`: botón "Ubicar"/"Cambiar ubicación" del designador (acción `ubicar`: dirección con `locate`, si
+  no población, si no lugar); manda y no se vuelve a buscar; "Quitar" lo borra y se vuelve a ubicar solo. El panel solo
+  une partidos y pabellones. El listado público solo trae el NOMBRE del pabellón (ni dirección ni población; la ficha
+  del club tampoco). Orden automático: dirección de las designaciones de iSquad (`matches.addr`) → código postal →
+  `porNombre`: Photon por el nombre, aceptado solo si es un lugar (leisure/building/amenity) y una palabra propia de su
+  población sale en el nombre de algún equipo local del pabellón o del propio pabellón (probado con 15 reales: aciertos
+  aceptados; el Perelló/Amposta rechazados). Los partidos sin nombre de pabellón (425 en la temporada) se agrupan por
+  equipo local ("Sin pabellón (CV Granollers)", `pabK`/`pabNom`) y no se pueden ubicar. (La caché `designa-geo2/3` de
+  pub_cache ya no se usa.)
 - **Km desde donde estará** (4-nov-2026, Ferran: "si me designan en Terrassa, el siguiente no se cuenta desde
   Capellades"): `origen()`/`kmAct()` en index.html. Si ese día tiene otro partido (plan o iSquad) que empieza a menos de
   4 h (`VUELVE_CASA`), los km salen de ese pabellón (el más cercano en hora, antes o después); si no, o si ese pabellón no
@@ -875,12 +879,12 @@ Vista previa local: copiar `docs/` a una carpeta temporal, sustituir el `<script
   Km = línea recta × 1,25 entre la población del árbitro y el pabellón (Photon vía `geocode`/`locate`, sin gastar rutas
   ORS); se enseñan como "≈". El listado de la federación no trae la calle: la dirección sale de `matches.addr` (designaciones
   de los árbitros de la app) por el nombre del pabellón sin "- PISTA n" (`sinPista`). 3-nov: 443 de 707 partidos ubicados.
-  Pabellones en `pub_cache designa-geo2:<sábado>`, por tandas de 40 s (la web repite).
+  Pabellones: ver "Pabellones de antemano" (tabla `designa_pab`).
 - Datos: `designa_disp`, `designa_asig` (migración 035), `designa_hecho` (037) y `designa_pab` (038, sin acceso desde la web: todo por la función `designa`,
   `verify_jwt = false`). Se borran a las 4 semanas del fin de semana (al abrir el panel).
 - Pruebas: banco con supabase y `designa` simulados en `~/work/enxarxa-pruebas` (en la máquina del trabajo): `panel.mjs`,
   `choques.mjs`, `visual.mjs`, `imptour.mjs`, `pabellon.mjs`, `origen.mjs`, `ferran.mjs` y `ubicjuega.mjs` (con `localStorage designa-vista` y `designa-tour`; el simulador lleva
-  `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote, importar, ubicar por nombre y a mano, equipos).
+  `hecho`, `lote` e `importar`). Servidor: `tools/prueba-designa-choques.ts` (choques, lote, importar, ubicar por nombre y a mano, precargar, equipos).
 
 ## Acta electrónica (prototipo para la FCVB, 3-nov-2026)
 
